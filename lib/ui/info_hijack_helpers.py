@@ -609,12 +609,12 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Direct videodb URL approach - much more efficient for large libraries.
-    Uses ActivateWindow with direct videodb URLs to bypass library navigation.
+    JSON-RPC approach to open video info with full Kodi-generated metadata.
+    Uses GUI.ActivateWindow to directly open DialogVideoInfo with database item.
     """
     try:
         overall_start_time = time.perf_counter()
-        logger.info(f"🎬 HIJACK HELPERS: Starting DIRECT hijack process for {db_type} {db_id}")
+        logger.info(f"🎬 HIJACK HELPERS: Starting JSON-RPC hijack process for {db_type} {db_id}")
         
         # 🔒 SUBSTEP 1: Close any open dialog first
         substep1_start = time.perf_counter()
@@ -631,22 +631,64 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep1_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
         
-        # 🚀 SUBSTEP 2: Skip direct JSON-RPC methods - they only show ListItem metadata, not full Kodi database metadata
+        # 🚀 SUBSTEP 2: Try JSON-RPC GUI.ActivateWindow approach for full Kodi metadata
         substep2_start = time.perf_counter()
-        logger.info(f"🚀 SUBSTEP 2: Skipping direct JSON-RPC methods (limited metadata) - going directly to XSP hijack for full database metadata")
+        logger.info(f"🚀 SUBSTEP 2: Attempting JSON-RPC GUI.ActivateWindow for {db_type} {db_id}")
         
-        substep2_end = time.perf_counter()
-        logger.info(f"⚠️ SUBSTEP 2: Skipped direct methods to ensure full metadata population, proceeding to XSP method")
+        # Build the item parameter based on media type
+        if db_type == "movie":
+            item_param = {"movieid": int(db_id)}
+        elif db_type == "episode":
+            item_param = {"episodeid": int(db_id)}
+        elif db_type == "musicvideo":
+            item_param = {"musicvideoid": int(db_id)}
+        else:
+            logger.warning(f"⚠️ SUBSTEP 2: Unsupported db_type for JSON-RPC: {db_type}")
+            return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
         
-        # 📁 SUBSTEP 3: Fallback to XSP method for difficult cases
-        logger.info(f"📁 SUBSTEP 3: Falling back to XSP method for {db_type} {db_id}")
-        return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
+        # Use JSON-RPC to activate the DialogVideoInfo window
+        request = {
+            "jsonrpc": "2.0",
+            "method": "GUI.ActivateWindow",
+            "params": {
+                "window": "DialogVideoInfo",
+                "parameters": [item_param]
+            },
+            "id": 1
+        }
+        
+        logger.info(f"SUBSTEP 2: Sending JSON-RPC request: {json.dumps(request)}")
+        response_str = xbmc.executeJSONRPC(json.dumps(request))
+        logger.info(f"SUBSTEP 2: JSON-RPC response: {response_str}")
+        
+        try:
+            response = json.loads(response_str)
+            if "error" in response:
+                logger.warning(f"⚠️ SUBSTEP 2: JSON-RPC error: {response['error']} - falling back to XSP method")
+                return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
+            else:
+                logger.info(f"✅ SUBSTEP 2: JSON-RPC request successful")
+        except json.JSONDecodeError:
+            logger.warning(f"⚠️ SUBSTEP 2: Failed to parse JSON-RPC response - falling back to XSP method")
+            return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
+        
+        # Wait for the dialog to open
+        if _wait_for_info_dialog(timeout=5.0):
+            substep2_end = time.perf_counter()
+            overall_end_time = time.perf_counter()
+            logger.info(f"✅ JSON-RPC SUCCESS: Info dialog opened in {substep2_end - substep2_start:.3f}s")
+            logger.info(f"🎉 HIJACK HELPERS: ✅ JSON-RPC hijack completed for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+            return True
+        else:
+            logger.warning(f"⚠️ SUBSTEP 2: JSON-RPC dialog didn't open in time - falling back to XSP method")
+            return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
         
     except Exception as e:
-        logger.error(f"💥 HIJACK HELPERS: Exception in direct hijack process for {db_type} {db_id}: {e}")
+        logger.error(f"💥 HIJACK HELPERS: Exception in JSON-RPC hijack process for {db_type} {db_id}: {e}")
         import traceback
         logger.error(f"HIJACK HELPERS: Traceback: {traceback.format_exc()}")
-        return False
+        # Fallback to XSP method on any exception
+        return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
 
 def _open_native_info_via_xsp(db_type: str, db_id: int, logger, overall_start_time: float) -> bool:
     """
