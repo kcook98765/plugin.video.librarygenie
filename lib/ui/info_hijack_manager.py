@@ -94,60 +94,21 @@ class InfoHijackManager:
                                 self._logger.error(f"HIJACK: Invalid DBID '{dbid}' - cannot convert to integer")
                                 return
                             
-                            # 🚀 STEP 3: OPEN NATIVE INFO (prefer direct Dialog().info with DBID)
-                            self._logger.info(f"🚀 HIJACK STEP 3: OPENING NATIVE INFO (direct) for {dbtype} {dbid_int}")
+                            # 🚀 STEP 3: OPEN NATIVE INFO VIA XSP
+                            self._logger.info(f"🚀 HIJACK STEP 3: OPENING NATIVE INFO for {dbtype} {dbid_int}")
                             
                             start_time = time.time()
-                            used_direct = False
+                            ok = open_native_info_fast(dbtype, dbid_int, self._logger)
+                            end_time = time.time()
                             
-                            # Optional path hint: if you have it on the current ListItem, pass it; otherwise None.
-                            path_hint = xbmc.getInfoLabel('ListItem.FileNameAndPath') or None
-                            
-                            from .info_hijack_helpers import open_native_info_direct, open_native_info_fast
-                            
-                            ok_direct = open_native_info_direct(dbtype, dbid_int, self._logger,
-                                                                title=xbmc.getInfoLabel('ListItem.Label') or None,
-                                                                path_hint=path_hint,
-                                                                timeout=3.0)
-                            
-                            if ok_direct:
-                                used_direct = True
-                                end_time = time.time()
-                                self._logger.info(
-                                    f"✅ HIJACK STEP 3 COMPLETE (direct): Opened native info for {dbtype} {dbid_int} "
-                                    f"in {end_time - start_time:.3f}s"
-                                )
-                                self._native_info_was_open = True  # mark for close detection
-                            else:
-                                # Fallback to your existing XSP/native-list route
-                                self._logger.warning(
-                                    f"HIJACK STEP 3: Direct open did not appear in time; falling back to XSP route for "
-                                    f"{dbtype} {dbid_int}"
-                                )
-                                ok_fast = open_native_info_fast(dbtype, dbid_int, self._logger)
-                                if ok_fast:
-                                    self._native_info_was_open = True
-                                    used_direct = False
-                                    end_time = time.time()
-                                    self._logger.info(
-                                        f"✅ HIJACK STEP 3 COMPLETE (fallback): Opened native info for {dbtype} {dbid_int} "
-                                        f"in {end_time - start_time:.3f}s"
-                                    )
-                                else:
-                                    self._logger.error(
-                                        f"❌ HIJACK STEP 3 FAILED: Could not open native info for {dbtype} {dbid_int} "
-                                        f"via direct or fallback"
-                                    )
-                                    # Let finally unblock _in_progress etc.
-                            
-                            # Record a short cooldown to prevent re-entry
-                            operation_time = time.time() - current_time
-                            self._cooldown_until = time.time() + max(0.4, operation_time * 1.5)
-                            
-                            # Remember whether we used the direct path so we can skip container restore
-                            self._used_direct_open = used_direct
-                            
-                            if ok_direct or (not ok_direct and self._native_info_was_open):
+                            if ok:
+                                self._logger.info(f"✅ HIJACK STEP 3 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
+                                self._native_info_was_open = True  # Mark for close detection
+                                
+                                # Set cooldown
+                                operation_time = time.time() - current_time
+                                self._cooldown_until = time.time() + max(0.5, operation_time * 2)
+                                
                                 # 🎉 HIJACK PROCESS COMPLETE
                                 self._logger.info(f"🎉 HIJACK PROCESS COMPLETE: Full hijack successful for {dbtype} {dbid_int}")
                             else:
@@ -201,13 +162,6 @@ class InfoHijackManager:
     def _handle_native_info_closed(self):
         """Handle the native info dialog being closed - improved detection and faster navigation"""
         try:
-            # If the dialog was opened via direct Dialog().info, there is nothing to restore.
-            if getattr(self, "_used_direct_open", False):
-                self._logger.debug("HIJACK: Direct open was used; skipping container restore.")
-                self._used_direct_open = False
-                self._cleanup_properties()
-                return
-            
             self._logger.debug("HIJACK: Native info dialog closed, starting smart navigation")
             
             # First, check current state immediately
