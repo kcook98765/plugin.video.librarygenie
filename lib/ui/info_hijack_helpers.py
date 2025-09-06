@@ -95,6 +95,91 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
     return False
 
+def _wait_for_listitem_hydration(timeout_ms=800, logger=None) -> bool:
+    """
+    Wait for Kodi to fully hydrate the focused ListItem with metadata from the database.
+    
+    This prevents opening the info dialog before Kodi has populated fields like Genre,
+    which would result in blank metadata in the native dialog.
+    
+    Args:
+        timeout_ms: Maximum time to wait in milliseconds
+        logger: Logger instance for detailed logging
+        
+    Returns:
+        bool: True if hydration detected, False if timeout
+    """
+    start_time = time.perf_counter()
+    check_interval = 0.05  # 50ms checks for responsive detection
+    check_count = 0
+    
+    # Log function for consistent formatting
+    def log_msg(message, level="debug"):
+        if logger:
+            if level == "warning":
+                logger.warning(f"HYDRATION WAIT: {message}")
+            else:
+                logger.debug(f"HYDRATION WAIT: {message}")
+        else:
+            _log(f"HYDRATION WAIT: {message}")
+    
+    log_msg(f"Starting hydration wait with {timeout_ms}ms timeout")
+    
+    end_time = time.time() + (timeout_ms / 1000.0)
+    
+    while time.time() < end_time:
+        check_count += 1
+        
+        # Check key metadata fields that should be populated from the database
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        current_genre = xbmc.getInfoLabel('ListItem.Genre')
+        current_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+        current_duration = xbmc.getInfoLabel('ListItem.Duration')
+        
+        # Also check for basic info that should be present
+        current_title = xbmc.getInfoLabel('ListItem.Title')
+        current_year = xbmc.getInfoLabel('ListItem.Year')
+        
+        elapsed = time.perf_counter() - start_time
+        
+        # Log every 5th check or when we see changes
+        if check_count % 5 == 0 or check_count <= 3:
+            log_msg(f"Check #{check_count} ({elapsed:.3f}s): DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}'")
+        
+        # Consider hydration successful when we have both DBID and Genre
+        # (Genre is the key field that was showing up blank in the original issue)
+        has_dbid = current_dbid and current_dbid != "0" and current_dbid.strip()
+        has_genre = current_genre and current_genre.strip()
+        has_dbtype = current_dbtype and current_dbtype.strip()
+        
+        # We need at minimum DBID and one metadata field (Genre is preferred)
+        # Duration can also indicate database population
+        has_metadata = has_genre or current_duration
+        
+        if has_dbid and has_metadata and has_dbtype:
+            elapsed_final = time.perf_counter() - start_time
+            log_msg(f"SUCCESS: Hydration complete after {check_count} checks ({elapsed_final:.3f}s)")
+            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}'")
+            return True
+        
+        # Short sleep between checks
+        xbmc.sleep(int(check_interval * 1000))
+    
+    # Timeout reached
+    elapsed_final = time.perf_counter() - start_time
+    log_msg(f"TIMEOUT after {check_count} checks ({elapsed_final:.3f}s)", "warning")
+    log_msg(f"Final state: DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}'", "warning")
+    
+    # Even on timeout, log what we did find for debugging
+    if current_dbid:
+        log_msg(f"DBID was populated: {current_dbid}")
+    if current_genre:
+        log_msg(f"Genre was populated: '{current_genre}'")
+    if current_duration:
+        log_msg(f"Duration was populated: '{current_duration}'")
+    
+    return False
+
 def _wait_for_info_dialog(timeout=10.0):
     """
     Block until the DialogVideoInfo window is active (skin dep. but standard on Kodi 19+).
@@ -581,6 +666,19 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep6_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
         
+        # 💧 SUBSTEP 6.5: HYDRATION WAIT - Wait for Kodi to populate metadata on focused item
+        substep6_5_start = time.perf_counter()
+        logger.info(f"💧 SUBSTEP 6.5: HYDRATION WAIT - Waiting for Kodi to populate ListItem metadata")
+        
+        hydration_success = _wait_for_listitem_hydration(timeout_ms=800, logger=logger)
+        
+        substep6_5_end = time.perf_counter()
+        if hydration_success:
+            logger.info(f"✅ SUBSTEP 6.5 COMPLETE: ListItem metadata hydrated in {substep6_5_end - substep6_5_start:.3f}s")
+        else:
+            logger.warning(f"⚠️ SUBSTEP 6.5 TIMEOUT: ListItem metadata not fully hydrated after {substep6_5_end - substep6_5_start:.3f}s - proceeding anyway")
+        logger.info(f"⏱️ SUBSTEP 6.5 TIMING: {substep6_5_end - substep6_5_start:.3f}s")
+        
         # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
         substep7_start = time.perf_counter()
         logger.info(f"🎬 SUBSTEP 7: Opening video info from native list")
@@ -614,7 +712,7 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         
         overall_end_time = time.perf_counter()
         logger.info(f"⏱️ OVERALL HIJACK TIMING: {overall_end_time - overall_start_time:.3f}s")
-        logger.info(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
+        logger.info(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S6.5={substep6_5_end - substep6_5_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
             
         return success
     except Exception as e:
