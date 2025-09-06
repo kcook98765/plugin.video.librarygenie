@@ -471,102 +471,102 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
     try:
         overall_start_time = time.perf_counter()
-        _log(f"🎬 HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
+        logger.info(f"🎬 HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
         
         # 🔒 SUBSTEP 1: Close any open dialog first
         substep1_start = time.perf_counter()
-        _log(f"🔒 SUBSTEP 1: Checking for open dialogs to close")
+        logger.info(f"🔒 SUBSTEP 1: Checking for open dialogs to close")
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
-            _log(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
+            logger.info(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
             xbmc.executebuiltin('Action(Back)')
             # Wait for dialog to close
             xbmc.sleep(200)
             # Verify dialog closed
             after_close_id = xbmcgui.getCurrentWindowDialogId()
-            _log(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
+            logger.info(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
         else:
-            _log(f"✅ SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
+            logger.info(f"✅ SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
         substep1_end = time.perf_counter()
-        _log(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
+        logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
         
         # 📝 SUBSTEP 2: Create XSP file for single item to create a native list
         substep2_start = time.perf_counter()
-        _log(f"📝 SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
+        logger.info(f"📝 SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
         start_xsp_time = time.perf_counter()
         xsp_path = _create_xsp_for_dbitem(db_type, db_id)
         end_xsp_time = time.perf_counter()
         
         if not xsp_path:
-            _log(f"❌ SUBSTEP 2 FAILED: Failed to create XSP for {db_type} {db_id}", xbmc.LOGWARNING)
+            logger.warning(f"❌ SUBSTEP 2 FAILED: Failed to create XSP for {db_type} {db_id}")
             return False
-        _log(f"✅ SUBSTEP 2 COMPLETE: XSP created at {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
+        logger.info(f"✅ SUBSTEP 2 COMPLETE: XSP created at {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
         substep2_end = time.perf_counter()
-        _log(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
+        logger.info(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
         
         # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
         substep3_start = time.perf_counter()
-        _log(f"🧭 SUBSTEP 3: Navigating to native list: {xsp_path}")
+        logger.info(f"🧭 SUBSTEP 3: Navigating to native list: {xsp_path}")
         current_window_before = xbmcgui.getCurrentWindowId()
         start_nav_time = time.perf_counter()
-        _log(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
+        logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
         xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
         activate_window_end = time.perf_counter()
-        _log(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
+        logger.info(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
         
         # ⏳ SUBSTEP 4: Wait for the Videos window to load with our item
         substep4_start = time.perf_counter()
-        _log(f"⏳ SUBSTEP 4: Waiting for Videos window to load with XSP content")
+        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with XSP content")
         wait_start = time.perf_counter()
         if not _wait_videos_on(xsp_path, timeout_ms=4000):
             wait_end = time.perf_counter()
             end_nav_time = time.perf_counter()
             current_window_after = xbmcgui.getCurrentWindowId()
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            _log(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s", xbmc.LOGWARNING)
-            _log(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'", xbmc.LOGWARNING)
-            _log(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s", xbmc.LOGWARNING)
+            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s")
+            logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
+            logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
             return False
         wait_end = time.perf_counter()
         end_nav_time = time.perf_counter()
         current_window_after = xbmcgui.getCurrentWindowId()
         current_path = xbmc.getInfoLabel("Container.FolderPath")
         num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
-        _log(f"✅ SUBSTEP 4 COMPLETE: Videos window loaded in {end_nav_time - start_nav_time:.3f}s")
-        _log(f"SUBSTEP 4 STATUS: Window {current_window_before}→{current_window_after}, path='{current_path}', items={num_items}")
+        logger.info(f"✅ SUBSTEP 4 COMPLETE: Videos window loaded in {end_nav_time - start_nav_time:.3f}s")
+        logger.info(f"SUBSTEP 4 STATUS: Window {current_window_before}→{current_window_after}, path='{current_path}', items={num_items}")
         substep4_end = time.perf_counter()
-        _log(f"⏱️ SUBSTEP 4 TIMING: {substep4_end - substep4_start:.3f}s (wait: {wait_end - wait_start:.3f}s)")
-        _log(f"⏱️ SUBSTEP 3+4 COMBINED TIMING: {substep4_end - substep3_start:.3f}s")
+        logger.info(f"⏱️ SUBSTEP 4 TIMING: {substep4_end - substep4_start:.3f}s (wait: {wait_end - wait_start:.3f}s)")
+        logger.info(f"⏱️ SUBSTEP 3+4 COMBINED TIMING: {substep4_end - substep3_start:.3f}s")
         
         # 🎯 SUBSTEP 5: Focus the list and find our item
         substep5_start = time.perf_counter()
-        _log(f"🎯 SUBSTEP 5: Focusing list to locate {db_type} {db_id}")
+        logger.info(f"🎯 SUBSTEP 5: Focusing list to locate {db_type} {db_id}")
         start_focus_time = time.perf_counter()
         if not focus_list():
             end_focus_time = time.perf_counter()
-            _log(f"❌ SUBSTEP 5 FAILED: Failed to focus list control after {end_focus_time - start_focus_time:.3f}s", xbmc.LOGWARNING)
+            logger.warning(f"❌ SUBSTEP 5 FAILED: Failed to focus list control after {end_focus_time - start_focus_time:.3f}s")
             return False
         end_focus_time = time.perf_counter()
-        _log(f"✅ SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
+        logger.info(f"✅ SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
         substep5_end = time.perf_counter()
-        _log(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
+        logger.info(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
         
         # 📍 SUBSTEP 6: Check current item and navigate away from parent if needed
         substep6_start = time.perf_counter()
-        _log(f"📍 SUBSTEP 6: Checking current item and navigating to movie")
+        logger.info(f"📍 SUBSTEP 6: Checking current item and navigating to movie")
         current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         current_item_label = xbmc.getInfoLabel('ListItem.Label')
         
         # Check if we're focused on the parent item ".."
         if current_item_label == ".." or current_item_label.strip() == "..":
-            _log(f"SUBSTEP 6: Currently on parent item '{current_item_label}', navigating to next item")
+            logger.info(f"SUBSTEP 6: Currently on parent item '{current_item_label}', navigating to next item")
             xbmc.executebuiltin('Action(Down)')  # Move to next item
             xbmc.sleep(150)  # Wait for navigation
             current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
             new_label = xbmc.getInfoLabel('ListItem.Label')
-            _log(f"SUBSTEP 6: Moved from parent item {current_item_before} to item {current_item_after}, new label: '{new_label}'")
+            logger.info(f"SUBSTEP 6: Moved from parent item {current_item_before} to item {current_item_after}, new label: '{new_label}'")
         else:
-            _log(f"SUBSTEP 6: Already on target item '{current_item_label}' at position {current_item_before}")
+            logger.info(f"SUBSTEP 6: Already on target item '{current_item_label}' at position {current_item_before}")
         
         # Verify we're now on the correct item
         final_item_label = xbmc.getInfoLabel('ListItem.Label')
@@ -574,26 +574,26 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         
         if final_item_label == ".." or final_item_label.strip() == "..":
-            _log(f"❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt", xbmc.LOGWARNING)
+            logger.warning(f"❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt")
             return False
         
-        _log(f"✅ SUBSTEP 6 COMPLETE: On target item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
+        logger.info(f"✅ SUBSTEP 6 COMPLETE: On target item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
         substep6_end = time.perf_counter()
-        _log(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
+        logger.info(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
         
         # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
         substep7_start = time.perf_counter()
-        _log(f"🎬 SUBSTEP 7: Opening video info from native list")
+        logger.info(f"🎬 SUBSTEP 7: Opening video info from native list")
         pre_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
         start_info_time = time.perf_counter()
-        _log(f"SUBSTEP 7 DEBUG: About to execute Action(Info) at {start_info_time - overall_start_time:.3f}s")
+        logger.info(f"SUBSTEP 7 DEBUG: About to execute Action(Info) at {start_info_time - overall_start_time:.3f}s")
         xbmc.executebuiltin('Action(Info)')
         action_info_end = time.perf_counter()
-        _log(f"SUBSTEP 7 DEBUG: Action(Info) command executed in {action_info_end - start_info_time:.3f}s")
+        logger.info(f"SUBSTEP 7 DEBUG: Action(Info) command executed in {action_info_end - start_info_time:.3f}s")
         
         # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
         substep8_start = time.perf_counter()
-        _log(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
+        logger.info(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
         dialog_wait_start = time.perf_counter()
         success = _wait_for_info_dialog(timeout=10.0)
         dialog_wait_end = time.perf_counter()
@@ -601,20 +601,20 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         post_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
         if success:
-            _log(f"✅ SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
-            _log(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
-            _log(f"🎉 HIJACK HELPERS: ✅ Native info hijack completed successfully for {db_type} {db_id}")
+            logger.info(f"✅ SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
+            logger.info(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
+            logger.info(f"🎉 HIJACK HELPERS: ✅ Native info hijack completed successfully for {db_type} {db_id}")
         else:
-            _log(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s", xbmc.LOGWARNING)
-            _log(f"SUBSTEP 8 DEBUG: Dialog ID remains {post_info_dialog_id} (was {pre_info_dialog_id})", xbmc.LOGWARNING)
-            _log(f"💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for {db_type} {db_id}", xbmc.LOGWARNING)
+            logger.warning(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s")
+            logger.warning(f"SUBSTEP 8 DEBUG: Dialog ID remains {post_info_dialog_id} (was {pre_info_dialog_id})")
+            logger.warning(f"💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for {db_type} {db_id}")
         
         substep8_end = time.perf_counter()
-        _log(f"⏱️ SUBSTEP 8 TIMING: {substep8_end - substep8_start:.3f}s (dialog wait: {dialog_wait_end - dialog_wait_start:.3f}s)")
+        logger.info(f"⏱️ SUBSTEP 8 TIMING: {substep8_end - substep8_start:.3f}s (dialog wait: {dialog_wait_end - dialog_wait_start:.3f}s)")
         
         overall_end_time = time.perf_counter()
-        _log(f"⏱️ OVERALL HIJACK TIMING: {overall_end_time - overall_start_time:.3f}s")
-        _log(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
+        logger.info(f"⏱️ OVERALL HIJACK TIMING: {overall_end_time - overall_start_time:.3f}s")
+        logger.info(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
             
         return success
     except Exception as e:
