@@ -17,12 +17,7 @@
     <menu id="kodi.core.main">
       <item library="context.py">
         <label>32200</label>
-        <visible>[String.IsEqual(ListItem.DBType,movie) |
-                  String.IsEqual(ListItem.DBType,episode) |
-                  String.IsEqual(ListItem.DBType,tvshow) |
-                  String.IsEqual(ListItem.DBType,season) |
-                  String.IsEqual(ListItem.DBType,musicvideo) |
-                  String.StartsWith(ListItem.FileNameAndPath,plugin://)]</visible>
+        <visible>!String.IsEmpty(ListItem.Label)</visible>
       </item>
     </menu>
   </extension>
