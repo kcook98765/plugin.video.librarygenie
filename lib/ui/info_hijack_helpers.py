@@ -95,7 +95,7 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
     return False
 
-def _wait_for_listitem_hydration(timeout_ms=800, logger=None) -> bool:
+def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
     """
     Wait for Kodi to fully hydrate the focused ListItem with metadata from the database.
     
@@ -147,22 +147,55 @@ def _wait_for_listitem_hydration(timeout_ms=800, logger=None) -> bool:
         current_title = xbmc.getInfoLabel('ListItem.Title')
         current_year = xbmc.getInfoLabel('ListItem.Year')
         
+        # Alternative Genre sources to check if primary is empty
+        if not current_genre or current_genre.strip() == "":
+            # Try VideoPlayer.Genre as alternative
+            alt_genre = xbmc.getInfoLabel('VideoPlayer.Genre')
+            if alt_genre and alt_genre.strip():
+                current_genre = alt_genre
+            else:
+                # Try InfoTag approach for Genre
+                try:
+                    # This may work on some Kodi versions/skins
+                    alt_genre2 = xbmc.getInfoLabel('ListItem.Property(Genre)')
+                    if alt_genre2 and alt_genre2.strip():
+                        current_genre = alt_genre2
+                except:
+                    pass
+        
         elapsed = time.perf_counter() - start_time
         
         # Log every check for the first few, then every 5th check
         if check_count <= 5 or check_count % 5 == 0:
             log_msg(f"Check #{check_count} ({elapsed:.3f}s): DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
         
-        # Enhanced validation - Genre is REQUIRED for complete hydration
+        # Enhanced validation - check for complete hydration
         has_dbid = current_dbid and current_dbid != "0" and current_dbid.strip()
         has_genre = current_genre and current_genre.strip() and current_genre != "None"
         has_dbtype = current_dbtype and current_dbtype.strip()
         has_duration = current_duration and current_duration.strip()
         has_title = current_title and current_title.strip()
         
-        # Strict requirement: we MUST have Genre populated (this is the key missing field)
-        # Also require DBID and DBType as basic database connection indicators
-        if has_dbid and has_genre and has_dbtype:
+        # Progressive hydration check - Genre is preferred but not always immediately available
+        # Basic requirement: DBID + DBType (core database connection)
+        basic_hydration = has_dbid and has_dbtype
+        # Complete hydration: Basic + Duration (indicates metadata loading) + Title
+        metadata_hydration = basic_hydration and has_duration and has_title
+        
+        # Check for complete hydration first (with Genre)
+        if has_dbid and has_genre and has_dbtype and has_duration:
+            elapsed_final = time.perf_counter() - start_time
+            log_msg(f"SUCCESS: Complete hydration with Genre after {check_count} checks ({elapsed_final:.3f}s)")
+            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
+            return True
+        
+        # After reasonable time, accept basic metadata hydration even without Genre
+        # This prevents blocking the info dialog when Genre is slow to populate
+        elif elapsed > 0.6 and metadata_hydration:  # 600ms threshold
+            elapsed_final = time.perf_counter() - start_time
+            log_msg(f"SUCCESS: Basic hydration without Genre after {check_count} checks ({elapsed_final:.3f}s) - Genre may populate in dialog")
+            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre or 'PENDING'}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
+            return True
             elapsed_final = time.perf_counter() - start_time
             log_msg(f"SUCCESS: Complete hydration after {check_count} checks ({elapsed_final:.3f}s)")
             log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
@@ -192,16 +225,26 @@ def _wait_for_listitem_hydration(timeout_ms=800, logger=None) -> bool:
     has_dbid = current_dbid and current_dbid != "0" and current_dbid.strip()
     has_genre = current_genre and current_genre.strip() and current_genre != "None"
     has_dbtype = current_dbtype and current_dbtype.strip()
+    has_duration = current_duration and current_duration.strip()
+    has_title = current_title and current_title.strip()
     
-    if has_dbid and has_dbtype and not has_genre:
-        log_msg(f"CRITICAL: DBID and DBType present but Genre missing - this will cause blank Genre in native dialog!", "warning")
+    # Analyze the timeout situation
+    if has_dbid and has_dbtype:
+        if not has_genre:
+            log_msg(f"WARNING: DBID and DBType present but Genre missing - Genre may populate after dialog opens", "warning")
+        if has_duration and has_title:
+            log_msg(f"INFO: Core metadata is available, proceeding without Genre - it should populate in the dialog", "warning")
+            return True  # Allow proceeding if we have core metadata
+        else:
+            log_msg(f"CRITICAL: Missing essential metadata - Duration: {bool(has_duration)}, Title: {bool(has_title)}", "warning")
     elif not has_dbid:
         log_msg(f"DBID missing or invalid: '{current_dbid}'", "warning")
     elif not has_dbtype:
         log_msg(f"DBType missing: '{current_dbtype}'", "warning")
     
-    # Even on timeout, we should NOT proceed if Genre is missing as this was the original issue
-    return False
+    # Only block if we're missing critical core metadata (DBID/DBType)
+    # Genre can populate after the dialog opens
+    return has_dbid and has_dbtype
 
 def _wait_for_info_dialog(timeout=10.0):
     """
