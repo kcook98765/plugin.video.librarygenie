@@ -17,7 +17,7 @@
     <menu id="kodi.core.main">
       <item library="context.py">
         <label>32200</label>
-        <visible>!String.IsEmpty(ListItem.Label)</visible>
+        <visible>true</visible>
       </item>
     </menu>
   </extension>
