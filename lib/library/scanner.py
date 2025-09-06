@@ -27,8 +27,18 @@ class LibraryScanner:
         self.kodi_client = get_kodi_client()
         self.conn_manager = get_connection_manager()
         self.batch_size = 200  # Batch size for database operations
+        self._abort_requested = False
 
-    def perform_full_scan(self) -> Dict[str, Any]:
+    def request_abort(self):
+        """Request abort of current scan operation"""
+        self._abort_requested = True
+        self.logger.info("Scan abort requested")
+
+    def _should_abort(self) -> bool:
+        """Check if scan should be aborted"""
+        return self._abort_requested
+
+    def perform_full_scan(self, progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
         """Perform a complete library scan"""
         self.logger.info("Starting full library scan")
 
@@ -48,6 +58,9 @@ class LibraryScanner:
         scan_id = self._log_scan_start("full", scan_start, current_version)
 
         try:
+            # Reset abort flag
+            self._abort_requested = False
+
             # Clear existing data (full refresh)
             self._clear_library_index()
 
@@ -59,11 +72,24 @@ class LibraryScanner:
                 self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0)
                 return {"success": True, "items_found": 0, "items_added": 0}
 
+            # Calculate paging
+            total_pages = (total_movies + self.batch_size - 1) // self.batch_size
+            self.logger.info(f"Processing {total_pages} pages of {self.batch_size} items each")
+
             # Process movies in pages
             offset = 0
             total_added = 0
+            page_num = 0
 
             while offset < total_movies:
+                page_num += 1
+
+                # Check for abort between pages
+                if self._should_abort():
+                    self.logger.info(f"Full scan aborted by user at page {page_num}/{total_pages}")
+                    self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error="Aborted by user")
+                    return {"success": False, "error": "Scan aborted by user", "items_added": total_added}
+
                 response = self.kodi_client.get_movies(offset, self.batch_size)
                 movies = response.get("movies", [])
 
@@ -75,7 +101,20 @@ class LibraryScanner:
                 total_added += added_count
 
                 offset += len(movies)
-                self.logger.debug(f"Full scan progress: {offset}/{total_movies} movies processed")
+                items_processed = min(offset, total_movies)
+                
+                self.logger.debug(f"Full scan progress: {items_processed}/{total_movies} movies processed")
+
+                # Call progress callback if provided
+                if progress_callback:
+                    try:
+                        progress_callback(page_num, total_pages, items_processed)
+                    except Exception as e:
+                        self.logger.warning(f"Progress callback error: {e}")
+
+                # Brief pause to allow UI updates
+                import time
+                time.sleep(0.1)
 
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
