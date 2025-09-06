@@ -288,12 +288,9 @@ class ListsHandler:
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                34600,  # "Confirm Action"
-                30501,  # "Are you sure you want to delete this list?"
-                30502,  # "This will permanently remove the list and all its items."
-                "",
-                36003,  # "Cancel"
-                37017   # "Delete"
+                L(34600),  # "Confirm Action"
+                L(30501),  # "Are you sure you want to delete this list?"
+                L(30502)   # "This will permanently remove the list and all its items."
             ):
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False, message="")
@@ -677,12 +674,9 @@ class ListsHandler:
             # Show confirmation dialog
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                30072,  # "Delete Folder"
-                37009,  # "Delete folder: %s?" - Kodi will handle string formatting
-                37010,  # "This will also delete all lists in this folder."
-                34602,  # "This action cannot be undone."
-                36003,  # "Cancel"
-                30013   # "Delete"
+                L(30072),  # "Delete Folder"
+                f"Delete folder: {folder_name}?",
+                L(37010)   # "This will also delete all lists in this folder."
             ):
                 context.logger.info("User cancelled folder deletion")
                 return DialogResponse(success=False, message="")
