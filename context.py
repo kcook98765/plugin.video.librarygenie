@@ -195,7 +195,7 @@ def _show_librarygenie_menu(addon):
 
 def _add_library_movie_options(options, actions, addon, dbtype, dbid):
     """Add context menu options for library movies"""
-    addon.log(f"_add_library_movie_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
+    xbmc.log(f"_add_library_movie_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
 
     # Get current context information
     container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
@@ -208,14 +208,24 @@ def _add_library_movie_options(options, actions, addon, dbtype, dbid):
         if match:
             list_id = match.group(1)
 
-    addon.log(f"Context: container_path={container_path}, list_id={list_id}", level=xbmc.LOGINFO)
+    xbmc.log(f"Context: container_path={container_path}, list_id={list_id}", level=xbmc.LOGINFO)
 
     # Quick add functionality
-    settings = SettingsManager()
-    quick_add_enabled = settings.get_quick_add_enabled()
-    default_list_id = settings.get_default_list_id()
+    try:
+        if SettingsManager:
+            settings = SettingsManager()
+            quick_add_enabled = settings.get_quick_add_enabled()
+            default_list_id = settings.get_default_list_id()
+        else:
+            # Fallback to addon settings if SettingsManager not available
+            quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+            default_list_id = addon.getSetting('default_list_id')
+    except Exception:
+        # Fallback to addon settings
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
 
-    addon.log(f"quick_add_enabled={quick_add_enabled}, default_list_id={default_list_id}", level=xbmc.LOGINFO)
+    xbmc.log(f"quick_add_enabled={quick_add_enabled}, default_list_id={default_list_id}", level=xbmc.LOGINFO)
 
     # Remove from list option (only when in a list context and not Search History)
     if list_id and 'action=show_list' in container_path:
@@ -229,7 +239,7 @@ def _add_library_movie_options(options, actions, addon, dbtype, dbid):
 
             options.append("Remove from List")
             actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
-            addon.log(f"Added remove from list option for list_id={list_id}, media_item_id={media_item_id}", level=xbmc.LOGINFO)
+            xbmc.log(f"Added remove from list option for list_id={list_id}, media_item_id={media_item_id}", level=xbmc.LOGINFO)
 
     if quick_add_enabled and default_list_id:
         # Quick add option
@@ -239,12 +249,12 @@ def _add_library_movie_options(options, actions, addon, dbtype, dbid):
         # Regular add to list option
         options.append("Add to List...")
         actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
-        addon.log("Added both quick add and regular add options", level=xbmc.LOGINFO)
+        xbmc.log("Added both quick add and regular add options", level=xbmc.LOGINFO)
     else:
         # Only regular add to list option
         options.append("Add to List...")
         actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
-        addon.log("Added add to list option: Add to List...", level=xbmc.LOGINFO)
+        xbmc.log("Added add to list option: Add to List...", level=xbmc.LOGINFO)
 
     # Search option
     options.append("Search")
@@ -253,7 +263,7 @@ def _add_library_movie_options(options, actions, addon, dbtype, dbid):
 
 def _add_library_episode_options(options, actions, addon, dbtype, dbid):
     """Add context menu options for library episodes"""
-    addon.log(f"_add_library_episode_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
+    xbmc.log(f"_add_library_episode_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
 
     # Get current context information
     container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
@@ -277,9 +287,19 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
             actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
 
     # Quick add functionality
-    settings = SettingsManager()
-    quick_add_enabled = settings.get_quick_add_enabled()
-    default_list_id = settings.get_default_list_id()
+    try:
+        if SettingsManager:
+            settings = SettingsManager()
+            quick_add_enabled = settings.get_quick_add_enabled()
+            default_list_id = settings.get_default_list_id()
+        else:
+            # Fallback to addon settings if SettingsManager not available
+            quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+            default_list_id = addon.getSetting('default_list_id')
+    except Exception:
+        # Fallback to addon settings
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
 
     if quick_add_enabled and default_list_id:
         # Quick add option
@@ -301,7 +321,7 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
 
 def _add_library_musicvideo_options(options, actions, addon, dbtype, dbid):
     """Add context menu options for library music videos"""
-    addon.log(f"_add_library_musicvideo_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
+    xbmc.log(f"_add_library_musicvideo_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
 
     # Get current context information
     container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
@@ -325,9 +345,19 @@ def _add_library_musicvideo_options(options, actions, addon, dbtype, dbid):
             actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
 
     # Quick add functionality
-    settings = SettingsManager()
-    quick_add_enabled = settings.get_quick_add_enabled()
-    default_list_id = settings.get_default_list_id()
+    try:
+        if SettingsManager:
+            settings = SettingsManager()
+            quick_add_enabled = settings.get_quick_add_enabled()
+            default_list_id = settings.get_default_list_id()
+        else:
+            # Fallback to addon settings if SettingsManager not available
+            quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+            default_list_id = addon.getSetting('default_list_id')
+    except Exception:
+        # Fallback to addon settings
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
 
     if quick_add_enabled and default_list_id:
         # Quick add option
@@ -526,7 +556,7 @@ def _handle_external_item_add(addon):
         art_data = {}
         art_fields = {
             'poster': 'ListItem.Art(poster)',
-            'fanart': 'ListItem.Art(fanart)', 
+            'fanart': 'ListItem.Art(fanart)',
             'thumb': 'ListItem.Art(thumb)',
             'banner': 'ListItem.Art(banner)',
             'landscape': 'ListItem.Art(landscape)',
@@ -549,7 +579,7 @@ def _handle_external_item_add(addon):
                 if not art_data.get('thumb'):
                     art_data['thumb'] = thumb_fallback
 
-        # Store collected art data        
+        # Store collected art data
         item_data['art_data'] = art_data
 
         # Also set individual fields for backward compatibility
