@@ -15,11 +15,23 @@ from typing import List, Union
 
 # Import localization module
 try:
-    from resources.lib.ui.localization import L
+    from resources.lib.ui.localization import L as _L
+    
+    def L(string_id):
+        """Get localized string with better error handling"""
+        try:
+            result = _L(string_id)
+            # Return empty string if localization failed or returned a malformed string
+            if not result or result.startswith('string_') or result.startswith('String_'):
+                return ""
+            return result
+        except Exception:
+            return ""
+            
 except ImportError:
     # Fallback for simple string retrieval
-    def L(string_id, fallback=""):
-        return fallback or f"String_{string_id}"
+    def L(string_id):
+        return ""
 
 
 def main():
@@ -57,7 +69,10 @@ def _show_librarygenie_menu(addon):
         actions = []
 
         # Always add Search option
-        options.append(L(33000) or "Search")  # "Search"
+        search_label = L(33000)
+        if not search_label or search_label.startswith('string_'):
+            search_label = "Search"
+        options.append(search_label)
         actions.append("search")
 
         # Check what type of content we're dealing with
@@ -130,10 +145,16 @@ def _add_library_movie_options(options, actions, addon, dbtype, dbid):
     default_list_id = addon.getSetting('default_list_id')
 
     if quick_add_enabled and default_list_id:
-        options.append(L(31001) or "Quick Add to Default")  # "Quick Add to Default"
+        quick_add_label = L(31001)
+        if not quick_add_label or quick_add_label.startswith('string_'):
+            quick_add_label = "Quick Add to Default"
+        options.append(quick_add_label)
         actions.append(f"quick_add&dbtype={dbtype}&dbid={dbid}")
 
-    options.append(L(31000) or "Add to List...")  # "Add to List..."
+    add_to_list_label = L(31000)
+    if not add_to_list_label or add_to_list_label.startswith('string_'):
+        add_to_list_label = "Add to List..."
+    options.append(add_to_list_label)
     actions.append(f"add_to_list&dbtype={dbtype}&dbid={dbid}")
 
 
@@ -144,10 +165,16 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
     default_list_id = addon.getSetting('default_list_id')
 
     if quick_add_enabled and default_list_id:
-        options.append(L(31001) or "Quick Add to Default")  # "Quick Add to Default"
+        quick_add_label = L(31001)
+        if not quick_add_label or quick_add_label.startswith('string_'):
+            quick_add_label = "Quick Add to Default"
+        options.append(quick_add_label)
         actions.append(f"quick_add&dbtype={dbtype}&dbid={dbid}")
 
-    options.append(L(31000) or "Add to List...")  # "Add to List..."
+    add_to_list_label = L(31000)
+    if not add_to_list_label or add_to_list_label.startswith('string_'):
+        add_to_list_label = "Add to List..."
+    options.append(add_to_list_label)
     actions.append(f"add_to_list&dbtype={dbtype}&dbid={dbid}")
 
 
@@ -158,17 +185,26 @@ def _add_library_musicvideo_options(options, actions, addon, dbtype, dbid):
     default_list_id = addon.getSetting('default_list_id')
 
     if quick_add_enabled and default_list_id:
-        options.append(L(31001) or "Quick Add to Default")  # "Quick Add to Default"
+        quick_add_label = L(31001)
+        if not quick_add_label or quick_add_label.startswith('string_'):
+            quick_add_label = "Quick Add to Default"
+        options.append(quick_add_label)
         actions.append(f"quick_add&dbtype={dbtype}&dbid={dbid}")
 
-    options.append(L(31000) or "Add to List...")  # "Add to List..."
+    add_to_list_label = L(31000)
+    if not add_to_list_label or add_to_list_label.startswith('string_'):
+        add_to_list_label = "Add to List..."
+    options.append(add_to_list_label)
     actions.append(f"add_to_list&dbtype={dbtype}&dbid={dbid}")
 
 
 def _add_external_item_options(options, actions, addon):
     """Add options for external/plugin items"""
     # For external items, we can only do add to list (no quick add since we need to gather metadata)
-    options.append(L(31000) or "Add to List...")  # "Add to List..."
+    add_to_list_label = L(31000)
+    if not add_to_list_label or add_to_list_label.startswith('string_'):
+        add_to_list_label = "Add to List..."
+    options.append(add_to_list_label)
     actions.append("add_external_item")
 
 
@@ -184,15 +220,24 @@ def _add_librarygenie_item_options(options, actions, addon):
         default_list_id = addon.getSetting('default_list_id')
 
         if quick_add_enabled and default_list_id:
-            options.append(L(31001) or "Quick Add to Default")  # "Quick Add to Default"
+            quick_add_label = L(31001)
+            if not quick_add_label or quick_add_label.startswith('string_'):
+                quick_add_label = "Quick Add to Default"
+            options.append(quick_add_label)
             actions.append(f"quick_add&media_item_id={media_item_id}")
 
-        options.append(L(31000) or "Add to List...")  # "Add to List..."
+        add_to_list_label = L(31000)
+        if not add_to_list_label or add_to_list_label.startswith('string_'):
+            add_to_list_label = "Add to List..."
+        options.append(add_to_list_label)
         actions.append(f"add_to_list&media_item_id={media_item_id}")
 
         # If we're in a list context, add remove option
         if list_id:
-            options.append(L(31010) or "Remove from List")  # "Remove from List"
+            remove_label = L(31010)
+            if not remove_label or remove_label.startswith('string_'):
+                remove_label = "Remove from List"
+            options.append(remove_label)
             actions.append(f"remove_from_list&list_id={list_id}&item_id={media_item_id}")
 
 
