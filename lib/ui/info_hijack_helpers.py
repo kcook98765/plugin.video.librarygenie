@@ -153,6 +153,8 @@ def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
             alt_genre = xbmc.getInfoLabel('VideoPlayer.Genre')
             if alt_genre and alt_genre.strip():
                 current_genre = alt_genre
+                if check_count <= 3:
+                    log_msg(f"Using VideoPlayer.Genre as Genre source: '{alt_genre}'")
             else:
                 # Try InfoTag approach for Genre
                 try:
@@ -160,8 +162,22 @@ def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
                     alt_genre2 = xbmc.getInfoLabel('ListItem.Property(Genre)')
                     if alt_genre2 and alt_genre2.strip():
                         current_genre = alt_genre2
+                        if check_count <= 3:
+                            log_msg(f"Using ListItem.Property(Genre) as Genre source: '{alt_genre2}'")
                 except:
                     pass
+        
+        # Debug logging for Genre detection issues
+        if check_count <= 5 or (check_count % 10 == 0):
+            # Log all Genre sources for debugging
+            primary_genre = xbmc.getInfoLabel('ListItem.Genre')
+            video_genre = xbmc.getInfoLabel('VideoPlayer.Genre') 
+            prop_genre = ""
+            try:
+                prop_genre = xbmc.getInfoLabel('ListItem.Property(Genre)')
+            except:
+                pass
+            log_msg(f"GENRE SOURCES check #{check_count}: ListItem.Genre='{primary_genre}', VideoPlayer.Genre='{video_genre}', Property(Genre)='{prop_genre}', final='{current_genre}'")
         
         elapsed = time.perf_counter() - start_time
         
@@ -184,6 +200,12 @@ def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
             elapsed_final = time.perf_counter() - start_time
             log_msg(f"SUCCESS: Complete hydration with Genre after {check_count} checks ({elapsed_final:.3f}s)")
             log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
+            
+            # Additional Genre debugging - check all possible Genre sources
+            alt_genre_info = xbmc.getInfoLabel('VideoPlayer.Genre')
+            alt_genre_prop = xbmc.getInfoLabel('ListItem.Property(Genre)')
+            log_msg(f"GENRE DEBUG: Primary='{current_genre}', VideoPlayer.Genre='{alt_genre_info}', Property(Genre)='{alt_genre_prop}'")
+            
             return True
         
         # Only after significant time (1.2s), consider proceeding without Genre
@@ -194,6 +216,12 @@ def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
                 elapsed_final = time.perf_counter() - start_time
                 log_msg(f"TIMEOUT FALLBACK: Proceeding without Genre after {check_count} checks ({elapsed_final:.3f}s)")
                 log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre or 'MISSING'}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
+                
+                # Additional Genre debugging for timeout cases
+                alt_genre_info = xbmc.getInfoLabel('VideoPlayer.Genre')
+                alt_genre_prop = xbmc.getInfoLabel('ListItem.Property(Genre)')
+                log_msg(f"TIMEOUT GENRE DEBUG: Primary='{current_genre}', VideoPlayer.Genre='{alt_genre_info}', Property(Genre)='{alt_genre_prop}'")
+                
                 return True
         
         # Log what we're still missing
@@ -762,6 +790,17 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         if success:
             logger.info(f"✅ SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
             logger.info(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
+            
+            # GENRE VERIFICATION: Check what Genre data is available in the opened dialog
+            xbmc.sleep(200)  # Brief pause to let dialog fully populate
+            dialog_genre = xbmc.getInfoLabel('ListItem.Genre')
+            dialog_video_genre = xbmc.getInfoLabel('VideoPlayer.Genre')
+            try:
+                dialog_prop_genre = xbmc.getInfoLabel('ListItem.Property(Genre)')
+            except:
+                dialog_prop_genre = ""
+            logger.info(f"🔍 POST-DIALOG GENRE CHECK: ListItem.Genre='{dialog_genre}', VideoPlayer.Genre='{dialog_video_genre}', Property(Genre)='{dialog_prop_genre}'")
+            
             logger.info(f"🎉 HIJACK HELPERS: ✅ Native info hijack completed successfully for {db_type} {db_id}")
         else:
             logger.warning(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s")
