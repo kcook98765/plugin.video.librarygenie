@@ -176,30 +176,25 @@ def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
         has_duration = current_duration and current_duration.strip()
         has_title = current_title and current_title.strip()
         
-        # Progressive hydration check - Genre is preferred but not always immediately available
-        # Basic requirement: DBID + DBType (core database connection)
-        basic_hydration = has_dbid and has_dbtype
-        # Complete hydration: Basic + Duration (indicates metadata loading) + Title
-        metadata_hydration = basic_hydration and has_duration and has_title
+        # Primary requirement: Complete hydration WITH Genre
+        # Genre is critical for proper native info dialog population
+        complete_hydration = has_dbid and has_genre and has_dbtype and has_duration and has_title
         
-        # Check for complete hydration first (with Genre)
-        if has_dbid and has_genre and has_dbtype and has_duration:
+        if complete_hydration:
             elapsed_final = time.perf_counter() - start_time
             log_msg(f"SUCCESS: Complete hydration with Genre after {check_count} checks ({elapsed_final:.3f}s)")
             log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
             return True
         
-        # After reasonable time, accept basic metadata hydration even without Genre
-        # This prevents blocking the info dialog when Genre is slow to populate
-        elif elapsed > 0.6 and metadata_hydration:  # 600ms threshold
-            elapsed_final = time.perf_counter() - start_time
-            log_msg(f"SUCCESS: Basic hydration without Genre after {check_count} checks ({elapsed_final:.3f}s) - Genre may populate in dialog")
-            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre or 'PENDING'}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
-            return True
-            elapsed_final = time.perf_counter() - start_time
-            log_msg(f"SUCCESS: Complete hydration after {check_count} checks ({elapsed_final:.3f}s)")
-            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
-            return True
+        # Only after significant time (1.2s), consider proceeding without Genre
+        # This gives Genre more time to populate since it's database-dependent
+        elif elapsed > 1.2:
+            basic_hydration = has_dbid and has_dbtype and has_duration and has_title
+            if basic_hydration:
+                elapsed_final = time.perf_counter() - start_time
+                log_msg(f"TIMEOUT FALLBACK: Proceeding without Genre after {check_count} checks ({elapsed_final:.3f}s)")
+                log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre or 'MISSING'}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
+                return True
         
         # Log what we're still missing
         if check_count <= 3 or check_count % 10 == 0:
@@ -736,7 +731,7 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep6_5_start = time.perf_counter()
         logger.info(f"💧 SUBSTEP 6.5: HYDRATION WAIT - Waiting for Kodi to populate ListItem metadata")
         
-        hydration_success = _wait_for_listitem_hydration(timeout_ms=800, logger=logger)
+        hydration_success = _wait_for_listitem_hydration(timeout_ms=1500, logger=logger)
         
         substep6_5_end = time.perf_counter()
         if hydration_success:
