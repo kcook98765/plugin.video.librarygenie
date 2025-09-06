@@ -237,13 +237,13 @@ def _add_library_movie_options(options, actions, addon, dbtype, dbid):
             if media_item_id:
                 # Use the actual media_item_id from the list item
                 options.append("Remove from List")
-                actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
+                actions.append(f"remove_from_list&list_id={list_id}&item_id={media_item_id}")
                 xbmc.log(f"Added remove from list option for list_id={list_id}, media_item_id={media_item_id}", level=xbmc.LOGINFO)
             else:
                 # Fallback: find by library identifiers - use a different action for this case
                 title = xbmc.getInfoLabel('ListItem.Title') or xbmc.getInfoLabel('ListItem.Label')
                 options.append("Remove from List")
-                actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_library_item_from_list&list_id={list_id}&dbtype={dbtype}&dbid={dbid}&title={title})")
+                actions.append(f"remove_library_item_from_list&list_id={list_id}&dbtype={dbtype}&dbid={dbid}&title={title}")
                 xbmc.log(f"Added remove from list option (fallback) for list_id={list_id}, dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
 
     if quick_add_enabled and default_list_id:
@@ -505,6 +505,12 @@ def _execute_action(action_with_params, addon):
         elif action_with_params == "add_external_item":
             # Handle external item by gathering metadata
             _handle_external_item_add(addon)
+
+        elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
+            # Handle remove actions by building plugin URL
+            plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
+            xbmc.log(f"LibraryGenie: Executing remove action: {plugin_url}", xbmc.LOGINFO)
+            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
 
         else:
             # Handle other actions by building plugin URL
