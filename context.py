@@ -77,7 +77,11 @@ def _show_librarygenie_menu(addon):
             'container_content': xbmc.getInfoLabel('Container.Content'),
             'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
             'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
-            'is_musicvideos': xbmc.getCondVisibility('Container.Content(musicvideos)')
+            'is_musicvideos': xbmc.getCondVisibility('Container.Content(musicvideos)'),
+            # Try InfoHijack properties as fallback
+            'hijack_dbid': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)'),
+            'hijack_dbtype': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)'),
+            'hijack_armed': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
         }
 
         # Debug log the cached info
@@ -98,6 +102,15 @@ def _show_librarygenie_menu(addon):
         dbtype = item_info['dbtype']
         dbid = item_info['dbid']
         file_path = item_info['file_path']
+        
+        # Use hijack properties as fallback if regular properties are empty
+        if not dbid and item_info['hijack_dbid']:
+            dbid = item_info['hijack_dbid']
+            xbmc.log(f"LibraryGenie: Using hijack DBID fallback: {dbid}", xbmc.LOGINFO)
+        
+        if not dbtype and item_info['hijack_dbtype']:
+            dbtype = item_info['hijack_dbtype']
+            xbmc.log(f"LibraryGenie: Using hijack DBType fallback: {dbtype}", xbmc.LOGINFO)
 
         # Add content-specific options based on cached context
         # Prioritize dbtype over container context for better detection
@@ -135,14 +148,14 @@ def _show_librarygenie_menu(addon):
         elif item_info['is_musicvideos'] and not dbtype:
             _add_external_item_options(options, actions, addon)
 
-        elif file_path and file_path.startswith('plugin://plugin.video.librarygenie/'):
-            # LibraryGenie item - add LibraryGenie-specific options
+        # Check if we're in a LibraryGenie container first
+        elif xbmc.getInfoLabel('Container.FolderPath').startswith('plugin://plugin.video.librarygenie/'):
+            # We're in LibraryGenie container
+            xbmc.log(f"LibraryGenie: In LibraryGenie container - dbtype={dbtype}, dbid={dbid}", xbmc.LOGINFO)
             _add_librarygenie_item_options(options, actions, addon, item_info)
 
-        # Check if we're in a LibraryGenie container (even without explicit file_path)
-        elif xbmc.getInfoLabel('Container.FolderPath').startswith('plugin://plugin.video.librarygenie/'):
-            # We're in LibraryGenie but the item doesn't have explicit plugin path
-            # This happens for items displayed in LibraryGenie lists
+        elif file_path and file_path.startswith('plugin://plugin.video.librarygenie/'):
+            # LibraryGenie item with explicit plugin path
             _add_librarygenie_item_options(options, actions, addon, item_info)
 
         elif file_path and file_path.startswith('plugin://'):
@@ -246,49 +259,52 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     list_id = item_info['list_id']
     dbtype = item_info['dbtype']
     dbid = item_info['dbid']
+    
+    # Use hijack properties as fallback
+    if not dbid and item_info.get('hijack_dbid'):
+        dbid = item_info['hijack_dbid']
+    if not dbtype and item_info.get('hijack_dbtype'):
+        dbtype = item_info['hijack_dbtype']
+    
+    xbmc.log(f"LibraryGenie: _add_librarygenie_item_options - dbtype={dbtype}, dbid={dbid}, media_item_id={media_item_id}", xbmc.LOGINFO)
 
-    # If we have media_item_id, use the existing flow
-    if media_item_id:
+    # First priority: items with media_item_id (existing LibraryGenie items)
+    if media_item_id and media_item_id != '':
+        xbmc.log(f"LibraryGenie: Using media_item_id path for {media_item_id}", xbmc.LOGINFO)
         # Check if quick-add is enabled and has a default list configured
         quick_add_enabled = addon.getSettingBool('quick_add_enabled')
         default_list_id = addon.getSetting('default_list_id')
 
         if quick_add_enabled and default_list_id:
-            quick_add_label = L(31001)  # "Quick Add to Default"
+            quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
             options.append(quick_add_label)
             actions.append(f"quick_add&media_item_id={media_item_id}")
 
-        add_to_list_label = L(31000)  # "Add to List..."
+        add_to_list_label = L(31000) if L(31000) else "Add to List..."
         options.append(add_to_list_label)
         actions.append(f"add_to_list&media_item_id={media_item_id}")
 
         # If we're in a list context, add remove option
-        if list_id:
-            remove_label = L(31010)  # "Remove from List"
+        if list_id and list_id != '':
+            remove_label = L(31010) if L(31010) else "Remove from List"
             options.append(remove_label)
             actions.append(f"remove_from_list&list_id={list_id}&item_id={media_item_id}")
+
+    # Second priority: library items with valid dbtype and dbid
+    elif dbtype in ('movie', 'episode', 'musicvideo') and dbid and dbid not in ('0', ''):
+        xbmc.log(f"LibraryGenie: Using library item path for {dbtype} {dbid}", xbmc.LOGINFO)
+        # Library item - add library-specific options
+        if dbtype == 'movie':
+            _add_library_movie_options(options, actions, addon, dbtype, dbid)
+        elif dbtype == 'episode':
+            _add_library_episode_options(options, actions, addon, dbtype, dbid)
+        elif dbtype == 'musicvideo':
+            _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
     
-    # If we have dbtype but no media_item_id, we can still offer some options
-    elif dbtype in ('movie', 'episode', 'musicvideo'):
-        # Check if we can determine if it's a library item
-        if dbid and dbid != '0' and dbid != '':
-            # Library item - add library-specific options
-            if dbtype == 'movie':
-                _add_library_movie_options(options, actions, addon, dbtype, dbid)
-            elif dbtype == 'episode':
-                _add_library_episode_options(options, actions, addon, dbtype, dbid)
-            elif dbtype == 'musicvideo':
-                _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
-        else:
-            # External item or library item without dbid - add external options
-            _add_external_item_options(options, actions, addon)
-    
-    # Special handling for LibraryGenie items that have a title but no other identifying info
-    elif item_info.get('title') and not media_item_id:
-        # We're in LibraryGenie and have a title - offer add to list functionality
-        add_to_list_label = L(31000) if L(31000) else "Add to List..."
-        options.append(add_to_list_label)
-        actions.append("add_external_item")
+    # Third priority: items in movie container (but without library metadata)
+    elif item_info.get('is_movies') and item_info.get('title'):
+        xbmc.log(f"LibraryGenie: Using external item path for movie container item", xbmc.LOGINFO)
+        _add_external_item_options(options, actions, addon)
         
         # If we can extract list_id from container path, also offer remove option
         container_path = xbmc.getInfoLabel('Container.FolderPath')
@@ -305,6 +321,11 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
                     actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
             except Exception:
                 pass
+    
+    # Fallback: any item with a title in LibraryGenie context
+    elif item_info.get('title'):
+        xbmc.log(f"LibraryGenie: Using fallback path for titled item", xbmc.LOGINFO)
+        _add_external_item_options(options, actions, addon)
 
 
 def _execute_action(action_with_params, addon):
