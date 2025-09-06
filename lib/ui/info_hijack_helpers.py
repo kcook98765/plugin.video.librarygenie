@@ -95,180 +95,6 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
     return False
 
-def _wait_for_listitem_hydration(timeout_ms=2000, logger=None) -> bool:
-    """
-    Wait for Kodi to fully hydrate the focused ListItem with metadata from the database.
-    
-    This prevents opening the info dialog before Kodi has populated fields like Genre,
-    which would result in blank metadata in the native dialog.
-    
-    Args:
-        timeout_ms: Maximum time to wait in milliseconds
-        logger: Logger instance for detailed logging
-        
-    Returns:
-        bool: True if hydration detected, False if timeout
-    """
-    start_time = time.perf_counter()
-    check_interval = 0.05  # 50ms checks for responsive detection
-    check_count = 0
-    
-    # Log function for consistent formatting
-    def log_msg(message, level="info"):
-        if logger:
-            if level == "warning":
-                logger.warning(f"HYDRATION WAIT: {message}")
-            else:
-                logger.info(f"HYDRATION WAIT: {message}")
-        else:
-            _log(f"HYDRATION WAIT: {message}")
-    
-    log_msg(f"Starting hydration wait with {timeout_ms}ms timeout")
-    
-    end_time = time.time() + (timeout_ms / 1000.0)
-    
-    # Track initial state to detect changes
-    initial_dbid = xbmc.getInfoLabel('ListItem.DBID')
-    initial_genre = xbmc.getInfoLabel('ListItem.Genre')
-    initial_duration = xbmc.getInfoLabel('ListItem.Duration')
-    
-    log_msg(f"Initial state: DBID='{initial_dbid}', Genre='{initial_genre}', Duration='{initial_duration}'")
-    
-    while time.time() < end_time:
-        check_count += 1
-        
-        # Check key metadata fields that should be populated from the database
-        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        current_genre = xbmc.getInfoLabel('ListItem.Genre')
-        current_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-        current_duration = xbmc.getInfoLabel('ListItem.Duration')
-        
-        # Also check for basic info that should be present
-        current_title = xbmc.getInfoLabel('ListItem.Title')
-        current_year = xbmc.getInfoLabel('ListItem.Year')
-        
-        # Alternative Genre sources to check if primary is empty
-        if not current_genre or current_genre.strip() == "":
-            # Try VideoPlayer.Genre as alternative
-            alt_genre = xbmc.getInfoLabel('VideoPlayer.Genre')
-            if alt_genre and alt_genre.strip():
-                current_genre = alt_genre
-                if check_count <= 3:
-                    log_msg(f"Using VideoPlayer.Genre as Genre source: '{alt_genre}'")
-            else:
-                # Try InfoTag approach for Genre
-                try:
-                    # This may work on some Kodi versions/skins
-                    alt_genre2 = xbmc.getInfoLabel('ListItem.Property(Genre)')
-                    if alt_genre2 and alt_genre2.strip():
-                        current_genre = alt_genre2
-                        if check_count <= 3:
-                            log_msg(f"Using ListItem.Property(Genre) as Genre source: '{alt_genre2}'")
-                except:
-                    pass
-        
-        # Debug logging for Genre detection issues
-        if check_count <= 5 or (check_count % 10 == 0):
-            # Log all Genre sources for debugging
-            primary_genre = xbmc.getInfoLabel('ListItem.Genre')
-            video_genre = xbmc.getInfoLabel('VideoPlayer.Genre') 
-            prop_genre = ""
-            try:
-                prop_genre = xbmc.getInfoLabel('ListItem.Property(Genre)')
-            except:
-                pass
-            log_msg(f"GENRE SOURCES check #{check_count}: ListItem.Genre='{primary_genre}', VideoPlayer.Genre='{video_genre}', Property(Genre)='{prop_genre}', final='{current_genre}'")
-        
-        elapsed = time.perf_counter() - start_time
-        
-        # Log every check for the first few, then every 5th check
-        if check_count <= 5 or check_count % 5 == 0:
-            log_msg(f"Check #{check_count} ({elapsed:.3f}s): DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
-        
-        # Enhanced validation - check for complete hydration
-        has_dbid = current_dbid and current_dbid != "0" and current_dbid.strip()
-        has_genre = current_genre and current_genre.strip() and current_genre != "None"
-        has_dbtype = current_dbtype and current_dbtype.strip()
-        has_duration = current_duration and current_duration.strip()
-        has_title = current_title and current_title.strip()
-        
-        # Primary requirement: Complete hydration WITH Genre
-        # Genre is critical for proper native info dialog population
-        complete_hydration = has_dbid and has_genre and has_dbtype and has_duration and has_title
-        
-        if complete_hydration:
-            elapsed_final = time.perf_counter() - start_time
-            log_msg(f"SUCCESS: Complete hydration with Genre after {check_count} checks ({elapsed_final:.3f}s)")
-            log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
-            
-            # Additional Genre debugging - check all possible Genre sources
-            alt_genre_info = xbmc.getInfoLabel('VideoPlayer.Genre')
-            alt_genre_prop = xbmc.getInfoLabel('ListItem.Property(Genre)')
-            log_msg(f"GENRE DEBUG: Primary='{current_genre}', VideoPlayer.Genre='{alt_genre_info}', Property(Genre)='{alt_genre_prop}'")
-            
-            return True
-        
-        # Only after significant time (1.2s), consider proceeding without Genre
-        # This gives Genre more time to populate since it's database-dependent
-        elif elapsed > 1.2:
-            basic_hydration = has_dbid and has_dbtype and has_duration and has_title
-            if basic_hydration:
-                elapsed_final = time.perf_counter() - start_time
-                log_msg(f"TIMEOUT FALLBACK: Proceeding without Genre after {check_count} checks ({elapsed_final:.3f}s)")
-                log_msg(f"Final metadata: DBID={current_dbid}, Genre='{current_genre or 'MISSING'}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'")
-                
-                # Additional Genre debugging for timeout cases
-                alt_genre_info = xbmc.getInfoLabel('VideoPlayer.Genre')
-                alt_genre_prop = xbmc.getInfoLabel('ListItem.Property(Genre)')
-                log_msg(f"TIMEOUT GENRE DEBUG: Primary='{current_genre}', VideoPlayer.Genre='{alt_genre_info}', Property(Genre)='{alt_genre_prop}'")
-                
-                return True
-        
-        # Log what we're still missing
-        if check_count <= 3 or check_count % 10 == 0:
-            missing = []
-            if not has_dbid:
-                missing.append("DBID")
-            if not has_genre:
-                missing.append("Genre")
-            if not has_dbtype:
-                missing.append("DBType")
-            if missing:
-                log_msg(f"Still waiting for: {', '.join(missing)} (check #{check_count})")
-        
-        # Short sleep between checks
-        xbmc.sleep(int(check_interval * 1000))
-    
-    # Timeout reached
-    elapsed_final = time.perf_counter() - start_time
-    log_msg(f"TIMEOUT after {check_count} checks ({elapsed_final:.3f}s)", "warning")
-    log_msg(f"Final state: DBID='{current_dbid}', Genre='{current_genre}', DBType='{current_dbtype}', Duration='{current_duration}', Title='{current_title}'", "warning")
-    
-    # Detailed analysis of what we have vs what we need
-    has_dbid = current_dbid and current_dbid != "0" and current_dbid.strip()
-    has_genre = current_genre and current_genre.strip() and current_genre != "None"
-    has_dbtype = current_dbtype and current_dbtype.strip()
-    has_duration = current_duration and current_duration.strip()
-    has_title = current_title and current_title.strip()
-    
-    # Analyze the timeout situation
-    if has_dbid and has_dbtype:
-        if not has_genre:
-            log_msg(f"WARNING: DBID and DBType present but Genre missing - Genre may populate after dialog opens", "warning")
-        if has_duration and has_title:
-            log_msg(f"INFO: Core metadata is available, proceeding without Genre - it should populate in the dialog", "warning")
-            return True  # Allow proceeding if we have core metadata
-        else:
-            log_msg(f"CRITICAL: Missing essential metadata - Duration: {bool(has_duration)}, Title: {bool(has_title)}", "warning")
-    elif not has_dbid:
-        log_msg(f"DBID missing or invalid: '{current_dbid}'", "warning")
-    elif not has_dbtype:
-        log_msg(f"DBType missing: '{current_dbtype}'", "warning")
-    
-    # Only block if we're missing critical core metadata (DBID/DBType)
-    # Genre can populate after the dialog opens
-    return has_dbid and has_dbtype
-
 def _wait_for_info_dialog(timeout=10.0):
     """
     Block until the DialogVideoInfo window is active (skin dep. but standard on Kodi 19+).
@@ -409,23 +235,21 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
 
 def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
     """
-    Create XSP file that filters by the file path of a database item.
-    This ensures we get the actual library item with full metadata population.
+    Create XSP file that filters to a specific database item by ID.
+    This creates a native Kodi list containing just the target item.
     """
     try:
         _log(f"Creating XSP for database item {db_type} {db_id}")
         
-        # Get the file path for this database item
+        # Get the actual file path from the database item
         file_path = _get_file_for_dbitem(db_type, db_id)
         if not file_path:
             _log(f"No file path found for {db_type} {db_id}", xbmc.LOGWARNING)
             return None
         
-        # Extract filename for XSP filtering
         filename = os.path.basename(file_path)
         filename_no_ext = os.path.splitext(filename)[0]
-        
-        _log(f"Creating XSP for {db_type} {db_id}: filename='{filename}', no_ext='{filename_no_ext}', full_path='{file_path}'")
+        _log(f"Creating XSP for {db_type} {db_id}: filename='{filename}', no_ext='{filename_no_ext}'")
         
         name = f"LG Hijack {db_type} {db_id}"
         
@@ -455,9 +279,9 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
             _log(f"Unsupported db_type for XSP creation: {db_type}", xbmc.LOGWARNING)
             return None
         
-        # Use profile playlists path with generic filename
+        # Use profile playlists path
         playlists_dir = "special://profile/playlists/video/"
-        xsp_filename = "lg_hijack_debug.xsp"
+        xsp_filename = f"lg_hijack_{db_type}_{db_id}.xsp"
         path = playlists_dir + xsp_filename
         
         # Ensure playlists directory exists
@@ -470,11 +294,11 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
             # Fallback to temp
             path = f"special://temp/{xsp_filename}"
         
-        # Log the raw XSP content for debugging
-        _log(f"XSP RAW CONTENT for {db_type} {db_id}:\n{xsp}")
+        # Log the XSP content for debugging
+        _log(f"XSP content for {db_type} {db_id}:\n{xsp}")
         
         if _write_text(path, xsp):
-            _log(f"XSP created successfully: {path} (filename='{filename}')")
+            _log(f"XSP created successfully: {path}")
             return path
         else:
             _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
@@ -484,45 +308,78 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
         _log(f"Exception creating XSP for {db_type} {db_id}: {e}", xbmc.LOGERROR)
         return None
 
+def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
+    fp = _get_file_for_dbitem(dbtype, dbid)
+    if not fp:
+        _log(f"No file path found for {dbtype} {dbid}", xbmc.LOGWARNING)
+        return None
 
+    filename = os.path.basename(fp)
+    # Remove file extension for XSP matching
+    filename_no_ext = os.path.splitext(filename)[0]
+    _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', no_ext='{filename_no_ext}', full_path='{fp}'")
+
+    name = f"LG Native Info {dbtype} {dbid}"
+
+    # Use 'contains' operator for more robust filename matching
+    # This handles cases where the database stores full paths vs just filenames
+    xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<smartplaylist type="movies">
+  <name>{html.escape(name)}</name>
+  <match>all</match>
+  <rule field="filename" operator="contains">
+    <value>{html.escape(filename_no_ext)}</value>
+  </rule>
+  <order direction="ascending">title</order>
+</smartplaylist>"""
+
+    # Use profile playlists path with generic filename (persistent for debugging)
+    playlists_dir = "special://profile/playlists/video/"
+    xsp_filename = "lg_hijack_debug.xsp"
+    path = playlists_dir + xsp_filename
+
+    # Ensure playlists directory exists
+    try:
+        if not xbmcvfs.exists(playlists_dir):
+            _log(f"Creating playlists directory: {playlists_dir}")
+            xbmcvfs.mkdirs(playlists_dir)
+    except Exception as e:
+        _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
+        # Fallback to temp
+        path = f"special://temp/{xsp_filename}"
+
+    # Log the raw XSP content for debugging
+    _log(f"XSP RAW CONTENT for {dbtype} {dbid}:\n{xsp}")
+
+    if _write_text(path, xsp):
+        _log(f"XSP created successfully: {path} (filename='{filename}')")
+        return path
+    else:
+        _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
+        return None
 
 # XSP cleanup removed - using persistent generic filename for debugging
 
 def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> int:
-    """Find the target movie index in XSP, skipping parent directory"""
-    try:
-        data = jsonrpc("Files.GetDirectory", {
-            "directory": directory, "media": "video",
-            "properties": ["file", "title", "filetype"]
-        })
-        items = (data.get("result") or {}).get("files") or []
-        _log(f"XSP directory items count: {len(items)}")
+    """Simplified: assume movie is only match, just skip parent if present"""
+    data = jsonrpc("Files.GetDirectory", {
+        "directory": directory, "media": "video",
+        "properties": ["file", "title", "thumbnail"]
+    })
+    items = (data.get("result") or {}).get("files") or []
+    _log(f"XSP directory items count: {len(items)}")
 
-        if not items:
-            _log("No items found in XSP directory", xbmc.LOGWARNING)
-            return 0
+    if not items:
+        _log("No items found in XSP directory", xbmc.LOGWARNING)
+        return 0
 
-        # Find first non-directory item (actual movie)
-        for i, item in enumerate(items):
-            file_path = item.get("file", "")
-            file_type = item.get("filetype", "")
-            title = item.get("title", "")
-            
-            _log(f"XSP item {i}: type='{file_type}', file='{file_path}', title='{title}'")
-            
-            # Skip parent directory entries
-            if file_path.endswith("..") or file_type == "directory":
-                continue
-                
-            # Found the actual movie
-            _log(f"XSP found movie at index {i}: '{title}'")
-            return i
-
-        # Fallback: if all items are directories, try index 1
-        _log("XSP fallback: using index 1")
+    # Simple logic: if first item is ".." parent, use index 1 (the movie)
+    # Otherwise use index 0
+    if len(items) >= 2 and items[0].get("file", "").endswith(".."):
+        _log("XSP has parent item, using index 1 for movie")
         return 1
-    except Exception as e:
-        _log(f"Error finding XSP index: {e}", xbmc.LOGWARNING)
+    else:
+        _log("XSP has no parent item, using index 0 for movie")
         return 0
 
 def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
@@ -609,169 +466,161 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Direct approach using xbmcgui.Dialog().info() with file path.
-    Much simpler than XSP-based navigation - directly opens native dialog.
+    Proper hijack flow: Close current info dialog, navigate to native list, then open info.
+    This ensures the video info gets full Kodi metadata population from native library.
     """
     try:
         overall_start_time = time.perf_counter()
-        logger.info(f"🎬 HIJACK HELPERS: Starting direct dialog hijack for {db_type} {db_id}")
+        logger.info(f"🎬 HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
         
         # 🔒 SUBSTEP 1: Close any open dialog first
+        substep1_start = time.perf_counter()
+        logger.info(f"🔒 SUBSTEP 1: Checking for open dialogs to close")
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
-            logger.info(f"SUBSTEP 1: Closing existing dialog ID {current_dialog_id}")
+            logger.info(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
             xbmc.executebuiltin('Action(Back)')
+            # Wait for dialog to close
             xbmc.sleep(200)
-        
-        # 🚀 SUBSTEP 2: Get file path from Kodi database
-        logger.info(f"🚀 SUBSTEP 2: Getting file path for {db_type} {db_id}")
-        
-        if db_type == "movie":
-            rpc = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "VideoLibrary.GetMovieDetails",
-                "params": {
-                    "movieid": db_id,
-                    "properties": ["file", "title"]
-                }
-            }
-        elif db_type == "episode":
-            rpc = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "VideoLibrary.GetEpisodeDetails",
-                "params": {
-                    "episodeid": db_id,
-                    "properties": ["file", "title"]
-                }
-            }
-        elif db_type == "musicvideo":
-            rpc = {
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "VideoLibrary.GetMusicVideoDetails",
-                "params": {
-                    "musicvideoid": db_id,
-                    "properties": ["file", "title"]
-                }
-            }
+            # Verify dialog closed
+            after_close_id = xbmcgui.getCurrentWindowDialogId()
+            logger.info(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
         else:
-            logger.warning(f"⚠️ SUBSTEP 2: Unsupported db_type: {db_type}")
+            logger.info(f"✅ SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
+        substep1_end = time.perf_counter()
+        logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
+        
+        # 📝 SUBSTEP 2: Create XSP file for single item to create a native list
+        substep2_start = time.perf_counter()
+        logger.info(f"📝 SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
+        start_xsp_time = time.perf_counter()
+        xsp_path = _create_xsp_for_dbitem(db_type, db_id)
+        end_xsp_time = time.perf_counter()
+        
+        if not xsp_path:
+            logger.warning(f"❌ SUBSTEP 2 FAILED: Failed to create XSP for {db_type} {db_id}")
+            return False
+        logger.info(f"✅ SUBSTEP 2 COMPLETE: XSP created at {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
+        substep2_end = time.perf_counter()
+        logger.info(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
+        
+        # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
+        substep3_start = time.perf_counter()
+        logger.info(f"🧭 SUBSTEP 3: Navigating to native list: {xsp_path}")
+        current_window_before = xbmcgui.getCurrentWindowId()
+        start_nav_time = time.perf_counter()
+        logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        activate_window_end = time.perf_counter()
+        logger.info(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
+        
+        # ⏳ SUBSTEP 4: Wait for the Videos window to load with our item
+        substep4_start = time.perf_counter()
+        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with XSP content")
+        wait_start = time.perf_counter()
+        if not _wait_videos_on(xsp_path, timeout_ms=4000):
+            wait_end = time.perf_counter()
+            end_nav_time = time.perf_counter()
+            current_window_after = xbmcgui.getCurrentWindowId()
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s")
+            logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
+            logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
+            return False
+        wait_end = time.perf_counter()
+        end_nav_time = time.perf_counter()
+        current_window_after = xbmcgui.getCurrentWindowId()
+        current_path = xbmc.getInfoLabel("Container.FolderPath")
+        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
+        logger.info(f"✅ SUBSTEP 4 COMPLETE: Videos window loaded in {end_nav_time - start_nav_time:.3f}s")
+        logger.info(f"SUBSTEP 4 STATUS: Window {current_window_before}→{current_window_after}, path='{current_path}', items={num_items}")
+        substep4_end = time.perf_counter()
+        logger.info(f"⏱️ SUBSTEP 4 TIMING: {substep4_end - substep4_start:.3f}s (wait: {wait_end - wait_start:.3f}s)")
+        logger.info(f"⏱️ SUBSTEP 3+4 COMBINED TIMING: {substep4_end - substep3_start:.3f}s")
+        
+        # 🎯 SUBSTEP 5: Focus the list and find our item
+        substep5_start = time.perf_counter()
+        logger.info(f"🎯 SUBSTEP 5: Focusing list to locate {db_type} {db_id}")
+        start_focus_time = time.perf_counter()
+        if not focus_list():
+            end_focus_time = time.perf_counter()
+            logger.warning(f"❌ SUBSTEP 5 FAILED: Failed to focus list control after {end_focus_time - start_focus_time:.3f}s")
+            return False
+        end_focus_time = time.perf_counter()
+        logger.info(f"✅ SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
+        substep5_end = time.perf_counter()
+        logger.info(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
+        
+        # 📍 SUBSTEP 6: Check current item and navigate away from parent if needed
+        substep6_start = time.perf_counter()
+        logger.info(f"📍 SUBSTEP 6: Checking current item and navigating to movie")
+        current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+        current_item_label = xbmc.getInfoLabel('ListItem.Label')
+        
+        # Check if we're focused on the parent item ".."
+        if current_item_label == ".." or current_item_label.strip() == "..":
+            logger.info(f"SUBSTEP 6: Currently on parent item '{current_item_label}', navigating to next item")
+            xbmc.executebuiltin('Action(Down)')  # Move to next item
+            xbmc.sleep(150)  # Wait for navigation
+            current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+            new_label = xbmc.getInfoLabel('ListItem.Label')
+            logger.info(f"SUBSTEP 6: Moved from parent item {current_item_before} to item {current_item_after}, new label: '{new_label}'")
+        else:
+            logger.info(f"SUBSTEP 6: Already on target item '{current_item_label}' at position {current_item_before}")
+        
+        # Verify we're now on the correct item
+        final_item_label = xbmc.getInfoLabel('ListItem.Label')
+        final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+        
+        if final_item_label == ".." or final_item_label.strip() == "..":
+            logger.warning(f"❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt")
             return False
         
-        # Execute JSON-RPC request
-        resp = xbmc.executeJSONRPC(json.dumps(rpc))
-        data = json.loads(resp)
+        logger.info(f"✅ SUBSTEP 6 COMPLETE: On target item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
+        substep6_end = time.perf_counter()
+        logger.info(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
         
-        # Extract details based on media type
-        if db_type == "movie":
-            details = (data.get("result") or {}).get("moviedetails")
-        elif db_type == "episode":
-            details = (data.get("result") or {}).get("episodedetails")
-        elif db_type == "musicvideo":
-            details = (data.get("result") or {}).get("musicvideodetails")
+        # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
+        substep7_start = time.perf_counter()
+        logger.info(f"🎬 SUBSTEP 7: Opening video info from native list")
+        pre_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        start_info_time = time.perf_counter()
+        logger.info(f"SUBSTEP 7 DEBUG: About to execute Action(Info) at {start_info_time - overall_start_time:.3f}s")
+        xbmc.executebuiltin('Action(Info)')
+        action_info_end = time.perf_counter()
+        logger.info(f"SUBSTEP 7 DEBUG: Action(Info) command executed in {action_info_end - start_info_time:.3f}s")
         
-        if not details or not details.get("file"):
-            logger.warning(f"⚠️ SUBSTEP 2: No file path found for {db_type} {db_id}")
-            return False
+        # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
+        substep8_start = time.perf_counter()
+        logger.info(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
+        dialog_wait_start = time.perf_counter()
+        success = _wait_for_info_dialog(timeout=10.0)
+        dialog_wait_end = time.perf_counter()
+        end_info_time = time.perf_counter()
+        post_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
-        file_path = details["file"]
-        title = details.get("title") or f"{db_type.title()} {db_id}"
+        if success:
+            logger.info(f"✅ SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
+            logger.info(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
+            logger.info(f"🎉 HIJACK HELPERS: ✅ Native info hijack completed successfully for {db_type} {db_id}")
+        else:
+            logger.warning(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s")
+            logger.warning(f"SUBSTEP 8 DEBUG: Dialog ID remains {post_info_dialog_id} (was {pre_info_dialog_id})")
+            logger.warning(f"💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for {db_type} {db_id}")
         
-        logger.info(f"SUBSTEP 2: Found file path: {file_path}")
-        logger.info(f"SUBSTEP 2: Title: {title}")
-        
-        # 📺 SUBSTEP 3: Create ListItem and open native dialog
-        logger.info(f"📺 SUBSTEP 3: Creating ListItem and opening native dialog")
-        
-        li = xbmcgui.ListItem(label=title)
-        li.setPath(file_path)
-        li.setInfo("video", {})  # Route to VIDEO info dialog
-        li.setProperty("dbtype", db_type)
-        li.setProperty("dbid", str(db_id))
-        
-        # Open native info dialog directly
-        logger.info(f"SUBSTEP 3: Opening Dialog().info()")
-        xbmcgui.Dialog().info(li)
+        substep8_end = time.perf_counter()
+        logger.info(f"⏱️ SUBSTEP 8 TIMING: {substep8_end - substep8_start:.3f}s (dialog wait: {dialog_wait_end - dialog_wait_start:.3f}s)")
         
         overall_end_time = time.perf_counter()
-        logger.info(f"✅ DIRECT DIALOG SUCCESS: Native info opened for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
-        logger.info(f"🎉 HIJACK HELPERS: ✅ Direct dialog hijack completed successfully")
-        return True
-        
+        logger.info(f"⏱️ OVERALL HIJACK TIMING: {overall_end_time - overall_start_time:.3f}s")
+        logger.info(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
+            
+        return success
     except Exception as e:
-        logger.error(f"💥 HIJACK HELPERS: Exception in direct dialog hijack for {db_type} {db_id}: {e}")
+        logger.error(f"💥 HIJACK HELPERS: Exception in hijack process for {db_type} {db_id}: {e}")
         import traceback
         logger.error(f"HIJACK HELPERS: Traceback: {traceback.format_exc()}")
-        return False
-
-def _open_native_info_via_xsp(db_type: str, db_id: int, logger, overall_start_time: float) -> bool:
-    """
-    XSP-based fallback method for when direct videodb URLs don't work.
-    Creates a smart playlist that filters to the specific item.
-    """
-    try:
-        substep3_start = time.perf_counter()
-        logger.info(f"📄 XSP FALLBACK: Creating smart playlist for {db_type} {db_id}")
-        
-        # Create XSP file targeting this specific database item
-        xsp_path = _create_xsp_for_dbitem(db_type, db_id)
-        if not xsp_path:
-            logger.warning(f"❌ XSP FALLBACK FAILED: Could not create XSP for {db_type} {db_id}")
-            return False
-        
-        logger.info(f"XSP FALLBACK: Created XSP at: {xsp_path}")
-        
-        # Navigate to the XSP
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
-        
-        # Wait for XSP to load
-        if not _wait_videos_on(xsp_path, timeout_ms=6000):
-            logger.warning(f"❌ XSP FALLBACK FAILED: XSP didn't load: {xsp_path}")
-            return False
-        
-        # Focus the list and find the target item
-        if not focus_list():
-            logger.warning(f"❌ XSP FALLBACK FAILED: Could not focus list")
-            return False
-        
-        # In XSP, our target item should be the first real item (after potential parent "..")
-        target_index = _find_index_in_dir_by_file(xsp_path, None)
-        if target_index >= 0:
-            logger.info(f"XSP FALLBACK: Moving to item index {target_index}")
-            # Use Control.Move instead of SelectItem which has keymapping issues
-            for i in range(target_index):
-                xbmc.executebuiltin('Action(Down)')
-                xbmc.sleep(50)
-            xbmc.sleep(100)
-        
-        # Verify we have the right item
-        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        current_label = xbmc.getInfoLabel('ListItem.Label')
-        if current_dbid != str(db_id):
-            logger.warning(f"⚠️ XSP FALLBACK: Item mismatch - expected DBID {db_id}, got {current_dbid} ('{current_label}')")
-        
-        # Wait for metadata hydration
-        hydration_success = _wait_for_listitem_hydration(timeout_ms=1500, logger=logger)
-        if not hydration_success:
-            logger.warning(f"⚠️ XSP FALLBACK: Metadata hydration timeout")
-        
-        # Open the info dialog
-        xbmc.executebuiltin('Action(Info)')
-        
-        if _wait_for_info_dialog(timeout=8.0):
-            substep3_end = time.perf_counter()
-            overall_end_time = time.perf_counter()
-            logger.info(f"✅ XSP FALLBACK SUCCESS: Info dialog opened in {substep3_end - substep3_start:.3f}s")
-            logger.info(f"🎉 HIJACK HELPERS: ✅ XSP fallback hijack completed for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
-            return True
-        else:
-            logger.warning(f"❌ XSP FALLBACK FAILED: Info dialog didn't open")
-            return False
-            
-    except Exception as e:
-        logger.error(f"💥 XSP FALLBACK: Exception for {db_type} {db_id}: {e}")
         return False
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
