@@ -14,11 +14,11 @@ The Info Hijack System allows LibraryGenie to provide native Kodi info dialogs f
 
 ### 5-Step Hijack Process
 
-1. **💾 STEP 1: SAVE RETURN TARGET** - Store current container path and position for restoration
+1. **💾 STEP 1: TRUST KODI NAVIGATION** - Use Kodi's built-in navigation history (no manual saving needed)
 2. **🚪 STEP 2: CLOSE CURRENT DIALOG** - Close the plugin info dialog
 3. **🚀 STEP 3: OPEN NATIVE INFO VIA XSP** - Create XSP file and navigate to native library view
 4. **📺 STEP 4: NATIVE DIALOG OPENS** - User sees full Kodi native info dialog
-5. **🔄 STEP 5: CONTAINER RESTORE** - When user closes dialog, restore original plugin container
+5. **🔄 STEP 5: DOUBLE-BACK NAVIGATION** - When user closes dialog, detect XSP and issue two back commands
 
 ## Item Arming System
 
@@ -46,14 +46,27 @@ These XSP files contain Kodi database ID filters to show exactly one item in a n
 - **Cooldown System**: Prevents rapid-fire hijacks during navigation
 - **Progress Tracking**: Prevents re-entry during active hijack operations  
 - **Dialog State Monitoring**: Tracks when native info dialogs open and close
-- **Return Target Storage**: Uses Kodi window properties to store restoration data
+- **Navigation History**: Leverages Kodi's built-in navigation stack instead of manual state management
 
 ## Performance Considerations
 
-- **Decoupled Operation**: Heavy operations (XSP creation, container rebuild) happen after dialog opens
-- **Fast Native Opening**: Native info appears immediately without waiting for container restoration
+- **XSP Detection**: Automatically detects temporary XSP lists and navigates back efficiently
+- **No Container Refresh**: Eliminates expensive `Container.Update()` operations that cause 5-6 second delays
+- **Double-Back Navigation**: Uses two fast `Action(Back)` commands (~250ms total) instead of container rebuilds
+- **Navigation History**: Leverages Kodi's built-in navigation stack for automatic position restoration
 - **Efficient XSP**: Minimal XML generation using database ID filters
 - **Memory Management**: Temporary XSP files are cleaned up automatically
+
+## Navigation Flow
+
+The hijack system uses a streamlined navigation approach:
+
+1. **User closes native info** → First back command (returns to temporary XSP list)
+2. **XSP Detection** → Check if current path contains `.xsp` or `smartplaylist`
+3. **Second Back** → If XSP detected, issue another back command to return to original plugin list
+4. **Automatic Position** → Kodi's navigation history automatically restores the user's position
+
+This flow eliminates the need for manual container rebuilds and provides sub-second performance on all devices.
 
 ## Error Handling
 
@@ -67,12 +80,17 @@ These XSP files contain Kodi database ID filters to show exactly one item in a n
 The system provides detailed logging with emoji prefixes for easy debugging:
 
 - 🎯 Hijack triggers and detection
-- 💾 Return target operations  
+- 💾 Navigation history trust operations  
 - 🚪 Dialog close operations
 - 🚀 Native info opening
-- 🔄 Container restoration
+- 🔄 XSP detection and double-back navigation
 - ✅ Success confirmations
 - ❌ Error conditions
+
+Key log messages include:
+- "Using Kodi's navigation history (no saving needed)"
+- "Detected XSP path: {path}, issuing second back"
+- "Not on XSP path, single back was sufficient"
 
 ## Usage Requirements
 
