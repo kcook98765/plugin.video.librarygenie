@@ -77,9 +77,13 @@ class InfoHijackManager:
                         self._last_hijack_time = current_time
                         
                         try:
-                            # 💾 STEP 1: TRUST KODI NAVIGATION HISTORY
-                            self._logger.info(f"💾 HIJACK STEP 1: Using Kodi's navigation history (no saving needed)")
-                            self._logger.info(f"✅ HIJACK STEP 1 COMPLETE: Navigation history will handle return")
+                            # 💾 STEP 1: SAVE RETURN PATH FOR EMERGENCY RECOVERY
+                            current_path = xbmc.getInfoLabel("Container.FolderPath")
+                            current_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+                            
+                            self._logger.info(f"💾 HIJACK STEP 1: Saving return path for emergency recovery")
+                            self._save_return_target(current_path, current_position)
+                            self._logger.info(f"✅ HIJACK STEP 1 COMPLETE: Return path saved: '{current_path}' (position: {current_position})")
                             
                             # 🚪 STEP 2: CLOSE CURRENT DIALOG
                             self._logger.info(f"🚪 HIJACK STEP 2: CLOSING CURRENT DIALOG")
@@ -205,9 +209,14 @@ class InfoHijackManager:
                             self._logger.debug("HIJACK: On folder level, navigating forward to list")
                             self._execute_forward_to_list()
                     else:
-                        self._logger.info(f"HIJACK: Not on XSP, but not in plugin content yet: '{after_back_path}'")
-                        # Try additional back if needed
-                        self._execute_additional_back_if_needed()
+                        self._logger.info(f"HIJACK: Not in plugin content yet: '{after_back_path}'")
+                        # Check if we're still in a playlists-related path
+                        if self._is_still_in_playlists_area(after_back_path):
+                            self._logger.info("HIJACK: Still in playlists area, using emergency navigation")
+                            self._execute_emergency_return_to_plugin()
+                        else:
+                            # Try additional back if needed
+                            self._execute_additional_back_if_needed()
             else:
                 self._logger.warning("HIJACK: First back navigation timeout, trying fallback")
                 self._fallback_navigation()
@@ -219,13 +228,17 @@ class InfoHijackManager:
             self._fallback_navigation()
 
     def _is_currently_on_xsp(self, path: str, window: str) -> bool:
-        """Determine if we're currently on an XSP path"""
+        """Determine if we're currently on an XSP path or playlists directory"""
         if not path:
             return False
             
-        # Direct XSP indicators
-        xsp_indicators = ['.xsp', 'smartplaylist', 'lg_hijack', 'playlists/video']
+        # Direct XSP indicators and playlists directories
+        xsp_indicators = ['.xsp', 'smartplaylist', 'lg_hijack', 'playlists/video', 'playlists/']
         if any(indicator in path.lower() for indicator in xsp_indicators):
+            return True
+            
+        # Check for special:// paths that aren't plugin content
+        if path.startswith('special://') and 'plugin.video.librarygenie' not in path:
             return True
             
         # Window context check - Videos window but not plugin content
@@ -484,6 +497,34 @@ class InfoHijackManager:
             self._logger.debug(f"HIJACK: Navigation {context} took {time.time() - start_time:.3f}s (may still be completing) - Final path: '{final_path}'")
         
         return path_change_detected
+
+    def _is_still_in_playlists_area(self, path: str) -> bool:
+        """Check if we're still stuck in the playlists directory area"""
+        if not path:
+            return False
+        return ('special://' in path and 'playlists' in path.lower()) or path.lower().startswith('special://profile/playlists')
+
+    def _execute_emergency_return_to_plugin(self):
+        """Emergency navigation back to plugin when stuck in playlists"""
+        self._logger.info("HIJACK: Executing emergency return to plugin")
+        
+        # Try to get the return path from properties first
+        return_path = xbmc.getInfoLabel('Property(LG.InfoHijack.ReturnPath,Home)')
+        if return_path and 'plugin.video.librarygenie' in return_path:
+            self._logger.info(f"HIJACK: Using saved return path: '{return_path}'")
+            xbmc.executebuiltin(f'Container.Update("{return_path}",replace)')
+        else:
+            # Fallback to main menu
+            self._logger.info("HIJACK: No saved path, returning to main menu")
+            xbmc.executebuiltin('Container.Update("plugin://plugin.video.librarygenie/",replace)')
+        
+        # Wait for navigation to complete
+        if self._wait_for_plugin_content("emergency return", max_wait=3.0):
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            self._logger.info(f"HIJACK: Emergency return succeeded - Final path: '{final_path}'")
+        else:
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            self._logger.warning(f"HIJACK: Emergency return timeout - Final path: '{final_path}'")
 
     def _debug_scan_container(self):
         """Debug method to scan container for armed items"""
