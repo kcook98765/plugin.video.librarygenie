@@ -8,7 +8,7 @@ Handles full scans and delta detection of Kodi's video library
 
 import json
 from datetime import datetime
-from typing import List, Dict, Set, Any, Optional
+from typing import List, Dict, Set, Any, Optional, Callable
 
 from ..data import QueryManager
 from ..data.connection_manager import get_connection_manager
