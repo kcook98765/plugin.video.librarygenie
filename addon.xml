@@ -13,7 +13,7 @@
   <extension point="kodi.context.item">
     <menu id="kodi.core.main">
       <item library="context.py">
-        <label>LibraryGenie</label>
+        <label>37028</label>
         <visible>true</visible>
       </item>
     </menu>
