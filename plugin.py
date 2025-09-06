@@ -97,25 +97,32 @@ def _check_and_trigger_initial_scan():
             import threading
 
             def run_initial_scan():
-                # Progress callback function - optimized for minimal overhead
+                # Progress callback function - background dialog style
+                progress_dialog = None
+                
                 def progress_callback(page_num, total_pages, items_processed):
+                    nonlocal progress_dialog
                     try:
                         percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
 
-                        # Show notifications less frequently to reduce overhead - every 20% or at key milestones
-                        if percentage in [20, 40, 60, 80] or page_num == 1 or page_num == total_pages:
-                            xbmcgui.Dialog().notification(
-                                addon.getLocalizedString(35002),  # "LibraryGenie"
-                                f"Library scan: {percentage}% complete ({items_processed} items)",
-                                xbmcgui.NOTIFICATION_INFO,
-                                1500  # Shorter display time - 1.5 seconds
-                            )
+                        # Create dialog on first call
+                        if progress_dialog is None:
+                            progress_dialog = xbmcgui.DialogProgressBG()
+                            progress_dialog.create(addon.getLocalizedString(35002), "Starting library scan...")
+                        
+                        # Update progress dialog
+                        message = f"Scanning library: {items_processed} movies processed"
+                        progress_dialog.update(percentage, message)
 
                     except Exception as e:
                         logger.warning(f"Progress callback error: {e}")
 
                 try:
                     result = scanner.perform_full_scan(progress_callback=progress_callback)
+
+                    # Close progress dialog
+                    if progress_dialog is not None:
+                        progress_dialog.close()
 
                     if result.get("success"):
                         logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
@@ -147,6 +154,10 @@ def _check_and_trigger_initial_scan():
                                 5000
                             )
                 except Exception as e:
+                    # Close progress dialog on exception
+                    if progress_dialog is not None:
+                        progress_dialog.close()
+                        
                     logger.error(f"Initial library scan thread failed: {e}")
                     # Show error notification
                     xbmcgui.Dialog().notification(

@@ -169,28 +169,34 @@ class BackgroundService:
                 except Exception as e:
                     self.logger.warning(f"Failed to show initial scan notification: {e}")
 
-                # No modal progress dialog needed - using notification-style progress
-
-                # Progress callback function - optimized for minimal overhead
+                # Use background progress dialog for friendlier user experience
+                progress_dialog = None
+                
+                # Progress callback function - background dialog style
                 def progress_callback(page_num, total_pages, items_processed):
+                    nonlocal progress_dialog
                     try:
                         percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
                         
-                        # Show notifications less frequently to reduce overhead - every 20% or at key milestones
-                        if percentage in [20, 40, 60, 80] or page_num == 1 or page_num == total_pages:
-                            xbmcgui.Dialog().notification(
-                                L(35002),  # "LibraryGenie"
-                                f"Library scan: {percentage}% complete ({items_processed} items)",
-                                xbmcgui.NOTIFICATION_INFO,
-                                1500  # Shorter display time - 1.5 seconds
-                            )
-                            
+                        # Create dialog on first call
+                        if progress_dialog is None:
+                            progress_dialog = xbmcgui.DialogProgressBG()
+                            progress_dialog.create(L(35002), "Starting library scan...")
+                        
+                        # Update progress dialog
+                        message = f"Scanning library: {items_processed} movies processed"
+                        progress_dialog.update(percentage, message)
+                        
                     except Exception as e:
                         self.logger.warning(f"Progress callback error: {e}")
 
                 # Perform scan with progress callback
                 try:
                     result = self._library_scanner.perform_full_scan(progress_callback=progress_callback)
+
+                    # Close progress dialog
+                    if progress_dialog is not None:
+                        progress_dialog.close()
 
                     if result.get("success"):
                         self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
@@ -231,6 +237,10 @@ class BackgroundService:
                             except Exception as e:
                                 self.logger.warning(f"Failed to show error notification: {e}")
                 except Exception as e:
+                    # Close progress dialog on exception
+                    if progress_dialog is not None:
+                        progress_dialog.close()
+                        
                     self.logger.error(f"Initial scan failed with exception: {e}")
                     # Show error notification on exception during scan
                     try:
