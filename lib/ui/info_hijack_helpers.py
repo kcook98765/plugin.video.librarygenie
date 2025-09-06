@@ -594,12 +594,12 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Proper hijack flow: Close current info dialog, navigate directly to videodb, then open info.
-    This ensures the video info gets full Kodi metadata population from native library.
+    Direct videodb URL approach - much more efficient for large libraries.
+    Uses ActivateWindow with direct videodb URLs to bypass library navigation.
     """
     try:
         overall_start_time = time.perf_counter()
-        logger.info(f"🎬 HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
+        logger.info(f"🎬 HIJACK HELPERS: Starting DIRECT hijack process for {db_type} {db_id}")
         
         # 🔒 SUBSTEP 1: Close any open dialog first
         substep1_start = time.perf_counter()
@@ -608,9 +608,7 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
             logger.info(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
             xbmc.executebuiltin('Action(Back)')
-            # Wait for dialog to close
             xbmc.sleep(200)
-            # Verify dialog closed
             after_close_id = xbmcgui.getCurrentWindowDialogId()
             logger.info(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
         else:
@@ -618,189 +616,157 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep1_end = time.perf_counter()
         logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
         
-        # 📝 SUBSTEP 2: Create proper library navigation path
+        # 🚀 SUBSTEP 2: Try direct videodb URL navigation first
         substep2_start = time.perf_counter()
-        logger.info(f"📝 SUBSTEP 2: Creating library navigation path for {db_type} {db_id}")
-        start_videodb_time = time.perf_counter()
+        logger.info(f"🚀 SUBSTEP 2: Attempting direct videodb URL approach for {db_type} {db_id}")
         
-        # Use proper videodb directory paths that Kodi can navigate to
+        # Build direct videodb URL for the specific item
         if db_type.lower() == 'movie':
-            # Navigate to movies root, then we'll find the specific movie
-            videodb_path = "videodb://movies/titles/"
-            target_videodb_url = f"videodb://movies/titles/{db_id}"
+            direct_url = f"videodb://movies/titles/{db_id}"
         elif db_type.lower() == 'episode':
-            # Navigate to episodes root, then we'll find the specific episode
-            videodb_path = "videodb://episodes/"
-            target_videodb_url = f"videodb://tvshows/titles/-1/-1/{db_id}"
+            direct_url = f"videodb://tvshows/titles/-1/-1/{db_id}"
         elif db_type.lower() == 'tvshow':
-            # Navigate to TV shows root, then we'll find the specific show
-            videodb_path = "videodb://tvshows/titles/"
-            target_videodb_url = f"videodb://tvshows/titles/{db_id}"
+            direct_url = f"videodb://tvshows/titles/{db_id}"
         else:
             logger.warning(f"❌ SUBSTEP 2 FAILED: Unsupported db_type: {db_type}")
             return False
         
-        end_videodb_time = time.perf_counter()
-        logger.info(f"✅ SUBSTEP 2 COMPLETE: Library path created: {videodb_path} (target: {target_videodb_url}) in {end_videodb_time - start_videodb_time:.3f}s")
+        logger.info(f"SUBSTEP 2: Attempting direct navigation to: {direct_url}")
+        
+        # Try direct video info activation - this should open info immediately if URL is valid
+        try:
+            # Method 1: Direct DialogVideoInfo activation (Kodi v20+)
+            logger.info(f"SUBSTEP 2: Trying ActivateWindow(DialogVideoInfo) method")
+            xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{direct_url}",return)')
+            
+            # Wait briefly to see if dialog opens
+            xbmc.sleep(300)
+            dialog_id_after = xbmcgui.getCurrentWindowDialogId()
+            
+            if dialog_id_after in (12003, 10147):
+                substep2_end = time.perf_counter()
+                logger.info(f"✅ SUBSTEP 2 SUCCESS: Direct dialog activation worked! Dialog ID: {dialog_id_after} in {substep2_end - substep2_start:.3f}s")
+                
+                # Brief verification that we have the right content
+                xbmc.sleep(200)
+                dialog_title = xbmc.getInfoLabel('ListItem.Title')
+                dialog_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                logger.info(f"🎯 DIRECT SUCCESS VERIFICATION: Title='{dialog_title}', DBID='{dialog_dbid}'")
+                
+                overall_end_time = time.perf_counter()
+                logger.info(f"🎉 HIJACK HELPERS: ✅ DIRECT hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+                return True
+            else:
+                logger.info(f"SUBSTEP 2: Direct dialog method didn't work (dialog ID: {dialog_id_after}), trying navigation method")
+        except Exception as e:
+            logger.info(f"SUBSTEP 2: Direct dialog method failed with exception: {e}, trying navigation method")
+        
+        # Method 2: Navigate to direct URL then open info
+        try:
+            logger.info(f"SUBSTEP 2: Trying ActivateWindow(Videos) with direct URL method")
+            xbmc.executebuiltin(f'ActivateWindow(Videos,"{direct_url}",return)')
+            
+            # Wait for navigation to complete
+            if _wait_videos_on(direct_url, timeout_ms=3000):
+                # Item should now be focused, open info
+                logger.info(f"SUBSTEP 2: Direct URL navigation succeeded, opening info")
+                xbmc.executebuiltin('Action(Info)')
+                
+                if _wait_for_info_dialog(timeout=5.0):
+                    substep2_end = time.perf_counter()
+                    logger.info(f"✅ SUBSTEP 2 SUCCESS: Direct URL navigation method worked in {substep2_end - substep2_start:.3f}s")
+                    
+                    # Brief verification
+                    xbmc.sleep(200)
+                    dialog_title = xbmc.getInfoLabel('ListItem.Title')
+                    dialog_dbid = xbmc.getInfoLabel('ListItem.DBID')
+                    logger.info(f"🎯 NAVIGATION SUCCESS VERIFICATION: Title='{dialog_title}', DBID='{dialog_dbid}'")
+                    
+                    overall_end_time = time.perf_counter()
+                    logger.info(f"🎉 HIJACK HELPERS: ✅ DIRECT hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+                    return True
+                else:
+                    logger.info(f"SUBSTEP 2: Info dialog didn't open after direct navigation")
+            else:
+                logger.info(f"SUBSTEP 2: Direct URL navigation failed or timed out")
+        except Exception as e:
+            logger.info(f"SUBSTEP 2: Direct URL navigation failed with exception: {e}")
+        
         substep2_end = time.perf_counter()
-        logger.info(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
+        logger.warning(f"⚠️ SUBSTEP 2: Direct methods failed after {substep2_end - substep2_start:.3f}s, falling back to XSP method")
         
-        # 🧭 SUBSTEP 3: Navigate to library section first
-        substep3_start = time.perf_counter()
-        logger.info(f"🧭 SUBSTEP 3: Navigating to library section: {videodb_path}")
-        current_window_before = xbmcgui.getCurrentWindowId()
-        start_nav_time = time.perf_counter()
-        logger.info(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{videodb_path}",return)')
-        activate_window_end = time.perf_counter()
-        logger.info(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
+        # 📁 SUBSTEP 3: Fallback to XSP method for difficult cases
+        logger.info(f"📁 SUBSTEP 3: Falling back to XSP method for {db_type} {db_id}")
+        return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
         
-        # ⏳ SUBSTEP 4: Wait for the Videos window to load with library content
-        substep4_start = time.perf_counter()
-        logger.info(f"⏳ SUBSTEP 4: Waiting for Videos window to load with library content")
-        wait_start = time.perf_counter()
-        if not _wait_videos_on(videodb_path, timeout_ms=4000):
-            wait_end = time.perf_counter()
-            end_nav_time = time.perf_counter()
-            current_window_after = xbmcgui.getCurrentWindowId()
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
-            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with library path: {videodb_path} after {end_nav_time - start_nav_time:.3f}s")
-            logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
-            logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
-            return False
-        wait_end = time.perf_counter()
-        end_nav_time = time.perf_counter()
-        current_window_after = xbmcgui.getCurrentWindowId()
-        current_path = xbmc.getInfoLabel("Container.FolderPath")
-        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
-        logger.info(f"✅ SUBSTEP 4 COMPLETE: Videos window loaded in {end_nav_time - start_nav_time:.3f}s")
-        logger.info(f"SUBSTEP 4 STATUS: Window {current_window_before}→{current_window_after}, path='{current_path}', items={num_items}")
-        substep4_end = time.perf_counter()
-        logger.info(f"⏱️ SUBSTEP 4 TIMING: {substep4_end - substep4_start:.3f}s (wait: {wait_end - wait_start:.3f}s)")
-        logger.info(f"⏱️ SUBSTEP 3+4 COMBINED TIMING: {substep4_end - substep3_start:.3f}s")
-        
-        # 🎯 SUBSTEP 5: Focus the list and find our item
-        substep5_start = time.perf_counter()
-        logger.info(f"🎯 SUBSTEP 5: Focusing list to locate {db_type} {db_id}")
-        start_focus_time = time.perf_counter()
-        if not focus_list():
-            end_focus_time = time.perf_counter()
-            logger.warning(f"❌ SUBSTEP 5 FAILED: Failed to focus list control after {end_focus_time - start_focus_time:.3f}s")
-            return False
-        end_focus_time = time.perf_counter()
-        logger.info(f"✅ SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
-        substep5_end = time.perf_counter()
-        logger.info(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
-        
-        # 📍 SUBSTEP 6: Find and focus the target database item
-        substep6_start = time.perf_counter()
-        logger.info(f"📍 SUBSTEP 6: Finding target database item {db_type} {db_id}")
-        
-        # We need to search through the library list to find our target item
-        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
-        target_found = False
-        expected_dbid = str(db_id)
-        
-        logger.info(f"SUBSTEP 6: Searching through {num_items} items for DBID {expected_dbid}")
-        
-        # Search through the container for the target item
-        for i in range(min(num_items, 200)):  # Limit search to prevent infinite loops
-            xbmc.executebuiltin(f'Action(SelectItem,{i})')
-            xbmc.sleep(50)  # Brief pause to let Kodi update
-            
-            current_dbid = xbmc.getInfoLabel('ListItem.DBID')
-            current_label = xbmc.getInfoLabel('ListItem.Label')
-            
-            if current_dbid == expected_dbid:
-                target_found = True
-                final_item_position = i
-                final_item_label = current_label
-                final_item_dbid = current_dbid
-                final_item_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-                logger.info(f"🎯 SUBSTEP 6: Found target item at position {i} - Label: '{current_label}', DBID: {current_dbid}")
-                break
-            
-            # Log every 20th item during search
-            if i % 20 == 0:
-                logger.info(f"SUBSTEP 6: Search progress {i}/{num_items} - Current: '{current_label}' (DBID: {current_dbid})")
-        
-        if not target_found:
-            logger.warning(f"⚠️ SUBSTEP 6 WARNING: Target DBID {expected_dbid} not found in library listing")
-            # Use the currently focused item as fallback
-            final_item_label = xbmc.getInfoLabel('ListItem.Label')
-            final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
-            final_item_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-            final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-            logger.warning(f"SUBSTEP 6: Using fallback item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
-        
-        logger.info(f"✅ SUBSTEP 6 COMPLETE: On database item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}, DBType: {final_item_dbtype}")
-        substep6_end = time.perf_counter()
-        logger.info(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
-        
-        # 💧 SUBSTEP 6.5: HYDRATION WAIT - Wait for Kodi to populate metadata on focused item
-        substep6_5_start = time.perf_counter()
-        logger.info(f"💧 SUBSTEP 6.5: HYDRATION WAIT - Waiting for Kodi to populate ListItem metadata")
-        
-        hydration_success = _wait_for_listitem_hydration(timeout_ms=1500, logger=logger)
-        
-        substep6_5_end = time.perf_counter()
-        if hydration_success:
-            logger.info(f"✅ SUBSTEP 6.5 COMPLETE: ListItem metadata hydrated in {substep6_5_end - substep6_5_start:.3f}s")
-        else:
-            logger.warning(f"⚠️ SUBSTEP 6.5 TIMEOUT: ListItem metadata not fully hydrated after {substep6_5_end - substep6_5_start:.3f}s - proceeding anyway")
-        logger.info(f"⏱️ SUBSTEP 6.5 TIMING: {substep6_5_end - substep6_5_start:.3f}s")
-        
-        # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
-        substep7_start = time.perf_counter()
-        logger.info(f"🎬 SUBSTEP 7: Opening video info from native list")
-        pre_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        start_info_time = time.perf_counter()
-        logger.info(f"SUBSTEP 7 DEBUG: About to execute Action(Info) at {start_info_time - overall_start_time:.3f}s")
-        xbmc.executebuiltin('Action(Info)')
-        action_info_end = time.perf_counter()
-        logger.info(f"SUBSTEP 7 DEBUG: Action(Info) command executed in {action_info_end - start_info_time:.3f}s")
-        
-        # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
-        substep8_start = time.perf_counter()
-        logger.info(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
-        dialog_wait_start = time.perf_counter()
-        success = _wait_for_info_dialog(timeout=10.0)
-        dialog_wait_end = time.perf_counter()
-        end_info_time = time.perf_counter()
-        post_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        
-        if success:
-            logger.info(f"✅ SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
-            logger.info(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
-            
-            # GENRE VERIFICATION: Check what Genre data is available in the opened dialog
-            xbmc.sleep(200)  # Brief pause to let dialog fully populate
-            dialog_genre = xbmc.getInfoLabel('ListItem.Genre')
-            dialog_video_genre = xbmc.getInfoLabel('VideoPlayer.Genre')
-            try:
-                dialog_prop_genre = xbmc.getInfoLabel('ListItem.Property(Genre)')
-            except:
-                dialog_prop_genre = ""
-            logger.info(f"🔍 POST-DIALOG GENRE CHECK: ListItem.Genre='{dialog_genre}', VideoPlayer.Genre='{dialog_video_genre}', Property(Genre)='{dialog_prop_genre}'")
-            
-            logger.info(f"🎉 HIJACK HELPERS: ✅ Native info hijack completed successfully for {db_type} {db_id}")
-        else:
-            logger.warning(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s")
-            logger.warning(f"SUBSTEP 8 DEBUG: Dialog ID remains {post_info_dialog_id} (was {pre_info_dialog_id})")
-            logger.warning(f"💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for {db_type} {db_id}")
-        
-        substep8_end = time.perf_counter()
-        logger.info(f"⏱️ SUBSTEP 8 TIMING: {substep8_end - substep8_start:.3f}s (dialog wait: {dialog_wait_end - dialog_wait_start:.3f}s)")
-        
-        overall_end_time = time.perf_counter()
-        logger.info(f"⏱️ OVERALL HIJACK TIMING: {overall_end_time - overall_start_time:.3f}s")
-        logger.info(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S6.5={substep6_5_end - substep6_5_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
-            
-        return success
     except Exception as e:
-        logger.error(f"💥 HIJACK HELPERS: Exception in hijack process for {db_type} {db_id}: {e}")
+        logger.error(f"💥 HIJACK HELPERS: Exception in direct hijack process for {db_type} {db_id}: {e}")
         import traceback
         logger.error(f"HIJACK HELPERS: Traceback: {traceback.format_exc()}")
+        return False
+
+def _open_native_info_via_xsp(db_type: str, db_id: int, logger, overall_start_time: float) -> bool:
+    """
+    XSP-based fallback method for when direct videodb URLs don't work.
+    Creates a smart playlist that filters to the specific item.
+    """
+    try:
+        substep3_start = time.perf_counter()
+        logger.info(f"📄 XSP FALLBACK: Creating smart playlist for {db_type} {db_id}")
+        
+        # Create XSP file targeting this specific database item
+        xsp_path = _create_xsp_for_dbitem(db_type, db_id)
+        if not xsp_path:
+            logger.warning(f"❌ XSP FALLBACK FAILED: Could not create XSP for {db_type} {db_id}")
+            return False
+        
+        logger.info(f"XSP FALLBACK: Created XSP at: {xsp_path}")
+        
+        # Navigate to the XSP
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        
+        # Wait for XSP to load
+        if not _wait_videos_on(xsp_path, timeout_ms=6000):
+            logger.warning(f"❌ XSP FALLBACK FAILED: XSP didn't load: {xsp_path}")
+            return False
+        
+        # Focus the list and find the target item
+        if not focus_list():
+            logger.warning(f"❌ XSP FALLBACK FAILED: Could not focus list")
+            return False
+        
+        # In XSP, our target item should be the first real item (after potential parent "..")
+        target_index = _find_index_in_dir_by_file(xsp_path, None)
+        if target_index >= 0:
+            xbmc.executebuiltin(f'Action(SelectItem,{target_index})')
+            xbmc.sleep(100)
+        
+        # Verify we have the right item
+        current_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        current_label = xbmc.getInfoLabel('ListItem.Label')
+        if current_dbid != str(db_id):
+            logger.warning(f"⚠️ XSP FALLBACK: Item mismatch - expected DBID {db_id}, got {current_dbid} ('{current_label}')")
+        
+        # Wait for metadata hydration
+        hydration_success = _wait_for_listitem_hydration(timeout_ms=1500, logger=logger)
+        if not hydration_success:
+            logger.warning(f"⚠️ XSP FALLBACK: Metadata hydration timeout")
+        
+        # Open the info dialog
+        xbmc.executebuiltin('Action(Info)')
+        
+        if _wait_for_info_dialog(timeout=8.0):
+            substep3_end = time.perf_counter()
+            overall_end_time = time.perf_counter()
+            logger.info(f"✅ XSP FALLBACK SUCCESS: Info dialog opened in {substep3_end - substep3_start:.3f}s")
+            logger.info(f"🎉 HIJACK HELPERS: ✅ XSP fallback hijack completed for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+            return True
+        else:
+            logger.warning(f"❌ XSP FALLBACK FAILED: Info dialog didn't open")
+            return False
+            
+    except Exception as e:
+        logger.error(f"💥 XSP FALLBACK: Exception for {db_type} {db_id}: {e}")
         return False
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
