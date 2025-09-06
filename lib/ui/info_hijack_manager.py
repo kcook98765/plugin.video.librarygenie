@@ -160,76 +160,139 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - detect XSP and issue double back"""
+        """Handle the native info dialog being closed - improved detection and faster navigation"""
         try:
-            self._logger.debug("HIJACK: Native info dialog closed, initiating double-back navigation")
+            self._logger.debug("HIJACK: Native info dialog closed, starting smart navigation")
             
-            # Wait for GUI to be ready before first back
-            if not self._wait_for_gui_ready("before first back", max_wait=2.0):
-                self._logger.warning("HIJACK: GUI not ready after 2s, proceeding anyway")
+            # First, check current state immediately
+            initial_path = xbmc.getInfoLabel("Container.FolderPath")
+            initial_window = xbmc.getInfoLabel("System.CurrentWindow")
             
-            # First back - this should take us to the XSP list we created
-            self._logger.debug("HIJACK: Issuing first back command")
-            xbmc.executebuiltin('Action(Back)')
+            self._logger.debug(f"HIJACK: Initial state - Path: '{initial_path}', Window: '{initial_window}'")
             
-            # Wait for navigation to complete - XSP navigation needs more time
-            if not self._wait_for_navigation_complete("first back", max_wait=3.0):
-                self._logger.debug("HIJACK: First back navigation continuing in background")
+            # Check if we're already back in plugin content (Kodi auto-navigated)
+            if initial_path and 'plugin.video.librarygenie' in initial_path:
+                self._logger.info("HIJACK: Already back in plugin content, no navigation needed")
+                self._cleanup_properties()
+                return
             
-            # Check if we're now on an XSP path (our temporary list)
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
-            current_window = xbmc.getInfoLabel("System.CurrentWindow")
+            # Wait for dialog close animation to complete (shorter wait)
+            if not self._wait_for_gui_ready("after dialog close", max_wait=1.0):
+                self._logger.warning("HIJACK: GUI not ready after 1s, proceeding anyway")
             
-            self._logger.debug(f"HIJACK: After first back - Path: '{current_path}', Window: '{current_window}'")
+            # Determine if we need one back or two backs based on current state
+            is_on_xsp = self._is_currently_on_xsp(initial_path, initial_window)
             
-            # More robust XSP detection - check multiple indicators
-            is_xsp = False
-            if current_path:
-                is_xsp = ('.xsp' in current_path.lower() or 
-                         'smartplaylist' in current_path.lower() or
-                         'lg_hijack' in current_path.lower() or
-                         'playlists' in current_path.lower())
-            
-            # Additional check: if we're in Videos window and not in plugin content, likely XSP
-            if not is_xsp and current_window and 'video' in current_window.lower():
-                if current_path and 'plugin.video.librarygenie' not in current_path:
-                    is_xsp = True
-                    self._logger.debug("HIJACK: Detected XSP via window context (not in plugin)")
-            
-            if is_xsp:
-                self._logger.debug(f"HIJACK: Detected XSP context: {current_path}, issuing second back")
-                
-                # Wait for GUI readiness before second back
-                if not self._wait_for_gui_ready("before second back", max_wait=1.5):
-                    self._logger.warning("HIJACK: GUI not ready for second back, proceeding anyway")
-                
-                # Second back - this should return us to the original plugin list
-                xbmc.executebuiltin('Action(Back)')
-                
-                # Wait for second navigation to complete
-                if not self._wait_for_navigation_complete("second back", max_wait=2.5):
-                    self._logger.debug("HIJACK: Second back navigation continuing in background")
-                
-                # Verify we're back in plugin content
-                final_path = xbmc.getInfoLabel("Container.FolderPath")
-                self._logger.debug(f"HIJACK: After second back - Final path: '{final_path}'")
+            if is_on_xsp:
+                self._logger.debug(f"HIJACK: Currently on XSP, need two back commands")
+                # Strategy 1: Double back for XSP
+                self._execute_double_back_navigation()
             else:
-                self._logger.debug(f"HIJACK: Not on XSP path (current: {current_path}), single back was sufficient")
+                self._logger.debug(f"HIJACK: Not on XSP, trying single back first")
+                # Strategy 2: Try single back first, then double back if needed
+                if not self._execute_single_back_with_fallback():
+                    self._logger.debug("HIJACK: Single back failed, falling back to double back")
+                    self._execute_double_back_navigation()
             
-            # Clear any saved properties since we don't need them with this approach
-            xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
-            xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
+            self._cleanup_properties()
                 
         except Exception as e:
-            self._logger.error(f"HIJACK: Error during double-back navigation: {e}")
-            # Enhanced fallback - try to get back to plugin content
-            try:
-                current_path = xbmc.getInfoLabel("Container.FolderPath")
-                if current_path and 'plugin.video.librarygenie' not in current_path:
-                    self._logger.debug("HIJACK: Fallback - attempting additional back to return to plugin")
+            self._logger.error(f"HIJACK: Error during smart navigation: {e}")
+            self._fallback_navigation()
+
+    def _is_currently_on_xsp(self, path: str, window: str) -> bool:
+        """Determine if we're currently on an XSP path"""
+        if not path:
+            return False
+            
+        # Direct XSP indicators
+        xsp_indicators = ['.xsp', 'smartplaylist', 'lg_hijack', 'playlists/video']
+        if any(indicator in path.lower() for indicator in xsp_indicators):
+            return True
+            
+        # Window context check - Videos window but not plugin content
+        if window and 'video' in window.lower():
+            if 'plugin.video.librarygenie' not in path:
+                return True
+                
+        return False
+
+    def _execute_single_back_with_fallback(self) -> bool:
+        """Try single back and check if we end up in plugin content"""
+        self._logger.debug("HIJACK: Attempting single back navigation")
+        
+        xbmc.executebuiltin('Action(Back)')
+        
+        # Quick check if single back was sufficient (shorter timeout)
+        success = self._wait_for_plugin_content("single back", max_wait=1.5)
+        
+        if success:
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            self._logger.info(f"HIJACK: Single back succeeded - Final path: '{final_path}'")
+            return True
+        else:
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            self._logger.debug(f"HIJACK: Single back insufficient - Current path: '{current_path}'")
+            return False
+
+    def _execute_double_back_navigation(self):
+        """Execute the double back navigation strategy"""
+        self._logger.debug("HIJACK: Executing double back navigation")
+        
+        # First back
+        xbmc.executebuiltin('Action(Back)')
+        
+        # Brief wait for first navigation (shorter timeout)
+        xbmc.sleep(300)  # 300ms should be enough for most cases
+        
+        # Second back  
+        xbmc.executebuiltin('Action(Back)')
+        
+        # Wait for final navigation to complete
+        if self._wait_for_plugin_content("double back", max_wait=2.0):
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            self._logger.info(f"HIJACK: Double back succeeded - Final path: '{final_path}'")
+        else:
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            self._logger.warning(f"HIJACK: Double back timeout - Final path: '{final_path}'")
+
+    def _wait_for_plugin_content(self, context: str, max_wait: float = 2.0) -> bool:
+        """Wait specifically for plugin content to be loaded"""
+        start_time = time.time()
+        check_interval = 0.1  # 100ms checks for faster response
+        
+        while (time.time() - start_time) < max_wait:
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            
+            # Check if we're back in plugin content
+            if current_path and 'plugin.video.librarygenie' in current_path:
+                self._logger.debug(f"HIJACK: Plugin content detected {context} after {time.time() - start_time:.3f}s")
+                return True
+                
+            xbmc.sleep(int(check_interval * 1000))
+        
+        return False
+
+    def _cleanup_properties(self):
+        """Clean up hijack properties"""
+        xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
+        xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
+
+    def _fallback_navigation(self):
+        """Fallback navigation when everything else fails"""
+        try:
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            if current_path and 'plugin.video.librarygenie' not in current_path:
+                self._logger.debug("HIJACK: Fallback - attempting additional back to return to plugin")
+                xbmc.executebuiltin('Action(Back)')
+                xbmc.sleep(500)
+                # Try one more back if still not in plugin content
+                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                if final_path and 'plugin.video.librarygenie' not in final_path:
                     xbmc.executebuiltin('Action(Back)')
-            except Exception:
-                pass
+            self._cleanup_properties()
+        except Exception:
+            pass
 
     def _wait_for_gui_ready(self, context: str, max_wait: float = 2.0) -> bool:
         """Wait for Kodi GUI to be ready to accept actions"""
