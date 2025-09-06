@@ -609,73 +609,102 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Simple videodb navigation approach to open native info with full Kodi metadata.
-    Navigate directly to the library item, then trigger Info action.
+    Direct approach using xbmcgui.Dialog().info() with file path.
+    Much simpler than XSP-based navigation - directly opens native dialog.
     """
     try:
         overall_start_time = time.perf_counter()
-        logger.info(f"🎬 HIJACK HELPERS: Starting simple videodb hijack for {db_type} {db_id}")
+        logger.info(f"🎬 HIJACK HELPERS: Starting direct dialog hijack for {db_type} {db_id}")
         
         # 🔒 SUBSTEP 1: Close any open dialog first
-        substep1_start = time.perf_counter()
-        logger.info(f"🔒 SUBSTEP 1: Checking for open dialogs to close")
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
-            logger.info(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
+            logger.info(f"SUBSTEP 1: Closing existing dialog ID {current_dialog_id}")
             xbmc.executebuiltin('Action(Back)')
             xbmc.sleep(200)
-            after_close_id = xbmcgui.getCurrentWindowDialogId()
-            logger.info(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
-        else:
-            logger.info(f"✅ SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
-        substep1_end = time.perf_counter()
-        logger.info(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
         
-        # 🚀 SUBSTEP 2: Navigate to videodb path and trigger Info
-        substep2_start = time.perf_counter()
-        logger.info(f"🚀 SUBSTEP 2: Navigating to videodb path for {db_type} {db_id}")
+        # 🚀 SUBSTEP 2: Get file path from Kodi database
+        logger.info(f"🚀 SUBSTEP 2: Getting file path for {db_type} {db_id}")
         
-        # Build videodb path based on media type
         if db_type == "movie":
-            videodb_path = f"videodb://movies/titles/{db_id}/"
+            rpc = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "VideoLibrary.GetMovieDetails",
+                "params": {
+                    "movieid": db_id,
+                    "properties": ["file", "title"]
+                }
+            }
         elif db_type == "episode":
-            videodb_path = f"videodb://episodes/{db_id}/"
+            rpc = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "VideoLibrary.GetEpisodeDetails",
+                "params": {
+                    "episodeid": db_id,
+                    "properties": ["file", "title"]
+                }
+            }
         elif db_type == "musicvideo":
-            videodb_path = f"videodb://musicvideos/titles/{db_id}/"
+            rpc = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "VideoLibrary.GetMusicVideoDetails",
+                "params": {
+                    "musicvideoid": db_id,
+                    "properties": ["file", "title"]
+                }
+            }
         else:
-            logger.warning(f"⚠️ SUBSTEP 2: Unsupported db_type: {db_type} - falling back to XSP method")
-            return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
+            logger.warning(f"⚠️ SUBSTEP 2: Unsupported db_type: {db_type}")
+            return False
         
-        logger.info(f"SUBSTEP 2: Navigating to videodb path: {videodb_path}")
+        # Execute JSON-RPC request
+        resp = xbmc.executeJSONRPC(json.dumps(rpc))
+        data = json.loads(resp)
         
-        # Navigate to the specific library node
-        xbmc.executebuiltin(f"ActivateWindow(videos,{videodb_path},return)")
+        # Extract details based on media type
+        if db_type == "movie":
+            details = (data.get("result") or {}).get("moviedetails")
+        elif db_type == "episode":
+            details = (data.get("result") or {}).get("episodedetails")
+        elif db_type == "musicvideo":
+            details = (data.get("result") or {}).get("musicvideodetails")
         
-        # Let the container hydrate - 180ms should be sufficient for most systems
-        logger.info(f"SUBSTEP 2: Waiting 180ms for container hydration")
-        xbmc.sleep(180)
+        if not details or not details.get("file"):
+            logger.warning(f"⚠️ SUBSTEP 2: No file path found for {db_type} {db_id}")
+            return False
         
-        # Trigger Info action on the currently selected library item
-        logger.info(f"SUBSTEP 2: Triggering Action(Info)")
-        xbmc.executebuiltin("Action(Info)")
+        file_path = details["file"]
+        title = details.get("title") or f"{db_type.title()} {db_id}"
         
-        # Wait for the dialog to open
-        if _wait_for_info_dialog(timeout=5.0):
-            substep2_end = time.perf_counter()
-            overall_end_time = time.perf_counter()
-            logger.info(f"✅ VIDEODB SUCCESS: Info dialog opened in {substep2_end - substep2_start:.3f}s")
-            logger.info(f"🎉 HIJACK HELPERS: ✅ Simple videodb hijack completed for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
-            return True
-        else:
-            logger.warning(f"⚠️ SUBSTEP 2: Info dialog didn't open in time - falling back to XSP method")
-            return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
+        logger.info(f"SUBSTEP 2: Found file path: {file_path}")
+        logger.info(f"SUBSTEP 2: Title: {title}")
+        
+        # 📺 SUBSTEP 3: Create ListItem and open native dialog
+        logger.info(f"📺 SUBSTEP 3: Creating ListItem and opening native dialog")
+        
+        li = xbmcgui.ListItem(label=title)
+        li.setPath(file_path)
+        li.setInfo("video", {})  # Route to VIDEO info dialog
+        li.setProperty("dbtype", db_type)
+        li.setProperty("dbid", str(db_id))
+        
+        # Open native info dialog directly
+        logger.info(f"SUBSTEP 3: Opening Dialog().info()")
+        xbmcgui.Dialog().info(li)
+        
+        overall_end_time = time.perf_counter()
+        logger.info(f"✅ DIRECT DIALOG SUCCESS: Native info opened for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+        logger.info(f"🎉 HIJACK HELPERS: ✅ Direct dialog hijack completed successfully")
+        return True
         
     except Exception as e:
-        logger.error(f"💥 HIJACK HELPERS: Exception in simple videodb hijack for {db_type} {db_id}: {e}")
+        logger.error(f"💥 HIJACK HELPERS: Exception in direct dialog hijack for {db_type} {db_id}: {e}")
         import traceback
         logger.error(f"HIJACK HELPERS: Traceback: {traceback.format_exc()}")
-        # Fallback to XSP method on any exception
-        return _open_native_info_via_xsp(db_type, db_id, logger, overall_start_time)
+        return False
 
 def _open_native_info_via_xsp(db_type: str, db_id: int, logger, overall_start_time: float) -> bool:
     """
