@@ -257,7 +257,7 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
     try:
         if SettingsManager:
             settings = SettingsManager()
-            quick_add_enabled = settings.get_quick_add_enabled()
+            quick_add_enabled = settings.get_enable_quick_add()
             default_list_id = settings.get_default_list_id()
         else:
             # Fallback to addon settings if SettingsManager not available
@@ -315,7 +315,7 @@ def _add_library_musicvideo_options(options, actions, addon, dbtype, dbid):
     try:
         if SettingsManager:
             settings = SettingsManager()
-            quick_add_enabled = settings.get_quick_add_enabled()
+            quick_add_enabled = settings.get_enable_quick_add()
             default_list_id = settings.get_default_list_id()
         else:
             # Fallback to addon settings if SettingsManager not available
@@ -410,7 +410,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     elif dbtype in ('movie', 'episode', 'musicvideo') and dbid and dbid not in ('0', ''):
         xbmc.log(f"LibraryGenie: Using library item path for {dbtype} {dbid}", xbmc.LOGINFO)
 
-        # If we're in a LibraryGenie list view, offer remove option first
+        # If we're in a list context, add remove option first
         if extracted_list_id and item_info.get('title'):
             remove_label = L(31010) if L(31010) else "Remove from List"
             options.append(remove_label)
