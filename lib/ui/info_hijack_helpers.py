@@ -635,45 +635,85 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep2_start = time.perf_counter()
         logger.info(f"🚀 SUBSTEP 2: Attempting direct videodb URL approach for {db_type} {db_id}")
         
-        # Build direct videodb URL for the specific item
-        if db_type.lower() == 'movie':
-            direct_url = f"videodb://movies/titles/{db_id}"
-        elif db_type.lower() == 'episode':
-            direct_url = f"videodb://tvshows/titles/-1/-1/{db_id}"
-        elif db_type.lower() == 'tvshow':
-            direct_url = f"videodb://tvshows/titles/{db_id}"
-        else:
-            logger.warning(f"❌ SUBSTEP 2 FAILED: Unsupported db_type: {db_type}")
-            return False
+        # Method 1: Try direct JSON-RPC Player.GetItem + ShowCodec for info dialog
+        logger.info(f"SUBSTEP 2: Trying JSON-RPC Player.Open approach for {db_type} {db_id}")
         
-        logger.info(f"SUBSTEP 2: Attempting direct navigation to: {direct_url}")
-        
-        # Try direct video info activation using valid approaches
         try:
-            # Method 1: Use JSON-RPC to open info dialog directly (most reliable)
-            logger.info(f"SUBSTEP 2: Trying JSON-RPC GUI.ActivateWindow method")
+            # Use JSON-RPC to "play" the item which triggers info dialog on some skins
+            if db_type.lower() == 'movie':
+                play_request = {
+                    "jsonrpc": "2.0",
+                    "method": "Player.Open",
+                    "params": {
+                        "item": {"movieid": int(db_id)},
+                        "options": {"playmode": "info"}  # Some skins support this
+                    },
+                    "id": 1
+                }
+            elif db_type.lower() == 'episode':
+                play_request = {
+                    "jsonrpc": "2.0", 
+                    "method": "Player.Open",
+                    "params": {
+                        "item": {"episodeid": int(db_id)},
+                        "options": {"playmode": "info"}
+                    },
+                    "id": 1
+                }
+            else:
+                logger.info(f"SUBSTEP 2: Unsupported db_type for Player.Open: {db_type}")
+                raise Exception("Unsupported type")
             
-            # Try direct videodb URL navigation using ActivateWindow builtin instead
-            logger.info(f"SUBSTEP 2: Trying ActivateWindow builtin method")
-            xbmc.executebuiltin(f'ActivateWindow(Videos,"{direct_url}",return)')
+            logger.info(f"SUBSTEP 2: Sending Player.Open request: {play_request}")
+            response_str = xbmc.executeJSONRPC(json.dumps(play_request))
+            response = json.loads(response_str)
             
-            # Wait briefly for navigation
-            xbmc.sleep(500)
+            if "error" not in response:
+                logger.info(f"SUBSTEP 2: Player.Open succeeded, checking for info dialog")
+                xbmc.sleep(300)  # Wait for potential info dialog
+            else:
+                logger.info(f"SUBSTEP 2: Player.Open failed: {response.get('error')}")
+                raise Exception("Player.Open failed")
+                
+        except Exception as e:
+            logger.info(f"SUBSTEP 2: Player.Open method failed: {e}")
             
-            # Check if we're in the right place and try to open info directly
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
-            if current_path and direct_url in current_path:
-                logger.info(f"SUBSTEP 2: Direct URL navigation successful, trying Info action")
-                xbmc.executebuiltin('Action(Info)')
-                xbmc.sleep(200)
-            
-            # Wait briefly to see if dialog opens
-            xbmc.sleep(300)
+            # Method 2: Try navigating to movies root and then using builtin
+            logger.info(f"SUBSTEP 2: Trying movies root navigation + ShowVideoInfo builtin")
+            try:
+                # Navigate to movies root first
+                if db_type.lower() == 'movie':
+                    root_url = "videodb://movies/titles/"
+                elif db_type.lower() == 'episode':
+                    root_url = "videodb://tvshows/titles/"
+                else:
+                    root_url = "videodb://movies/titles/"
+                
+                logger.info(f"SUBSTEP 2: Navigating to movies root: {root_url}")
+                xbmc.executebuiltin(f'ActivateWindow(Videos,"{root_url}",return)')
+                xbmc.sleep(400)
+                
+                # Try ShowVideoInfo builtin with the database ID
+                logger.info(f"SUBSTEP 2: Trying ShowVideoInfo builtin with DBID {db_id}")
+                if db_type.lower() == 'movie':
+                    xbmc.executebuiltin(f'ShowVideoInfo({db_id})')
+                else:
+                    xbmc.executebuiltin(f'ShowVideoInfo({db_id})')
+                    
+                xbmc.sleep(300)
+                
+            except Exception as e2:
+                logger.info(f"SUBSTEP 2: ShowVideoInfo builtin failed: {e2}")
+        
+        # Wait briefly to see if dialog opens
             dialog_id_after = xbmcgui.getCurrentWindowDialogId()
             
-            if dialog_id_after in (12003, 10147):
+            # Check for multiple possible info dialog IDs
+            info_dialog_ids = [12003, 10147, 12002, 10025]  # Various info dialog IDs across Kodi versions
+            
+            if dialog_id_after in info_dialog_ids:
                 substep2_end = time.perf_counter()
-                logger.info(f"✅ SUBSTEP 2 SUCCESS: JSON-RPC dialog activation worked! Dialog ID: {dialog_id_after} in {substep2_end - substep2_start:.3f}s")
+                logger.info(f"✅ SUBSTEP 2 SUCCESS: Direct method worked! Dialog ID: {dialog_id_after} in {substep2_end - substep2_start:.3f}s")
                 
                 # Brief verification that we have the right content
                 xbmc.sleep(200)
@@ -685,7 +725,16 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
                 logger.info(f"🎉 HIJACK HELPERS: ✅ DIRECT hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
                 return True
             else:
-                logger.info(f"SUBSTEP 2: JSON-RPC method didn't work (dialog ID: {dialog_id_after}), trying library navigation method")
+                # Also check for other potential dialogs that might indicate success
+                if xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)') or \
+                   xbmc.getCondVisibility('Window.IsActive(VideoInfo)'):
+                    substep2_end = time.perf_counter()
+                    logger.info(f"✅ SUBSTEP 2 SUCCESS: Info dialog detected via condition! in {substep2_end - substep2_start:.3f}s")
+                    overall_end_time = time.perf_counter()
+                    logger.info(f"🎉 HIJACK HELPERS: ✅ DIRECT hijack completed successfully for {db_type} {db_id} in {overall_end_time - overall_start_time:.3f}s")
+                    return True
+                    
+                logger.info(f"SUBSTEP 2: Direct methods didn't work (dialog ID: {dialog_id_after}), trying XSP fallback")
         except Exception as e:
             logger.info(f"SUBSTEP 2: JSON-RPC method failed with exception: {e}, trying library navigation method")
         
