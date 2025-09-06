@@ -729,7 +729,7 @@ class ListsHandler:
                 )
             else:
                 # Build list items
-                from lib.listitem_builder import ListItemBuilder
+                from .listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon.getAddonInfo('id'), context)
 
                 for item_idx, item in enumerate(list_items):
