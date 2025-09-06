@@ -542,6 +542,10 @@ msgctxt "#32020"
 msgid "Missing from library"
 msgstr ""
 
+msgctxt "#32100"
+msgid "Favorites Integration"
+msgstr ""
+
 msgctxt "#32181"
 msgid "Integrate with Kodi's built-in favorites for seamless list management"
 
