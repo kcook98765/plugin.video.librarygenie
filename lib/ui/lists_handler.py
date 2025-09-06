@@ -456,12 +456,12 @@ class ListsHandler:
             context.logger.info(f"DEBUG: Showing confirmation dialog for item: {item_info['title']}")
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
-                heading=L(30069),  # "Remove from List"
-                line1=L(37011) % item_info['title'],  # "Remove '%s' from list?"
-                line2="",
-                line3="",
-                nolabel=L(36003),  # "Cancel"
-                yeslabel=L(30069)  # "Remove"
+                L(30069),  # "Remove from List"
+                L(37011) % item_info['title'],  # "Remove '%s' from list?"
+                "",
+                "",
+                L(36003),  # "Cancel"
+                L(30069)   # "Remove"
             ):
                 context.logger.info("DEBUG: User cancelled item removal, creating DialogResponse")
                 try:
