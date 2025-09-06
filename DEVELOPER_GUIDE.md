@@ -48,12 +48,16 @@ LibraryGenie consists of three main layers:
 - Use `WAL` mode and tuned `PRAGMAs` for performance.
 
 ### JSON-RPC
-- Always use **batched calls** (≤200 items per request).  
-- Request only **lightweight properties** for list display.  
+- **Library Scanning**: Use comprehensive property requests during scanning to populate media_items table
+- **List Operations**: Avoid JSON-RPC calls for list building - use stored media_items data instead
+- **Batch Operations**: When JSON-RPC needed, use batched calls (≤200 items per request)
+- **Heavy Properties**: Exclude cast, streamdetails, and extensive artwork from default requests
 
 ### List Items
-- Minimal fields for display (title, year, art, tmdb, other non heavy fields from JsonRPC).  
-- Always set `IsPlayable` where applicable.
+- **Database-First**: Build list items from media_items table data, not live JSON-RPC calls
+- **Stored Metadata**: Use comprehensive metadata stored during library scanning
+- **Fallback Handling**: Implement graceful fallbacks when stored metadata is missing
+- **Performance**: Single database query per list instead of multiple JSON-RPC batch calls
 
 ### Export/Import & Backup
 - **Unified System**: Backup and export use the same engine and NDJSON format.
@@ -81,13 +85,14 @@ LibraryGenie consists of three main layers:
 - **State persistence**: Maintain local snapshots, server metadata, and pending queues.
 
 ### Performance
-- Batch DB writes in chunks using configurable batch sizes
-- Cache lookups in memory where possible (e.g., IMDb→Kodi mapping via `imdb_to_kodi` table)
-- Use SQLite prepared statements and connection pooling (`connection_manager.py`)
-- Avoid heavy operations in the UI thread - delegate to background service
-- Use the background service for periodic tasks (library scanning, favorites sync, token refresh)
-- Implement incremental scanning with delta detection for large libraries
-- Use chunked JSON-RPC requests with configurable page sizes (≤200 items per call)
+- **Database-Driven Lists**: Use stored media_items data instead of JSON-RPC calls for list operations
+- **Enhanced Scanning**: Store comprehensive lightweight metadata during library scans
+- **Batch Operations**: Batch DB writes in chunks using configurable batch sizes
+- **Memory Caching**: Cache lookups in memory where possible (e.g., IMDb→Kodi mapping via `imdb_to_kodi` table)
+- **Connection Management**: Use SQLite prepared statements and connection pooling (`connection_manager.py`)
+- **Background Processing**: Delegate heavy operations to background service, avoid UI thread blocking
+- **Incremental Updates**: Implement delta detection for efficient library synchronization
+- **Optimized Queries**: Single database queries replace multiple JSON-RPC batch calls
 
 ### Background Service (CLIENT-KODI-SERVICE)
 - **Runtime constraints**: Never sync during video playback or pause; defer until idle.

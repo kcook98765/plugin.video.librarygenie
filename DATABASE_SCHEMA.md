@@ -134,7 +134,9 @@ Indexes:
 - INDEX on `is_mapped`.
 - INDEX on `present`.
 
-**Note**: Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favorites". Context menus are handled globally via addon.xml registration instead of per-item context menu generation.
+**Note**: The `media_items` table serves as the primary source for all list operations and UI building. During library scanning, comprehensive lightweight metadata is stored here to eliminate the need for JSON-RPC batch calls during list rendering. Heavy metadata (cast, streamdetails) is stored separately to maintain performance.
+
+Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favorites". Context menus are handled globally via addon.xml registration instead of per-item context menu generation.
 
 ---
 

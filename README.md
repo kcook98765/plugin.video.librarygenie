@@ -69,10 +69,12 @@ All export/backup files use a versioned JSON envelope containing:
 - **Cross-Compatible**: Backup files can be manually imported on other systems or after fresh installs.
 
 ### Performance
-- Batched JSON-RPC requests (≤200 items per call).
-- Deferred loading of heavy fields (cast, streamdetails, extra artwork).
-- Cache-friendly schema and memory mappings (IMDb→Kodi DBIDs).
-- Indexes optimized for large libraries (10k+ items).
+- **Database-First Architecture**: List operations use stored metadata instead of JSON-RPC calls
+- **Enhanced Library Scanning**: Comprehensive lightweight metadata stored during scanning
+- **Optimized List Building**: Single database queries replace multiple JSON-RPC batch calls
+- **Selective Heavy Data**: Cast, streamdetails, and extensive artwork excluded from default storage
+- **Cache-Friendly Schema**: Memory mappings and indexes optimized for large libraries (10k+ items)
+- **Consistent Performance**: List loading times remain fast regardless of library size
 
 ---
 
