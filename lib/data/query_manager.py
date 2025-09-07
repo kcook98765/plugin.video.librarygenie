@@ -736,37 +736,33 @@ class QueryManager:
         """Get all lists with their folder information"""
         try:
             # Get all lists with folder names
-            query = """
+            lists = self.connection_manager.execute_query("""
                 SELECT 
                     l.id,
                     l.name,
                     COUNT(li.id) as item_count,
                     date(l.created_at) as created,
-                    date(l.created_at) as modified,
-                    COALESCE(f.name, 'Root') as folder_name,
-                    CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_folder
+                    f.name as folder_name,
+                    f.id as folder_id
                 FROM lists l
-                LEFT JOIN folders f ON l.folder_id = f.id
                 LEFT JOIN list_items li ON l.id = li.list_id
+                LEFT JOIN folders f ON l.folder_id = f.id
                 GROUP BY l.id, l.name, l.created_at, f.name, f.id
                 ORDER BY 
-                    CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
-                    CASE WHEN f.name IS NULL THEN 1 ELSE 0 END,
-                    f.name, 
+                    CASE WHEN f.name IS NULL THEN 0 ELSE 1 END,
+                    f.name,
                     l.created_at DESC
-            """
+            """)
 
-            results = self.connection_manager.execute_query(query)
-
-            if results:
+            if lists:
                 # Convert to list of dicts for easier handling
                 formatted_results = []
-                for row in results:
+                for row in lists:
                     row_dict = dict(row)
                     # Ensure string conversion for compatibility
                     row_dict['id'] = str(row_dict['id'])
                     # Add description based on item count and folder
-                    folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] != 'Root' else ""
+                    folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] else ""
                     row_dict['description'] = f"{row_dict['item_count']} items{folder_context}"
                     formatted_results.append(row_dict)
 
@@ -1143,7 +1139,7 @@ class QueryManager:
                 if existing_item:
                     # Use existing media item
                     media_item_id = existing_item['id']
-                    self.logger.debug(f"Found existing media_item with id={media_item_id}")
+                    self.logger.logger.debug(f"Found existing media_item with id={media_item_id}")
                 else:
                     # Create new media item - normalize the item first for proper data extraction
                     canonical_item = self._normalize_to_canonical(kodi_item)
@@ -1478,24 +1474,22 @@ class QueryManager:
             self.logger.error(f"Failed to check if folder {folder_id} is reserved: {e}")
             return False
 
-    def get_lists_in_folder(self, folder_id):
-        """Get all lists in a specific folder"""
+    def get_lists_in_folder(self, folder_id: str) -> List[Dict[str, Any]]:
+        """Get all lists in a folder with item counts"""
         try:
-            results = self.connection_manager.execute_query("""
+            lists = self.connection_manager.execute_query("""
                 SELECT 
                     l.id,
                     l.name,
-                    l.description,
                     COUNT(li.id) as item_count,
                     date(l.created_at) as created
                 FROM lists l
                 LEFT JOIN list_items li ON l.id = li.list_id
                 WHERE l.folder_id = ?
-                GROUP BY l.id, l.name, l.description, l.created_at
+                GROUP BY l.id, l.name, l.created_at
                 ORDER BY l.created_at DESC
-            """, [folder_id])
-
-            return [dict(row) for row in results]
+            """, [str(folder_id)])
+            return [dict(row) for row in lists]
 
         except Exception as e:
             self.logger.error(f"Error getting lists in folder {folder_id}: {e}")
