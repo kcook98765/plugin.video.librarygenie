@@ -891,6 +891,29 @@ class ListsHandler:
                 ORDER BY l.id
             """)
             context.logger.debug(f"DEBUG: All lists in database: {[dict(row) for row in all_lists_debug]}")
+            
+            # Check for folder ID mismatch
+            if len(lists_in_folder) == 0:
+                # Try to find if any lists exist with a similar folder name
+                orphaned_lists = query_manager.connection_manager.execute_query("""
+                    SELECT l.id, l.name, l.folder_id, f.name as folder_name
+                    FROM lists l
+                    LEFT JOIN folders f ON l.folder_id = f.id
+                    WHERE f.name = ?
+                """, [folder_info['name']])
+                if orphaned_lists:
+                    context.logger.warning(f"Found {len(orphaned_lists)} lists with folder name '{folder_info['name']}' but different ID: {[dict(row) for row in orphaned_lists]}")
+                    
+                # Also check for lists that might have the wrong folder_id
+                all_folder_refs = query_manager.connection_manager.execute_query("""
+                    SELECT DISTINCT folder_id FROM lists WHERE folder_id IS NOT NULL
+                """)
+                context.logger.debug(f"All folder_id references in lists table: {[row['folder_id'] for row in all_folder_refs]}")
+                
+                all_folder_ids = query_manager.connection_manager.execute_query("""
+                    SELECT id, name FROM folders ORDER BY id
+                """)
+                context.logger.debug(f"All folders in folders table: {[dict(row) for row in all_folder_ids]}")
 
             menu_items = []
 

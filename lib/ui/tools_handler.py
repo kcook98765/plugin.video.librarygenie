@@ -432,6 +432,9 @@ class ToolsHandler:
 
             # Move list
             target_folder_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
+            
+            self.logger.debug(f"Moving list {list_id} to folder {target_folder_id} (selected_index: {selected_index})")
+            
             result = query_manager.move_list_to_folder(list_id, target_folder_id)
 
             if result.get("success"):
@@ -446,10 +449,17 @@ class ToolsHandler:
                     response.navigate_to_lists = True
                 else:
                     response.navigate_to_folder = target_folder_id
+                    # Ensure no other navigation flags are set that could override folder navigation
+                    response.navigate_to_lists = False
+                    response.navigate_to_main = False
+                    response.refresh_needed = False
                     
+                self.logger.debug(f"Set navigation to folder {target_folder_id}")
                 return response
             else:
-                return DialogResponse(success=False, message=L(36035))  # "Failed to move list"
+                error_msg = result.get("error", "unknown")
+                self.logger.error(f"Failed to move list: {error_msg}")
+                return DialogResponse(success=False, message=f"Failed to move list: {error_msg}")
 
         except Exception as e:
             self.logger.error(f"Error moving list to folder: {e}")

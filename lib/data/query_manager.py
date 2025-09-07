@@ -1653,61 +1653,48 @@ class QueryManager:
         try:
             self.logger.debug(f"Moving list {list_id} to folder {target_folder_id}")
 
-            # Verify the list exists
-            existing_list = self.connection_manager.execute_single("""
-                SELECT id, name, folder_id FROM lists WHERE id = ?
-            """, [int(list_id)])
-
-            if not existing_list:
-                return {"success": False, "error": "list_not_found"}
-
-            self.logger.debug(f"Found list '{existing_list['name']}' currently in folder_id={existing_list['folder_id']}")
-
-            # If target_folder_id is provided, verify the destination folder exists
-            if target_folder_id is not None:
-                destination_folder = self.connection_manager.execute_single("""
-                    SELECT id, name FROM folders WHERE id = ?
-                """, [int(target_folder_id)])
-
-                if not destination_folder:
-                    return {"success": False, "error": "destination_folder_not_found"}
-
-                self.logger.debug(f"Verified destination folder '{destination_folder['name']}' exists with id={destination_folder['id']}")
-
-            # Update the list's folder_id
             with self.connection_manager.transaction() as conn:
-                result = conn.execute("""
-                    UPDATE lists SET folder_id = ? WHERE id = ?
-                """, [int(target_folder_id) if target_folder_id is not None else None, int(list_id)])
+                # Verify the list exists
+                list_exists = conn.execute("""
+                    SELECT id, name FROM lists WHERE id = ?
+                """, [int(list_id)]).fetchone()
 
-                if result.rowcount == 0:
-                    raise Exception("No rows updated - list may not exist")
+                if not list_exists:
+                    self.logger.error(f"List {list_id} not found")
+                    return {"error": "list_not_found"}
 
-            self.logger.info(f"Successfully moved list {list_id} to folder {target_folder_id}")
+                # Verify the target folder exists if not None
+                if target_folder_id is not None:
+                    folder_exists = conn.execute("""
+                        SELECT id, name FROM folders WHERE id = ?
+                    """, [int(target_folder_id)]).fetchone()
 
-            # Verify the move by checking the list is now in the target folder
-            verification_query = """
-                SELECT id, name, folder_id FROM lists WHERE id = ?
-            """
-            updated_list = self.connection_manager.execute_single(verification_query, [int(list_id)])
+                    if not folder_exists:
+                        self.logger.error(f"Target folder {target_folder_id} not found")
+                        return {"error": "folder_not_found"}
 
-            if updated_list:
-                actual_folder_id = updated_list['folder_id']
-                expected_folder_id = int(target_folder_id) if target_folder_id is not None else None
-                self.logger.debug(f"Verification: List {list_id} '{updated_list['name']}' now has folder_id={actual_folder_id}, expected={expected_folder_id}")
+                    self.logger.debug(f"Moving list '{list_exists['name']}' to folder '{folder_exists['name']}'")
+                else:
+                    self.logger.debug(f"Moving list '{list_exists['name']}' to root level")
 
-                if actual_folder_id != expected_folder_id:
-                    self.logger.error(f"Move verification failed: expected folder_id={expected_folder_id}, got={actual_folder_id}")
-                    return {"success": False, "error": "verification_failed"}
-            else:
-                self.logger.error(f"Could not verify list move - list {list_id} not found after update")
-                return {"success": False, "error": "verification_failed"}
+                # Update the folder_id for the list
+                cursor = conn.execute("""
+                    UPDATE lists 
+                    SET folder_id = ?
+                    WHERE id = ?
+                """, [target_folder_id, int(list_id)])
+
+                if cursor.rowcount == 0:
+                    self.logger.error(f"No rows updated when moving list {list_id}")
+                    return {"error": "update_failed"}
+
+                self.logger.info(f"Successfully moved list {list_id} to folder {target_folder_id}")
 
             return {"success": True}
 
         except Exception as e:
             self.logger.error(f"Failed to move list {list_id} to folder {target_folder_id}: {e}")
-            return {"success": False, "error": "database_error"}
+            return {"error": "database_error"}
 
     def merge_lists(self, source_list_id: str, target_list_id: str) -> Dict[str, Any]:
         """Merge items from source list into target list"""
