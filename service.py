@@ -64,6 +64,15 @@ class BackgroundService:
         except Exception as e:
             self.logger.warning(f"Failed to initialize library scanner: {e}")
 
+        # Initialize query manager for search history setup
+        self._query_manager = None
+        try:
+            from lib.data.query_manager import get_query_manager
+            self._query_manager = get_query_manager()
+            self.logger.debug("Query manager initialized")
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize query manager: {e}")
+
 
 
         # Token refresh tracking
@@ -261,8 +270,30 @@ class BackgroundService:
                             self.logger.warning(f"Failed to show error notification: {e}")
                 else:
                     self.logger.warning("Library scanner unavailable during first run")
+
+                # Ensure search history folder exists
+                if self._query_manager:
+                    try:
+                        search_folder_id = self._query_manager.get_or_create_search_history_folder()
+                        if search_folder_id:
+                            self.logger.info(f"Search history folder ready (ID: {search_folder_id})")
+                        else:
+                            self.logger.warning("Failed to create search history folder")
+                    except Exception as e:
+                        self.logger.error(f"Error setting up search history folder: {e}")
+                else:
+                    self.logger.warning("Query manager unavailable for search history setup")
             else:
                 self.logger.debug("Addon already initialized - skipping one-time setup")
+                
+                # Even on subsequent runs, ensure search history folder exists
+                if self._query_manager:
+                    try:
+                        search_folder_id = self._query_manager.get_or_create_search_history_folder()
+                        if search_folder_id:
+                            self.logger.debug(f"Search history folder confirmed (ID: {search_folder_id})")
+                    except Exception as e:
+                        self.logger.warning(f"Error confirming search history folder: {e}")
 
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")
