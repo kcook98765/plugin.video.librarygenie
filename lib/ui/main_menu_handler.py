@@ -1,5 +1,3 @@
-
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -76,7 +74,7 @@ class MainMenuHandler:
             all_lists = query_manager.get_all_lists_with_folders()
             user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
             context.logger.info(f"Found {len(user_lists)} user lists")
-            
+
             menu_items.append({
                 'label': f"📋 Lists",
                 'action': 'show_lists_menu',
@@ -88,16 +86,16 @@ class MainMenuHandler:
             # 5. Kodi Favorites (conditional - check if favorites integration is enabled)
             addon = xbmcaddon.Addon()
             favorites_enabled = addon.getSettingBool('favorites_integration_enabled')
-            
+
             if favorites_enabled:
                 context.logger.info("Kodi Favorites integration is enabled - adding to main menu")
-                
+
                 # Check if there are any favorites
                 favorites_manager = context.favorites_manager
                 if favorites_manager:
                     favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
                     favorites_count = len(favorites)
-                    
+
                     menu_items.append({
                         'label': f"⭐ Kodi Favorites",
                         'action': 'kodi_favorites',
@@ -130,4 +128,3 @@ class MainMenuHandler:
             context.logger.error(f"MAIN MENU: Traceback: {traceback.format_exc()}")
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
-
