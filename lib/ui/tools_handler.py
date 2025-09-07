@@ -175,8 +175,8 @@ class ToolsHandler:
                 # Special options for search history lists
                 options = [
                     "[COLOR lightgreen]📋 Move to New List[/COLOR]",
-                    f"[COLOR white]{L(36053) % short_name}[/COLOR]",  # "Export %s"
-                    f"[COLOR red]{L(36054) % short_name}[/COLOR]",  # "Delete %s"
+                    f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
+                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]",  # "Delete %s"
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
             else:
@@ -188,9 +188,9 @@ class ToolsHandler:
                     f"[COLOR yellow]{L(36051) % short_name}[/COLOR]",  # "Rename %s"
                     f"[COLOR yellow]{L(36052) % short_name}[/COLOR]",  # "Move %s to Folder"
                     # Export operations
-                    f"[COLOR white]{L(36053) % short_name}[/COLOR]",  # "Export %s"
+                    f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
                     # Destructive operations
-                    f"[COLOR red]{L(36054) % short_name}[/COLOR]",  # "Delete %s"
+                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]",  # "Delete %s"
                     # Cancel
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
