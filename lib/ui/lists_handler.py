@@ -872,6 +872,25 @@ class ListsHandler:
             # Debug: Log each list found
             for lst in lists_in_folder:
                 context.logger.debug(f"  Found list in folder: {lst['name']} (id={lst['id']}, folder_id={lst.get('folder_id')})")
+            
+            # Additional debugging: Check if there are any lists with this folder_id in the database
+            context.logger.debug(f"DEBUG: Querying for all lists in folder_id={folder_id}")
+            debug_lists = query_manager.connection_manager.execute_query("""
+                SELECT l.id, l.name, l.folder_id, f.name as folder_name
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                WHERE l.folder_id = ?
+            """, [int(folder_id)])
+            context.logger.debug(f"DEBUG: Raw query returned {len(debug_lists)} lists: {[dict(row) for row in debug_lists]}")
+            
+            # Also check all lists to see where our list ended up
+            all_lists_debug = query_manager.connection_manager.execute_query("""
+                SELECT l.id, l.name, l.folder_id, f.name as folder_name
+                FROM lists l
+                LEFT JOIN folders f ON l.folder_id = f.id
+                ORDER BY l.id
+            """)
+            context.logger.debug(f"DEBUG: All lists in database: {[dict(row) for row in all_lists_debug]}")
 
             menu_items = []
 

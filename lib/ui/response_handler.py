@@ -35,7 +35,7 @@ class ResponseHandler:
                     )
                 else:
                     xbmcgui.Dialog().notification(
-                        "LibraryGenie", 
+                        "LibraryGenie",
                         response.message,
                         xbmcgui.NOTIFICATION_ERROR,
                         5000

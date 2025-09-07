@@ -1653,22 +1653,26 @@ class QueryManager:
         try:
             self.logger.debug(f"Moving list {list_id} to folder {target_folder_id}")
 
-            # Check if list exists
+            # Verify the list exists
             existing_list = self.connection_manager.execute_single("""
-                SELECT id, name FROM lists WHERE id = ?
+                SELECT id, name, folder_id FROM lists WHERE id = ?
             """, [int(list_id)])
 
             if not existing_list:
                 return {"success": False, "error": "list_not_found"}
 
+            self.logger.debug(f"Found list '{existing_list['name']}' currently in folder_id={existing_list['folder_id']}")
+
             # If target_folder_id is provided, verify the destination folder exists
             if target_folder_id is not None:
                 destination_folder = self.connection_manager.execute_single("""
-                    SELECT id FROM folders WHERE id = ?
+                    SELECT id, name FROM folders WHERE id = ?
                 """, [int(target_folder_id)])
 
                 if not destination_folder:
                     return {"success": False, "error": "destination_folder_not_found"}
+
+                self.logger.debug(f"Verified destination folder '{destination_folder['name']}' exists with id={destination_folder['id']}")
 
             # Update the list's folder_id
             with self.connection_manager.transaction() as conn:
@@ -1690,11 +1694,14 @@ class QueryManager:
             if updated_list:
                 actual_folder_id = updated_list['folder_id']
                 expected_folder_id = int(target_folder_id) if target_folder_id is not None else None
-                self.logger.debug(f"Verification: List {list_id} now has folder_id={actual_folder_id}, expected={expected_folder_id}")
+                self.logger.debug(f"Verification: List {list_id} '{updated_list['name']}' now has folder_id={actual_folder_id}, expected={expected_folder_id}")
 
                 if actual_folder_id != expected_folder_id:
                     self.logger.error(f"Move verification failed: expected folder_id={expected_folder_id}, got={actual_folder_id}")
                     return {"success": False, "error": "verification_failed"}
+            else:
+                self.logger.error(f"Could not verify list move - list {list_id} not found after update")
+                return {"success": False, "error": "verification_failed"}
 
             return {"success": True}
 
