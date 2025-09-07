@@ -172,23 +172,14 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Show breadcrumb notification for Lists menu
-            if context.breadcrumb_path:
-                from .menu_builder import MenuBuilder
-                menu_builder = MenuBuilder()
-                try:
-                    menu_builder._add_breadcrumb_notification("Lists")
-                    context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'Lists'")
-                except Exception as e:
-                    context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
-
-            # Use MenuBuilder to build the menu
+            # Use MenuBuilder with breadcrumb support
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
                 menu_items,
                 context.addon_handle,
-                context.base_url
+                context.base_url,
+                breadcrumb_path=context.breadcrumb_path
             )
 
             return DirectoryResponse(
@@ -885,24 +876,14 @@ class ListsHandler:
                     False
                 )
 
-            # Show breadcrumb notification for folder view
-            breadcrumb_path = context.breadcrumb_path or folder_info['name']
-            if breadcrumb_path:
-                from .menu_builder import MenuBuilder
-                menu_builder = MenuBuilder()
-                try:
-                    menu_builder._add_breadcrumb_notification(breadcrumb_path)
-                    context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
-                except Exception as e:
-                    context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
-
-            # Use MenuBuilder to build the menu
+            # Use MenuBuilder with breadcrumb support
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
                 menu_items,
                 context.addon_handle,
-                context.base_url
+                context.base_url,
+                breadcrumb_path=context.breadcrumb_path
             )
 
             return DirectoryResponse(

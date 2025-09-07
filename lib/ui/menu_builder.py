@@ -33,13 +33,8 @@ class MenuBuilder:
         successful_items = 0
         failed_items = 0
 
-        # Show breadcrumb as notification if provided (not for root level)
-        if breadcrumb_path:
-            try:
-                self._add_breadcrumb_notification(breadcrumb_path)
-                self.logger.debug(f"MENU BUILD: Showed breadcrumb notification: '{breadcrumb_path}'")
-            except Exception as e:
-                self.logger.error(f"MENU BUILD: Failed to show breadcrumb notification: {e}")
+        # Show breadcrumb notification for non-root views
+        self._show_breadcrumb_if_needed(breadcrumb_path)
 
         for idx, item in enumerate(items):
             try:
@@ -174,6 +169,16 @@ class MenuBuilder:
         except Exception as e:
             self.logger.error(f"BREADCRUMB: Failed to add breadcrumb item: {e}")
 
+    def _show_breadcrumb_if_needed(self, breadcrumb_path: str):
+        """Show breadcrumb notification for non-root views"""
+        if breadcrumb_path and breadcrumb_path.strip():
+            try:
+                self.logger.debug(f"BREADCRUMB: Showing notification for '{breadcrumb_path}'")
+                xbmcgui.Dialog().notification("Navigation", breadcrumb_path, xbmcgui.NOTIFICATION_INFO, 3000)
+                self.logger.debug("BREADCRUMB: Successfully displayed breadcrumb notification")
+            except Exception as e:
+                self.logger.error(f"BREADCRUMB: Failed to display breadcrumb notification: {e}")
+
     def _add_breadcrumb_notification(self, breadcrumb_path: str):
         """Show breadcrumb as a notification"""
         try:
@@ -194,14 +199,9 @@ class MenuBuilder:
         xbmcplugin.setContent(addon_handle, 'movies')
         self.logger.debug("MOVIE MENU: Successfully set content type to 'movies'")
 
-        # Show breadcrumb as notification if provided
+        # Show breadcrumb notification for non-root views
         breadcrumb_path = options.get('breadcrumb_path')
-        if breadcrumb_path:
-            try:
-                self._add_breadcrumb_notification(breadcrumb_path)
-                self.logger.debug(f"MOVIE MENU: Showed breadcrumb notification: '{breadcrumb_path}'")
-            except Exception as e:
-                self.logger.error(f"MOVIE MENU: Failed to show breadcrumb notification: {e}")
+        self._show_breadcrumb_if_needed(breadcrumb_path)
 
         # Add sort methods for movie lists
         sort_methods = [
