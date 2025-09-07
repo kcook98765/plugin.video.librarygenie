@@ -217,6 +217,49 @@ class ResponseHandler:
             **kwargs
         )
 
+    def handle_response(self, response: DialogResponse, context: PluginContext) -> None:
+        """Handle dialog response and perform appropriate navigation"""
+        try:
+            self.logger.debug(f"RESPONSE HANDLER: Processing response - success={response.success}")
+
+            if not response.success:
+                if response.message:
+                    self.logger.debug(f"RESPONSE HANDLER: Showing error message: {response.message}")
+                    xbmcgui.Dialog().ok("Error", response.message)
+                return
+
+            # Show success message if provided
+            if response.message:
+                self.logger.debug(f"RESPONSE HANDLER: Showing success message: {response.message}")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message,
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+
+            # Handle navigation based on response flags - don't continue processing after navigation
+            if response.navigate_to_main:
+                self.logger.debug("RESPONSE HANDLER: Navigating to main menu")
+                context.navigate_to_main_menu()
+                return
+            elif response.navigate_to_lists:
+                self.logger.debug("RESPONSE HANDLER: Navigating to lists menu")
+                context.navigate_to_lists_menu()
+                return
+            elif response.navigate_to_folder:
+                self.logger.debug(f"RESPONSE HANDLER: Navigating to folder: {response.navigate_to_folder}")
+                context.navigate_to_folder(response.navigate_to_folder)
+                return
+            elif response.refresh_needed:
+                self.logger.debug("RESPONSE HANDLER: Refreshing current container")
+                xbmc.executebuiltin('Container.Refresh')
+                return
+
+        except Exception as e:
+            self.logger.error(f"Error handling dialog response: {e}")
+            xbmcgui.Dialog().ok("Error", "An error occurred while processing the request")
+
 
 # Factory function
 _response_handler_instance = None
