@@ -182,9 +182,9 @@ class MenuBuilder:
     def _add_breadcrumb_notification(self, breadcrumb_path: str):
         """Show breadcrumb as a notification"""
         try:
-            self.logger.info(f"BREADCRUMB NOTIFICATION: Displaying breadcrumb '{breadcrumb_path}'")
+            self.logger.debug(f"BREADCRUMB NOTIFICATION: Displaying breadcrumb '{breadcrumb_path}'")
             xbmcgui.Dialog().notification("Navigation", breadcrumb_path, xbmcgui.NOTIFICATION_INFO, 3000)
-            self.logger.info("BREADCRUMB NOTIFICATION: Successfully displayed breadcrumb notification")
+            self.logger.debug("BREADCRUMB NOTIFICATION: Successfully displayed breadcrumb notification")
         except Exception as e:
             self.logger.error(f"BREADCRUMB NOTIFICATION: Failed to display breadcrumb notification: {e}")
 
