@@ -4,9 +4,8 @@
 
 """
 LibraryGenie - Token Refresh (DEPRECATED)
-This module is no longer needed with API key authentication.
-API keys don't require refresh like OAuth2 tokens.
-Kept as placeholder for backward compatibility during transition.
+This module has been completely replaced by OTP-based authentication.
+OAuth2 refresh token functionality is no longer used.
 """
 
 import warnings
@@ -14,18 +13,17 @@ from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-def maybe_refresh() -> bool:
+def refresh_access_token():
     """
-    Deprecated function - API keys don't require refresh
+    DEPRECATED: Refresh tokens are not used in OTP-based auth system
     """
     warnings.warn(
-        "maybe_refresh() is deprecated. API keys don't require refresh.",
+        "refresh_access_token() is deprecated. OTP auth uses permanent API keys.",
         DeprecationWarning,
         stacklevel=2
     )
-    logger.debug("Token refresh called but not needed with API key auth")
-    return True  # Always return True since API keys don't expire
+    logger.error("Deprecated refresh token flow called - not needed with API keys")
+    return False, "Deprecated function - API keys don't expire"
 
-class RefreshError(Exception):
-    """Deprecated exception class"""
-    pass
+# Clean up - remove all other functions
+__all__ = []  # Export nothing

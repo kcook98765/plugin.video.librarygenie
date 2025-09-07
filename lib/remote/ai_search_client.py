@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -10,6 +11,7 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
+import time
 from typing import Dict, Any, Optional, List
 
 from ..config.settings import SettingsManager
@@ -25,6 +27,72 @@ class AISearchClient:
         self.logger = get_logger(__name__)
         self.settings = SettingsManager()
 
+    def _get_headers(self, additional_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+        """Get standard headers for API requests"""
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'LibraryGenie-Kodi/1.0'
+        }
+        
+        api_key = get_api_key()
+        if api_key:
+            headers['Authorization'] = f'ApiKey {api_key}'
+        
+        if additional_headers:
+            headers.update(additional_headers)
+            
+        return headers
+
+    def _make_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
+                     headers: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]:
+        """Make HTTP request to AI search server"""
+        server_url = self.settings.get_ai_search_server_url()
+        if not server_url:
+            self.logger.error("No server URL configured")
+            return None
+
+        url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        request_headers = self._get_headers(headers)
+
+        try:
+            # Prepare request data
+            json_data = None
+            if data:
+                json_data = json.dumps(data).encode('utf-8')
+
+            # Create request
+            req = urllib.request.Request(url, data=json_data, headers=request_headers)
+            req.get_method = lambda: method
+
+            # Make request with timeout
+            with urllib.request.urlopen(req, timeout=30) as response:
+                if response.getcode() == 200:
+                    response_data = response.read().decode('utf-8')
+                    return json.loads(response_data)
+                elif response.getcode() == 304:
+                    return {'_not_modified': True}
+                else:
+                    self.logger.error(f"HTTP {response.getcode()} from {endpoint}")
+                    return None
+
+        except urllib.error.HTTPError as e:
+            try:
+                error_body = e.read().decode('utf-8')
+                error_data = json.loads(error_body)
+                self.logger.error(f"HTTP {e.code} error: {error_data.get('error', 'Unknown')}")
+                return {'error': error_data.get('error', f'HTTP {e.code} error')}
+            except:
+                self.logger.error(f"HTTP {e.code} error from {endpoint}")
+                return {'error': f'HTTP {e.code} error'}
+
+        except urllib.error.URLError as e:
+            self.logger.error(f"Network error: {e}")
+            return {'error': f'Network error: {str(e)}'}
+
+        except Exception as e:
+            self.logger.error(f"Request failed: {e}")
+            return {'error': f'Request failed: {str(e)}'}
+
     def is_configured(self) -> bool:
         """Check if AI search is properly configured"""
         return bool(
@@ -38,7 +106,7 @@ class AISearchClient:
 
     def activate_with_otp(self, otp_code: str) -> Dict[str, Any]:
         """
-        Activate AI search using OTP code
+        Activate AI search using OTP code via /pairing-code/exchange endpoint
 
         Args:
             otp_code: 8-digit OTP code
@@ -54,7 +122,6 @@ class AISearchClient:
             }
 
         try:
-            # Use the new OTP auth system
             result = exchange_otp_for_api_key(otp_code, server_url)
 
             if result['success']:
@@ -81,7 +148,7 @@ class AISearchClient:
 
     def test_connection(self) -> Dict[str, Any]:
         """
-        Test the AI search server connection
+        Test the AI search server connection using /kodi/test endpoint
 
         Returns:
             dict: Connection test result
@@ -108,13 +175,13 @@ class AISearchClient:
                 'error': f'Connection test failed: {str(e)}'
             }
 
-    def search(self, query: str, **kwargs) -> Optional[Dict[str, Any]]:
+    def search_movies(self, query: str, limit: int = 50) -> Optional[Dict[str, Any]]:
         """
-        Perform AI-powered search
+        Perform AI-powered movie search using /kodi/search/movies endpoint
 
         Args:
             query: Search query string
-            **kwargs: Additional search parameters
+            limit: Maximum number of results (default: 50, max: 100)
 
         Returns:
             Search results or None if search fails
@@ -124,20 +191,12 @@ class AISearchClient:
             return None
 
         try:
-            # Prepare search request
             search_data = {
                 'query': query,
-                'limit': kwargs.get('limit', 50),
-                'offset': kwargs.get('offset', 0)
+                'limit': min(limit, 100)
             }
 
-            # Add any additional parameters
-            for key, value in kwargs.items():
-                if key not in ['limit', 'offset']:
-                    search_data[key] = value
-
-            # Make search request
-            response = self.http_client.post('/search', search_data)
+            response = self._make_request('kodi/search/movies', 'POST', search_data)
 
             if response and response.get('success'):
                 self.logger.info(f"AI search completed: {len(response.get('results', []))} results")
@@ -151,12 +210,33 @@ class AISearchClient:
             self.logger.error(f"Error performing AI search: {e}")
             return None
 
-    def sync_media_batch(self, media_items: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def get_library_version(self) -> Optional[Dict[str, Any]]:
         """
-        Sync a batch of media items with the AI search server
+        Get current library version for delta sync using V1 API
+
+        Returns:
+            Version info or None if request fails
+        """
+        if not self.is_activated():
+            return None
+
+        try:
+            response = self._make_request('v1/library/version', 'GET')
+            if response and not response.get('error'):
+                return response
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting library version: {e}")
+            return None
+
+    def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500) -> Optional[Dict[str, Any]]:
+        """
+        Sync a batch of media items with the AI search server using V1 batch API
 
         Args:
-            media_items: List of media item dictionaries with imdb_id, title, year, media_type
+            media_items: List of media item dictionaries with imdb_id
+            batch_size: Items per batch (max 5000)
 
         Returns:
             Sync result or None if sync fails
@@ -165,27 +245,126 @@ class AISearchClient:
             self.logger.warning("AI search not activated - cannot perform sync")
             return None
 
+        if not media_items:
+            return {'success': True, 'results': {'added': 0, 'already_present': 0, 'invalid': 0}}
+
         try:
-            # Prepare sync request
-            sync_data = {
-                'media_items': media_items,
-                'sync_type': 'batch'
+            # Extract IMDb IDs from media items
+            imdb_ids = []
+            for item in media_items:
+                imdb_id = item.get('imdb_id')
+                if imdb_id and imdb_id.startswith('tt'):
+                    imdb_ids.append(imdb_id)
+
+            if not imdb_ids:
+                self.logger.warning("No valid IMDb IDs found in media items")
+                return {'success': False, 'error': 'No valid IMDb IDs'}
+
+            # Split into chunks if necessary
+            chunk_size = min(batch_size, 5000)
+            results = {
+                'added': 0,
+                'already_present': 0,
+                'invalid': 0
             }
 
-            # Make sync request
-            response = self.http_client.post('/sync', sync_data)
+            for i in range(0, len(imdb_ids), chunk_size):
+                chunk = imdb_ids[i:i + chunk_size]
 
-            if response and response.get('success'):
-                synced_count = response.get('synced_count', len(media_items))
-                self.logger.debug(f"Media batch sync completed: {synced_count} items synced")
-                return response
-            else:
-                error_msg = response.get('error', 'Unknown error') if response else 'No response'
-                self.logger.warning(f"Media batch sync failed: {error_msg}")
-                return response  # Return response even on failure for error handling
+                # Generate idempotency key
+                import random
+                idempotency_key = f"{int(time.time())}-{random.randint(10000, 99999)}-{i // chunk_size}"
+
+                # Make add request
+                response = self._make_request(
+                    'v1/library/add',
+                    'POST',
+                    {'imdb_ids': chunk},
+                    {'Idempotency-Key': idempotency_key}
+                )
+
+                if response and response.get('success'):
+                    chunk_results = response.get('results', {})
+                    results['added'] += chunk_results.get('added', 0)
+                    results['already_present'] += chunk_results.get('already_present', 0)
+                    results['invalid'] += chunk_results.get('invalid', 0)
+
+                    self.logger.debug(f"Synced chunk {i // chunk_size + 1}: {chunk_results}")
+
+                    # Rate limiting - wait between chunks
+                    if i + chunk_size < len(imdb_ids):
+                        time.sleep(10)  # 10 second wait between batches
+
+                else:
+                    error_msg = response.get('error', 'Unknown error') if response else 'No response'
+                    self.logger.warning(f"Chunk sync failed: {error_msg}")
+                    return {'success': False, 'error': error_msg}
+
+            self.logger.info(f"Media batch sync completed: {results}")
+            return {
+                'success': True,
+                'results': results,
+                'total_processed': len(imdb_ids)
+            }
 
         except Exception as e:
             self.logger.error(f"Error performing media batch sync: {e}")
+            return {'success': False, 'error': f'Sync failed: {str(e)}'}
+
+    def get_library_stats(self) -> Optional[Dict[str, Any]]:
+        """
+        Get comprehensive library statistics
+
+        Returns:
+            Statistics or None if request fails
+        """
+        if not self.is_activated():
+            return None
+
+        try:
+            response = self._make_request('users/me/library/stats', 'GET')
+            if response and response.get('success'):
+                return response.get('stats')
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error getting library stats: {e}")
+            return None
+
+    def search_similar_movies(self, reference_imdb_id: str, facets: Dict[str, bool]) -> Optional[List[str]]:
+        """
+        Find movies similar to reference movie using /similar_to endpoint
+
+        Args:
+            reference_imdb_id: IMDb ID of reference movie
+            facets: Dict with keys: plot, mood, themes, genre (all bool)
+
+        Returns:
+            List of similar IMDb IDs or None if failed
+        """
+        try:
+            # Build request data
+            request_data = {
+                'reference_imdb_id': reference_imdb_id,
+                'include_plot': facets.get('plot', False),
+                'include_mood': facets.get('mood', False),
+                'include_themes': facets.get('themes', False),
+                'include_genre': facets.get('genre', False)
+            }
+
+            # Ensure at least one facet is enabled
+            if not any(request_data[key] for key in ['include_plot', 'include_mood', 'include_themes', 'include_genre']):
+                return None
+
+            response = self._make_request('similar_to', 'POST', request_data)
+
+            if response and response.get('success'):
+                return response.get('results', [])
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error finding similar movies: {e}")
             return None
 
 
