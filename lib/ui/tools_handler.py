@@ -1159,7 +1159,8 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Cleared {deleted_count} search history lists",
-                    refresh_needed=True
+                    refresh_needed=True,
+                    navigate_to_main=True  # Navigate to main menu since folder is now empty
                 )
             else:
                 return DialogResponse(
