@@ -113,7 +113,6 @@ class Router:
                 return response
             elif action == 'show_folder':
                 folder_id = params.get('folder_id')
-                breadcrumb_path = params.get('breadcrumb_path', [])
 
                 if folder_id:
                     # Use the handler factory
@@ -121,7 +120,8 @@ class Router:
                     factory = get_handler_factory()
                     factory.context = context
                     lists_handler = factory.get_lists_handler()
-                    lists_handler.show_folder(context, folder_id, breadcrumb_path)
+                    response = lists_handler.show_folder(context, folder_id)
+                    return response
                 else:
                     self.logger.error("Missing folder_id parameter")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
@@ -137,14 +137,16 @@ class Router:
                         factory = get_handler_factory()
                         factory.context = context
                         lists_handler = factory.get_lists_handler()
-                        breadcrumb_path = params.get('breadcrumb_path', [])
-                        lists_handler.show_folder(context, search_folder_id, breadcrumb_path)
+                        response = lists_handler.show_folder(context, search_folder_id)
+                        return response
                     else:
                         self.logger.error("Could not access search history folder")
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                        return False
                 else:
                     self.logger.error("Query manager not available for search history")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
             elif action == "restore_backup":
                 from .tools_handler import handle_restore_backup
                 return handle_restore_backup(params, context)
