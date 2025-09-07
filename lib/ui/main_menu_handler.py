@@ -55,9 +55,9 @@ class MainMenuHandler:
                 menu_items.append({
                     'label': f"🤖 AI Search",
                     'action': 'ai_search_prompt',
-                    'is_folder': True,
+                    'is_folder': False,  # Changed to False since it performs search and redirects
                     'icon': 'DefaultAddonsSearch.png',
-                    'description': 'AI-powered search'
+                    'description': 'AI-powered search with library matching'
                 })
             else:
                 context.logger.info("AI Search is not activated - not showing in main menu")

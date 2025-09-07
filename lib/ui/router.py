@@ -144,6 +144,12 @@ class Router:
             elif action == "activate_ai_search":
                 from .tools_handler import handle_activate_ai_search
                 return handle_activate_ai_search(params, context)
+            elif action == 'ai_search_prompt':
+                from .ai_search_handler import get_ai_search_handler
+                ai_search_handler = get_ai_search_handler()
+                success = ai_search_handler.prompt_and_search()
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=success)
+                return
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
