@@ -260,7 +260,7 @@ class LibraryScanner:
             movies = self.conn_manager.execute_query(f"""
                 SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
                        created_at, updated_at, is_removed, created_at,
-                       poster, fanart, poster as thumb, plot, plot as plotoutline, duration as runtime,
+                       art, plot, plot as plotoutline, duration as runtime,
                        rating, genre, mpaa, director, country, studio,
                        0 as playcount, 0 as resume_time
                 FROM media_items
@@ -367,10 +367,10 @@ class LibraryScanner:
                         conn.execute("""
                             INSERT OR REPLACE INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
-                             poster, fanart, plot, rating, votes, duration, mpaa, genre, director, studio, country, 
+                             plot, rating, votes, duration, mpaa, genre, director, studio, country, 
                              writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -380,9 +380,6 @@ class LibraryScanner:
                             tmdb_id,
                             movie["file_path"],
                             'lib',  # Mark as Kodi library item
-                            # Artwork - extract from art dict
-                            movie.get("art", {}).get("poster", "") if isinstance(movie.get("art"), dict) else movie.get("poster", ""),
-                            movie.get("art", {}).get("fanart", "") if isinstance(movie.get("art"), dict) else movie.get("fanart", ""),
                             # Metadata
                             movie.get("plot", ""),
                             movie.get("rating", 0.0),
@@ -394,7 +391,7 @@ class LibraryScanner:
                             studio_str,
                             movie.get("country", ""),
                             movie.get("writer", ""),
-                            # JSON fields
+                            # JSON fields - store complete art data
                             art_json,
                             # File paths
                             movie["file_path"],
