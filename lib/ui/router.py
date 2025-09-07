@@ -116,8 +116,11 @@ class Router:
                 breadcrumb_path = params.get('breadcrumb_path', [])
 
                 if folder_id:
-                    # Use the initialized handler_factory
-                    lists_handler = self.handler_factory.get_lists_handler()
+                    # Use the handler factory
+                    from .handler_factory import get_handler_factory
+                    factory = get_handler_factory()
+                    factory.context = context
+                    lists_handler = factory.get_lists_handler()
                     lists_handler.show_folder(context, folder_id, breadcrumb_path)
                 else:
                     self.logger.error("Missing folder_id parameter")
@@ -129,8 +132,11 @@ class Router:
                 if query_manager:
                     search_folder_id = query_manager.get_or_create_search_history_folder()
                     if search_folder_id:
-                        # Use the initialized handler_factory
-                        lists_handler = self.handler_factory.get_lists_handler()
+                        # Use the handler factory
+                        from .handler_factory import get_handler_factory
+                        factory = get_handler_factory()
+                        factory.context = context
+                        lists_handler = factory.get_lists_handler()
                         breadcrumb_path = params.get('breadcrumb_path', [])
                         lists_handler.show_folder(context, search_folder_id, breadcrumb_path)
                     else:
@@ -144,13 +150,23 @@ class Router:
                 return handle_restore_backup(params, context)
 
             elif action == "activate_ai_search":
-                return self.tools_handler.activate_ai_search(context)
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                return tools_handler.activate_ai_search(context)
 
             elif action == 'test_ai_search_connection':
-                return self.tools_handler.test_ai_search_connection(context)
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                return tools_handler.test_ai_search_connection(context)
 
             elif action == 'find_similar_movies':
-                return self.ai_search_handler.find_similar_movies(context)
+                from .ai_search_handler import AISearchHandler
+                ai_search_handler = AISearchHandler()
+                return ai_search_handler.find_similar_movies(context)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
