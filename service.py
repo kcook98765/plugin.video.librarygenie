@@ -8,6 +8,7 @@ Handles periodic tasks, cache management, and AI search synchronization
 
 import xbmc
 import xbmcaddon
+import xbmcgui
 import time
 import threading
 from typing import Optional
@@ -33,6 +34,18 @@ class LibraryGenieService:
         self.monitor = xbmc.Monitor()
         self.sync_thread = None
         self.sync_stop_event = threading.Event()
+
+    def _show_notification(self, message: str, icon: int = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
+        """Show a Kodi notification"""
+        try:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                message,
+                icon,
+                time_ms
+            )
+        except Exception as e:
+            self.logger.error(f"Failed to show notification: {e}")
 
     def start(self):
         """Start the background service"""
@@ -112,12 +125,17 @@ class LibraryGenieService:
     def _perform_ai_sync(self):
         """Perform AI search synchronization"""
         self.logger.info("Starting AI search synchronization")
+        
+        # Show start notification
+        self._show_notification("Starting remote library sync...")
 
         try:
             # Test connection first
             connection_test = self.ai_client.test_connection()
             if not connection_test.get('success'):
-                self.logger.warning(f"AI search connection failed: {connection_test.get('error')}")
+                error_msg = connection_test.get('error', 'Unknown error')
+                self.logger.warning(f"AI search connection failed: {error_msg}")
+                self._show_notification(f"Sync failed: {error_msg}", xbmcgui.NOTIFICATION_ERROR)
                 return
 
             # Get current library version for delta sync
@@ -146,6 +164,7 @@ class LibraryGenieService:
 
             if not movies_with_imdb:
                 self.logger.info("No movies with IMDb IDs found, skipping sync")
+                self._show_notification("No movies with IMDb IDs found for sync", xbmcgui.NOTIFICATION_WARNING)
                 return
 
             # Sync in batches with rate limiting
@@ -172,9 +191,20 @@ class LibraryGenieService:
                         f"{results.get('already_present', 0)} existing, "
                         f"{results.get('invalid', 0)} invalid"
                     )
+                    
+                    # Show progress notification for significant batches
+                    if total_batches > 1:
+                        self._show_notification(
+                            f"Sync progress: {batch_num}/{total_batches} batches completed",
+                            time_ms=3000
+                        )
                 else:
                     error_msg = result.get('error', 'Unknown error') if result else 'No response'
                     self.logger.error(f"Batch {batch_num} sync failed: {error_msg}")
+                    self._show_notification(
+                        f"Batch {batch_num} sync failed: {error_msg}",
+                        xbmcgui.NOTIFICATION_ERROR
+                    )
 
                 # Rate limiting: 10 second wait between batches (as per documentation)
                 if batch_num < total_batches and not self.sync_stop_event.is_set():
@@ -182,9 +212,20 @@ class LibraryGenieService:
                     self.sync_stop_event.wait(10)
 
             self.logger.info("AI search synchronization completed")
+            
+            # Show completion notification with summary
+            self._show_notification(
+                f"Remote library sync completed - {len(movies_with_imdb)} movies processed",
+                time_ms=8000
+            )
 
         except Exception as e:
             self.logger.error(f"AI sync failed: {e}")
+            self._show_notification(
+                f"Remote sync failed: {str(e)}",
+                xbmcgui.NOTIFICATION_ERROR,
+                time_ms=8000
+            )
 
 
 if __name__ == '__main__':
