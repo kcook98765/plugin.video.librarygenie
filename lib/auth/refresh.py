@@ -25,5 +25,17 @@ def refresh_access_token():
     logger.error("Deprecated refresh token flow called - not needed with API keys")
     return False, "Deprecated function - API keys don't expire"
 
+def maybe_refresh():
+    """
+    DEPRECATED: Token refresh not needed with API key authentication
+    """
+    warnings.warn(
+        "maybe_refresh() is deprecated. API keys don't require refresh.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    logger.error("Deprecated maybe_refresh called - API keys don't expire")
+    return True  # Return True to indicate "auth is still valid"
+
 # Clean up - remove all other functions
-__all__ = []  # Export nothing
+__all__ = ['maybe_refresh']  # Export only what's needed
