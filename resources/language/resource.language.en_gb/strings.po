@@ -808,7 +808,7 @@ msgid "Create New Subfolder in '%s'"
 msgstr ""
 
 msgctxt "#36011"
-msgid "Move '%s' to Parent Folder"
+msgid "Move '%s' to Folder"
 msgstr ""
 
 msgctxt "#36012"
@@ -884,7 +884,7 @@ msgid "Select destination folder:"
 msgstr ""
 
 msgctxt "#36030"
-msgid "Select parent folder:"
+msgid "Select destination folder:"
 msgstr ""
 
 msgctxt "#36031"

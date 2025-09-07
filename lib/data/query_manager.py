@@ -1712,10 +1712,10 @@ class QueryManager:
             self.logger.error(f"Failed to merge list {source_list_id} into list {target_list_id}: {e}")
             return {"success": False, "error": "database_error"}
 
-    def move_folder(self, folder_id: str, target_parent_id: Optional[str]) -> Dict[str, Any]:
-        """Move a folder to a different parent folder"""
+    def move_folder(self, folder_id: str, target_folder_id: Optional[str]) -> Dict[str, Any]:
+        """Move a folder to a different destination folder (or root level if None)"""
         try:
-            self.logger.debug(f"Moving folder {folder_id} to parent {target_parent_id}")
+            self.logger.debug(f"Moving folder {folder_id} to destination {target_folder_id}")
 
             # Check if folder exists
             existing_folder = self.connection_manager.execute_single("""
@@ -1725,30 +1725,30 @@ class QueryManager:
             if not existing_folder:
                 return {"success": False, "error": "folder_not_found"}
 
-            # If target_parent_id is provided, verify the parent folder exists
-            if target_parent_id is not None:
-                parent_folder = self.connection_manager.execute_single("""
+            # If target_folder_id is provided, verify the destination folder exists
+            if target_folder_id is not None:
+                destination_folder = self.connection_manager.execute_single("""
                     SELECT id FROM folders WHERE id = ?
-                """, [int(target_parent_id)])
+                """, [int(target_folder_id)])
 
-                if not parent_folder:
-                    return {"success": False, "error": "parent_folder_not_found"}
+                if not destination_folder:
+                    return {"success": False, "error": "destination_folder_not_found"}
 
                 # Check for circular reference (folder can't be moved into itself or its children)
-                if str(folder_id) == str(target_parent_id):
+                if str(folder_id) == str(target_folder_id):
                     return {"success": False, "error": "circular_reference"}
 
-            # Update the folder's parent_id
+            # Update the folder's parent_id to the new destination
             with self.connection_manager.transaction() as conn:
                 conn.execute("""
                     UPDATE folders SET parent_id = ? WHERE id = ?
-                """, [int(target_parent_id) if target_parent_id is not None else None, int(folder_id)])
+                """, [int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
 
-            self.logger.debug(f"Successfully moved folder {folder_id} to parent {target_parent_id}")
+            self.logger.debug(f"Successfully moved folder {folder_id} to destination {target_folder_id}")
             return {"success": True}
 
         except Exception as e:
-            self.logger.error(f"Failed to move folder {folder_id} to parent {target_parent_id}: {e}")
+            self.logger.error(f"Failed to move folder {folder_id} to destination {target_folder_id}: {e}")
             return {"success": False, "error": "database_error"}
 
 

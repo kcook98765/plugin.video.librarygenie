@@ -324,7 +324,7 @@ class ToolsHandler:
                 # Modify operations
                 options.extend([
                     f"[COLOR yellow]{L(36005) % folder_info['name']}[/COLOR]",  # "Rename '%s'"
-                    f"[COLOR yellow]{L(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Parent Folder"
+                    f"[COLOR yellow]{L(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Folder"
                 ])
 
                 # Export operations
@@ -489,7 +489,7 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
-            # Get available parent folders (excluding self and children)
+            # Get available destination folders (excluding self and children)
             all_folders = query_manager.get_all_folders()
             folder_options = ["[Root Level]"]
             folder_mapping = [None]  # None represents root level
@@ -501,32 +501,32 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select parent folder:", list(folder_options))
+            selected_index = dialog.select("Select destination folder:", list(folder_options))
 
             if selected_index < 0:
                 return DialogResponse(success=False)
 
             # Move folder using the correct mapping
-            target_parent_id = folder_mapping[selected_index]
-            result = query_manager.move_folder(folder_id, target_parent_id)
+            target_folder_id = folder_mapping[selected_index]
+            result = query_manager.move_folder(folder_id, target_folder_id)
 
             if result.get("success"):
-                parent_name = "root level" if target_parent_id is None else folder_options[selected_index]
+                destination_name = "root level" if target_folder_id is None else folder_options[selected_index]
                 
                 # Navigate to the destination location instead of refreshing current view
-                if target_parent_id is None:
+                if target_folder_id is None:
                     # Moved to root level - navigate to main lists menu
                     return DialogResponse(
                         success=True,
-                        message=f"Moved folder to {parent_name}",
+                        message=f"Moved folder to {destination_name}",
                         navigate_to_lists=True
                     )
                 else:
-                    # Moved to another folder - navigate to that parent folder
+                    # Moved to another folder - navigate to that destination folder
                     return DialogResponse(
                         success=True,
-                        message=f"Moved folder to {parent_name}",
-                        navigate_to_folder=target_parent_id
+                        message=f"Moved folder to {destination_name}",
+                        navigate_to_folder=target_folder_id
                     )
             else:
                 return DialogResponse(success=False, message="Failed to move folder")
