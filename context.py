@@ -427,13 +427,19 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
             actions.append(f"remove_library_item_from_list&list_id={extracted_list_id}&dbtype={dbtype}&dbid={dbid}&title={title}")
             xbmc.log(f"LibraryGenie: Added remove option for library item {dbtype} {dbid} in list {extracted_list_id}", xbmc.LOGINFO)
 
-        # Add standard library item options
-        if dbtype == 'movie':
-            _add_library_movie_options(dbtype, dbid, options, actions, addon)
-        elif dbtype == 'episode':
-            _add_library_episode_options(options, actions, addon, dbtype, dbid)
-        elif dbtype == 'musicvideo':
-            _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
+        # Add LibraryGenie-specific add options (not the full library options to avoid duplicates)
+        # Check if quick-add is enabled and has a default list configured
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
+
+        if quick_add_enabled and default_list_id:
+            quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
+            options.append(quick_add_label)
+            actions.append(f"quick_add_context&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
+
+        add_to_list_label = L(31000) if L(31000) else "Add to List..."
+        options.append(add_to_list_label)
+        actions.append(f"add_library_item_to_list_context&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
 
     # Third priority: items in movie container (but without library metadata)
     elif item_info.get('is_movies') and item_info.get('title'):
