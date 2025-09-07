@@ -187,7 +187,7 @@ class ToolsHandler:
                     f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]",  # "Delete %s"
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
-                
+
                 # Debug logging for search history list tools options - using INFO level
                 self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for search history list '{list_info['name']}':")
                 for i, option in enumerate(options):
@@ -207,7 +207,7 @@ class ToolsHandler:
                     # Cancel
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
-                
+
                 # Debug logging for standard list tools options - using INFO level
                 self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for user list '{list_info['name']}':")
                 for i, option in enumerate(options):
@@ -310,7 +310,7 @@ class ToolsHandler:
                     f"[COLOR white]{L(36012) % folder_info['name']}[/COLOR]",  # "Export All Lists in '%s'"
                     "[COLOR yellow]Clear All Search History[/COLOR]"
                 ])
-                
+
                 # Debug logging for reserved folder - using INFO level
                 self.logger.info(f"TOOLS DEBUG: Added special options for reserved folder '{folder_info['name']}'")
             else:
@@ -338,7 +338,7 @@ class ToolsHandler:
 
             # Cancel
             options.append(f"[COLOR gray]{L(36003)}[/COLOR]")  # "Cancel"
-            
+
             # Debug logging for final folder tools options - using INFO level
             self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for folder '{folder_info['name']}' (reserved: {is_reserved}):")
             for i, option in enumerate(options):
