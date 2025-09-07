@@ -5,7 +5,7 @@
 """
 LibraryGenie - Device Code Authorization (DEPRECATED)
 This module has been replaced by otp_auth.py for OTP-based authentication.
-Kept for backward compatibility during transition.
+Kept as placeholder for backward compatibility during transition.
 """
 
 import warnings

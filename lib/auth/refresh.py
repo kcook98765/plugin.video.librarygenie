@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -5,7 +6,7 @@
 LibraryGenie - Token Refresh (DEPRECATED)
 This module is no longer needed with API key authentication.
 API keys don't require refresh like OAuth2 tokens.
-Kept for backward compatibility during transition.
+Kept as placeholder for backward compatibility during transition.
 """
 
 import warnings

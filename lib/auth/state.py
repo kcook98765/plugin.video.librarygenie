@@ -144,35 +144,4 @@ def get_auth_info() -> Dict[str, Any]:
         }
 
 
-# Legacy compatibility functions (deprecated)
-def get_access_token() -> Optional[str]:
-    """Legacy function - returns API key for backward compatibility"""
-    logger.warning("get_access_token() is deprecated, use get_api_key() instead")
-    return get_api_key()
 
-
-def get_tokens() -> Optional[Dict[str, Any]]:
-    """Legacy function - returns API key data for backward compatibility"""
-    logger.warning("get_tokens() is deprecated, use get_api_key() instead")
-    api_key = get_api_key()
-    if api_key:
-        return {
-            "access_token": api_key,
-            "token_type": "ApiKey"
-        }
-    return None
-
-
-def save_tokens(tokens: Dict[str, Any]) -> bool:
-    """Legacy function - saves API key from token data for backward compatibility"""
-    logger.warning("save_tokens() is deprecated, use save_api_key() instead")
-    api_key = tokens.get('access_token') or tokens.get('api_key')
-    if api_key:
-        return save_api_key(api_key)
-    return False
-
-
-def clear_tokens() -> bool:
-    """Legacy function - clears auth data for backward compatibility"""
-    logger.warning("clear_tokens() is deprecated, use clear_auth_data() instead")
-    return clear_auth_data()
