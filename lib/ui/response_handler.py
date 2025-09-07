@@ -43,21 +43,21 @@ class ResponseHandler:
 
             # Handle navigation based on response flags - prioritize specific navigation over refresh
             if response.success:
-                if hasattr(response, 'navigate_to_main') and response.navigate_to_main:
-                    # Navigate to main menu
+                if hasattr(response, 'navigate_to_folder') and response.navigate_to_folder:
+                    # Navigate to specific folder (highest priority for folder operations)
                     import xbmc
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("main")},replace)')
+                    folder_id = response.navigate_to_folder
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
 
                 elif hasattr(response, 'navigate_to_lists') and response.navigate_to_lists:
                     # Navigate to lists menu
                     import xbmc
                     xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
 
-                elif hasattr(response, 'navigate_to_folder') and response.navigate_to_folder:
-                    # Navigate to specific folder
+                elif hasattr(response, 'navigate_to_main') and response.navigate_to_main:
+                    # Navigate to main menu
                     import xbmc
-                    folder_id = response.navigate_to_folder
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("main")},replace)')
 
                 elif response.refresh_needed:
                     # Only refresh if no specific navigation was requested

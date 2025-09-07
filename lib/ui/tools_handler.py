@@ -383,6 +383,9 @@ class ToolsHandler:
                     if result.success:
                         result.navigate_to_folder = folder_id
                         result.refresh_needed = False  # Override refresh to prevent tools reopening
+                        # Ensure no other navigation flags are set
+                        result.navigate_to_main = False
+                        result.navigate_to_lists = False
                     
                     return result
                 elif selected_index == 3:  # Move folder
