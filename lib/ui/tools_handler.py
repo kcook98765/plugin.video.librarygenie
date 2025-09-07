@@ -255,7 +255,14 @@ class ToolsHandler:
                 elif selected_index == 1:  # Rename
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
-                    return lists_handler.rename_list(context, list_id)
+                    result = lists_handler.rename_list(context, list_id)
+                    
+                    # Navigate back to the lists view after successful rename
+                    if result.success:
+                        result.navigate_to_lists = True
+                        result.refresh_needed = False  # Override refresh to prevent tools reopening
+                    
+                    return result
                 elif selected_index == 2:  # Move to folder
                     return self._move_list_to_folder(context, list_id)
                 elif selected_index == 3:  # Export
@@ -370,7 +377,14 @@ class ToolsHandler:
                 elif selected_index == 2:  # Rename
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
-                    return lists_handler.rename_folder(context, folder_id)
+                    result = lists_handler.rename_folder(context, folder_id)
+                    
+                    # Navigate back to the folder after successful rename
+                    if result.success:
+                        result.navigate_to_folder = folder_id
+                        result.refresh_needed = False  # Override refresh to prevent tools reopening
+                    
+                    return result
                 elif selected_index == 3:  # Move folder
                     return self._move_folder(context, folder_id)
                 elif selected_index == 4:  # Export
@@ -419,11 +433,18 @@ class ToolsHandler:
 
             if result.get("success"):
                 folder_name = L(36032) if target_folder_id is None else folder_options[selected_index]  # "root level"
-                return DialogResponse(
+                response = DialogResponse(
                     success=True,
                     message=L(36033) % folder_name,  # "Moved list to %s"
-                    refresh_needed=True
                 )
+                
+                # Navigate to appropriate location after move
+                if target_folder_id is None:
+                    response.navigate_to_lists = True
+                else:
+                    response.navigate_to_folder = target_folder_id
+                    
+                return response
             else:
                 return DialogResponse(success=False, message=L(36035))  # "Failed to move list"
 
@@ -473,7 +494,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=L(36025) % result.get('items_added', 0),  # "Merged %d new items"
-                    refresh_needed=True
+                    navigate_to_lists=True
                 )
             else:
                 return DialogResponse(success=False, message=L(36026))  # "Failed to merge lists"

@@ -21,42 +21,65 @@ class ResponseHandler:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> bool:
-        """
-        Handle DialogResponse with notifications and navigation
-        Returns True if response was handled successfully
-        """
+    def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> None:
+        """Handle DialogResponse by showing messages and performing actions"""
         try:
-            if not isinstance(response, DialogResponse):
-                self.logger.warning(f"DEBUG: Expected DialogResponse but got {type(response)}")
-                return False
+            # Show message if present
+            if response.message:
+                if response.success:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        response.message,
+                        xbmcgui.NOTIFICATION_INFO,
+                        3000
+                    )
+                else:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie", 
+                        response.message,
+                        xbmcgui.NOTIFICATION_ERROR,
+                        5000
+                    )
 
-            # Show notification if there's a message
-            if hasattr(response, 'message') and response.message:
-                notification_type = xbmcgui.NOTIFICATION_INFO if response.success else xbmcgui.NOTIFICATION_ERROR
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    response.message, 
-                    notification_type,
-                    5000
-                )
-
-            # Handle navigation flags for successful operations
+            # Handle navigation based on response flags - prioritize specific navigation over refresh
             if response.success:
-                return self._handle_success_navigation(response, context)
-            else:
-                # For failed/cancelled operations, only navigate if explicitly requested
-                if (hasattr(response, 'navigate_to_lists') and response.navigate_to_lists) or \
-                   (hasattr(response, 'navigate_to_folder') and response.navigate_to_folder) or \
-                   (hasattr(response, 'navigate_to_main') and response.navigate_to_main) or \
-                   (hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites):
-                    return self._handle_failure_navigation(response, context)
-                # Otherwise, just close the dialog without navigation
-                return True
+                if hasattr(response, 'navigate_to_main') and response.navigate_to_main:
+                    # Navigate to main menu
+                    import xbmc
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("main")},replace)')
+
+                elif hasattr(response, 'navigate_to_lists') and response.navigate_to_lists:
+                    # Navigate to lists menu
+                    import xbmc
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+
+                elif hasattr(response, 'navigate_to_folder') and response.navigate_to_folder:
+                    # Navigate to specific folder
+                    import xbmc
+                    folder_id = response.navigate_to_folder
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+
+                elif response.refresh_needed:
+                    # Only refresh if no specific navigation was requested
+                    # For tools operations, we should navigate back to the current view instead of refreshing
+                    # to prevent tools dialog from reopening
+                    import xbmc
+                    current_path = xbmc.getInfoLabel('Container.FolderPath')
+                    if 'show_list_tools' in current_path:
+                        # If we're in tools context, navigate to parent instead of refreshing
+                        xbmc.executebuiltin('Action(ParentDir)')
+                    else:
+                        xbmc.executebuiltin('Container.Refresh')
 
         except Exception as e:
-            self.logger.error(f"Error handling dialog response: {e}")
-            return False
+            context.logger.error(f"Error handling dialog response: {e}")
+            # Fallback error notification
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "An error occurred",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
 
     def handle_directory_response(self, response: DirectoryResponse, context: PluginContext) -> bool:
         """

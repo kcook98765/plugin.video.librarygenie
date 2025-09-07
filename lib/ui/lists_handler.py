@@ -406,8 +406,7 @@ class ListsHandler:
                 context.logger.info(f"Successfully renamed list to: {new_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Renamed list to: {new_name}", # This string should also be localized
-                    refresh_needed=True
+                    message=f"Renamed list to: {new_name}" # This string should also be localized
                 )
 
         except Exception as e:
@@ -592,8 +591,7 @@ class ListsHandler:
                 context.logger.info(f"Successfully renamed folder to: {new_name}")
                 return DialogResponse(
                     success=True,
-                    message=f"Renamed folder to: {new_name}", # This string should also be localized
-                    refresh_needed=True
+                    message=f"Renamed folder to: {new_name}" # This string should also be localized
                 )
 
         except Exception as e:
