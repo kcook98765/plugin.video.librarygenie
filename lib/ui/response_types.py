@@ -122,6 +122,19 @@ class ErrorResponse:
                 pass
 
 
+@dataclass
+class ListResponse:
+    """Response data for list-based UI actions"""
+
+    def __init__(self, menu_items=None, error=False, error_message=None, navigate_to_main=False, refresh_needed=False, breadcrumb_path=None):
+        self.menu_items = menu_items or []
+        self.error = error
+        self.error_message = error_message
+        self.navigate_to_main = navigate_to_main
+        self.refresh_needed = refresh_needed
+        self.breadcrumb_path = breadcrumb_path
+
+
 def create_empty_directory() -> DirectoryResponse:
     """Create an empty directory response"""
     return DirectoryResponse(items=[], success=True)

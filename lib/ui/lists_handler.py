@@ -125,7 +125,7 @@ class ListsHandler:
                 tools_url = context.build_url('show_list_tools', list_type='lists_main', folder_id=current_folder_id)
             else:
                 tools_url = context.build_url('show_list_tools', list_type='lists_main')
-                
+
             menu_items.append({
                 'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
                 'url': tools_url,
@@ -867,7 +867,7 @@ class ListsHandler:
             # Get subfolders in this folder
             subfolders = query_manager.get_all_folders(folder_id)
             context.logger.info(f"Folder '{folder_info['name']}' has {len(subfolders)} subfolders")
-            
+
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
             context.logger.info(f"Folder '{folder_info['name']}' has {len(lists_in_folder)} lists")
