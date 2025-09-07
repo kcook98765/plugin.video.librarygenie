@@ -148,7 +148,7 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error"
                 )
 
             list_info = query_manager.get_list_by_id(list_id)
@@ -288,7 +288,7 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error"
                 )
 
             folder_info = query_manager.get_folder_by_id(folder_id)
@@ -400,7 +400,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get available folders
             all_folders = query_manager.get_all_folders()
@@ -436,7 +436,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get all lists except the target
             all_lists = query_manager.get_all_lists_with_folders()
@@ -487,7 +487,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get available parent folders (excluding self and children)
             all_folders = query_manager.get_all_folders()
@@ -536,7 +536,7 @@ class ToolsHandler:
 
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             result = query_manager.create_list(new_name.strip(), folder_id)
 
@@ -571,7 +571,7 @@ class ToolsHandler:
 
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             result = query_manager.create_folder(folder_name.strip(), parent_folder_id)
 
@@ -597,7 +597,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get list info for confirmation
             list_info = query_manager.get_list_by_id(list_id)
@@ -640,7 +640,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get folder info for confirmation
             folder_info = query_manager.get_folder_by_id(folder_id)
@@ -1045,7 +1045,7 @@ class ToolsHandler:
             # Handle selected option
             if selected_index == 0:  # Create New List in Folder
                 return self._create_list_in_folder(context, current_folder_id)
-            elif selected_index == 1:  # Create New Subfolder in Folder  
+            elif selected_index == 1:  # Create New Subfolder in Folder
                 return self._create_subfolder(context, current_folder_id)
             elif selected_index == 2:  # Import Lists
                 return self._import_lists(context)
@@ -1177,7 +1177,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get lists in search history folder
             search_lists = query_manager.get_lists_in_folder(folder_id)
@@ -1245,7 +1245,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message="Database error")
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get search list info
             search_list_info = query_manager.get_list_by_id(search_list_id)

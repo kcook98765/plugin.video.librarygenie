@@ -1802,6 +1802,95 @@ msgctxt "#37029"
 msgid "Search Movies and Lists"
 msgstr ""
 
+# Tools Options Localization Strings
+msgctxt "#36074"
+msgid "Import Lists"
+msgstr ""
+
+msgctxt "#36075"
+msgid "Export All Lists"
+msgstr ""
+
+msgctxt "#36076"
+msgid "Manual Backup"
+msgstr ""
+
+msgctxt "#36077"
+msgid "Backup Manager"
+msgstr ""
+
+msgctxt "#36078"
+msgid "Test Backup Config"
+msgstr ""
+
+msgctxt "#36079"
+msgid "Library Statistics"
+msgstr ""
+
+msgctxt "#36080"
+msgid "Force Library Rescan"
+msgstr ""
+
+msgctxt "#36081"
+msgid "Clear Search History"
+msgstr ""
+
+msgctxt "#36082"
+msgid "Reset Preferences"
+msgstr ""
+
+msgctxt "#36083"
+msgid "Move to New List"
+msgstr ""
+
+msgctxt "#36084"
+msgid "Clear All Search History"
+msgstr ""
+
+msgctxt "#36085"
+msgid "Failed to initialize favorites manager"
+msgstr ""
+
+msgctxt "#36086"
+msgid "List not found"
+msgstr ""
+
+msgctxt "#36087"
+msgid "Folder not found"
+msgstr ""
+
+msgctxt "#36088"
+msgid "Error showing favorites tools"
+msgstr ""
+
+msgctxt "#36089"
+msgid "Error showing list tools"
+msgstr ""
+
+msgctxt "#36090"
+msgid "Error showing folder tools"
+msgstr ""
+
+msgctxt "#36091"
+msgid "Error merging lists"
+msgstr ""
+
+msgctxt "#36092"
+msgid "Error moving folder"
+msgstr ""
+
+msgctxt "#36093"
+msgid "Failed to create folder"
+msgstr ""
+
+msgctxt "#36094"
+msgid "Error exporting list"
+msgstr ""
+
+msgctxt "#36095"
+msgid "Error exporting folder lists"
+msgstr ""
+
 # Additional placeholder entries for future use
 msgctxt "#36999"
 msgid "Reserved for future use"
