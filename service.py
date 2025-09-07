@@ -157,10 +157,10 @@ class BackgroundService:
             # Check if this is the first run by looking for a setup marker
             if not self._is_addon_initialized():
                 self.logger.info("First run detected - performing one-time addon initialization")
-                
+
                 # Mark addon as initialized first to prevent duplicate runs
                 self._mark_addon_initialized()
-                
+
                 # Perform initial library scan
                 if self._library_scanner:
                     self.logger.info("Performing one-time initial library scan")
@@ -178,22 +178,22 @@ class BackgroundService:
 
                     # Use background progress dialog for friendlier user experience
                     progress_dialog = None
-                    
+
                     # Progress callback function - background dialog style
                     def progress_callback(page_num, total_pages, items_processed):
                         nonlocal progress_dialog
                         try:
                             percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
-                            
+
                             # Create dialog on first call
                             if progress_dialog is None:
                                 progress_dialog = xbmcgui.DialogProgressBG()
                                 progress_dialog.create(L(35002), "Starting library scan...")
-                            
+
                             # Update progress dialog
                             message = f"Scanning library: {items_processed} movies processed"
                             progress_dialog.update(percentage, message)
-                            
+
                         except Exception as e:
                             self.logger.warning(f"Progress callback error: {e}")
 
@@ -247,7 +247,7 @@ class BackgroundService:
                         # Close progress dialog on exception
                         if progress_dialog is not None:
                             progress_dialog.close()
-                            
+
                         self.logger.error(f"Initial scan failed with exception: {e}")
                         # Show error notification on exception during scan
                         try:
@@ -272,7 +272,7 @@ class BackgroundService:
         try:
             from lib.data.connection_manager import get_connection_manager
             conn_manager = get_connection_manager()
-            
+
             # Check for initialization marker in kv_cache
             result = conn_manager.execute_single(
                 "SELECT value FROM kv_cache WHERE key = 'addon_initialized'"
@@ -287,7 +287,7 @@ class BackgroundService:
         try:
             from lib.data.connection_manager import get_connection_manager
             conn_manager = get_connection_manager()
-            
+
             with conn_manager.transaction() as conn:
                 conn.execute("""
                     INSERT OR REPLACE INTO kv_cache (key, value, updated_at) 

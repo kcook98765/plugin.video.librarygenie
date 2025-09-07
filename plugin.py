@@ -508,13 +508,32 @@ def _register_all_handlers(router: Router):
     router.register_handler('show_list', lambda ctx: factory.get_lists_handler().view_list(ctx, ctx.get_param('list_id')))
     router.register_handler('show_folder', lambda ctx: factory.get_lists_handler().show_folder(ctx, ctx.get_param('folder_id')))
 
-    # Register parameter-based handlers
-    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().delete_list(ctx, ctx.get_param('list_id')))[1]))
-    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id')))[1]))
-    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id')))[1]))
+    # Register parameter-based handlers with proper context setting
+    def _handle_delete_list(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().delete_list(ctx, ctx.get_param('list_id')))
+    
+    def _handle_rename_list(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id')))
+    
+    def _handle_remove_from_list_handler(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id')))
+    
+    def _handle_rename_folder(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().rename_folder(ctx, ctx.get_param('folder_id')))
+    
+    def _handle_delete_folder(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id')))
 
-    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().rename_folder(ctx, ctx.get_param('folder_id')))[1]))
-    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id')))[1]))
+    router.register_handler('delete_list', _handle_delete_list)
+    router.register_handler('rename_list', _handle_rename_list)
+    router.register_handler('remove_from_list', _handle_remove_from_list_handler)
+    router.register_handler('rename_folder', _handle_rename_folder)
+    router.register_handler('delete_folder', _handle_delete_folder)
 
     # Register FavoritesHandler methods
     router.register_handler('scan_favorites_execute', lambda ctx: factory.get_favorites_handler().handle_scan_favorites(ctx))
