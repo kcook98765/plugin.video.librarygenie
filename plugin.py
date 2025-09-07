@@ -16,10 +16,7 @@ import xbmcplugin
 # Import new modular components
 from lib.ui.plugin_context import PluginContext
 from lib.ui.router import Router
-from lib.ui.main_menu_handler import MainMenuHandler
-from lib.ui.search_handler import SearchHandler
-from lib.ui.lists_handler import ListsHandler
-from lib.ui.favorites_handler import FavoritesHandler
+from lib.ui.handler_factory import get_handler_factory
 from lib.utils.logger import get_logger
 
 # Import required functions
@@ -441,8 +438,9 @@ def main():
 
         # Try to dispatch the request
         if not router.dispatch(context):
-            # No handler found, show main menu
-            main_menu_handler = MainMenuHandler()
+            # No handler found, show main menu using lazy factory
+            factory = get_handler_factory()
+            main_menu_handler = factory.get_main_menu_handler()
             main_menu_handler.show_main_menu(context)
 
     except Exception as e:
@@ -492,41 +490,38 @@ def _log_window_state(context: PluginContext):
 
 
 def _register_all_handlers(router: Router):
-    """Register all action handlers with the router"""
+    """Register all action handlers with the router using lazy factory"""
 
-    # Create handler instances
-    main_menu_handler = MainMenuHandler()
-    search_handler = SearchHandler()
-    lists_handler = ListsHandler()
-    favorites_handler = FavoritesHandler()
+    # Get handler factory for lazy loading
+    factory = get_handler_factory()
 
-    # Register new modular handlers
-    router.register_handler('search', search_handler.prompt_and_search)
-    router.register_handler('lists', lists_handler.show_lists_menu)
-    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, favorites_handler.show_favorites_menu(ctx)))
+    # Register handlers with lazy instantiation - handlers only created when needed
+    router.register_handler('search', lambda ctx: factory.get_search_handler().prompt_and_search(ctx))
+    router.register_handler('lists', lambda ctx: factory.get_lists_handler().show_lists_menu(ctx))
+    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, factory.get_favorites_handler().show_favorites_menu(ctx)))
 
     # Register ListsHandler methods that expect specific parameters
-    router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
-    router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_folder(ctx)))
+    router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().create_list(ctx)))
+    router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().create_folder(ctx)))
 
     # Register list and folder view handlers
-    router.register_handler('show_list', lambda ctx: lists_handler.view_list(ctx, ctx.get_param('list_id')))
-    router.register_handler('show_folder', lambda ctx: lists_handler.show_folder(ctx, ctx.get_param('folder_id')))
+    router.register_handler('show_list', lambda ctx: factory.get_lists_handler().view_list(ctx, ctx.get_param('list_id')))
+    router.register_handler('show_folder', lambda ctx: factory.get_lists_handler().show_folder(ctx, ctx.get_param('folder_id')))
 
     # Register parameter-based handlers
-    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_list(ctx, ctx.get_param('list_id'))))
-    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_list(ctx, ctx.get_param('list_id'))))
-    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id'))))
+    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().delete_list(ctx, ctx.get_param('list_id'))))
+    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id'))))
+    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id'))))
 
-    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_folder(ctx, ctx.get_param('folder_id'))))
-    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_folder(ctx, ctx.get_param('folder_id'))))
+    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().rename_folder(ctx, ctx.get_param('folder_id'))))
+    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id'))))
 
     # Register FavoritesHandler methods
-    router.register_handler('scan_favorites_execute', lambda ctx: favorites_handler.handle_scan_favorites(ctx))
-    router.register_handler('save_favorites_as', lambda ctx: favorites_handler.handle_save_favorites_as(ctx))
-    router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, favorites_handler.add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
+    router.register_handler('scan_favorites_execute', lambda ctx: factory.get_favorites_handler().handle_scan_favorites(ctx))
+    router.register_handler('save_favorites_as', lambda ctx: factory.get_favorites_handler().handle_save_favorites_as(ctx))
+    router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, factory.get_favorites_handler().add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
 
-    # Register remaining handlers
+    # Register remaining handlers (these don't use handlers so no lazy loading needed)
     router.register_handlers({
         'authorize': lambda ctx: handle_authorize(),
         'signout': lambda ctx: handle_signout(),

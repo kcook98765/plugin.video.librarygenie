@@ -52,12 +52,14 @@ class Router:
             elif action == "noop":
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
-                from .lists_handler import ListsHandler
-                handler = ListsHandler()
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                handler = factory.get_lists_handler()
                 return handler.show_lists_menu(context)
             elif action == 'prompt_and_search':
-                from .search_handler import SearchHandler
-                search_handler = SearchHandler()
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                search_handler = factory.get_search_handler()
                 search_handler.prompt_and_search(context)
                 return True
             elif action == 'add_to_list':
@@ -65,32 +67,32 @@ class Router:
                 dbtype = context.get_param('dbtype')
                 dbid = context.get_param('dbid')
 
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                lists_handler = factory.get_lists_handler()
+
                 if media_item_id:
                     # Handle adding existing media item to list
-                    from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
                     success = lists_handler.add_to_list_context(context)
                     return success
                 elif dbtype and dbid:
                     # Handle adding library item to list
-                    from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
                     success = lists_handler.add_library_item_to_list_context(context)
                     return success
                 else:
                     # Handle adding external item to list
-                    from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
                     success = lists_handler.add_external_item_to_list(context)
                     return success
             # Added new handler for remove_from_list
             elif action == 'remove_from_list':
-                from .lists_handler import ListsHandler
-                lists_handler = ListsHandler()
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                lists_handler = factory.get_lists_handler()
                 return self._handle_remove_from_list(context, lists_handler)
             elif action == 'remove_library_item_from_list':
-                from .lists_handler import ListsHandler
-                lists_handler = ListsHandler()
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                lists_handler = factory.get_lists_handler()
                 list_id = context.get_param('list_id')
                 dbtype = context.get_param('dbtype')
                 dbid = context.get_param('dbid')
@@ -126,10 +128,11 @@ class Router:
     def _handle_list_tools(self, context: PluginContext, params: Dict[str, Any]) -> bool:
         """Handle list tools action with response processing"""
         try:
-            from .tools_handler import ToolsHandler
+            from .handler_factory import get_handler_factory
             from .response_handler import get_response_handler
 
-            tools_handler = ToolsHandler()
+            factory = get_handler_factory()
+            tools_handler = factory.get_tools_handler()
             response_handler = get_response_handler()
 
             list_type = params.get('list_type', 'unknown')

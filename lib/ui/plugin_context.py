@@ -54,7 +54,7 @@ class PluginContext:
 
     @property
     def query_manager(self):
-        """Get query manager singleton"""
+        """Get query manager singleton (lazy loaded)"""
         if self._query_manager is None:
             from ..data.query_manager import get_query_manager
             self._query_manager = get_query_manager()
@@ -65,7 +65,7 @@ class PluginContext:
 
     @property
     def favorites_manager(self):
-        """Get favorites manager singleton"""
+        """Get favorites manager singleton (lazy loaded)"""
         if self._favorites_manager is None:
             from ..kodi.favorites_manager import get_phase4_favorites_manager
             self._favorites_manager = get_phase4_favorites_manager()
