@@ -106,19 +106,19 @@ class ToolsHandler:
                 f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
             ]
 
-            # Debug logging for favorites tools options
-            self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for favorites tools:")
+            # Debug logging for favorites tools options - using INFO level to ensure visibility
+            self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for favorites tools:")
             for i, option in enumerate(options):
-                self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                self.logger.info(f"TOOLS DEBUG: [{i}] {option}")
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36013), list(options))  # "Favorites Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from favorites tools dialog")
+            self.logger.info(f"TOOLS DEBUG: User selected option {selected_index} from favorites tools dialog")
 
             if selected_index < 0 or selected_index == 2:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: Favorites tools cancelled (selected_index: {selected_index})")
+                self.logger.info(f"TOOLS DEBUG: Favorites tools cancelled (selected_index: {selected_index})")
                 return DialogResponse(success=False)
 
             # Handle selected option
@@ -188,10 +188,10 @@ class ToolsHandler:
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
                 
-                # Debug logging for search history list tools options
-                self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for search history list '{list_info['name']}':")
+                # Debug logging for search history list tools options - using INFO level
+                self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for search history list '{list_info['name']}':")
                 for i, option in enumerate(options):
-                    self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                    self.logger.info(f"TOOLS DEBUG: [{i}] {option}")
             else:
                 # Standard list options
                 options = [
@@ -208,19 +208,19 @@ class ToolsHandler:
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
                 ]
                 
-                # Debug logging for standard list tools options
-                self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for user list '{list_info['name']}':")
+                # Debug logging for standard list tools options - using INFO level
+                self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for user list '{list_info['name']}':")
                 for i, option in enumerate(options):
-                    self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                    self.logger.info(f"TOOLS DEBUG: [{i}] {option}")
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36014), list(options))  # "List Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from user list tools dialog (is_search_history: {is_search_history})")
+            self.logger.info(f"TOOLS DEBUG: User selected option {selected_index} from user list tools dialog (is_search_history: {is_search_history})")
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: User list tools cancelled (selected_index: {selected_index})")
+                self.logger.info(f"TOOLS DEBUG: User list tools cancelled (selected_index: {selected_index})")
                 return DialogResponse(success=False)
 
             # Handle selected option
@@ -311,8 +311,8 @@ class ToolsHandler:
                     "[COLOR yellow]Clear All Search History[/COLOR]"
                 ])
                 
-                # Debug logging for reserved folder
-                self.logger.debug(f"TOOLS DEBUG: Added special options for reserved folder '{folder_info['name']}'")
+                # Debug logging for reserved folder - using INFO level
+                self.logger.info(f"TOOLS DEBUG: Added special options for reserved folder '{folder_info['name']}'")
             else:
                 # Standard folder options
                 # Additive operations
@@ -333,25 +333,25 @@ class ToolsHandler:
                 # Destructive operations
                 options.append(f"[COLOR red]{L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
 
-                # Debug logging for standard folder
-                self.logger.debug(f"TOOLS DEBUG: Added standard options for folder '{folder_info['name']}'")
+                # Debug logging for standard folder - using INFO level
+                self.logger.info(f"TOOLS DEBUG: Added standard options for folder '{folder_info['name']}'")
 
             # Cancel
             options.append(f"[COLOR gray]{L(36003)}[/COLOR]")  # "Cancel"
             
-            # Debug logging for final folder tools options
-            self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for folder '{folder_info['name']}' (reserved: {is_reserved}):")
+            # Debug logging for final folder tools options - using INFO level
+            self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for folder '{folder_info['name']}' (reserved: {is_reserved}):")
             for i, option in enumerate(options):
-                self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                self.logger.info(f"TOOLS DEBUG: [{i}] {option}")
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36015), list(options))  # "Folder Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from folder tools dialog (is_reserved: {is_reserved})")
+            self.logger.info(f"TOOLS DEBUG: User selected option {selected_index} from folder tools dialog (is_reserved: {is_reserved})")
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: Folder tools cancelled (selected_index: {selected_index})")
+                self.logger.info(f"TOOLS DEBUG: Folder tools cancelled (selected_index: {selected_index})")
                 return DialogResponse(success=False)
 
             # Handle selected option - calculate indices based on reserved status
@@ -1028,19 +1028,19 @@ class ToolsHandler:
                 f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
             ]
 
-            # Debug logging for lists main tools options
-            self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for lists main tools (folder: '{current_folder_name}', folder_id: {current_folder_id}):")
+            # Debug logging for lists main tools options - using INFO level to ensure visibility
+            self.logger.info(f"TOOLS DEBUG: Built {len(options)} options for lists main tools (folder: '{current_folder_name}', folder_id: {current_folder_id}):")
             for i, option in enumerate(options):
-                self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                self.logger.info(f"TOOLS DEBUG: [{i}] {option}")
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36000), list(options))  # "Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from lists main tools dialog")
+            self.logger.info(f"TOOLS DEBUG: User selected option {selected_index} from lists main tools dialog")
 
             if selected_index < 0 or selected_index == 13:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: Lists main tools cancelled (selected_index: {selected_index})")
+                self.logger.info(f"TOOLS DEBUG: Lists main tools cancelled (selected_index: {selected_index})")
                 return DialogResponse(success=False)
 
             # Handle selected option
