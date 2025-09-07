@@ -127,6 +127,28 @@ def save_tokens(api_key: str = None, access_token: str = None, refresh_token: st
         return False
 
 
+def get_tokens() -> Dict[str, str]:
+    """Get all stored authentication tokens"""
+    try:
+        addon = xbmcaddon.Addon()
+        
+        return {
+            'api_key': addon.getSetting('api_key'),
+            'access_token': addon.getSetting('access_token'),
+            'refresh_token': addon.getSetting('refresh_token'),
+            'expires_at': addon.getSetting('token_expires_at')
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting tokens: {e}")
+        return {
+            'api_key': '',
+            'access_token': '',
+            'refresh_token': '',
+            'expires_at': ''
+        }
+
+
 def clear_tokens() -> bool:
     """Clear stored authentication tokens"""
     try:
