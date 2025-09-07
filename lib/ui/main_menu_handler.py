@@ -47,22 +47,15 @@ class MainMenuHandler:
                 'description': 'Search your library'
             })
 
-            # 2. Search History (always show - let service.py handle folder creation)
-            search_folder_id = query_manager.get_or_create_search_history_folder()
-            context.logger.debug(f"Search folder ID: {search_folder_id}")
-            
-            if search_folder_id:
-                context.logger.info("Adding search history menu item")
-                menu_items.append({
-                    'label': f"📊 Search History",
-                    'action': 'show_folder',
-                    'folder_id': search_folder_id,
-                    'is_folder': True,
-                    'icon': 'DefaultRecentlyAdded.png',
-                    'description': 'Recent searches'
-                })
-            else:
-                context.logger.warning("Could not get search history folder ID")
+            # 2. Search History (always show - service.py handles folder creation)
+            context.logger.info("Adding search history menu item")
+            menu_items.append({
+                'label': f"📊 Search History",
+                'action': 'show_search_history',
+                'is_folder': True,
+                'icon': 'DefaultRecentlyAdded.png',
+                'description': 'Recent searches'
+            })
 
             # 3. Lists
             all_lists = query_manager.get_all_lists_with_folders()

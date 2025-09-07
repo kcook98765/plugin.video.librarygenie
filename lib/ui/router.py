@@ -112,13 +112,31 @@ class Router:
                 response = lists_handler.view_list(context, list_id)
                 return response
             elif action == 'show_folder':
-                from .handler_factory import get_handler_factory
-                factory = get_handler_factory()
-                factory.context = context  # Set context before using factory
-                lists_handler = factory.get_lists_handler()
-                folder_id = context.get_param('folder_id')
-                response = lists_handler.show_folder(context, folder_id)
-                return response
+                folder_id = params.get('folder_id')
+                breadcrumb_path = params.get('breadcrumb_path', [])
+
+                if folder_id:
+                    lists_handler = self.handler_factory.get_lists_handler()
+                    lists_handler.show_folder(context, folder_id, breadcrumb_path)
+                else:
+                    self.logger.error("Missing folder_id parameter")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+
+            elif action == 'show_search_history':
+                # Handle search history folder access - look up folder ID only when needed
+                query_manager = context.query_manager
+                if query_manager:
+                    search_folder_id = query_manager.get_or_create_search_history_folder()
+                    if search_folder_id:
+                        lists_handler = self.handler_factory.get_lists_handler()
+                        breadcrumb_path = params.get('breadcrumb_path', [])
+                        lists_handler.show_folder(context, search_folder_id, breadcrumb_path)
+                    else:
+                        self.logger.error("Could not access search history folder")
+                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                else:
+                    self.logger.error("Query manager not available for search history")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
