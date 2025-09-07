@@ -119,10 +119,16 @@ class ListsHandler:
             # Build menu items for lists and folders
             menu_items = []
 
-            # Add "Tools & Options" at the top
+            # Add "Tools & Options" at the top - always pass current folder context
+            current_folder_id = context.get_param('folder_id')  # Get current folder context
+            if current_folder_id:
+                tools_url = context.build_url('show_list_tools', list_type='lists_main', folder_id=current_folder_id)
+            else:
+                tools_url = context.build_url('show_list_tools', list_type='lists_main')
+                
             menu_items.append({
                 'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
-                'url': context.build_url('show_list_tools', list_type='lists_main'),
+                'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
                 'description': L(36018)  # "Access lists tools and options"

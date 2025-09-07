@@ -583,6 +583,8 @@ class ToolsHandler:
     def _create_subfolder(self, context: PluginContext, parent_folder_id: str) -> DialogResponse:
         """Create a new subfolder in the specified parent folder"""
         try:
+            self.logger.debug(f"TOOLS DEBUG: _create_subfolder called with parent_folder_id: {parent_folder_id}")
+            
             # Get folder name from user
             folder_name = xbmcgui.Dialog().input(
                 "Enter folder name:",
@@ -590,13 +592,19 @@ class ToolsHandler:
             )
 
             if not folder_name or not folder_name.strip():
+                self.logger.debug(f"TOOLS DEBUG: User cancelled subfolder creation or entered empty name")
                 return DialogResponse(success=False)
 
             query_manager = context.query_manager
             if not query_manager:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
+            self.logger.debug(f"TOOLS DEBUG: Creating subfolder '{folder_name.strip()}' in parent_folder_id: {parent_folder_id}")
+            
+            # Pass parent_folder_id as the second parameter to create_folder (name, parent_id)
             result = query_manager.create_folder(folder_name.strip(), parent_folder_id)
+            
+            self.logger.debug(f"TOOLS DEBUG: create_folder result: {result}")
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
@@ -605,6 +613,9 @@ class ToolsHandler:
                     message = "Failed to create folder"
                 return DialogResponse(success=False, message=message)
             else:
+                self.logger.info(f"TOOLS DEBUG: Successfully created subfolder '{folder_name}' in parent_folder_id: {parent_folder_id}")
+                
+                # Navigate back to the parent folder where the subfolder was created
                 return DialogResponse(
                     success=True,
                     message=f"Created subfolder: {folder_name}",
@@ -1019,10 +1030,11 @@ class ToolsHandler:
         try:
             # Get current folder info from context - this should come from the calling URL
             current_folder_id = context.get_param('folder_id')
-            current_folder_name = "Lists"  # Always use "Lists" for root level
+            current_folder_name = "Lists"  # Default for root level
             
             self.logger.debug(f"TOOLS DEBUG: _show_lists_main_tools called with folder_id from context: {current_folder_id}")
             
+            # Resolve folder name if we have a folder_id
             if current_folder_id:
                 query_manager = context.query_manager
                 if query_manager:
@@ -1030,15 +1042,21 @@ class ToolsHandler:
                     if folder_info:
                         current_folder_name = folder_info['name']
                         self.logger.debug(f"TOOLS DEBUG: Resolved folder name: '{current_folder_name}' for folder_id: {current_folder_id}")
+                    else:
+                        self.logger.warning(f"TOOLS DEBUG: Could not find folder info for folder_id: {current_folder_id}")
+                        current_folder_id = None  # Reset to None if folder not found
+                else:
+                    self.logger.warning(f"TOOLS DEBUG: Query manager not available for folder resolution")
+                    current_folder_id = None
 
             # Build comprehensive options for main lists menu - organized by operation type
             # Only show folder-specific options (no duplicate generic ones)
             options = [
-                # Creation operations - only folder-specific
+                # Creation operations - always folder-specific, even for root
                 f"[COLOR lightgreen]📋 {L(36009) % current_folder_name}[/COLOR]",  # "Create a new list in '%s'"
                 f"[COLOR lightgreen]📁 {L(36010) % current_folder_name}[/COLOR]",  # "Create a new subfolder in '%s'"
-                # Import operations
-                "[COLOR white]Import Lists[/COLOR]",
+                # Import operations - should be folder-aware
+                f"[COLOR white]Import Lists to {current_folder_name}[/COLOR]",
                 # Export operations
                 "[COLOR white]Export All Lists[/COLOR]",
                 # Backup operations
@@ -1078,8 +1096,9 @@ class ToolsHandler:
                 # Use the folder_id from context - this is crucial for proper folder assignment
                 self.logger.debug(f"TOOLS DEBUG: Creating new subfolder in parent folder_id: {current_folder_id}")
                 return self._create_subfolder(context, current_folder_id)
-            elif selected_index == 2:  # Import Lists
-                return self._import_lists(context)
+            elif selected_index == 2:  # Import Lists to current folder
+                self.logger.debug(f"TOOLS DEBUG: Importing lists to folder_id: {current_folder_id}")
+                return self._import_lists(context, current_folder_id)
             elif selected_index == 3:  # Export All Lists
                 return self._export_all_lists(context)
             elif selected_index == 4:  # Manual Backup
@@ -1106,8 +1125,8 @@ class ToolsHandler:
                 message="Error showing lists tools"
             )
 
-    def _import_lists(self, context: PluginContext) -> DialogResponse:
-        """Import lists from file"""
+    def _import_lists(self, context: PluginContext, target_folder_id: str = None) -> DialogResponse:
+        """Import lists from file to specified folder"""
         try:
             from ..import_export.import_engine import get_import_engine
             import_engine = get_import_engine()
@@ -1133,20 +1152,37 @@ class ToolsHandler:
                     return DialogResponse(success=False)
                 file_path = file_path[0]  # Take the first file if multiple selected
 
-            # Run import
-            result = import_engine.import_data(file_path)
+            # Run import with target folder context
+            result = import_engine.import_data(file_path, target_folder_id=target_folder_id)
             if result.success:
+                folder_context = ""
+                if target_folder_id:
+                    query_manager = context.query_manager
+                    if query_manager:
+                        folder_info = query_manager.get_folder_by_id(target_folder_id)
+                        if folder_info:
+                            folder_context = f" to '{folder_info['name']}'"
+                
                 message = (
-                    f"Import completed:\n"
+                    f"Import completed{folder_context}:\n"
                     f"Lists: {result.lists_created}\n"
                     f"Items: {result.items_added}\n"
                     f"Folders: {getattr(result, 'folders_imported', 0)}"
                 )
-                return DialogResponse(
+                
+                # Navigate appropriately based on context
+                response = DialogResponse(
                     success=True,
                     message=message,
                     refresh_needed=True
                 )
+                
+                if target_folder_id:
+                    response.navigate_to_folder = target_folder_id
+                else:
+                    response.navigate_to_lists = True
+                    
+                return response
             else:
                 error_message = result.errors[0] if result.errors else "Unknown error"
                 return DialogResponse(
