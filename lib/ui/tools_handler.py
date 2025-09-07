@@ -334,7 +334,7 @@ class ToolsHandler:
                 options.append(f"[COLOR red]{L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
 
                 # Debug logging for standard folder
-                self.logger.logger.debug(f"TOOLS DEBUG: Added standard options for folder '{folder_info['name']}'")
+                self.logger.debug(f"TOOLS DEBUG: Added standard options for folder '{folder_info['name']}'")
 
             # Cancel
             options.append(f"[COLOR gray]{L(36003)}[/COLOR]")  # "Cancel"
