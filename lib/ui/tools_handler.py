@@ -1229,8 +1229,10 @@ class ToolsHandler:
             moved_count = 0
 
             for item in search_items:
-                query_manager.add_item_to_list(new_list_id, item)
-                moved_count += 1
+                # Use add_library_item_to_list for proper handling of media items
+                result = query_manager.add_library_item_to_list(new_list_id, item)
+                if result:
+                    moved_count += 1
 
             # Delete the original search history list after successful move
             delete_result = query_manager.delete_list(search_list_id)
