@@ -18,6 +18,7 @@ from lib.config.settings import SettingsManager
 from lib.remote.ai_search_client import get_ai_search_client
 from lib.library.scanner import LibraryScanner
 from lib.data.storage_manager import get_storage_manager
+from lib.ui.localization import L
 
 logger = get_logger(__name__)
 addon = xbmcaddon.Addon()
@@ -127,7 +128,7 @@ class LibraryGenieService:
         self.logger.info("Starting AI search synchronization")
         
         # Show start notification
-        self._show_notification("Starting remote library sync...")
+        self._show_notification(L(34103))  # "Sync in progress..."
 
         try:
             # Test connection first
@@ -135,7 +136,7 @@ class LibraryGenieService:
             if not connection_test.get('success'):
                 error_msg = connection_test.get('error', 'Unknown error')
                 self.logger.warning(f"AI search connection failed: {error_msg}")
-                self._show_notification(f"Sync failed: {error_msg}", xbmcgui.NOTIFICATION_ERROR)
+                self._show_notification(f"{L(34105)}: {error_msg}", xbmcgui.NOTIFICATION_ERROR)  # "Sync failed: ..."
                 return
 
             # Get current library version for delta sync
@@ -164,7 +165,7 @@ class LibraryGenieService:
 
             if not movies_with_imdb:
                 self.logger.info("No movies with IMDb IDs found, skipping sync")
-                self._show_notification("No movies with IMDb IDs found for sync", xbmcgui.NOTIFICATION_WARNING)
+                self._show_notification(L(30016), xbmcgui.NOTIFICATION_WARNING)  # "No results found" (reusing existing string)
                 return
 
             # Sync in batches with rate limiting
@@ -195,14 +196,14 @@ class LibraryGenieService:
                     # Show progress notification for significant batches
                     if total_batches > 1:
                         self._show_notification(
-                            f"Sync progress: {batch_num}/{total_batches} batches completed",
+                            f"{L(34401)} {batch_num}/{total_batches}",  # "Processing... X/Y"
                             time_ms=3000
                         )
                 else:
                     error_msg = result.get('error', 'Unknown error') if result else 'No response'
                     self.logger.error(f"Batch {batch_num} sync failed: {error_msg}")
                     self._show_notification(
-                        f"Batch {batch_num} sync failed: {error_msg}",
+                        f"{L(34105)}: {error_msg}",  # "Sync failed: ..."
                         xbmcgui.NOTIFICATION_ERROR
                     )
 
@@ -215,14 +216,14 @@ class LibraryGenieService:
             
             # Show completion notification with summary
             self._show_notification(
-                f"Remote library sync completed - {len(movies_with_imdb)} movies processed",
+                f"{L(34104)} - {len(movies_with_imdb)} movies",  # "Sync completed successfully - X movies"
                 time_ms=8000
             )
 
         except Exception as e:
             self.logger.error(f"AI sync failed: {e}")
             self._show_notification(
-                f"Remote sync failed: {str(e)}",
+                f"{L(34105)}: {str(e)}",  # "Sync failed: ..."
                 xbmcgui.NOTIFICATION_ERROR,
                 time_ms=8000
             )
