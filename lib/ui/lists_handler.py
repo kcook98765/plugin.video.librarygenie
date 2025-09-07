@@ -10,13 +10,16 @@ import xbmcplugin
 import xbmcgui
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
+from .localization import L
+from .breadcrumb_helper import get_breadcrumb_helper
+from ..utils.logger import get_logger
 from ..data.query_manager import get_query_manager
 from .listitem_renderer import get_listitem_renderer
 
 # --- Localization Optimization ---
 from xbmcaddon import Addon
 from functools import lru_cache
-from .localization import L # Imported localization function
+# Imported localization function
 
 _addon = Addon()
 
@@ -29,8 +32,12 @@ def L(msgid: int) -> str:
 class ListsHandler:
     """Handles lists operations"""
 
-    def __init__(self):
-        pass
+    def __init__(self, context: PluginContext):
+        self.context = context
+        self.logger = get_logger(__name__)
+        self.query_manager = context.query_manager
+        self.storage_manager = context.storage_manager
+        self.breadcrumb_helper = get_breadcrumb_helper()
 
     def show_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main lists menu with folders and lists"""
@@ -173,20 +180,20 @@ class ListsHandler:
                 })
 
             # Show breadcrumb notification for Lists menu
-            from .menu_builder import MenuBuilder
-            menu_builder = MenuBuilder()
+            # from .menu_builder import MenuBuilder
+            # menu_builder = MenuBuilder()
             try:
-                menu_builder._add_breadcrumb_notification("Lists")
+                self.breadcrumb_helper._add_breadcrumb_notification("Lists")
                 context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'Lists'")
             except Exception as e:
                 context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
 
             # Use MenuBuilder to build the menu
-            menu_builder.build_menu(
-                menu_items,
-                context.addon_handle,
-                context.base_url
-            )
+            # menu_builder.build_menu(
+            #     menu_items,
+            #     context.addon_handle,
+            #     context.base_url
+            # )
 
             return DirectoryResponse(
                 items=menu_items,
@@ -683,20 +690,23 @@ class ListsHandler:
             context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
 
             # Show breadcrumb notification and render list
-            breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action("show_list", {"list_id": list_id}, self.query_manager)
+            # breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action("show_list", {"list_id": list_id}, self.query_manager)
+            breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action("show_list", {"list_id": list_id}, query_manager)
+
             if breadcrumb_path:
                 try:
-                    self.menu_builder._add_breadcrumb_notification(breadcrumb_path)
+                    # self.menu_builder._add_breadcrumb_notification(breadcrumb_path)
+                    self.breadcrumb_helper._add_breadcrumb_notification(breadcrumb_path)
                     self.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
                 except Exception as e:
                     self.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
 
-            self.menu_builder.build_movie_menu(
-                list_items,
-                context.addon_handle,
-                context.base_url,
-                category=f"List: {list_info['name']}"
-            )
+            # self.menu_builder.build_movie_menu(
+            #     list_items,
+            #     context.addon_handle,
+            #     context.base_url,
+            #     category=f"List: {list_info['name']}"
+            # )
 
 
             # Add Tools & Options at the top of the list view using version-aware renderer
@@ -884,20 +894,20 @@ class ListsHandler:
 
             # Show breadcrumb notification for folder view with parent context
             breadcrumb_path = f"Lists > {folder_info['name']}"
-            from .menu_builder import MenuBuilder
-            menu_builder = MenuBuilder()
+            # from .menu_builder import MenuBuilder
+            # menu_builder = MenuBuilder()
             try:
-                menu_builder._add_breadcrumb_notification(breadcrumb_path)
+                self.breadcrumb_helper._add_breadcrumb_notification(breadcrumb_path)
                 context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
             except Exception as e:
                 context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
 
             # Use MenuBuilder to build the menu
-            menu_builder.build_menu(
-                menu_items,
-                context.addon_handle,
-                context.base_url
-            )
+            # menu_builder.build_menu(
+            #     menu_items,
+            #     context.addon_handle,
+            #     context.base_url
+            # )
 
             return DirectoryResponse(
                 items=menu_items,
