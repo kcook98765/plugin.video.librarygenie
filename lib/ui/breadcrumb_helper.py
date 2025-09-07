@@ -64,9 +64,19 @@ class BreadcrumbHelper:
                 folder_info = query_manager.get_folder_info(folder_id)
                 if folder_info:
                     folder_name = folder_info.get('name', 'Unknown Folder')
-                    return f"Lists > {folder_name} > {list_name}"
 
-            return f"Lists > {list_name}"
+                    # Special handling for search history lists
+                    if folder_name == "Search History":
+                        # Extract just the search terms from the list name
+                        if list_name.startswith("Search: '") and "'" in list_name[9:]:
+                            search_terms = list_name[9:].split("'")[0]
+                            return f"Search History > {search_terms}"
+                        else:
+                            return f"Search History > {list_name}"
+
+                    return f"{folder_name} > {list_name}"
+
+            return list_name
 
         except Exception as e:
             self.logger.error(f"Error getting list breadcrumb: {e}")
