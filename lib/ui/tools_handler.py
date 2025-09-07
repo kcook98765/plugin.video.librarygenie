@@ -446,6 +446,7 @@ class ToolsHandler:
                     response.navigate_to_lists = True
                 else:
                     response.navigate_to_folder = target_folder_id
+                    response.navigate_to_lists = False  # Ensure we don't navigate to lists instead
                     
                 return response
             else:
