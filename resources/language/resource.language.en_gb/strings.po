@@ -546,6 +546,10 @@ msgctxt "#32100"
 msgid "Enter search keywords"
 msgstr ""
 
+msgctxt "#32102"
+msgid "Search saved: %d items"
+msgstr ""
+
 msgctxt "#32181"
 msgid "Integrate with Kodi's built-in favorites for seamless list management"
 
