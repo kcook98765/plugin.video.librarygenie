@@ -1058,9 +1058,13 @@ class ToolsHandler:
 
             # Handle selected option
             if selected_index == 0:  # Create New List in Folder
-                return self._create_list_in_folder(context, current_folder_id)
+                # Ensure we have the current folder ID from the context
+                folder_id = current_folder_id or context.get_param('folder_id')
+                return self._create_list_in_folder(context, folder_id)
             elif selected_index == 1:  # Create New Subfolder in Folder
-                return self._create_subfolder(context, current_folder_id)
+                # Ensure we have the current folder ID from the context
+                folder_id = current_folder_id or context.get_param('folder_id')
+                return self._create_subfolder(context, folder_id)
             elif selected_index == 2:  # Import Lists
                 return self._import_lists(context)
             elif selected_index == 3:  # Export All Lists
