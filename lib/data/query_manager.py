@@ -1526,51 +1526,35 @@ class QueryManager:
             self.logger.error(f"Failed to get folder {folder_id}: {e}")
             return None
 
-    def get_subfolders_in_folder(self, folder_id):
-        """Get all subfolders in a specific folder"""
+    def get_all_folders(self, parent_id=None):
+        """Get all folders with their list counts. If parent_id is provided, get subfolders of that folder."""
         try:
-            subfolders = self.connection_manager.execute_query("""
-                SELECT 
-                    f.id, f.name, f.created_at,
-                    COUNT(l.id) as list_count
-                FROM folders f
-                LEFT JOIN lists l ON l.folder_id = f.id
-                WHERE f.parent_id = ?
-                GROUP BY f.id, f.name, f.created_at
-                ORDER BY f.name
-            """, [folder_id])
-
-            result = []
-            for row in subfolders or []:
-                result.append({
-                    "id": str(row['id']),
-                    "name": row['name'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                    "list_count": row['list_count']
-                })
-
-            self.logger.debug(f"Retrieved {len(result)} subfolders for folder {folder_id}")
-            return result
-
-        except Exception as e:
-            self.logger.error(f"Failed to get subfolders for folder {folder_id}: {e}")
-            return []
-
-    def get_all_folders(self):
-        """Get all folders with their list counts"""
-        try:
-            folders = self.connection_manager.execute_query("""
-                SELECT 
-                    f.id, f.name, f.created_at,
-                    COUNT(l.id) as list_count
-                FROM folders f
-                LEFT JOIN lists l ON l.folder_id = f.id
-                WHERE f.parent_id IS NULL
-                GROUP BY f.id, f.name, f.created_at
-                ORDER BY 
-                    CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
-                    f.name
-            """)
+            if parent_id is None:
+                # Get top-level folders
+                folders = self.connection_manager.execute_query("""
+                    SELECT 
+                        f.id, f.name, f.created_at,
+                        COUNT(l.id) as list_count
+                    FROM folders f
+                    LEFT JOIN lists l ON l.folder_id = f.id
+                    WHERE f.parent_id IS NULL
+                    GROUP BY f.id, f.name, f.created_at
+                    ORDER BY 
+                        CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
+                        f.name
+                """)
+            else:
+                # Get subfolders of specified parent
+                folders = self.connection_manager.execute_query("""
+                    SELECT 
+                        f.id, f.name, f.created_at,
+                        COUNT(l.id) as list_count
+                    FROM folders f
+                    LEFT JOIN lists l ON l.folder_id = f.id
+                    WHERE f.parent_id = ?
+                    GROUP BY f.id, f.name, f.created_at
+                    ORDER BY f.name
+                """, [parent_id])
 
             result = []
             for row in folders or []:
@@ -1581,7 +1565,10 @@ class QueryManager:
                     "list_count": row['list_count']
                 })
 
-            self.logger.debug(f"Retrieved {len(result)} folders")
+            if parent_id is None:
+                self.logger.debug(f"Retrieved {len(result)} top-level folders")
+            else:
+                self.logger.debug(f"Retrieved {len(result)} subfolders for folder {parent_id}")
             return result
 
         except Exception as e:

@@ -865,7 +865,7 @@ class ListsHandler:
                 )
 
             # Get subfolders in this folder
-            subfolders = query_manager.get_subfolders_in_folder(folder_id)
+            subfolders = query_manager.get_all_folders(folder_id)
             context.logger.info(f"Folder '{folder_info['name']}' has {len(subfolders)} subfolders")
             
             # Get lists in this folder
