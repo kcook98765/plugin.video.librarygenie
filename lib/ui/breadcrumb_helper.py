@@ -139,7 +139,16 @@ class BreadcrumbHelper:
         else:
             return "Tools"
 
-    
+    def _add_breadcrumb_notification(self, title: str):
+        """Compatibility method - delegates to menu builder for actual notification display"""
+        try:
+            # Import here to avoid circular imports
+            from .menu_builder import MenuBuilder
+            # Create a temporary MenuBuilder instance for the notification
+            menu_builder = MenuBuilder()
+            menu_builder._add_breadcrumb_notification(title)
+        except Exception as e:
+            self.logger.error(f"Error showing breadcrumb notification: {e}")
 
 
 # Global instance
