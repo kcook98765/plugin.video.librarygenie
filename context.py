@@ -112,9 +112,22 @@ def _show_librarygenie_menu(addon):
             dbtype = item_info['hijack_dbtype']
             xbmc.log(f"LibraryGenie: Using hijack DBType fallback: {dbtype}", xbmc.LOGINFO)
 
-        # Add content-specific options based on cached context
-        # Prioritize dbtype over container context for better detection
-        if dbtype == 'movie':
+        # FIRST: Check if we're in a LibraryGenie context (prioritize this over regular library items)
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        
+        # Check for LibraryGenie context indicators
+        is_librarygenie_context = (
+            container_path.startswith('plugin://plugin.video.librarygenie/') or
+            (file_path and file_path.startswith('plugin://plugin.video.librarygenie/')) or
+            (item_info.get('hijack_armed') == '1' and item_info.get('hijack_dbid'))
+        )
+        
+        if is_librarygenie_context:
+            xbmc.log(f"LibraryGenie: Detected LibraryGenie context - using LibraryGenie options", xbmc.LOGINFO)
+            _add_librarygenie_item_options(options, actions, addon, item_info)
+        
+        # SECOND: Handle regular library items (only if not in LibraryGenie context)
+        elif dbtype == 'movie':
             if dbid and dbid != '0':
                 # Library movie - add list management options
                 _add_library_movie_options(dbtype, dbid, options, actions, addon)
@@ -138,7 +151,7 @@ def _show_librarygenie_menu(addon):
                 # External/plugin music video - add external item options
                 _add_external_item_options(options, actions, addon)
 
-        # Fallback to container context checks for items without explicit dbtype
+        # THIRD: Fallback to container context checks for items without explicit dbtype
         elif item_info['is_movies'] and not dbtype:
             _add_external_item_options(options, actions, addon)
 
@@ -147,23 +160,6 @@ def _show_librarygenie_menu(addon):
 
         elif item_info['is_musicvideos'] and not dbtype:
             _add_external_item_options(options, actions, addon)
-
-        # Check if we're in a LibraryGenie container first
-        elif xbmc.getInfoLabel('Container.FolderPath').startswith('plugin://plugin.video.librarygenie/'):
-            # We're in LibraryGenie container
-            xbmc.log(f"LibraryGenie: In LibraryGenie container - dbtype={dbtype}, dbid={dbid}", xbmc.LOGINFO)
-            _add_librarygenie_item_options(options, actions, addon, item_info)
-
-        elif file_path and file_path.startswith('plugin://plugin.video.librarygenie/'):
-            # LibraryGenie item with explicit plugin path
-            xbmc.log(f"LibraryGenie: LibraryGenie plugin path detected", xbmc.LOGINFO)
-            _add_librarygenie_item_options(options, actions, addon, item_info)
-
-        # Also check if we have hijack properties indicating we're in a LibraryGenie context
-        elif item_info.get('hijack_armed') == '1' and item_info.get('hijack_dbid'):
-            # We're likely in a LibraryGenie list view with InfoHijack active
-            xbmc.log(f"LibraryGenie: Detected InfoHijack context - dbtype={dbtype}, dbid={dbid}", xbmc.LOGINFO)
-            _add_librarygenie_item_options(options, actions, addon, item_info)
 
         elif file_path and file_path.startswith('plugin://'):
             # Other plugin item - add external item options
@@ -485,6 +481,7 @@ def _execute_action(action_with_params, addon):
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
             xbmc.log(f"LibraryGenie: Executing remove action: {plugin_url}", xbmc.LOGINFO)
             xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+            xbmc.log(f"LibraryGenie: Remove action executed, waiting for result", xbmc.LOGINFO)
 
         else:
             # Handle other actions by building plugin URL
