@@ -41,6 +41,13 @@ class InfoHijackManager:
             self._debug_scan_container()
 
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        
+        # Debug: Log dialog state changes
+        if hasattr(self, '_last_dialog_state'):
+            if (dialog_active, current_dialog_id) != self._last_dialog_state:
+                self._logger.info(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
+        self._last_dialog_state = (dialog_active, current_dialog_id)
         
         # Handle dialog close detection
         if not dialog_active and self._native_info_was_open:
@@ -55,6 +62,11 @@ class InfoHijackManager:
             if not self._native_info_was_open and not self._in_progress:
                 # Check if this is a hijackable dialog with armed item
                 armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
+                listitem_label = xbmc.getInfoLabel('ListItem.Label')
+                container_path = xbmc.getInfoLabel('Container.FolderPath')
+                
+                # Debug: Always log dialog detection with armed state
+                self._logger.info(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}', container='{container_path[:50]}...' if container_path else 'None'")
                 
                 if armed:
                     self._logger.info(f"🎯 HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")

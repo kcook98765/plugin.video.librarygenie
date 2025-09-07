@@ -355,6 +355,7 @@ class ListItemBuilder:
                 li.setProperty("LG.InfoHijack.Armed", "1")
                 li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty("LG.InfoHijack.DBType", media_type)
+                self.logger.debug(f"🎯 HIJACK ARMED: '{title}' - DBID={kodi_id}, DBType={media_type}")
             except Exception as e:
                 self.logger.error(f"LIB ITEM: ❌ Failed to set InfoHijack properties for '{title}': {e}")
 

@@ -20,6 +20,7 @@ from lib.library.scanner import LibraryScanner
 from lib.data.storage_manager import get_storage_manager
 from lib.data.migrations import initialize_database
 from lib.ui.localization import L
+from lib.ui.info_hijack_manager import InfoHijackManager # Import added
 
 logger = get_logger(__name__)
 addon = xbmcaddon.Addon()
@@ -36,6 +37,13 @@ class LibraryGenieService:
         self.monitor = xbmc.Monitor()
         self.sync_thread = None
         self.sync_stop_event = threading.Event()
+        self.hijack_manager = InfoHijackManager(self.logger) # Hijack manager initialized
+        self.logger.info("🚀 LibraryGenie service initialized with InfoHijack manager")
+
+        # Debug: Check initial dialog state
+        initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        initial_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        self.logger.info(f"🔍 SERVICE INIT: Initial dialog state - ID: {initial_dialog_id}, VideoInfo active: {initial_dialog_active}")
 
     def _show_notification(self, message: str, icon: int = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
         """Show a Kodi notification"""
@@ -66,14 +74,14 @@ class LibraryGenieService:
         """Check if library has been scanned and perform initial scan if needed"""
         try:
             scanner = LibraryScanner()
-            
+
             if not scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan...")
                 self._show_notification("Performing initial library scan...", time_ms=8000)
-                
+
                 # Perform initial full scan
                 result = scanner.perform_full_scan()
-                
+
                 if result.get('success'):
                     items_added = result.get('items_added', 0)
                     self.logger.info(f"Initial library scan completed: {items_added} movies indexed")
@@ -91,7 +99,7 @@ class LibraryGenieService:
                     )
             else:
                 self.logger.info("Library already indexed, skipping initial scan")
-                
+
         except Exception as e:
             self.logger.error(f"Error during initial scan check: {e}")
             self._show_notification(
@@ -106,19 +114,16 @@ class LibraryGenieService:
         try:
             # Initialize database if needed
             self._initialize_database()
-            
+
             # Check if library needs initial scan
             self._check_and_perform_initial_scan()
-            
+
             # Start AI search sync if enabled
             if self._should_start_ai_sync():
                 self._start_ai_sync_thread()
 
             # Main service loop
-            while not self.monitor.abortRequested():
-                # Check for settings changes
-                if self.monitor.waitForAbort(30):  # Check every 30 seconds
-                    break
+            self.run() # Changed to call run() which contains the hijack manager loop
 
             # Cleanup
             self._stop_ai_sync_thread()
@@ -126,6 +131,46 @@ class LibraryGenieService:
 
         except Exception as e:
             self.logger.error(f"Service error: {e}")
+            
+    def run(self):
+        """Main service loop"""
+        self.logger.info("🔥 LibraryGenie service starting main loop...")
+        tick_count = 0
+        last_dialog_state = None
+        last_armed_state = None
+
+        while not self.monitor.abortRequested():
+            try:
+                tick_count += 1
+
+                # Debug logging every 50 ticks (5 seconds) 
+                if tick_count % 50 == 0:
+                    dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                    dialog_id = xbmcgui.getCurrentWindowDialogId()
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+
+                    # Only log when state changes or every 500 ticks
+                    current_state = (dialog_active, armed_state)
+                    if current_state != last_dialog_state or tick_count % 500 == 0:
+                        self.logger.info(f"🔍 SERVICE TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
+                        last_dialog_state = current_state
+
+                # Run hijack manager tick
+                self.hijack_manager.tick()
+
+                # Sleep for a short time to prevent excessive CPU usage
+                if self.monitor.waitForAbort(0.1):  # 100ms
+                    break
+
+            except Exception as e:
+                self.logger.error(f"💥 SERVICE ERROR: {e}")
+                import traceback
+                self.logger.error(f"SERVICE TRACEBACK: {traceback.format_exc()}")
+                if self.monitor.waitForAbort(1.0):  # 1 second on error
+                    break
+
+        self.logger.info("🛑 LibraryGenie service stopped")
 
     def _should_start_ai_sync(self) -> bool:
         """Check if AI search sync should be started"""
@@ -133,25 +178,25 @@ class LibraryGenieService:
         if not (self.settings.get_ai_search_activated() and 
                 self.settings.get_ai_search_sync_enabled()):
             return False
-        
+
         # Test if AI client is properly configured and authorized
         if not self.ai_client.is_configured():
             self.logger.debug("AI client not configured, skipping sync")
             return False
-        
+
         # Quick connection test to ensure auth is still valid
         connection_test = self.ai_client.test_connection()
         if not connection_test.get('success'):
             error = connection_test.get('error', 'Unknown error')
             self.logger.warning(f"AI search connection invalid: {error}")
-            
+
             # If it's an auth error, disable AI search to prevent constant retries
             if 'API key' in error or '401' in error:
                 self.logger.info("Disabling AI search due to authentication failure")
                 self.settings.set_ai_search_activated(False)
-            
+
             return False
-        
+
         return True
 
     def _start_ai_sync_thread(self):
@@ -202,7 +247,7 @@ class LibraryGenieService:
     def _perform_ai_sync(self):
         """Perform AI search synchronization"""
         self.logger.info("Starting AI search synchronization")
-        
+
         # Show start notification
         self._show_notification(L(34103))  # "Sync in progress..."
 
@@ -268,7 +313,7 @@ class LibraryGenieService:
                         f"{results.get('already_present', 0)} existing, "
                         f"{results.get('invalid', 0)} invalid"
                     )
-                    
+
                     # Show progress notification for significant batches
                     if total_batches > 1:
                         self._show_notification(
@@ -289,7 +334,7 @@ class LibraryGenieService:
                     self.sync_stop_event.wait(10)
 
             self.logger.info("AI search synchronization completed")
-            
+
             # Show completion notification with summary
             self._show_notification(
                 f"{L(34104)} - {len(movies_with_imdb)} movies",  # "Sync completed successfully - X movies"
