@@ -564,7 +564,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {new_name}",
-                    navigate_to_lists=True
+                    navigate_to_folder=folder_id
                 )
 
         except Exception as e:
@@ -599,7 +599,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Created subfolder: {folder_name}",
-                    navigate_to_lists=True
+                    navigate_to_folder=parent_folder_id
                 )
 
         except Exception as e:
