@@ -284,10 +284,21 @@ class AISearchHandler:
             addon = xbmcaddon.Addon()
             addon_id = addon.getAddonInfo('id')
             
-            list_url = f"plugin://{addon_id}/?action=show_list&list_id={list_id}"
-            xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
+            # Check current container path to determine navigation approach
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            is_in_plugin = current_path and addon_id in current_path
             
-            self.logger.info(f"AI SEARCH: Redirected to search history list {list_id}")
+            list_url = f"plugin://{addon_id}/?action=show_list&list_id={list_id}"
+            
+            if is_in_plugin:
+                # We're already in the plugin, use replace to stay in context
+                xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
+                self.logger.info(f"AI SEARCH: Redirected within plugin to search history list {list_id}")
+            else:
+                # We're outside the plugin (e.g., context menu from library/other addon)
+                # Use ActivateWindow to open the plugin content
+                xbmc.executebuiltin(f'ActivateWindow(Videos,"{list_url}",return)')
+                self.logger.info(f"AI SEARCH: Activated plugin window for search history list {list_id}")
             
         except Exception as e:
             self.logger.error(f"AI SEARCH: Failed to redirect to search list: {e}")
@@ -426,9 +437,9 @@ class AISearchHandler:
                         5000
                     )
                     
-                    # Redirect to the created list only if in plugin context
-                    if is_plugin_context:
-                        self._redirect_to_search_list(list_id)
+                    # Always attempt to redirect to the created list
+                    # The redirect logic will handle whether navigation is appropriate
+                    self._redirect_to_search_list(list_id)
                     
                     return True
                 else:
