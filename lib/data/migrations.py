@@ -538,8 +538,39 @@ class MigrationManager:
             conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (9, datetime('now'))")
             print("Applied migration 9: Removed duplicate poster/fanart columns")
 
+        # Version 10: Simplify auth schema for API key storage
+        if version < 10:
+            self._migration_007_simplify_auth_schema(conn)
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (10, datetime('now'))")
+            print("Applied migration 10: Simplified auth schema")
+
+
         print(f"Database schema is up to date (version {get_current_version(conn)})")
         return True
+
+
+    def _migration_007_simplify_auth_schema(self, conn):
+        """Migration 007: Simplify auth schema for API key storage"""
+        self.logger.info("Running migration 007: Simplify auth schema")
+
+        try:
+            # Drop and recreate auth_state table with simplified schema
+            conn.execute("DROP TABLE IF EXISTS auth_state")
+
+            conn.execute("""
+                CREATE TABLE auth_state (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    api_key TEXT,
+                    created_at TEXT,
+                    token_type TEXT DEFAULT 'ApiKey'
+                )
+            """)
+
+            self.logger.info("Migration 007 completed: Auth schema simplified")
+
+        except Exception as e:
+            self.logger.error(f"Migration 007 failed: {e}")
+            raise
 
 
 def get_current_version(conn):

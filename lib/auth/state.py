@@ -4,11 +4,11 @@
 
 """
 LibraryGenie - Authentication State Management
-Handles token storage and authorization status using database
+Simplified state management for API key authentication
 """
 
-from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+from datetime import datetime
 
 from ..data.connection_manager import get_connection_manager
 from ..utils.logger import get_logger
@@ -16,147 +16,163 @@ from ..utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def is_authorized():
-    """Check if the device is currently authorized"""
+def is_authorized() -> bool:
+    """Check if the device has a valid API key"""
     try:
-        conn_manager = get_connection_manager()
-        
-        # Check for valid, non-expired token
-        token_data = conn_manager.execute_single("""
-            SELECT access_token, expires_at 
-            FROM auth_state 
-            WHERE expires_at > datetime('now')
-            ORDER BY id DESC 
-            LIMIT 1
-        """)
-        
-        if token_data and token_data.get('access_token'):
-            logger.debug("Device is authorized")
-            return True
-        
-        return False
-
+        api_key = get_api_key()
+        return bool(api_key and api_key.strip())
     except Exception as e:
         logger.debug(f"Authorization check failed: {e}")
         return False
 
 
-def get_access_token():
-    """Get the current access token if available"""
+def get_api_key() -> Optional[str]:
+    """Get the stored API key"""
     try:
         conn_manager = get_connection_manager()
         
-        token_data = conn_manager.execute_single("""
-            SELECT access_token 
+        result = conn_manager.execute_single("""
+            SELECT api_key 
             FROM auth_state 
-            WHERE expires_at > datetime('now')
             ORDER BY id DESC 
             LIMIT 1
         """)
         
-        if token_data:
-            logger.debug("Access token retrieved successfully")
-            return token_data['access_token']
+        if result and result.get('api_key'):
+            logger.debug("API key retrieved successfully")
+            return result['api_key']
         else:
-            logger.debug("No valid access token found")
+            logger.debug("No API key found")
             return None
 
     except Exception as e:
-        logger.error("Failed to get access token")
+        logger.error(f"Failed to get API key: {e}")
         return None
 
 
-def save_tokens(tokens: Dict[str, Any]):
-    """Save authorization tokens to database"""
-    try:
-        conn_manager = get_connection_manager()
+def save_api_key(api_key: str) -> bool:
+    """
+    Save API key to database
+    
+    Args:
+        api_key: The API key to save
         
-        # Calculate expiry time
-        expires_at = None
-        if tokens.get('expires_in'):
-            expires_at = datetime.now() + timedelta(seconds=int(tokens['expires_in']))
-            expires_at = expires_at.isoformat()
+    Returns:
+        bool: True if saved successfully
+    """
+    try:
+        if not api_key or not api_key.strip():
+            logger.error("Cannot save empty API key")
+            return False
+        
+        conn_manager = get_connection_manager()
         
         with conn_manager.transaction() as conn:
+            # Clear any existing auth data
+            conn.execute("DELETE FROM auth_state")
+            
+            # Insert new API key
             conn.execute("""
-                INSERT INTO auth_state (access_token, expires_at, token_type, scope)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO auth_state (api_key, created_at, token_type)
+                VALUES (?, ?, ?)
             """, [
-                tokens.get('access_token'),
-                expires_at,
-                tokens.get('token_type', 'Bearer'),
-                tokens.get('scope', '')
+                api_key.strip(),
+                datetime.now().isoformat(),
+                'ApiKey'
             ])
 
-        logger.info("Authorization tokens saved successfully")
+        logger.info("API key saved successfully")
+        return True
 
     except Exception as e:
-        logger.error("Failed to save tokens")
-        raise
+        logger.error(f"Failed to save API key: {e}")
+        return False
 
 
-def get_tokens() -> Optional[Dict[str, Any]]:
-    """Get stored tokens"""
-    try:
-        conn_manager = get_connection_manager()
-        
-        token_data = conn_manager.execute_single("""
-            SELECT access_token, expires_at, token_type, scope
-            FROM auth_state 
-            WHERE expires_at > datetime('now')
-            ORDER BY id DESC 
-            LIMIT 1
-        """)
-        
-        if token_data:
-            logger.debug("Token data retrieved")
-            return dict(token_data)
-        
-        return None
-
-    except Exception as e:
-        logger.error("Failed to get tokens")
-        return None
-
-
-def clear_tokens():
-    """Clear stored tokens and revoke authorization"""
+def clear_auth_data() -> bool:
+    """Clear all stored authentication data"""
     try:
         conn_manager = get_connection_manager()
         
         with conn_manager.transaction() as conn:
             conn.execute("DELETE FROM auth_state")
         
-        logger.info("Authorization tokens cleared successfully")
+        logger.info("Authentication data cleared successfully")
         return True
 
     except Exception as e:
-        logger.error(f"Error clearing tokens: {e}")
+        logger.error(f"Error clearing auth data: {e}")
         return False
 
 
-def get_token_info() -> Dict[str, Any]:
-    """Get detailed token information for debugging"""
+def get_auth_info() -> Dict[str, Any]:
+    """Get detailed authentication information for debugging"""
     try:
         conn_manager = get_connection_manager()
         
-        token_data = conn_manager.execute_single("""
-            SELECT access_token, expires_at, token_type
+        result = conn_manager.execute_single("""
+            SELECT api_key, created_at, token_type
             FROM auth_state 
             ORDER BY id DESC 
             LIMIT 1
         """)
         
-        if token_data:
+        if result:
+            # Don't log the actual API key for security
+            has_key = bool(result.get('api_key'))
+            key_length = len(result.get('api_key', '')) if has_key else 0
+            
             return {
-                "exists": True,
-                "has_access_token": bool(token_data.get('access_token')),
-                "token_type": token_data.get('token_type', 'Bearer'),
-                "expires_at": token_data.get('expires_at')
+                "has_api_key": has_key,
+                "api_key_length": key_length,
+                "token_type": result.get('token_type', 'Unknown'),
+                "created_at": result.get('created_at'),
+                "is_authorized": has_key
             }
         
-        return {"exists": False}
+        return {
+            "has_api_key": False,
+            "is_authorized": False
+        }
 
     except Exception as e:
-        logger.error(f"Failed to get token info: {e}")
-        return {"exists": False, "error": str(e)}
+        logger.error(f"Failed to get auth info: {e}")
+        return {
+            "has_api_key": False,
+            "is_authorized": False,
+            "error": str(e)
+        }
+
+
+# Legacy compatibility functions (deprecated)
+def get_access_token() -> Optional[str]:
+    """Legacy function - returns API key for backward compatibility"""
+    logger.warning("get_access_token() is deprecated, use get_api_key() instead")
+    return get_api_key()
+
+
+def get_tokens() -> Optional[Dict[str, Any]]:
+    """Legacy function - returns API key data for backward compatibility"""
+    logger.warning("get_tokens() is deprecated, use get_api_key() instead")
+    api_key = get_api_key()
+    if api_key:
+        return {
+            "access_token": api_key,
+            "token_type": "ApiKey"
+        }
+    return None
+
+
+def save_tokens(tokens: Dict[str, Any]) -> bool:
+    """Legacy function - saves API key from token data for backward compatibility"""
+    logger.warning("save_tokens() is deprecated, use save_api_key() instead")
+    api_key = tokens.get('access_token') or tokens.get('api_key')
+    if api_key:
+        return save_api_key(api_key)
+    return False
+
+
+def clear_tokens() -> bool:
+    """Legacy function - clears auth data for backward compatibility"""
+    logger.warning("clear_tokens() is deprecated, use clear_auth_data() instead")
+    return clear_auth_data()

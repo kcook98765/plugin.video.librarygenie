@@ -17,7 +17,6 @@ from ..import_export.export_engine import get_export_engine
 from ..kodi.favorites_manager import get_phase4_favorites_manager
 
 
-
 class ToolsHandler:
     """Modular tools and options handler"""
 
@@ -1377,56 +1376,29 @@ class ToolsHandler:
     def handle_activate_ai_search(self, params: dict, context) -> PluginResponse:
         """Handle AI search activation via OTP code"""
         try:
-            from ..remote.ai_search_client import get_ai_search_client
+            from ..auth.auth_helper import get_auth_helper
             from .localization import L
             import xbmcgui
 
-            ai_client = get_ai_search_client()
+            auth_helper = get_auth_helper()
 
-            # Check if server URL is configured
-            if not ai_client.settings.get_ai_search_server_url():
+            # Check if already authorized
+            if auth_helper.verify_api_key():
                 xbmcgui.Dialog().ok(
-                    L(34305),  # "Configuration error"
-                    "Please configure the AI Search Server URL first."
+                    "Already Authorized",
+                    "AI Search is already activated and working."
                 )
                 return PluginResponse.empty()
 
-            # Get OTP code from user
-            otp_dialog = xbmcgui.Dialog()
-            otp_code = otp_dialog.input(
-                L(30432),  # "OTP Code (8 digits)"
-                type=xbmcgui.INPUT_NUMERIC
-            )
+            # Start authorization flow
+            success = auth_helper.start_device_authorization()
 
-            if not otp_code:
-                return PluginResponse.empty()
-
-            # Show progress dialog
-            progress = xbmcgui.DialogProgress()
-            progress.create(L(37023), L(37024))  # "Authorization in progress", "Visit the authorization URL to complete setup"
-
-            try:
-                # Attempt activation
-                result = ai_client.activate_with_otp(otp_code)
-                progress.close()
-
-                if result['success']:
-                    xbmcgui.Dialog().ok(
-                        L(34109),  # "Authorization complete"
-                        f"{result['message']}\nUser: {result.get('user_email', 'Unknown')}"
-                    )
-                else:
-                    xbmcgui.Dialog().ok(
-                        L(34110),  # "Authorization failed"
-                        result['error']
-                    )
-
-            except Exception as e:
-                progress.close()
-                context.logger.error(f"Unexpected error during AI search activation: {e}")
-                xbmcgui.Dialog().ok(
-                    L(34301),  # "Operation failed"
-                    "An unexpected error occurred."
+            if success:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "AI Search activated successfully!",
+                    xbmcgui.NOTIFICATION_INFO,
+                    5000
                 )
 
             return PluginResponse.empty()
