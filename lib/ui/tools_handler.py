@@ -1229,23 +1229,17 @@ class ToolsHandler:
             copied_count = 0
 
             for item in search_items:
-                copy_result = query_manager.add_library_item_to_list(new_list_id, item)
-                if copy_result:
-                    copied_count += 1
+                query_manager.add_item_to_list(new_list_id, item)
+                copied_count += 1
 
-            if copied_count > 0:
-                return DialogResponse(
-                    success=True,
-                    message=f"Copied {copied_count} items to new list '{new_name}'",
-                    refresh_needed=True
-                )
-            else:
-                # Clean up empty list if no items were copied
-                query_manager.delete_list(new_list_id)
-                return DialogResponse(
-                    success=False,
-                    message="No items could be copied to the new list"
-                )
+            # Navigate back to the search history folder after successful copy
+            search_folder_id = query_manager.get_or_create_search_history_folder()
+
+            return DialogResponse(
+                success=True,
+                message=f"Copied {copied_count} items to '{new_name}'",
+                navigate_to_folder=search_folder_id
+            )
 
         except Exception as e:
             self.logger.error(f"Error copying search history to list: {e}")
