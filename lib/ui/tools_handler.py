@@ -983,7 +983,7 @@ class ToolsHandler:
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36021), list(options))  # "Lists Tools & Options"
+            selected_index = dialog.select(L(36000), list(options))  # "Tools & Options"
 
             if selected_index < 0 or selected_index == 11:  # Cancel
                 return DialogResponse(success=False)
