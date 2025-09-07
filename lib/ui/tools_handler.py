@@ -1142,8 +1142,7 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
                 L(36067),  # "Clear Search History"
-                L(36068) % len(search_lists),  # "Delete all %d search history lists?"
-                L(30502),  # "This action cannot be undone."
+                f"{L(36068) % len(search_lists)}\n{L(30502)}",  # "Delete all %d search history lists?" + "This action cannot be undone."
                 nolabel=L(36003),  # "Cancel"
                 yeslabel=L(36069)   # "Clear"
             ):
