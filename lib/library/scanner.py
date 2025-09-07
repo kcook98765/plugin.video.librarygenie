@@ -38,14 +38,21 @@ class LibraryScanner:
         """Check if scan should be aborted"""
         return self._abort_requested
 
-    def perform_full_scan(self, progress_callback: Optional[Callable] = None, progress_dialog: Optional[Any] = None) -> Dict[str, Any]:
-        """Perform a complete library scan"""
+    def perform_full_scan(self, progress_callback: Optional[Callable] = None, progress_dialog: Optional[Any] = None, use_dialog_bg: bool = False) -> Dict[str, Any]:
+        """Perform a complete library scan with optional DialogBG support"""
         self.logger.info("Starting full library scan")
 
         # Initialize query manager
         if not self.query_manager.initialize():
             self.logger.error("Failed to initialize database for full scan")
             return {"success": False, "error": "Database initialization failed"}
+
+        # Initialize progress dialog if requested
+        dialog_bg = None
+        if use_dialog_bg:
+            import xbmcgui
+            dialog_bg = xbmcgui.DialogProgressBG()
+            dialog_bg.create("LibraryGenie", "Initializing library scan...")
 
         # Get current Kodi version for tracking
         try:
@@ -62,7 +69,9 @@ class LibraryScanner:
             self._abort_requested = False
 
             # Clear existing data (full refresh)
-            if progress_dialog:
+            if dialog_bg:
+                dialog_bg.update(10, "LibraryGenie", "Clearing existing index...")
+            elif progress_dialog:
                 progress_dialog.update(20, "LibraryGenie", "Clearing existing index...")
             self._clear_library_index()
 
@@ -71,6 +80,9 @@ class LibraryScanner:
             self.logger.info(f"Full scan: {total_movies} movies to process")
 
             if total_movies == 0:
+                if dialog_bg:
+                    dialog_bg.update(100, "LibraryGenie", "No movies found")
+                    dialog_bg.close()
                 self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0)
                 return {"success": True, "items_found": 0, "items_added": 0}
 
@@ -78,7 +90,9 @@ class LibraryScanner:
             total_pages = (total_movies + self.batch_size - 1) // self.batch_size
             self.logger.info(f"Processing {total_pages} pages of {self.batch_size} items each")
 
-            if progress_dialog:
+            if dialog_bg:
+                dialog_bg.update(20, "LibraryGenie", f"Processing {total_movies} movies...")
+            elif progress_dialog:
                 progress_dialog.update(30, "LibraryGenie", f"Processing {total_movies} movies...")
 
             # Process movies in pages
@@ -92,6 +106,9 @@ class LibraryScanner:
                 # Check for abort between pages
                 if self._should_abort():
                     self.logger.info(f"Full scan aborted by user at page {page_num}/{total_pages}")
+                    if dialog_bg:
+                        dialog_bg.update(100, "LibraryGenie", "Scan aborted")
+                        dialog_bg.close()
                     self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error="Aborted by user")
                     return {"success": False, "error": "Scan aborted by user", "items_added": total_added}
 
@@ -108,7 +125,10 @@ class LibraryScanner:
                 offset += len(movies)
                 items_processed = min(offset, total_movies)
 
-                self.logger.debug(f"Full scan progress: {items_processed}/{total_movies} movies processed")
+                # Calculate percentage for more frequent updates
+                progress_percentage = min(int((items_processed / total_movies) * 80) + 20, 100)  # Reserve 20% for initialization
+
+                self.logger.debug(f"Full scan progress: {items_processed}/{total_movies} movies processed ({progress_percentage}%)")
 
                 # Call progress callback if provided
                 if progress_callback:
@@ -117,11 +137,12 @@ class LibraryScanner:
                     except Exception as e:
                         self.logger.warning(f"Progress callback error: {e}")
                 
-                # Update dialog progress
-                if progress_dialog:
-                    progress_percentage = int((items_processed / total_movies) * 100)
-                    progress_dialog.update(progress_percentage, "LibraryGenie", f"Processing movies: {items_processed}/{total_movies}")
-
+                # Update dialog progress more frequently
+                progress_message = f"Processing: {items_processed}/{total_movies} ({progress_percentage}%)"
+                if dialog_bg:
+                    dialog_bg.update(progress_percentage, "LibraryGenie", progress_message)
+                elif progress_dialog:
+                    progress_dialog.update(progress_percentage, "LibraryGenie", progress_message)
 
                 # Brief pause to allow UI updates - reduced for better performance
                 import time
@@ -132,7 +153,10 @@ class LibraryScanner:
 
             self.logger.info(f"Full scan complete: {total_added} movies indexed")
 
-            if progress_dialog:
+            if dialog_bg:
+                dialog_bg.update(100, "LibraryGenie", f"Scan complete: {total_added} movies indexed")
+                dialog_bg.close()
+            elif progress_dialog:
                 progress_dialog.update(100, "LibraryGenie", "Full scan complete.")
 
             return {
@@ -144,7 +168,10 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error(f"Full scan failed: {e}")
-            if progress_dialog:
+            if dialog_bg:
+                dialog_bg.update(100, "LibraryGenie", f"Scan failed: {e}")
+                dialog_bg.close()
+            elif progress_dialog:
                 progress_dialog.update(100, "LibraryGenie", f"Scan failed: {e}")
             self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
