@@ -62,6 +62,43 @@ class LibraryGenieService:
                 xbmcgui.NOTIFICATION_ERROR
             )
 
+    def _check_and_perform_initial_scan(self):
+        """Check if library has been scanned and perform initial scan if needed"""
+        try:
+            scanner = LibraryScanner()
+            
+            if not scanner.is_library_indexed():
+                self.logger.info("Library not indexed, performing initial scan...")
+                self._show_notification("Performing initial library scan...", time_ms=8000)
+                
+                # Perform initial full scan
+                result = scanner.perform_full_scan()
+                
+                if result.get('success'):
+                    items_added = result.get('items_added', 0)
+                    self.logger.info(f"Initial library scan completed: {items_added} movies indexed")
+                    self._show_notification(
+                        f"Library scan completed: {items_added} movies indexed",
+                        time_ms=8000
+                    )
+                else:
+                    error = result.get('error', 'Unknown error')
+                    self.logger.error(f"Initial library scan failed: {error}")
+                    self._show_notification(
+                        f"Library scan failed: {error[:40]}...",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        time_ms=8000
+                    )
+            else:
+                self.logger.info("Library already indexed, skipping initial scan")
+                
+        except Exception as e:
+            self.logger.error(f"Error during initial scan check: {e}")
+            self._show_notification(
+                f"Scan check failed: {str(e)[:50]}...",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+
     def start(self):
         """Start the background service"""
         self.logger.info("LibraryGenie background service starting...")
@@ -69,6 +106,9 @@ class LibraryGenieService:
         try:
             # Initialize database if needed
             self._initialize_database()
+            
+            # Check if library needs initial scan
+            self._check_and_perform_initial_scan()
             
             # Start AI search sync if enabled
             if self._should_start_ai_sync():
