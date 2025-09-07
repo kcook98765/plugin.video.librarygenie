@@ -864,6 +864,10 @@ class ListsHandler:
                     success=False
                 )
 
+            # Get subfolders in this folder
+            subfolders = query_manager.get_subfolders_in_folder(folder_id)
+            context.logger.info(f"Folder '{folder_info['name']}' has {len(subfolders)} subfolders")
+            
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
             context.logger.info(f"Folder '{folder_info['name']}' has {len(lists_in_folder)} lists")
@@ -878,6 +882,27 @@ class ListsHandler:
                 'icon': "DefaultAddonProgram.png",
                 'description': L(36017) % folder_info['name']  # "Access tools and options for '%s'"
             })
+
+            # Add subfolders in this folder
+            for subfolder in subfolders:
+                subfolder_id = subfolder.get('id')
+                subfolder_name = subfolder.get('name', 'Unnamed Folder')
+                list_count = subfolder.get('list_count', 0)
+
+                context_menu = [
+                    (f"Rename '{subfolder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=subfolder_id)})"),
+                    (f"Tools & Options for '{subfolder_name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='folder', list_id=subfolder_id, folder_id=subfolder_id)})"),
+                    (f"Delete '{subfolder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=subfolder_id)})")
+                ]
+
+                menu_items.append({
+                    'label': f"[COLOR cyan]📁 {subfolder_name}[/COLOR]",
+                    'url': context.build_url('show_folder', folder_id=subfolder_id),
+                    'is_folder': True,
+                    'description': f"Subfolder with {list_count} lists",
+                    'context_menu': context_menu,
+                    'icon': "DefaultFolder.png"
+                })
 
             # Add lists in this folder
             for list_item in lists_in_folder:

@@ -66,7 +66,7 @@ class QueryManager:
 
         # Art normalization - use version-aware art storage
         from ..utils.kodi_version import get_kodi_major_version
-        
+
         art = item.get("art", {})
         if not isinstance(art, dict):
             # Handle individual art fields
@@ -78,7 +78,7 @@ class QueryManager:
                 "landscape": str(item.get("landscape", "")),
                 "clearlogo": str(item.get("clearlogo", ""))
             }
-        
+
         # Store art dict in format appropriate for current Kodi version
         kodi_major = get_kodi_major_version()
         canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
@@ -295,10 +295,10 @@ class QueryManager:
                 # Create media item data with version-aware art storage
                 from ..utils.kodi_version import get_kodi_major_version
                 kodi_major = get_kodi_major_version()
-                
+
                 # Use provided art_data or empty dict
                 art_dict = art_data or {}
-                
+
                 media_data = {
                     'media_type': 'movie',
                     'title': title,
@@ -561,10 +561,10 @@ class QueryManager:
             # Generate list name with timestamp - keep it shorter for better UI display
             from datetime import datetime
             timestamp = datetime.now().strftime("%m/%d %H:%M")
-            
+
             # Shorten query if needed for display
             display_query = query if len(query) <= 20 else f"{query[:17]}..."
-            
+
             list_name = f"Search: '{display_query}' ({timestamp})"
 
             # Truncate if too long
@@ -658,24 +658,24 @@ class QueryManager:
             'runtime': item.get('runtime', item.get('duration', 0)),
             'resume': item.get('resume', {})
         }
-        
+
         # Collect all possible art data for version-aware storage
         art_data = {}
-        
+
         # Check for existing art dictionary
         if item.get('art') and isinstance(item['art'], dict):
             art_data.update(item['art'])
-        
+
         # Collect individual art fields for comprehensive coverage
         art_fields = ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearlogo', 'clearart', 'discart', 'icon']
         for field in art_fields:
             if item.get(field):
                 art_data[field] = item[field]
-        
+
         # Add thumbnail fallback
         if item.get('thumbnail') and not art_data.get('thumb'):
             art_data['thumb'] = item['thumbnail']
-            
+
         basic_item['art'] = art_data
 
         # Add any additional fields from the original item
@@ -1131,7 +1131,7 @@ class QueryManager:
         try:
             kodi_id = kodi_item.get('kodi_id')
             media_type = kodi_item.get('media_type', 'movie')
-            
+
             self.logger.debug(f"Adding library item kodi_id={kodi_id}, media_type={media_type} to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
@@ -1147,11 +1147,11 @@ class QueryManager:
                 else:
                     # Create new media item - normalize the item first for proper data extraction
                     canonical_item = self._normalize_to_canonical(kodi_item)
-                    
+
                     # Extract basic fields for media_items table with version-aware art storage
                     from ..utils.kodi_version import get_kodi_major_version
                     kodi_major = get_kodi_major_version()
-                    
+
                     media_data = {
                         'media_type': canonical_item['media_type'],
                         'title': canonical_item['title'],
@@ -1174,7 +1174,7 @@ class QueryManager:
                         'cast': '',
                         'art': json.dumps(self._format_art_for_kodi_version(canonical_item.get('art', {}), kodi_major))
                     }
-                    
+
                     media_item_id = self._insert_or_get_media_item(conn, media_data)
                     self.logger.debug(f"Created new media_item with id={media_item_id}")
 
@@ -1259,17 +1259,17 @@ class QueryManager:
         """Format art dictionary for specific Kodi version compatibility"""
         if not isinstance(art_dict, dict):
             return {}
-        
+
         # Clean up empty values
         cleaned_art = {k: v for k, v in art_dict.items() if v and str(v).strip()}
-        
+
         # Kodi v19+ all support the same art format, but ensure consistency
         # Add fallbacks for missing common art types
         if cleaned_art.get("poster") and not cleaned_art.get("thumb"):
             cleaned_art["thumb"] = cleaned_art["poster"]
         if cleaned_art.get("poster") and not cleaned_art.get("icon"):
             cleaned_art["icon"] = cleaned_art["poster"]
-            
+
         return cleaned_art
 
     def _normalize_kodi_movie_details(self, movie_details: Dict[str, Any]) -> Dict[str, Any]:
@@ -1479,44 +1479,26 @@ class QueryManager:
             return False
 
     def get_lists_in_folder(self, folder_id):
-        """Get all lists within a specific folder"""
+        """Get all lists in a specific folder"""
         try:
-            self.logger.debug(f"Getting lists in folder {folder_id}")
-
-            lists = self.connection_manager.execute_query("""
+            results = self.connection_manager.execute_query("""
                 SELECT 
                     l.id,
                     l.name,
-                    l.created_at,
-                    l.created_at as updated_at,
-                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
-                    f.name as folder_name
+                    l.description,
+                    COUNT(li.id) as item_count,
+                    date(l.created_at) as created
                 FROM lists l
-                LEFT JOIN folders f ON l.folder_id = f.id
+                LEFT JOIN list_items li ON l.id = li.list_id
                 WHERE l.folder_id = ?
+                GROUP BY l.id, l.name, l.description, l.created_at
                 ORDER BY l.created_at DESC
-            """, [int(folder_id)])
+            """, [folder_id])
 
-            # Convert to expected format
-            result = []
-            for row in lists:
-                folder_context = f" ({row['folder_name']})" if row['folder_name'] else ""
-
-                result.append({
-                    "id": str(row['id']),
-                    "name": row['name'],
-                    "description": f"{row['item_count']} items{folder_context}",
-                    "item_count": row['item_count'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                    "modified": row['updated_at'][:10] if row['updated_at'] else '',
-                    "folder_name": row['folder_name']
-                })
-
-            self.logger.debug(f"Retrieved {len(result)} lists in folder {folder_id}")
-            return result
+            return [dict(row) for row in results]
 
         except Exception as e:
-            self.logger.error(f"Failed to get lists in folder {folder_id}: {e}")
+            self.logger.error(f"Error getting lists in folder {folder_id}: {e}")
             return []
 
     def get_folder_by_id(self, folder_id):
