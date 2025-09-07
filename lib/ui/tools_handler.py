@@ -1199,62 +1199,61 @@ class ToolsHandler:
             if not search_list_info:
                 return DialogResponse(success=False, message="Search list not found")
 
-            # Get new list name from user
-            suggested_name = search_list_info['name'].replace('Search: ', '').split(' (')[0]
-            if suggested_name.startswith("'") and suggested_name.endswith("'"):
-                suggested_name = suggested_name[1:-1]
+            # Get new name from user - suggest cleaned up search term
+            original_name = search_list_info['name']
+            suggested_name = original_name
+
+            # Clean up the search list name to suggest a better regular list name
+            if original_name.startswith("Search: '") and "' (" in original_name:
+                # Extract just the search term
+                start = len("Search: '")
+                end = original_name.find("' (")
+                if end > start:
+                    suggested_name = original_name[start:end]
 
             new_name = xbmcgui.Dialog().input(
-                L(36056),  # "Enter name for new list:"
+                "Enter name for new list:",
                 defaultt=suggested_name,
                 type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not new_name or not new_name.strip():
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
-            # Get available folders for destination selection
+            # Get all folders for destination selection
             all_folders = query_manager.get_all_folders()
-            # Exclude Search History folder as a destination
-            available_folders = [f for f in all_folders if f['name'] != 'Search History']
-            
-            folder_options = ["[Root Level]"]
-            folder_ids = [None]
-            
-            for folder in available_folders:
-                folder_options.append(folder['name'])
-                folder_ids.append(folder['id'])
+            folder_options = ["Root Level"]
+            folder_ids = [None]  # None means root level
+
+            for folder in all_folders:
+                if folder['name'] != 'Search History':  # Don't allow moving back to Search History
+                    folder_options.append(folder['name'])
+                    folder_ids.append(folder['id'])
 
             # Add option to create new folder
-            folder_options.append("[COLOR lightgreen]+ Create New Folder[/COLOR]")
-            folder_ids.append("CREATE_NEW")
+            folder_options.append("[COLOR yellow]+ Create New Folder[/COLOR]")
 
             # Show folder selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(
-                f"Choose destination for '{new_name.strip()}':",
-                folder_options
-            )
+            selected_index = xbmcgui.Dialog().select("Move to folder:", folder_options)
 
             if selected_index < 0:
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, message="")
 
-            target_folder_id = folder_ids[selected_index]
+            target_folder_id = None
+            destination_name = "root level"
 
-            # Handle new folder creation
-            if target_folder_id == "CREATE_NEW":
-                # Get folder name from user
-                folder_name = dialog.input(
+            if selected_index == len(folder_options) - 1:  # Create new folder
+                folder_name = xbmcgui.Dialog().input(
                     "Enter folder name:",
                     type=xbmcgui.INPUT_ALPHANUM
                 )
 
                 if not folder_name or not folder_name.strip():
-                    return DialogResponse(success=False)
+                    return DialogResponse(success=False, message="")
 
                 # Create the folder
                 folder_result = query_manager.create_folder(folder_name.strip())
-                
+
                 if folder_result.get("error"):
                     if folder_result["error"] == "duplicate_name":
                         message = f"Folder '{folder_name}' already exists"
@@ -1265,39 +1264,65 @@ class ToolsHandler:
                     target_folder_id = folder_result["folder_id"]
                     destination_name = folder_name.strip()
             else:
+                target_folder_id = folder_ids[selected_index]
                 destination_name = folder_options[selected_index] if selected_index < len(folder_options) else "root level"
 
-            # Update the list: rename it and move to selected folder
-            with query_manager.connection_manager.transaction() as conn:
-                # Update name and set folder_id to selected destination
-                conn.execute("""
-                    UPDATE lists 
-                    SET name = ?, folder_id = ?
-                    WHERE id = ?
-                """, [new_name.strip(), target_folder_id, int(search_list_id)])
+            # Check for duplicate name in target location
+            existing_lists = query_manager.get_all_lists_with_folders()
+            for existing_list in existing_lists:
+                if (existing_list['name'] == new_name.strip() and
+                    existing_list.get('folder_id') == target_folder_id):
+                    return DialogResponse(
+                        success=False,
+                        message=f"List '{new_name.strip()}' already exists in {destination_name}"
+                    )
 
-            item_count = search_list_info.get('item_count', 0)
+            # Perform the conversion with proper error handling
+            try:
+                with query_manager.connection_manager.transaction() as conn:
+                    # Update name and set folder_id to selected destination
+                    result = conn.execute("""
+                        UPDATE lists
+                        SET name = ?, folder_id = ?
+                        WHERE id = ?
+                    """, [new_name.strip(), target_folder_id, int(search_list_id)])
 
-            # Check if this was the last list in the search history folder
-            search_folder_id = query_manager.get_or_create_search_history_folder()
-            remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
+                    if result.rowcount == 0:
+                        raise Exception("No rows updated - list may not exist")
 
-            # Navigate appropriately based on remaining search history
-            if remaining_lists:
-                # Still have search history lists, navigate back to folder
+                self.logger.info(f"Successfully converted search history list {search_list_id} to '{new_name.strip()}' in {destination_name}")
+
+                item_count = search_list_info.get('item_count', 0)
+
+                # Check if this was the last list in the search history folder
+                search_folder_id = query_manager.get_or_create_search_history_folder()
+                remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
+
+                # Navigate appropriately based on remaining search history
+                if remaining_lists:
+                    # Still have search history lists, navigate back to folder
+                    return DialogResponse(
+                        success=True,
+                        message=f"Moved '{new_name.strip()}' to {destination_name} with {item_count} items",
+                        navigate_to_folder=search_folder_id
+                    )
+                else:
+                    # No more search history lists, navigate back to main menu
+                    return DialogResponse(
+                        success=True,
+                        message=f"Moved '{new_name.strip()}' to {destination_name} with {item_count} items",
+                        navigate_to_main=True
+                    )
+
+            except Exception as db_error:
+                self.logger.error(f"Database error during list conversion: {db_error}")
                 return DialogResponse(
-                    success=True,
-                    message=f"Moved '{new_name}' to {destination_name} with {item_count} items",
-                    navigate_to_folder=search_folder_id
-                )
-            else:
-                # No more search history lists, navigate back to main menu
-                return DialogResponse(
-                    success=True,
-                    message=f"Moved '{new_name}' to {destination_name} with {item_count} items",
-                    navigate_to_main=True
+                    success=False,
+                    message=f"Failed to move list: {str(db_error)}"
                 )
 
         except Exception as e:
             self.logger.error(f"Error converting search history to list: {e}")
+            import traceback
+            self.logger.error(f"Traceback: {traceback.format_exc()}")
             return DialogResponse(success=False, message="Error converting search history")
