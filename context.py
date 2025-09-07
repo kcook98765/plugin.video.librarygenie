@@ -156,6 +156,7 @@ def _show_librarygenie_menu(addon):
 
         elif file_path and file_path.startswith('plugin://plugin.video.librarygenie/'):
             # LibraryGenie item with explicit plugin path
+            xbmc.log(f"LibraryGenie: LibraryGenie plugin path detected", xbmc.LOGINFO)
             _add_librarygenie_item_options(options, actions, addon, item_info)
 
         # Also check if we have hijack properties indicating we're in a LibraryGenie context
@@ -173,14 +174,21 @@ def _show_librarygenie_menu(addon):
             pass
 
         # Show the menu
+        xbmc.log(f"LibraryGenie: About to show context menu with {len(options)} options: {options}", xbmc.LOGINFO)
         if len(options) > 1:
             dialog = xbmcgui.Dialog()
+            xbmc.log(f"LibraryGenie: Showing dialog with options: {options}", xbmc.LOGINFO)
             selected = dialog.select("LibraryGenie", options)
+            xbmc.log(f"LibraryGenie: Dialog returned selection: {selected}", xbmc.LOGINFO)
 
             if selected >= 0:
+                xbmc.log(f"LibraryGenie: Executing action: {actions[selected]}", xbmc.LOGINFO)
                 _execute_action(actions[selected], addon)
+            else:
+                xbmc.log("LibraryGenie: User canceled dialog or no selection made", xbmc.LOGINFO)
         else:
             # Only search available, execute directly
+            xbmc.log(f"LibraryGenie: Only one option available, executing directly: {actions[0] if actions else 'none'}", xbmc.LOGINFO)
             _execute_action("search", addon)
 
     except Exception as e:
@@ -354,12 +362,16 @@ def _add_external_item_options(options, actions, addon):
 
 def _add_librarygenie_item_options(options, actions, addon, item_info):
     """Add options for LibraryGenie items"""
+    xbmc.log(f"LibraryGenie: _add_librarygenie_item_options called with item_info: {item_info}", xbmc.LOGINFO)
+    
     # Use cached item metadata
     media_item_id = item_info['media_item_id']
     list_id = item_info['list_id']
     dbtype = item_info['dbtype']
     dbid = item_info['dbid']
     container_path = xbmc.getInfoLabel('Container.FolderPath')
+    
+    xbmc.log(f"LibraryGenie: Current container path: {container_path}", xbmc.LOGINFO)
 
     # Use hijack properties as fallback
     if not dbid and item_info.get('hijack_dbid'):
