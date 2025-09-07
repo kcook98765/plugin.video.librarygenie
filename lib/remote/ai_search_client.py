@@ -44,7 +44,7 @@ class AISearchClient:
         return headers
 
     def _make_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
-                     headers: Optional[Dict[str, str]] = None) -> Optional[Dict[str, Any]]:
+                     headers: Optional[Dict[str, str]] = None, timeout: int = 30) -> Optional[Dict[str, Any]]:
         """Make HTTP request to AI search server"""
         server_url = self.settings.get_ai_search_server_url()
         if not server_url:
@@ -64,8 +64,8 @@ class AISearchClient:
             req = urllib.request.Request(url, data=json_data, headers=request_headers)
             req.get_method = lambda: method
 
-            # Make request with timeout
-            with urllib.request.urlopen(req, timeout=30) as response:
+            # Make request with configurable timeout
+            with urllib.request.urlopen(req, timeout=timeout) as response:
                 if response.getcode() == 200:
                     response_data = response.read().decode('utf-8')
                     return json.loads(response_data)
@@ -79,8 +79,17 @@ class AISearchClient:
             try:
                 error_body = e.read().decode('utf-8')
                 error_data = json.loads(error_body)
-                self.logger.error(f"HTTP {e.code} error: {error_data.get('error', 'Unknown')}")
-                return {'error': error_data.get('error', f'HTTP {e.code} error')}
+                error_msg = error_data.get('error', 'Unknown')
+                
+                # Handle API key expiration/invalidation
+                if e.code == 401:
+                    self.logger.warning("API key appears to be invalid/expired")
+                    # Clear invalid API key to prevent repeated failed requests
+                    from ..auth.state import clear_auth_data
+                    clear_auth_data()
+                
+                self.logger.error(f"HTTP {e.code} error: {error_msg}")
+                return {'error': error_msg}
             except:
                 self.logger.error(f"HTTP {e.code} error from {endpoint}")
                 return {'error': f'HTTP {e.code} error'}
@@ -206,7 +215,13 @@ class AISearchClient:
             response = self._make_request('kodi/search/movies', 'POST', search_data)
 
             if response and response.get('success'):
-                self.logger.info(f"AI search completed: {len(response.get('results', []))} results")
+                # Validate response structure
+                results = response.get('results', [])
+                if not isinstance(results, list):
+                    self.logger.error("Invalid response format: results is not a list")
+                    return None
+                
+                self.logger.info(f"AI search completed: {len(results)} results")
                 return response
             else:
                 error_msg = response.get('error', 'Unknown error') if response else 'No response'
@@ -267,8 +282,8 @@ class AISearchClient:
                 self.logger.warning("No valid IMDb IDs found in media items")
                 return {'success': False, 'error': 'No valid IMDb IDs'}
 
-            # Split into chunks if necessary
-            chunk_size = min(batch_size, 5000)
+            # Validate and adjust batch size according to API limits
+            chunk_size = min(max(batch_size, 1), 5000)  # Ensure 1-5000 range
             results = {
                 'added': 0,
                 'already_present': 0,
@@ -305,6 +320,13 @@ class AISearchClient:
                 else:
                     error_msg = response.get('error', 'Unknown error') if response else 'No response'
                     self.logger.warning(f"Chunk sync failed: {error_msg}")
+                    
+                    # For certain errors, continue with next chunk instead of failing completely
+                    if 'rate limit' in error_msg.lower() or 'timeout' in error_msg.lower():
+                        self.logger.info("Recoverable error, continuing with next chunk after delay")
+                        time.sleep(30)  # Extended delay for rate limits
+                        continue
+                    
                     return {'success': False, 'error': error_msg}
 
             self.logger.info(f"Media batch sync completed: {results}")
