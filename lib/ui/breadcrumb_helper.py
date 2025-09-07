@@ -64,9 +64,9 @@ class BreadcrumbHelper:
                 folder_info = query_manager.get_folder_info(folder_id)
                 if folder_info:
                     folder_name = folder_info.get('name', 'Unknown Folder')
-                    return f"{folder_name} > {list_name}"
+                    return f"Lists > {folder_name} > {list_name}"
 
-            return list_name
+            return f"Lists > {list_name}"
 
         except Exception as e:
             self.logger.error(f"Error getting list breadcrumb: {e}")
@@ -90,9 +90,9 @@ class BreadcrumbHelper:
                 parent_info = query_manager.get_folder_info(parent_id)
                 if parent_info:
                     parent_name = parent_info.get('name', 'Unknown Folder')
-                    return f"{parent_name} > {folder_name}"
+                    return f"Lists > {parent_name} > {folder_name}"
 
-            return folder_name
+            return f"Lists > {folder_name}"
 
         except Exception as e:
             self.logger.error(f"Error getting folder breadcrumb: {e}")
