@@ -1225,6 +1225,10 @@ class ToolsHandler:
                 folder_options.append(folder['name'])
                 folder_ids.append(folder['id'])
 
+            # Add option to create new folder
+            folder_options.append("[COLOR lightgreen]+ Create New Folder[/COLOR]")
+            folder_ids.append("CREATE_NEW")
+
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(
@@ -1237,6 +1241,32 @@ class ToolsHandler:
 
             target_folder_id = folder_ids[selected_index]
 
+            # Handle new folder creation
+            if target_folder_id == "CREATE_NEW":
+                # Get folder name from user
+                folder_name = dialog.input(
+                    "Enter folder name:",
+                    type=xbmcgui.INPUT_ALPHANUM
+                )
+
+                if not folder_name or not folder_name.strip():
+                    return DialogResponse(success=False)
+
+                # Create the folder
+                folder_result = query_manager.create_folder(folder_name.strip())
+                
+                if folder_result.get("error"):
+                    if folder_result["error"] == "duplicate_name":
+                        message = f"Folder '{folder_name}' already exists"
+                    else:
+                        message = "Failed to create folder"
+                    return DialogResponse(success=False, message=message)
+                else:
+                    target_folder_id = folder_result["folder_id"]
+                    destination_name = folder_name.strip()
+            else:
+                destination_name = folder_options[selected_index] if selected_index < len(folder_options) else "root level"
+
             # Update the list: rename it and move to selected folder
             with query_manager.connection_manager.transaction() as conn:
                 # Update name and set folder_id to selected destination
@@ -1247,7 +1277,6 @@ class ToolsHandler:
                 """, [new_name.strip(), target_folder_id, int(search_list_id)])
 
             item_count = search_list_info.get('item_count', 0)
-            destination_name = folder_options[selected_index] if selected_index < len(folder_options) else "root level"
 
             # Check if this was the last list in the search history folder
             search_folder_id = query_manager.get_or_create_search_history_folder()
