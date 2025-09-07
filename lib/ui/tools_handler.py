@@ -119,7 +119,7 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == 2:  # Cancel
                 self.logger.debug(f"TOOLS DEBUG: Favorites tools cancelled (selected_index: {selected_index})")
-                return DialogResponse(success=False, navigate_to_favorites=True)
+                return DialogResponse(success=False)
 
             # Handle selected option
             if selected_index == 0:  # Scan Favorites
@@ -221,13 +221,6 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 self.logger.debug(f"TOOLS DEBUG: User list tools cancelled (selected_index: {selected_index})")
-                # For user lists, we need to navigate back to the list view
-                # This requires building the proper URL and using Container.Update
-                import xbmc
-                try:
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_list", list_id=list_id)},replace)')
-                except Exception as nav_error:
-                    self.logger.error(f"Error navigating back to list: {nav_error}")
                 return DialogResponse(success=False)
 
             # Handle selected option
@@ -359,13 +352,6 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 self.logger.debug(f"TOOLS DEBUG: Folder tools cancelled (selected_index: {selected_index})")
-                # For folders, we need to navigate back to the folder view
-                # This requires building the proper URL and using Container.Update
-                import xbmc
-                try:
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
-                except Exception as nav_error:
-                    self.logger.error(f"Error navigating back to folder: {nav_error}")
                 return DialogResponse(success=False)
 
             # Handle selected option - calculate indices based on reserved status
@@ -1085,7 +1071,7 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == 11:  # Cancel
                 self.logger.debug(f"TOOLS DEBUG: Lists main tools cancelled (selected_index: {selected_index})")
-                return DialogResponse(success=False, navigate_to_lists=True)
+                return DialogResponse(success=False)
 
             # Handle selected option
             if selected_index == 0:  # Create New List in Folder

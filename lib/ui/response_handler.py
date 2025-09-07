@@ -45,7 +45,14 @@ class ResponseHandler:
             if response.success:
                 return self._handle_success_navigation(response, context)
             else:
-                return self._handle_failure_navigation(response, context)
+                # For failed/cancelled operations, only navigate if explicitly requested
+                if (hasattr(response, 'navigate_to_lists') and response.navigate_to_lists) or \
+                   (hasattr(response, 'navigate_to_folder') and response.navigate_to_folder) or \
+                   (hasattr(response, 'navigate_to_main') and response.navigate_to_main) or \
+                   (hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites):
+                    return self._handle_failure_navigation(response, context)
+                # Otherwise, just close the dialog without navigation
+                return True
 
         except Exception as e:
             self.logger.error(f"Error handling dialog response: {e}")
