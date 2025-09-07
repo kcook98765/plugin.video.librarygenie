@@ -24,7 +24,6 @@ from ..data.connection_manager import get_connection_manager
 from ..search.simple_search_engine import SimpleSearchEngine
 from ..utils.logger import get_logger
 from .localization import L
-from .search_history_manager import SearchHistoryManager
 from .menu_builder import MenuBuilder
 
 try:

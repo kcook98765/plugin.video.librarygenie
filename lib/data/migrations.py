@@ -236,14 +236,19 @@ class MigrationManager:
                 )
             """)
 
-            # Auth state for remote services
+            # Auth state table for device authorization
             conn.execute("""
                 CREATE TABLE auth_state (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    access_token TEXT,
-                    expires_at TEXT,
-                    token_type TEXT,
-                    scope TEXT
+                    device_code TEXT,
+                    user_code TEXT,
+                    verification_uri TEXT,
+                    verification_uri_complete TEXT,
+                    expires_in INTEGER,
+                    interval_seconds INTEGER,
+                    api_key TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
             """)
 
