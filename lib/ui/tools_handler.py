@@ -1213,16 +1213,41 @@ class ToolsHandler:
             if not new_name or not new_name.strip():
                 return DialogResponse(success=False)
 
-            # Simply update the list: rename it and move it out of Search History folder
+            # Get available folders for destination selection
+            all_folders = query_manager.get_all_folders()
+            # Exclude Search History folder as a destination
+            available_folders = [f for f in all_folders if f['name'] != 'Search History']
+            
+            folder_options = ["[Root Level]"]
+            folder_ids = [None]
+            
+            for folder in available_folders:
+                folder_options.append(folder['name'])
+                folder_ids.append(folder['id'])
+
+            # Show folder selection dialog
+            dialog = xbmcgui.Dialog()
+            selected_index = dialog.select(
+                f"Choose destination for '{new_name.strip()}':",
+                folder_options
+            )
+
+            if selected_index < 0:
+                return DialogResponse(success=False)
+
+            target_folder_id = folder_ids[selected_index]
+
+            # Update the list: rename it and move to selected folder
             with query_manager.connection_manager.transaction() as conn:
-                # Update name and remove folder_id to move to root level
+                # Update name and set folder_id to selected destination
                 conn.execute("""
                     UPDATE lists 
-                    SET name = ?, folder_id = NULL
+                    SET name = ?, folder_id = ?
                     WHERE id = ?
-                """, [new_name.strip(), int(search_list_id)])
+                """, [new_name.strip(), target_folder_id, int(search_list_id)])
 
             item_count = search_list_info.get('item_count', 0)
+            destination_name = folder_options[selected_index] if selected_index < len(folder_options) else "root level"
 
             # Check if this was the last list in the search history folder
             search_folder_id = query_manager.get_or_create_search_history_folder()
@@ -1233,14 +1258,14 @@ class ToolsHandler:
                 # Still have search history lists, navigate back to folder
                 return DialogResponse(
                     success=True,
-                    message=f"Converted '{new_name}' to regular list with {item_count} items",
+                    message=f"Moved '{new_name}' to {destination_name} with {item_count} items",
                     navigate_to_folder=search_folder_id
                 )
             else:
                 # No more search history lists, navigate back to main menu
                 return DialogResponse(
                     success=True,
-                    message=f"Converted '{new_name}' to regular list with {item_count} items",
+                    message=f"Moved '{new_name}' to {destination_name} with {item_count} items",
                     navigate_to_main=True
                 )
 
