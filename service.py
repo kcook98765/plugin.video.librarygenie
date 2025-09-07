@@ -18,6 +18,7 @@ from lib.config.settings import SettingsManager
 from lib.remote.ai_search_client import get_ai_search_client
 from lib.library.scanner import LibraryScanner
 from lib.data.storage_manager import get_storage_manager
+from lib.data.migrations import initialize_database
 from lib.ui.localization import L
 
 logger = get_logger(__name__)
@@ -48,11 +49,27 @@ class LibraryGenieService:
         except Exception as e:
             self.logger.error(f"Failed to show notification: {e}")
 
+    def _initialize_database(self):
+        """Initialize database schema if needed"""
+        try:
+            self.logger.info("Checking database initialization...")
+            initialize_database()
+            self.logger.info("Database initialization completed")
+        except Exception as e:
+            self.logger.error(f"Database initialization failed: {e}")
+            self._show_notification(
+                f"Database initialization failed: {str(e)[:50]}...",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+
     def start(self):
         """Start the background service"""
         self.logger.info("LibraryGenie background service starting...")
 
         try:
+            # Initialize database if needed
+            self._initialize_database()
+            
             # Start AI search sync if enabled
             if self._should_start_ai_sync():
                 self._start_ai_sync_thread()
