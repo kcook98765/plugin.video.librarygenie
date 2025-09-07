@@ -67,113 +67,7 @@ def handle_signout():
             )
 
 
-def _check_and_trigger_initial_scan():
-    """Check if library needs initial scan and trigger if needed"""
-    try:
-        from lib.library.scanner import get_library_scanner
-        from lib.data.migrations import get_migration_manager
 
-        logger = get_logger(__name__)
-
-        # Ensure database is initialized first
-        migration_manager = get_migration_manager()
-        migration_manager.ensure_initialized()
-
-        # Check if library needs indexing
-        scanner = get_library_scanner()
-        if not scanner.is_library_indexed():
-            logger.info("Library not indexed - triggering initial scan")
-
-            # Show notification that initial scan is starting
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),  # "LibraryGenie"
-                "Initial library scan starting...",
-                xbmcgui.NOTIFICATION_INFO,
-                5000
-            )
-
-            # Run scan in background thread to avoid blocking UI
-            import threading
-
-            def run_initial_scan():
-                # Progress callback function - background dialog style
-                progress_dialog = None
-                
-                def progress_callback(page_num, total_pages, items_processed):
-                    nonlocal progress_dialog
-                    try:
-                        percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
-
-                        # Create dialog on first call
-                        if progress_dialog is None:
-                            progress_dialog = xbmcgui.DialogProgressBG()
-                            progress_dialog.create(addon.getLocalizedString(35002), "Starting library scan...")
-                        
-                        # Update progress dialog
-                        message = f"Scanning library: {items_processed} movies processed"
-                        progress_dialog.update(percentage, message)
-
-                    except Exception as e:
-                        logger.warning(f"Progress callback error: {e}")
-
-                try:
-                    result = scanner.perform_full_scan(progress_callback=progress_callback)
-
-                    # Close progress dialog
-                    if progress_dialog is not None:
-                        progress_dialog.close()
-
-                    if result.get("success"):
-                        logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
-                        # Show completion notification
-                        xbmcgui.Dialog().notification(
-                            addon.getLocalizedString(35002),  # "LibraryGenie"
-                            f"Scan complete: {result.get('items_added', 0)} movies indexed",
-                            xbmcgui.NOTIFICATION_INFO,
-                            5000
-                        )
-                    else:
-                        error_msg = result.get('error', 'Unknown error')
-                        if "aborted" in error_msg.lower():
-                            logger.info(f"Initial library scan cancelled by user")
-                            # Show cancellation notification
-                            xbmcgui.Dialog().notification(
-                                addon.getLocalizedString(35002),  # "LibraryGenie"
-                                "Library scan cancelled",
-                                xbmcgui.NOTIFICATION_WARNING,
-                                3000
-                            )
-                        else:
-                            logger.warning(f"Initial library scan failed: {error_msg}")
-                            # Show error notification
-                            xbmcgui.Dialog().notification(
-                                addon.getLocalizedString(35002),  # "LibraryGenie"
-                                "Library scan failed",
-                                xbmcgui.NOTIFICATION_ERROR,
-                                5000
-                            )
-                except Exception as e:
-                    # Close progress dialog on exception
-                    if progress_dialog is not None:
-                        progress_dialog.close()
-                        
-                    logger.error(f"Initial library scan thread failed: {e}")
-                    # Show error notification
-                    xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),  # "LibraryGenie"
-                        "Library scan failed",
-                        xbmcgui.NOTIFICATION_ERROR,
-                        5000
-                    )
-
-            scan_thread = threading.Thread(target=run_initial_scan)
-            scan_thread.daemon = True  # Don't block Kodi shutdown
-            scan_thread.start()
-
-    except Exception as e:
-        logger = get_logger(__name__)
-        logger.error(f"Failed to check/trigger initial scan: {e}")
 
 
 def handle_on_select(params: dict, addon_handle: int):
@@ -540,9 +434,6 @@ def main():
 
         # Log window state for debugging
         _log_window_state(context)
-
-        # Check if this is first run and trigger library scan if needed
-        _check_and_trigger_initial_scan()
 
         # Create router and register handlers
         router = Router()

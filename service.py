@@ -152,114 +152,150 @@ class BackgroundService:
         return max(self.interval, backoff_interval)
 
     def _initial_setup(self):
-        """Perform initial setup tasks"""
+        """Perform one-time initial setup tasks"""
         try:
-            # Check if library needs initial indexing
-            if self._library_scanner and not self._library_scanner.is_library_indexed():
-                self.logger.info("Library not indexed, performing initial scan")
-
-                # Show notification that initial scan is starting
-                try:
-                    xbmcgui.Dialog().notification(
-                        L(35002),  # "LibraryGenie"
-                        "Initial library scan starting...",
-                        xbmcgui.NOTIFICATION_INFO,
-                        3000
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Failed to show initial scan notification: {e}")
-
-                # Use background progress dialog for friendlier user experience
-                progress_dialog = None
+            # Check if this is the first run by looking for a setup marker
+            if not self._is_addon_initialized():
+                self.logger.info("First run detected - performing one-time addon initialization")
                 
-                # Progress callback function - background dialog style
-                def progress_callback(page_num, total_pages, items_processed):
-                    nonlocal progress_dialog
-                    try:
-                        percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
-                        
-                        # Create dialog on first call
-                        if progress_dialog is None:
-                            progress_dialog = xbmcgui.DialogProgressBG()
-                            progress_dialog.create(L(35002), "Starting library scan...")
-                        
-                        # Update progress dialog
-                        message = f"Scanning library: {items_processed} movies processed"
-                        progress_dialog.update(percentage, message)
-                        
-                    except Exception as e:
-                        self.logger.warning(f"Progress callback error: {e}")
+                # Mark addon as initialized first to prevent duplicate runs
+                self._mark_addon_initialized()
+                
+                # Perform initial library scan
+                if self._library_scanner:
+                    self.logger.info("Performing one-time initial library scan")
 
-                # Perform scan with progress callback
-                try:
-                    result = self._library_scanner.perform_full_scan(progress_callback=progress_callback)
-
-                    # Close progress dialog
-                    if progress_dialog is not None:
-                        progress_dialog.close()
-
-                    if result.get("success"):
-                        self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
-                        # Show completion notification
-                        try:
-                            xbmcgui.Dialog().notification(
-                                L(35002),  # "LibraryGenie"
-                                f"Scan complete: {result.get('items_added', 0)} movies indexed",
-                                xbmcgui.NOTIFICATION_INFO,
-                                5000
-                            )
-                        except Exception as e:
-                            self.logger.warning(f"Failed to show completion notification: {e}")
-                    else:
-                        error_msg = result.get('error', 'Unknown error')
-                        if "aborted" in error_msg.lower():
-                            self.logger.info(f"Initial scan cancelled by user")
-                            # Show cancellation notification
-                            try:
-                                xbmcgui.Dialog().notification(
-                                    L(35002),  # "LibraryGenie"
-                                    "Library scan cancelled",
-                                    xbmcgui.NOTIFICATION_WARNING,
-                                    3000
-                                )
-                            except Exception as e:
-                                self.logger.warning(f"Failed to show cancellation notification: {e}")
-                        else:
-                            self.logger.warning(f"Initial scan failed: {error_msg}")
-                            # Show error notification
-                            try:
-                                xbmcgui.Dialog().notification(
-                                    L(35002),  # "LibraryGenie"
-                                    "Library scan failed",
-                                    xbmcgui.NOTIFICATION_ERROR,
-                                    5000
-                                )
-                            except Exception as e:
-                                self.logger.warning(f"Failed to show error notification: {e}")
-                except Exception as e:
-                    # Close progress dialog on exception
-                    if progress_dialog is not None:
-                        progress_dialog.close()
-                        
-                    self.logger.error(f"Initial scan failed with exception: {e}")
-                    # Show error notification on exception during scan
+                    # Show notification that initial scan is starting
                     try:
                         xbmcgui.Dialog().notification(
                             L(35002),  # "LibraryGenie"
-                            "Library scan failed",
-                            xbmcgui.NOTIFICATION_ERROR,
-                            5000
+                            "Initial library scan starting...",
+                            xbmcgui.NOTIFICATION_INFO,
+                            3000
                         )
                     except Exception as e:
-                        self.logger.warning(f"Failed to show error notification: {e}")
-            else:
-                if self._library_scanner:
-                    self.logger.debug("Library already indexed")
+                        self.logger.warning(f"Failed to show initial scan notification: {e}")
+
+                    # Use background progress dialog for friendlier user experience
+                    progress_dialog = None
+                    
+                    # Progress callback function - background dialog style
+                    def progress_callback(page_num, total_pages, items_processed):
+                        nonlocal progress_dialog
+                        try:
+                            percentage = int((page_num / total_pages) * 100) if total_pages > 0 else 0
+                            
+                            # Create dialog on first call
+                            if progress_dialog is None:
+                                progress_dialog = xbmcgui.DialogProgressBG()
+                                progress_dialog.create(L(35002), "Starting library scan...")
+                            
+                            # Update progress dialog
+                            message = f"Scanning library: {items_processed} movies processed"
+                            progress_dialog.update(percentage, message)
+                            
+                        except Exception as e:
+                            self.logger.warning(f"Progress callback error: {e}")
+
+                    # Perform scan with progress callback
+                    try:
+                        result = self._library_scanner.perform_full_scan(progress_callback=progress_callback)
+
+                        # Close progress dialog
+                        if progress_dialog is not None:
+                            progress_dialog.close()
+
+                        if result.get("success"):
+                            self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
+                            # Show completion notification
+                            try:
+                                xbmcgui.Dialog().notification(
+                                    L(35002),  # "LibraryGenie"
+                                    f"Scan complete: {result.get('items_added', 0)} movies indexed",
+                                    xbmcgui.NOTIFICATION_INFO,
+                                    5000
+                                )
+                            except Exception as e:
+                                self.logger.warning(f"Failed to show completion notification: {e}")
+                        else:
+                            error_msg = result.get('error', 'Unknown error')
+                            if "aborted" in error_msg.lower():
+                                self.logger.info(f"Initial scan cancelled by user")
+                                # Show cancellation notification
+                                try:
+                                    xbmcgui.Dialog().notification(
+                                        L(35002),  # "LibraryGenie"
+                                        "Library scan cancelled",
+                                        xbmcgui.NOTIFICATION_WARNING,
+                                        3000
+                                    )
+                                except Exception as e:
+                                    self.logger.warning(f"Failed to show cancellation notification: {e}")
+                            else:
+                                self.logger.warning(f"Initial scan failed: {error_msg}")
+                                # Show error notification
+                                try:
+                                    xbmcgui.Dialog().notification(
+                                        L(35002),  # "LibraryGenie"
+                                        "Library scan failed",
+                                        xbmcgui.NOTIFICATION_ERROR,
+                                        5000
+                                    )
+                                except Exception as e:
+                                    self.logger.warning(f"Failed to show error notification: {e}")
+                    except Exception as e:
+                        # Close progress dialog on exception
+                        if progress_dialog is not None:
+                            progress_dialog.close()
+                            
+                        self.logger.error(f"Initial scan failed with exception: {e}")
+                        # Show error notification on exception during scan
+                        try:
+                            xbmcgui.Dialog().notification(
+                                L(35002),  # "LibraryGenie"
+                                "Library scan failed",
+                                xbmcgui.NOTIFICATION_ERROR,
+                                5000
+                            )
+                        except Exception as e:
+                            self.logger.warning(f"Failed to show error notification: {e}")
                 else:
-                    self.logger.debug("Library scanner unavailable - skipping initial scan")
+                    self.logger.warning("Library scanner unavailable during first run")
+            else:
+                self.logger.debug("Addon already initialized - skipping one-time setup")
 
         except Exception as e:
             self.logger.error(f"Initial setup failed: {e}")
+
+    def _is_addon_initialized(self):
+        """Check if addon has been initialized before"""
+        try:
+            from lib.data.connection_manager import get_connection_manager
+            conn_manager = get_connection_manager()
+            
+            # Check for initialization marker in kv_cache
+            result = conn_manager.execute_single(
+                "SELECT value FROM kv_cache WHERE key = 'addon_initialized'"
+            )
+            return result is not None and result.get('value') == 'true'
+        except Exception as e:
+            self.logger.warning(f"Failed to check initialization status: {e}")
+            return False
+
+    def _mark_addon_initialized(self):
+        """Mark addon as initialized to prevent duplicate initialization"""
+        try:
+            from lib.data.connection_manager import get_connection_manager
+            conn_manager = get_connection_manager()
+            
+            with conn_manager.transaction() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO kv_cache (key, value, updated_at) 
+                    VALUES ('addon_initialized', 'true', datetime('now'))
+                """)
+            self.logger.debug("Marked addon as initialized")
+        except Exception as e:
+            self.logger.warning(f"Failed to mark addon as initialized: {e}")
 
 
 
