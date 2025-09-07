@@ -359,7 +359,14 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 self.logger.info(f"TOOLS DEBUG: Folder tools cancelled (selected_index: {selected_index})")
-                return DialogResponse(success=False, navigate_to_folder=folder_id)
+                # For folders, we need to navigate back to the folder view
+                # This requires building the proper URL and using Container.Update
+                import xbmc
+                try:
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+                except Exception as nav_error:
+                    self.logger.error(f"Error navigating back to folder: {nav_error}")
+                return DialogResponse(success=False)
 
             # Handle selected option - calculate indices based on reserved status
             if is_reserved:
