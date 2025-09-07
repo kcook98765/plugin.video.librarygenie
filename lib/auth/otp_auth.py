@@ -36,10 +36,10 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
     Returns:
         dict: Result with success status and details
     """
-    if not otp_code or len(otp_code) != 8:
+    if not otp_code or len(otp_code.strip()) != 8:
         return {
             'success': False,
-            'error': 'Invalid OTP code format (must be 8 digits)'
+            'error': 'Invalid OTP code format (must be 8 characters)'
         }
 
     if not server_url:
@@ -53,12 +53,12 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
     current_time = time.time()
 
     if current_time - _last_otp_attempt < 60:  # Within last minute
-        _otp_attempt_count += 1
-        if _otp_attempt_count > 3:  # More than 3 attempts per minute
+        if _otp_attempt_count >= 3:  # 3 attempts per minute max
             return {
                 'success': False,
                 'error': 'Too many attempts. Please wait before trying again.'
             }
+        _otp_attempt_count += 1
     else:
         _otp_attempt_count = 1  # Reset counter
 

@@ -85,7 +85,14 @@ class LibraryGenieService:
         # Quick connection test to ensure auth is still valid
         connection_test = self.ai_client.test_connection()
         if not connection_test.get('success'):
-            self.logger.warning(f"AI search connection invalid: {connection_test.get('error', 'Unknown error')}")
+            error = connection_test.get('error', 'Unknown error')
+            self.logger.warning(f"AI search connection invalid: {error}")
+            
+            # If it's an auth error, disable AI search to prevent constant retries
+            if 'API key' in error or '401' in error:
+                self.logger.info("Disabling AI search due to authentication failure")
+                self.settings.set_ai_search_activated(False)
+            
             return False
         
         return True

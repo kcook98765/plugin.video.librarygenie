@@ -114,6 +114,13 @@ class AISearchClient:
         Returns:
             dict: Result with success status and details
         """
+        # Validate OTP code format
+        if not otp_code or len(otp_code.strip()) != 8:
+            return {
+                'success': False,
+                'error': 'Invalid OTP code format (must be 8 characters)'
+            }
+
         server_url = self.settings.get_ai_search_server_url()
         if not server_url:
             return {
