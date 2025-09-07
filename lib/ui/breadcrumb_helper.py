@@ -75,7 +75,9 @@ class BreadcrumbHelper:
                         else:
                             return f"Search History > {list_name}"
 
-                    return f"{folder_name} > {list_name}"
+                    # Build full folder hierarchy for regular folders
+                    folder_path = self._build_folder_hierarchy(folder_id, query_manager)
+                    return f"Lists > {folder_path} > {list_name}"
 
             # If no folder_id, this is a standalone list - still show under Lists
             return f"Lists > {list_name}"
@@ -95,20 +97,35 @@ class BreadcrumbHelper:
             if not folder_info:
                 return "Lists > Unknown Folder"
 
-            folder_name = folder_info.get('name', 'Unknown Folder')
-            parent_id = folder_info.get('parent_id')
-
-            if parent_id:
-                parent_info = query_manager.get_folder_info(parent_id)
-                if parent_info:
-                    parent_name = parent_info.get('name', 'Unknown Folder')
-                    return f"Lists > {parent_name} > {folder_name}"
-
-            return f"Lists > {folder_name}"
+            # Build the full folder hierarchy path
+            folder_path = self._build_folder_hierarchy(folder_id, query_manager)
+            return f"Lists > {folder_path}"
 
         except Exception as e:
             self.logger.error(f"Error getting folder breadcrumb: {e}")
             return "Lists > Unknown Folder"
+
+    def _build_folder_hierarchy(self, folder_id: str, query_manager) -> str:
+        """Recursively build the full folder hierarchy path"""
+        try:
+            folder_info = query_manager.get_folder_info(folder_id)
+            if not folder_info:
+                return "Unknown Folder"
+            
+            folder_name = folder_info.get('name', 'Unknown Folder')
+            parent_id = folder_info.get('parent_id')
+            
+            if parent_id:
+                # Recursively get parent path
+                parent_path = self._build_folder_hierarchy(parent_id, query_manager)
+                return f"{parent_path} > {folder_name}"
+            else:
+                # This is a root-level folder
+                return folder_name
+                
+        except Exception as e:
+            self.logger.error(f"Error building folder hierarchy for {folder_id}: {e}")
+            return "Unknown Folder"
 
     def _get_tools_breadcrumb(self, params: dict, query_manager) -> Optional[str]:
         """Generate breadcrumb for tools view"""
