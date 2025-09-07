@@ -24,6 +24,8 @@ from ..data.connection_manager import get_connection_manager
 from ..search.simple_search_engine import SimpleSearchEngine
 from ..utils.logger import get_logger
 from .localization import L
+from .search_history_manager import SearchHistoryManager
+from .menu_builder import MenuBuilder
 
 try:
     from .response_types import DirectoryResponse
@@ -44,7 +46,7 @@ class SearchHandler:
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
 
-    def prompt_and_search(self, context=None) -> Optional[Any]:
+    def prompt_and_search(self, context: PluginContext) -> bool:
         """Main entry point for simple search"""
         self._ensure_handle_from_context(context)
 
@@ -219,3 +221,112 @@ class SearchHandler:
 
     def _notify_error(self, msg: str, ms: int = 4000):
         xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_ERROR, ms)
+
+    def ai_search_prompt(self, context: PluginContext) -> bool:
+        """Prompt user for AI search query and perform AI search"""
+        try:
+            context.logger.info("AI SEARCH: Starting AI search prompt")
+
+            # Get search query from user
+            dialog = xbmcgui.Dialog()
+            query = dialog.input(L(33001), type=xbmcgui.INPUT_ALPHANUM)  # "Enter search query"
+
+            if not query or not query.strip():
+                context.logger.info("AI SEARCH: User cancelled or entered empty query")
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+
+            query = query.strip()
+            context.logger.info(f"AI SEARCH: User entered query: '{query}'")
+
+            # Perform AI search
+            return self._perform_ai_search(query, context)
+
+        except Exception as e:
+            context.logger.error(f"AI SEARCH: Error in ai_search_prompt: {e}")
+            import traceback
+            context.logger.error(f"AI SEARCH: Traceback: {traceback.format_exc()}")
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+    def _perform_ai_search(self, query: str, context: PluginContext) -> bool:
+        """Perform AI search and display results"""
+        try:
+            from ..remote.ai_search_client import get_ai_search_client
+
+            context.logger.info(f"AI SEARCH: Performing AI search for: '{query}'")
+
+            # Get AI search client
+            ai_client = get_ai_search_client()
+
+            # Check if activated
+            if not ai_client.is_activated():
+                context.logger.warning("AI SEARCH: AI search not activated")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "AI Search not activated",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    5000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+
+            # Show progress dialog
+            progress = xbmcgui.DialogProgress()
+            progress.create("AI Search", f"Searching for: {query}")
+            progress.update(50)
+
+            # Perform search
+            results = ai_client.search_movies(query, limit=50)
+            progress.close()
+
+            if not results or not results.get('success'):
+                error_msg = results.get('error', 'Unknown error') if results else 'No response from server'
+                context.logger.error(f"AI SEARCH: Search failed: {error_msg}")
+                xbmcgui.Dialog().notification(
+                    "AI Search",
+                    f"Search failed: {error_msg}",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    5000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+
+            search_results = results.get('results', [])
+            context.logger.info(f"AI SEARCH: Found {len(search_results)} results")
+
+            if not search_results:
+                xbmcgui.Dialog().notification(
+                    "AI Search",
+                    "No results found",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+
+            # Display results using movie menu
+            menu_builder = MenuBuilder()
+            menu_builder.build_movie_menu(
+                search_results,
+                context.addon_handle,
+                context.base_url,
+                breadcrumb_path=f"AI Search > {query}",
+                category=f"AI Search Results"
+            )
+
+            context.logger.info("AI SEARCH: Successfully displayed AI search results")
+            return True
+
+        except Exception as e:
+            context.logger.error(f"AI SEARCH: Error performing AI search: {e}")
+            import traceback
+            context.logger.error(f"AI SEARCH: Traceback: {traceback.format_exc()}")
+            xbmcgui.Dialog().notification(
+                "AI Search",
+                "Search error occurred",
+                xbmcgui.NOTIFICATION_ERROR,
+                5000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False

@@ -47,7 +47,22 @@ class MainMenuHandler:
                 'description': 'Search your library'
             })
 
-            # 2. Search History (always show - service.py handles folder creation)
+            # 2. AI Search (conditional - only when activated)
+            from ..remote.ai_search_client import get_ai_search_client
+            ai_client = get_ai_search_client()
+            if ai_client.is_activated():
+                context.logger.info("AI Search is activated - adding to main menu")
+                menu_items.append({
+                    'label': f"🤖 AI Search",
+                    'action': 'ai_search_prompt',
+                    'is_folder': True,
+                    'icon': 'DefaultAddonsSearch.png',
+                    'description': 'AI-powered search'
+                })
+            else:
+                context.logger.info("AI Search is not activated - not showing in main menu")
+
+            # 3. Search History (always show - service.py handles folder creation)
             context.logger.info("Adding search history menu item")
             menu_items.append({
                 'label': f"📊 Search History",
@@ -57,7 +72,7 @@ class MainMenuHandler:
                 'description': 'Recent searches'
             })
 
-            # 3. Lists
+            # 4. Lists
             all_lists = query_manager.get_all_lists_with_folders()
             user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
             context.logger.info(f"Found {len(user_lists)} user lists")
@@ -70,7 +85,7 @@ class MainMenuHandler:
                 'description': f'Manage your lists ({len(user_lists)} lists)'
             })
 
-            # 4. Kodi Favorites (conditional - check if favorites integration is enabled)
+            # 5. Kodi Favorites (conditional - check if favorites integration is enabled)
             addon = xbmcaddon.Addon()
             favorites_enabled = addon.getSettingBool('favorites_integration_enabled')
             

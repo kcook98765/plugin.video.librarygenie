@@ -497,6 +497,7 @@ def _register_all_handlers(router: Router):
 
     # Register handlers with lazy instantiation - handlers only created when needed
     router.register_handler('search', lambda ctx: factory.get_search_handler().prompt_and_search(ctx))
+    router.register_handler('ai_search_prompt', lambda ctx: factory.get_search_handler().ai_search_prompt(ctx))
     router.register_handler('lists', lambda ctx: factory.get_lists_handler().show_lists_menu(ctx))
     router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, factory.get_favorites_handler().show_favorites_menu(ctx)))
 
