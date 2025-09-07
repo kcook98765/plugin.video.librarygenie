@@ -246,6 +246,11 @@ class InfoHijackManager:
         # Record where we are before the back command
         initial_path = xbmc.getInfoLabel("Container.FolderPath")
         
+        # Wait longer for modal dialog closing animation to complete
+        # The log shows the animation can block actions for several seconds
+        self._logger.debug("HIJACK: Waiting for modal dialog closing animation to complete")
+        xbmc.sleep(500)  # Increased from immediate execution to 500ms
+        
         # Execute back command with validation that it was accepted
         self._logger.debug("HIJACK: Executing Action(Back)")
         xbmc.executebuiltin('Action(Back)')
