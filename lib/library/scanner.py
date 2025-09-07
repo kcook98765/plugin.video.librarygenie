@@ -38,7 +38,7 @@ class LibraryScanner:
         """Check if scan should be aborted"""
         return self._abort_requested
 
-    def perform_full_scan(self, progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
+    def perform_full_scan(self, progress_callback: Optional[Callable] = None, progress_dialog: Optional[Any] = None) -> Dict[str, Any]:
         """Perform a complete library scan"""
         self.logger.info("Starting full library scan")
 
@@ -62,6 +62,8 @@ class LibraryScanner:
             self._abort_requested = False
 
             # Clear existing data (full refresh)
+            if progress_dialog:
+                progress_dialog.update(20, "LibraryGenie", "Clearing existing index...")
             self._clear_library_index()
 
             # Get total count for progress tracking
@@ -75,6 +77,9 @@ class LibraryScanner:
             # Calculate paging
             total_pages = (total_movies + self.batch_size - 1) // self.batch_size
             self.logger.info(f"Processing {total_pages} pages of {self.batch_size} items each")
+
+            if progress_dialog:
+                progress_dialog.update(30, "LibraryGenie", f"Processing {total_movies} movies...")
 
             # Process movies in pages
             offset = 0
@@ -102,7 +107,7 @@ class LibraryScanner:
 
                 offset += len(movies)
                 items_processed = min(offset, total_movies)
-                
+
                 self.logger.debug(f"Full scan progress: {items_processed}/{total_movies} movies processed")
 
                 # Call progress callback if provided
@@ -111,6 +116,12 @@ class LibraryScanner:
                         progress_callback(page_num, total_pages, items_processed)
                     except Exception as e:
                         self.logger.warning(f"Progress callback error: {e}")
+                
+                # Update dialog progress
+                if progress_dialog:
+                    progress_percentage = int((items_processed / total_movies) * 100)
+                    progress_dialog.update(progress_percentage, "LibraryGenie", f"Processing movies: {items_processed}/{total_movies}")
+
 
                 # Brief pause to allow UI updates - reduced for better performance
                 import time
@@ -121,6 +132,9 @@ class LibraryScanner:
 
             self.logger.info(f"Full scan complete: {total_added} movies indexed")
 
+            if progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", "Full scan complete.")
+
             return {
                 "success": True,
                 "items_found": total_movies,
@@ -130,6 +144,8 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error(f"Full scan failed: {e}")
+            if progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", f"Scan failed: {e}")
             self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
@@ -319,21 +335,21 @@ class LibraryScanner:
                         # Store comprehensive movie data from JSON-RPC
                         # Art data as JSON string for artwork URLs
                         art_json = json.dumps(movie.get("art", {})) if movie.get("art") else ""
-                        
+
                         # Extract unique IDs
                         uniqueid = movie.get("uniqueid", {})
                         tmdb_id = uniqueid.get("tmdb", "") if uniqueid else ""
-                        
+
                         # Handle resume data
                         resume_data = movie.get("resume", {})
                         resume_json = json.dumps(resume_data) if resume_data else ""
 
                         # Detect Kodi version once and store appropriate format
                         kodi_major = get_kodi_major_version()
-                        
+
                         # Pre-compute display fields for faster list building
                         display_title = f"{movie['title']} ({movie.get('year', '')})" if movie.get('year') else movie['title']
-                        
+
                         # Store genre in version-appropriate format
                         genre_list = movie.get('genre', '').split(',') if isinstance(movie.get('genre'), str) else movie.get('genre', [])
                         if kodi_major >= 20:
@@ -342,23 +358,23 @@ class LibraryScanner:
                         else:
                             # v19: Store as comma-separated string for setInfo()
                             genre_data = ', '.join([g.strip() for g in genre_list if g.strip()]) if genre_list else ''
-                        
+
                         # Store director in version-appropriate format
                         director_str = movie.get("director", "")
                         if isinstance(director_str, list):
                             director_str = ", ".join(director_str) if director_str else ""
-                        
+
                         if kodi_major >= 20:
                             # v20+: Store as JSON array for InfoTagVideo.setDirectors()
                             director_data = json.dumps([director_str]) if director_str else "[]"
                         else:
                             # v19: Store as string for setInfo()
                             director_data = director_str
-                        
+
                         # Duration: always store in seconds (can convert to minutes for v19 if needed)
                         duration_minutes = movie.get("runtime", 0)
                         duration_seconds = duration_minutes * 60 if duration_minutes else 0
-                        
+
                         # Studio handling
                         studio_str = movie.get("studio", "")
                         if isinstance(studio_str, list):

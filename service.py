@@ -77,10 +77,9 @@ class LibraryGenieService:
 
             if not scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan...")
-                self._show_notification("Performing initial library scan...", time_ms=8000)
-
-                # Perform initial full scan
-                result = scanner.perform_full_scan()
+                
+                # Perform initial full scan with DialogBG for better UX
+                result = scanner.perform_full_scan(use_dialog_bg=True)
 
                 if result.get('success'):
                     items_added = result.get('items_added', 0)
