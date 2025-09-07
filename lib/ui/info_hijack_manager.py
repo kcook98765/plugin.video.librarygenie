@@ -46,15 +46,15 @@ class InfoHijackManager:
         # Debug: Log dialog state changes
         if hasattr(self, '_last_dialog_state'):
             if (dialog_active, current_dialog_id) != self._last_dialog_state:
-                self._logger.info(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
+                self._logger.debug(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
         self._last_dialog_state = (dialog_active, current_dialog_id)
         
         # Handle dialog close detection
         if not dialog_active and self._native_info_was_open:
-            self._logger.info("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED - initiating container restore")
+            self._logger.debug("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED - initiating container restore")
             self._handle_native_info_closed()
             self._native_info_was_open = False
-            self._logger.info("✅ HIJACK STEP 5 COMPLETE: Container restoration initiated")
+            self._logger.debug("✅ HIJACK STEP 5 COMPLETE: Container restoration initiated")
             return
             
         # Handle dialog open detection - this is where we trigger hijack
@@ -66,10 +66,10 @@ class InfoHijackManager:
                 container_path = xbmc.getInfoLabel('Container.FolderPath')
                 
                 # Debug: Always log dialog detection with armed state
-                self._logger.info(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}', container='{container_path[:50]}...' if container_path else 'None'")
+                self._logger.debug(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}', container='{container_path[:50]}...' if container_path else 'None'")
                 
                 if armed:
-                    self._logger.info(f"🎯 HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
+                    self._logger.debug(f"🎯 HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
                     
                     # Get hijack data
                     listitem_label = xbmc.getInfoLabel('ListItem.Label')
@@ -82,7 +82,7 @@ class InfoHijackManager:
                     dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
                     
                     if dbid and dbtype:
-                        self._logger.info(f"HIJACK: Target - DBID={dbid}, DBType={dbtype}, Label='{listitem_label}'")
+                        self._logger.debug(f"HIJACK: Target - DBID={dbid}, DBType={dbtype}, Label='{listitem_label}'")
                         
                         # Mark as in progress to prevent re-entry
                         self._in_progress = True
@@ -90,14 +90,14 @@ class InfoHijackManager:
                         
                         try:
                             # 💾 STEP 1: TRUST KODI NAVIGATION HISTORY
-                            self._logger.info(f"💾 HIJACK STEP 1: Using Kodi's navigation history (no saving needed)")
-                            self._logger.info(f"✅ HIJACK STEP 1 COMPLETE: Navigation history will handle return")
+                            self._logger.debug(f"💾 HIJACK STEP 1: Using Kodi's navigation history (no saving needed)")
+                            self._logger.debug(f"✅ HIJACK STEP 1 COMPLETE: Navigation history will handle return")
                             
                             # 🚪 STEP 2: CLOSE CURRENT DIALOG
-                            self._logger.info(f"🚪 HIJACK STEP 2: CLOSING CURRENT DIALOG")
+                            self._logger.debug(f"🚪 HIJACK STEP 2: CLOSING CURRENT DIALOG")
                             xbmc.executebuiltin('Action(Back)')
                             xbmc.sleep(200)  # Wait for dialog to close
-                            self._logger.info(f"✅ HIJACK STEP 2 COMPLETE: Dialog closed")
+                            self._logger.debug(f"✅ HIJACK STEP 2 COMPLETE: Dialog closed")
                             
                             # Convert dbid to int safely
                             try:
@@ -107,14 +107,14 @@ class InfoHijackManager:
                                 return
                             
                             # 🚀 STEP 3: OPEN NATIVE INFO VIA XSP
-                            self._logger.info(f"🚀 HIJACK STEP 3: OPENING NATIVE INFO for {dbtype} {dbid_int}")
+                            self._logger.debug(f"🚀 HIJACK STEP 3: OPENING NATIVE INFO for {dbtype} {dbid_int}")
                             
                             start_time = time.time()
                             ok = open_native_info_fast(dbtype, dbid_int, self._logger)
                             end_time = time.time()
                             
                             if ok:
-                                self._logger.info(f"✅ HIJACK STEP 3 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
+                                self._logger.debug(f"✅ HIJACK STEP 3 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
                                 self._native_info_was_open = True  # Mark for close detection
                                 
                                 # Set cooldown
@@ -122,7 +122,7 @@ class InfoHijackManager:
                                 self._cooldown_until = time.time() + max(0.5, operation_time * 2)
                                 
                                 # 🎉 HIJACK PROCESS COMPLETE
-                                self._logger.info(f"🎉 HIJACK PROCESS COMPLETE: Full hijack successful for {dbtype} {dbid_int}")
+                                self._logger.debug(f"🎉 HIJACK PROCESS COMPLETE: Full hijack successful for {dbtype} {dbid_int}")
                             else:
                                 self._logger.error(f"❌ HIJACK STEP 3 FAILED: Failed to open native info for {dbtype} {dbid_int}")
                         except Exception as e:
@@ -174,7 +174,7 @@ class InfoHijackManager:
     def _handle_native_info_closed(self):
         """Handle the native info dialog being closed - single precise back navigation"""
         try:
-            self._logger.info("HIJACK: Native info dialog closed, executing single back to return to plugin")
+            self._logger.debug("HIJACK: Native info dialog closed, executing single back to return to plugin")
             
             # Wait for dialog close animation to complete
             if not self._wait_for_gui_ready_extended("after dialog close", max_wait=3.0):
@@ -182,7 +182,7 @@ class InfoHijackManager:
             
             # Log current state for verification
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            self._logger.info(f"HIJACK: Current path before back: '{current_path}'")
+            self._logger.debug(f"HIJACK: Current path before back: '{current_path}'")
             
             # Execute single back command to return from XSP to plugin content
             # Based on logs, this is exactly what's needed - trust Kodi's navigation history
@@ -194,7 +194,7 @@ class InfoHijackManager:
             # Verify we've returned to plugin content
             final_path = xbmc.getInfoLabel("Container.FolderPath")
             if final_path and 'plugin.video.librarygenie' in final_path:
-                self._logger.info(f"HIJACK: ✅ Successfully returned to plugin content: '{final_path}'")
+                self._logger.debug(f"HIJACK: ✅ Successfully returned to plugin content: '{final_path}'")
             else:
                 self._logger.warning(f"HIJACK: Unexpected final path: '{final_path}' (expected plugin content)")
             
@@ -397,7 +397,7 @@ class InfoHijackManager:
             if (has_modal or window_manager_busy) and not animation_detected:
                 animation_detected = True
                 elapsed = time.time() - start_time
-                self._logger.info(f"HIJACK: Dialog animation detected at {elapsed:.3f}s - waiting for completion")
+                self._logger.debug(f"HIJACK: Dialog animation detected at {elapsed:.3f}s - waiting for completion")
             
             if is_ready:
                 consecutive_ready_checks += 1
@@ -405,7 +405,7 @@ class InfoHijackManager:
                 required_checks = 5 if animation_detected else 3
                 if consecutive_ready_checks >= required_checks:
                     elapsed = time.time() - start_time
-                    self._logger.info(f"HIJACK: GUI ready {context} after {elapsed:.3f}s (animation_detected={animation_detected})")
+                    self._logger.debug(f"HIJACK: GUI ready {context} after {elapsed:.3f}s (animation_detected={animation_detected})")
                     return True
             else:
                 consecutive_ready_checks = 0
