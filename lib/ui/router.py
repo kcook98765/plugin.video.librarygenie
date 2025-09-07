@@ -48,7 +48,21 @@ class Router:
         try:
             # Handle special router-managed actions
             if action == "show_list_tools":
-                return self._handle_list_tools(context, params)
+                from .handler_factory import get_handler_factory
+                from .response_handler import get_response_handler
+
+                factory = get_handler_factory()
+                factory.context = context # Set context before using factory
+                tools_handler = factory.get_tools_handler()
+                response_handler = get_response_handler()
+
+                list_type = params.get('list_type', 'unknown')
+                list_id = params.get('list_id')
+
+                result = tools_handler.show_list_tools(context, list_type, list_id)
+
+                # Use response handler to process the result
+                return response_handler.handle_dialog_response(result, context)
             elif action == "noop":
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
@@ -153,7 +167,7 @@ class Router:
                 factory.context = context
                 tools_handler = factory.get_tools_handler()
                 result = tools_handler.handle_restore_backup(params, context)
-                
+
                 # Handle the DialogResponse
                 from .response_handler import get_response_handler
                 response_handler = get_response_handler()
@@ -165,7 +179,7 @@ class Router:
                 factory.context = context
                 tools_handler = factory.get_tools_handler()
                 result = tools_handler.handle_activate_ai_search(params, context)
-                
+
                 # Handle the DialogResponse
                 from .response_handler import get_response_handler
                 response_handler = get_response_handler()

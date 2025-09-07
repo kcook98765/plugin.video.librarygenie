@@ -334,7 +334,7 @@ class ToolsHandler:
                 options.append(f"[COLOR red]{L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
 
                 # Debug logging for standard folder
-                self.logger.debug(f"TOOLS DEBUG: Added standard options for folder '{folder_info['name']}'")
+                self.logger.logger.debug(f"TOOLS DEBUG: Added standard options for folder '{folder_info['name']}'")
 
             # Cancel
             options.append(f"[COLOR gray]{L(36003)}[/COLOR]")  # "Cancel"
@@ -512,7 +512,7 @@ class ToolsHandler:
 
             if result.get("success"):
                 destination_name = "root level" if target_folder_id is None else folder_options[selected_index]
-                
+
                 # Navigate to the destination location instead of refreshing current view
                 if target_folder_id is None:
                     # Moved to root level - navigate to main lists menu
@@ -539,7 +539,7 @@ class ToolsHandler:
         """Create a new list in the specified folder"""
         try:
             self.logger.debug(f"TOOLS DEBUG: _create_list_in_folder called with folder_id: {folder_id}")
-            
+
             # Get list name from user
             new_name = xbmcgui.Dialog().input(
                 L(36056),  # "Enter name for new list:"
@@ -555,10 +555,10 @@ class ToolsHandler:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             self.logger.debug(f"TOOLS DEBUG: Creating list '{new_name.strip()}' in folder_id: {folder_id}")
-            
+
             # Pass folder_id as the third parameter to create_list (name, description, folder_id)
             result = query_manager.create_list(new_name.strip(), "", folder_id)
-            
+
             self.logger.debug(f"TOOLS DEBUG: create_list result: {result}")
 
             if result.get("error"):
@@ -583,7 +583,7 @@ class ToolsHandler:
         """Create a new subfolder in the specified parent folder"""
         try:
             self.logger.debug(f"TOOLS DEBUG: _create_subfolder called with parent_folder_id: {parent_folder_id}")
-            
+
             # Get folder name from user
             folder_name = xbmcgui.Dialog().input(
                 "Enter folder name:",
@@ -599,10 +599,10 @@ class ToolsHandler:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             self.logger.debug(f"TOOLS DEBUG: Creating subfolder '{folder_name.strip()}' in parent_folder_id: {parent_folder_id}")
-            
+
             # Pass parent_folder_id as the second parameter to create_folder (name, parent_id)
             result = query_manager.create_folder(folder_name.strip(), parent_folder_id)
-            
+
             self.logger.debug(f"TOOLS DEBUG: create_folder result: {result}")
 
             if result.get("error"):
@@ -613,7 +613,7 @@ class ToolsHandler:
                 return DialogResponse(success=False, message=message)
             else:
                 self.logger.info(f"TOOLS DEBUG: Successfully created subfolder '{folder_name}' in parent_folder_id: {parent_folder_id}")
-                
+
                 # Navigate back to the parent folder where the subfolder was created
                 return DialogResponse(
                     success=True,
@@ -1030,9 +1030,9 @@ class ToolsHandler:
             # Get current folder info from context - this should come from the calling URL
             current_folder_id = context.get_param('folder_id')
             current_folder_name = "Lists"  # Default for root level
-            
+
             self.logger.debug(f"TOOLS DEBUG: _show_lists_main_tools called with folder_id from context: {current_folder_id}")
-            
+
             # Resolve folder name if we have a folder_id
             if current_folder_id:
                 query_manager = context.query_manager
@@ -1161,26 +1161,26 @@ class ToolsHandler:
                         folder_info = query_manager.get_folder_by_id(target_folder_id)
                         if folder_info:
                             folder_context = f" to '{folder_info['name']}'"
-                
+
                 message = (
                     f"Import completed{folder_context}:\n"
                     f"Lists: {result.lists_created}\n"
                     f"Items: {result.items_added}\n"
                     f"Folders: {getattr(result, 'folders_imported', 0)}"
                 )
-                
+
                 # Navigate appropriately based on context
                 response = DialogResponse(
                     success=True,
                     message=message,
                     refresh_needed=True
                 )
-                
+
                 if target_folder_id:
                     response.navigate_to_folder = target_folder_id
                 else:
                     response.navigate_to_lists = True
-                    
+
                 return response
             else:
                 error_message = result.errors[0] if result.errors else "Unknown error"
