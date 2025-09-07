@@ -103,7 +103,7 @@ class SimpleSearchEngine:
             select_clause = """
                 SELECT mi.id, mi.kodi_id, mi.title, mi.year, mi.play as file_path, 
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.created_at, 
-                       mi.poster, mi.fanart, mi.plot, mi.rating, mi.duration as runtime,
+                       mi.art, mi.plot, mi.rating, mi.duration as runtime,
                        mi.genre, mi.director, 0 as playcount, mi.kodi_id as movieid,
                        {ranking_expression} as search_rank
                 FROM media_items mi

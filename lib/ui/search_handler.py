@@ -185,7 +185,7 @@ class SearchHandler:
 
     def _show_no_results_message(self, search_terms: str):
         """Show message when no results found"""
-        self._notify_info(L(32101) % search_terms)  # "No results found for '%s'"
+        self._notify_info(L(32101).format(search_terms))  # "No results found for '{0}'"
 
     # Helper methods
     def _ensure_handle_from_context(self, context):
