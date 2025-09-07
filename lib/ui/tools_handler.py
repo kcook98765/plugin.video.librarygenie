@@ -183,7 +183,7 @@ class ToolsHandler:
                 # Standard list options
                 options = [
                     # Additive operations
-                    f"[COLOR lightgreen]{L(36004) % short_name}[/COLOR]",  # "Merge Into %s"
+                    f"[COLOR yellow]{L(36004) % short_name}[/COLOR]",  # "Merge Into %s"
                     # Modify operations
                     f"[COLOR yellow]{L(36051) % short_name}[/COLOR]",  # "Rename %s"
                     f"[COLOR yellow]{L(36052) % short_name}[/COLOR]",  # "Move %s to Folder"
@@ -959,11 +959,25 @@ class ToolsHandler:
     def _show_lists_main_tools(self, context: PluginContext) -> DialogResponse:
         """Show tools specific to the main Lists menu"""
         try:
+            # Get current folder info
+            current_folder_id = context.get('folder_id')
+            current_folder_name = "Root"
+            if current_folder_id:
+                with self.connection_manager.get_connection() as conn:
+                    folder_info = conn.execute(
+                        "SELECT name FROM folders WHERE id = ?",
+                        (current_folder_id,)
+                    ).fetchone()
+                    if folder_info:
+                        current_folder_name = folder_info[0]
+
             # Build comprehensive options for main lists menu - organized by operation type
             options = [
                 # Creation operations
-                f"[COLOR lightgreen]{L(36019)}[/COLOR]",  # "Create New List"
-                f"[COLOR lightgreen]{L(36020)}[/COLOR]",  # "Create New Folder"
+                f"[COLOR lightgreen]📋 Create New List[/COLOR]",
+                f"[COLOR white]{L(36009) % current_folder_name}[/COLOR]",  # "Create a new list in '%s'"
+                "[COLOR lightgreen]📁 Create New Subfolder[/COLOR]",
+                f"[COLOR white]{L(36010) % current_folder_name}[/COLOR]",  # "Create a new subfolder in '%s'"
                 # Import operations
                 "[COLOR white]Import Lists[/COLOR]",
                 # Export operations
@@ -985,7 +999,7 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36000), list(options))  # "Tools & Options"
 
-            if selected_index < 0 or selected_index == 11:  # Cancel
+            if selected_index < 0 or selected_index == 13:  # Cancel
                 return DialogResponse(success=False)
 
             # Handle selected option
@@ -993,27 +1007,31 @@ class ToolsHandler:
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
                 return lists_handler.create_list(context)
-            elif selected_index == 1:  # Create New Folder
+            elif selected_index == 1:  # Create New List in Folder
+                return self._create_list_in_folder(context, current_folder_id)
+            elif selected_index == 2:  # Create New Folder
                 from .lists_handler import ListsHandler
                 lists_handler = ListsHandler()
                 return lists_handler.create_folder(context)
-            elif selected_index == 2:  # Import Lists
+            elif selected_index == 3:  # Create New Subfolder in Folder
+                return self._create_subfolder(context, current_folder_id)
+            elif selected_index == 4:  # Import Lists
                 return self._import_lists(context)
-            elif selected_index == 3:  # Export All Lists
+            elif selected_index == 5:  # Export All Lists
                 return self._export_all_lists(context)
-            elif selected_index == 4:  # Manual Backup
+            elif selected_index == 6:  # Manual Backup
                 return self._run_manual_backup()
-            elif selected_index == 5:  # Backup Manager
+            elif selected_index == 7:  # Backup Manager
                 return self._show_backup_manager()
-            elif selected_index == 6:  # Test Backup Config
+            elif selected_index == 8:  # Test Backup Config
                 return self._test_backup_config()
-            elif selected_index == 7:  # Library Statistics
+            elif selected_index == 9:  # Library Statistics
                 return self._show_library_stats()
-            elif selected_index == 8:  # Force Library Rescan
+            elif selected_index == 10:  # Force Library Rescan
                 return self._force_rescan()
-            elif selected_index == 9:  # Clear Search History
+            elif selected_index == 11:  # Clear Search History
                 return self._clear_search_history()
-            elif selected_index == 10:  # Reset Preferences
+            elif selected_index == 12:  # Reset Preferences
                 return self._reset_preferences()
 
             return DialogResponse(success=False)
