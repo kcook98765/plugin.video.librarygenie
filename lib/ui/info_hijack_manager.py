@@ -172,54 +172,38 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - improved detection and faster navigation"""
+        """Handle the native info dialog being closed - use Kodi navigation history"""
         try:
-            self._logger.debug("HIJACK: Native info dialog closed, starting smart navigation")
+            self._logger.info("HIJACK: Native info dialog closed, using Kodi navigation history")
             
-            # First, check current state immediately
-            initial_path = xbmc.getInfoLabel("Container.FolderPath")
-            initial_window = xbmc.getInfoLabel("System.CurrentWindow")
+            # Wait for dialog close animation to complete
+            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=3.0):
+                self._logger.warning("HIJACK: GUI not ready after 3s, proceeding anyway")
             
-            self._logger.debug(f"HIJACK: Initial state - Path: '{initial_path}', Window: '{initial_window}'")
+            # Simply use Kodi's built-in navigation history
+            # This avoids rebuilding the plugin content and is much faster
+            self._logger.info("HIJACK: Using Action(Back) to return via navigation history")
+            xbmc.executebuiltin('Action(Back)')
             
-            # Wait for dialog close animation to complete with longer timeout
-            # The log shows animations can take 4+ seconds, so we need patience here
-            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=5.0):
-                self._logger.warning("HIJACK: GUI not ready after 5s, proceeding anyway")
+            # Brief wait to allow navigation to complete
+            xbmc.sleep(100)
             
-            # Check current state after GUI stabilizes
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
-            current_window = xbmc.getInfoLabel("System.CurrentWindow")
-            
-            self._logger.debug(f"HIJACK: Current state after GUI ready - Path: '{current_path}', Window: '{current_window}'")
-            
-            # Check if we're already back in plugin content (Kodi auto-navigated)
-            if current_path and 'plugin.video.librarygenie' in current_path:
-                # Check if we're at the correct level - list view, not folder view
-                if 'action=show_list' in current_path:
-                    self._logger.info(f"HIJACK: Already back in correct plugin list: '{current_path}' - no navigation needed")
-                    self._cleanup_properties()
-                    return
-                else:
-                    self._logger.debug(f"HIJACK: In plugin content but wrong level: '{current_path}' - need to navigate forward to list")
-                    # We're at folder level, need one forward navigation to get back to list
-                    self._execute_forward_to_list()
-                    self._cleanup_properties()
-                    return
-            
-            # Use conservative navigation with better timing
-            self._logger.debug(f"HIJACK: Starting conservative navigation approach with improved timing")
-            
-            # Strategy: Always try single back first, check result, then decide if more navigation needed
-            if not self._execute_single_back_with_verification():
-                self._logger.debug("HIJACK: Single back didn't reach plugin content, trying one more back")
-                # Only if single back didn't get us to plugin content, try one more
-                self._execute_additional_back_if_needed()
+            # Verify we're back in plugin content
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            if final_path and 'plugin.video.librarygenie' in final_path:
+                self._logger.info(f"HIJACK: Successfully returned via navigation history to: '{final_path}'")
+            else:
+                self._logger.warning(f"HIJACK: Navigation history didn't return to plugin content: '{final_path}'")
+                # Fallback to one more back if needed
+                xbmc.executebuiltin('Action(Back)')
+                xbmc.sleep(100)
+                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.info(f"HIJACK: After fallback back: '{final_path}'")
             
             self._cleanup_properties()
                 
         except Exception as e:
-            self._logger.error(f"HIJACK: Error during smart navigation: {e}")
+            self._logger.error(f"HIJACK: Error during navigation history return: {e}")
             self._fallback_navigation()
 
     def _is_currently_on_xsp(self, path: str, window: str) -> bool:
