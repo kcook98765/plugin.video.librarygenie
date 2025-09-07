@@ -37,6 +37,7 @@ class PluginContext:
         # Service singletons (lazy loaded)
         self._query_manager = None
         self._favorites_manager = None
+        self._storage_manager = None
 
         # Navigation context - generate breadcrumb automatically
         self.breadcrumb_path = self._generate_breadcrumb()
@@ -65,11 +66,19 @@ class PluginContext:
 
     @property
     def favorites_manager(self):
-        """Get favorites manager singleton (lazy loaded)"""
+        """Get cached favorites manager instance"""
         if self._favorites_manager is None:
             from ..kodi.favorites_manager import get_phase4_favorites_manager
             self._favorites_manager = get_phase4_favorites_manager()
         return self._favorites_manager
+
+    @property
+    def storage_manager(self):
+        """Get cached storage manager instance"""
+        if self._storage_manager is None:
+            from ..data.storage_manager import get_storage_manager
+            self._storage_manager = get_storage_manager()
+        return self._storage_manager
 
     def get_param(self, key: str, default: Any = None) -> Any:
         """Get parameter value with optional default"""
@@ -102,7 +111,7 @@ class PluginContext:
             action = self.params.get('action', '')
             if not action:
                 return None
-            
+
             # Import here to avoid circular imports
             from .breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()

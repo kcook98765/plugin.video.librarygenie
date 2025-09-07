@@ -277,7 +277,7 @@ class BackgroundService:
             result = conn_manager.execute_single(
                 "SELECT value FROM kv_cache WHERE key = 'addon_initialized'"
             )
-            return result is not None and result.get('value') == 'true'
+            return result is not None and result['value'] == 'true'
         except Exception as e:
             self.logger.warning(f"Failed to check initialization status: {e}")
             return False
