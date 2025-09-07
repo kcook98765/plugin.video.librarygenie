@@ -54,11 +54,14 @@ class Router:
             elif action == 'lists' or action == 'show_lists_menu':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
-                handler = factory.get_lists_handler()
-                return handler.show_lists_menu(context)
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                response = lists_handler.show_lists_menu(context)
+                return response
             elif action == 'prompt_and_search':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
+                factory.context = context # Set context before using factory
                 search_handler = factory.get_search_handler()
                 search_handler.prompt_and_search(context)
                 return True
@@ -69,6 +72,7 @@ class Router:
 
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
 
                 if media_item_id:
@@ -87,16 +91,34 @@ class Router:
             elif action == 'remove_from_list':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
                 return self._handle_remove_from_list(context, lists_handler)
             elif action == 'remove_library_item_from_list':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
                 list_id = context.get_param('list_id')
                 dbtype = context.get_param('dbtype')
                 dbid = context.get_param('dbid')
                 return lists_handler.remove_library_item_from_list(context, list_id, dbtype, dbid)
+            elif action in ['show_list', 'view_list']:
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                list_id = context.get_param('list_id')
+                response = lists_handler.view_list(context, list_id)
+                return response
+            elif action == 'show_folder':
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                folder_id = context.get_param('folder_id')
+                response = lists_handler.show_folder(context, folder_id)
+                return response
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
@@ -132,6 +154,7 @@ class Router:
             from .response_handler import get_response_handler
 
             factory = get_handler_factory()
+            factory.context = context # Set context before using factory
             tools_handler = factory.get_tools_handler()
             response_handler = get_response_handler()
 

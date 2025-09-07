@@ -509,12 +509,12 @@ def _register_all_handlers(router: Router):
     router.register_handler('show_folder', lambda ctx: factory.get_lists_handler().show_folder(ctx, ctx.get_param('folder_id')))
 
     # Register parameter-based handlers
-    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().delete_list(ctx, ctx.get_param('list_id'))))
-    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id'))))
-    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id'))))
+    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().delete_list(ctx, ctx.get_param('list_id')))[1]))
+    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id')))[1]))
+    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id')))[1]))
 
-    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().rename_folder(ctx, ctx.get_param('folder_id'))))
-    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id'))))
+    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().rename_folder(ctx, ctx.get_param('folder_id')))[1]))
+    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, (factory.context := ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id')))[1]))
 
     # Register FavoritesHandler methods
     router.register_handler('scan_favorites_execute', lambda ctx: factory.get_favorites_handler().handle_scan_favorites(ctx))
