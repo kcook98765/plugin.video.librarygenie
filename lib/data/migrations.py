@@ -403,109 +403,19 @@ class MigrationManager:
             self.logger.info("Complete database schema created successfully")
 
 
-    def _apply_migration_1(self, conn):
-        """Initial schema creation"""
-        pass
-
-    def _apply_migration_2(self, conn):
-        """Add Kodi ID to media items and related tables"""
-        pass
-
-    def _apply_migration_3(self, conn):
-        """Add IMDB and TMDB IDs, improve search functionality"""
-        pass
-
-    def _apply_migration_4(self, conn):
-        """Phase 3: Enhanced database optimizations and large library support"""
-        try:
-            self.logger.info("Applying migration 4: Enhanced database optimizations")
-
-            # Add indexes for large library performance
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_title ON media_items (title)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_year ON media_items (year)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_genre ON media_items (genre)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_rating ON media_items (rating)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_media_type_title ON media_items (media_type, title)")
-
-            # Episode-specific indexes
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_tvshowtitle ON media_items (tvshowtitle)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_season_episode ON media_items (season, episode)")
-
-            # Update schema version
-            conn.execute("UPDATE schema_info SET version = 4, updated_at = datetime('now')")
-
-            self.logger.info("Migration 4 completed successfully")
-
-        except Exception as e:
-            self.logger.error(f"Migration 4 failed: {e}")
-            raise
-
-    def _apply_migration_5(self, conn):
-        """Clean up any remaining users table references"""
-        try:
-            self.logger.info("Applying migration 5: Clean up users table references")
-
-            # Drop user_lists table if it still exists
-            conn.execute("DROP TABLE IF EXISTS user_lists")
-
-            # Drop users table if it exists
-            conn.execute("DROP TABLE IF EXISTS users")
-
-            # Clean up any indexes related to these tables
-            conn.execute("DROP INDEX IF EXISTS idx_user_lists_user_list")
-            conn.execute("DROP INDEX IF EXISTS idx_user_lists_list_id")
-
-            # Update schema version
-            conn.execute("UPDATE schema_info SET version = 5, updated_at = datetime('now')")
-
-            self.logger.info("Migration 5 completed successfully")
-
-        except Exception as e:
-            self.logger.error(f"Migration 5 failed: {e}")
-            raise
-
     def _get_current_version(self):
         """Get the current schema version"""
         try:
-            result = self.conn_manager.execute_single("SELECT version FROM schema_info")
+            result = self.conn_manager.execute_single("SELECT version FROM schema_version")
             return result if result is not None else 0
         except Exception:
-            # If schema_info table doesn't exist, assume version 0
+            # If schema_version table doesn't exist, assume version 0
             return 0
 
     def run_migrations(self):
         """Run all pending migrations"""
-        with self.conn_manager.transaction() as conn:
-            # Create schema_info table if it doesn't exist
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS schema_info (
-                    version INTEGER PRIMARY KEY,
-                    applied_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            # Insert initial version if not present
-            conn.execute("""
-                INSERT OR IGNORE INTO schema_info (version, applied_at)
-                VALUES (0, datetime('now'))
-            """)
-
-            # Apply migrations in order
-            current_version = self._get_current_version()
-            self.logger.debug(f"Current schema version: {current_version}")
-
-            if current_version < 1:
-                self._apply_migration_1(conn)
-            if current_version < 2:
-                self._apply_migration_2(conn)
-            if current_version < 3:
-                self._apply_migration_3(conn)
-            if current_version < 4:
-                self._apply_migration_4(conn)
-            if current_version < 5:
-                self._apply_migration_5(conn)
-
-            self.logger.debug("All migrations applied")
+        # No migrations needed for pre-release - fresh database only
+        self.logger.debug("No migrations to apply for pre-release version")
 
 
 # Global migration manager instance
@@ -524,4 +434,3 @@ def initialize_database():
     """Initialize database - convenience function for service.py"""
     manager = get_migration_manager()
     manager.ensure_initialized()
-    manager.run_migrations()
