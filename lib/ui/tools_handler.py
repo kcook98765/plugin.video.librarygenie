@@ -175,7 +175,7 @@ class ToolsHandler:
             if is_search_history:
                 # Special options for search history lists
                 options = [
-                    "[COLOR lightgreen]📋 Copy to New List[/COLOR]",
+                    "[COLOR lightgreen]📋 Move to New List[/COLOR]",
                     f"[COLOR white]{L(36053) % short_name}[/COLOR]",  # "Export %s"
                     f"[COLOR red]{L(36054) % short_name}[/COLOR]",  # "Delete %s"
                     f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
@@ -205,8 +205,8 @@ class ToolsHandler:
 
             # Handle selected option
             if is_search_history:
-                # Search history list: Copy(0), Export(1), Delete(2), Cancel(3)
-                if selected_index == 0:  # Copy to new list
+                # Search history list: Move(0), Export(1), Delete(2), Cancel(3)
+                if selected_index == 0:  # Move to new list
                     return self._copy_search_history_to_list(context, list_id)
                 elif selected_index == 1:  # Export
                     return self._export_single_list(context, list_id)
@@ -1188,7 +1188,7 @@ class ToolsHandler:
             return f"{size:.1f} {size_names[i]}"
 
     def _copy_search_history_to_list(self, context: PluginContext, search_list_id: str) -> DialogResponse:
-        """Copy a search history list to a new regular list"""
+        """Move a search history list to a new regular list"""
         try:
             query_manager = context.query_manager
             if not query_manager:
@@ -1226,21 +1226,37 @@ class ToolsHandler:
 
             # Copy all items from search history list to new list
             search_items = query_manager.get_list_items(search_list_id)
-            copied_count = 0
+            moved_count = 0
 
             for item in search_items:
                 query_manager.add_item_to_list(new_list_id, item)
-                copied_count += 1
+                moved_count += 1
 
-            # Navigate back to the search history folder after successful copy
+            # Delete the original search history list after successful move
+            delete_result = query_manager.delete_list(search_list_id)
+            if not delete_result.get("success"):
+                self.logger.warning(f"Failed to delete original search history list {search_list_id}")
+
+            # Check if this was the last list in the search history folder
             search_folder_id = query_manager.get_or_create_search_history_folder()
+            remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
 
-            return DialogResponse(
-                success=True,
-                message=f"Copied {copied_count} items to '{new_name}'",
-                navigate_to_folder=search_folder_id
-            )
+            # Navigate appropriately based on remaining search history
+            if remaining_lists:
+                # Still have search history lists, navigate back to folder
+                return DialogResponse(
+                    success=True,
+                    message=f"Moved {moved_count} items to '{new_name}'",
+                    navigate_to_folder=search_folder_id
+                )
+            else:
+                # No more search history lists, navigate back to main menu
+                return DialogResponse(
+                    success=True,
+                    message=f"Moved {moved_count} items to '{new_name}'",
+                    navigate_to_main=True
+                )
 
         except Exception as e:
-            self.logger.error(f"Error copying search history to list: {e}")
-            return DialogResponse(success=False, message="Error copying search history")
+            self.logger.error(f"Error moving search history to list: {e}")
+            return DialogResponse(success=False, message="Error moving search history")
