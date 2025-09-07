@@ -172,49 +172,65 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - navigate back from XSP"""
+        """Handle the native info dialog being closed - keep going back until we reach plugin content"""
         try:
-            self._logger.info("HIJACK: Native info dialog closed, navigating back from XSP")
+            self._logger.info("HIJACK: Native info dialog closed, navigating back to plugin content")
             
             # Wait for dialog close animation to complete
             if not self._wait_for_gui_ready_extended("after dialog close", max_wait=3.0):
                 self._logger.warning("HIJACK: GUI not ready after 3s, proceeding anyway")
             
-            # First back: Returns from native info to the temporary XSP file
-            self._logger.info("HIJACK: First back - returning from native info to XSP")
-            xbmc.executebuiltin('Action(Back)')
-            xbmc.sleep(100)
+            # Keep track of attempts to prevent infinite loops
+            max_attempts = 5
+            attempt = 0
             
-            # Check if we're at the XSP file
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
-            self._logger.info(f"HIJACK: After first back, current path: '{current_path}'")
-            
-            if current_path and ('lg_hijack' in current_path or '.xsp' in current_path or 'special://temp' in current_path):
-                # We're at the XSP file, need second back to return to plugin
-                self._logger.info("HIJACK: Detected XSP path, executing second back to return to plugin")
-                xbmc.executebuiltin('Action(Back)')
-                xbmc.sleep(100)
+            while attempt < max_attempts:
+                attempt += 1
+                current_path = xbmc.getInfoLabel("Container.FolderPath")
+                self._logger.info(f"HIJACK: Attempt {attempt} - Current path: '{current_path}'")
                 
-                final_path = xbmc.getInfoLabel("Container.FolderPath")
-                if final_path and 'plugin.video.librarygenie' in final_path:
-                    self._logger.info(f"HIJACK: Successfully returned to plugin content: '{final_path}'")
+                # Check if we've reached plugin content
+                if current_path and 'plugin.video.librarygenie' in current_path:
+                    self._logger.info(f"HIJACK: ✅ Successfully returned to plugin content after {attempt} back(s): '{current_path}'")
+                    break
+                
+                # Check if we're at XSP or other non-plugin content
+                if current_path and (
+                    'lg_hijack' in current_path or 
+                    '.xsp' in current_path or 
+                    'special://temp' in current_path or
+                    'videodb://' in current_path or
+                    not 'plugin.video.librarygenie' in current_path
+                ):
+                    self._logger.info(f"HIJACK: Not at plugin content yet (attempt {attempt}), executing back command")
+                    xbmc.executebuiltin('Action(Back)')
+                    
+                    # Wait for navigation to complete
+                    xbmc.sleep(150)
+                    
+                    # Wait for the path to stabilize
+                    if not self._wait_for_navigation_complete(f"attempt {attempt}", max_wait=2.0):
+                        self._logger.warning(f"HIJACK: Navigation timeout on attempt {attempt}")
+                        # Continue to next attempt anyway
                 else:
-                    self._logger.warning(f"HIJACK: Second back didn't return to plugin content: '{final_path}'")
-            elif current_path and 'plugin.video.librarygenie' in current_path:
-                # Already back at plugin content
-                self._logger.info(f"HIJACK: Already back at plugin content: '{current_path}'")
+                    # Unknown path, try one back anyway
+                    self._logger.warning(f"HIJACK: Unknown path on attempt {attempt}: '{current_path}', trying back")
+                    xbmc.executebuiltin('Action(Back)')
+                    xbmc.sleep(150)
+            
+            # Final check
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            if final_path and 'plugin.video.librarygenie' in final_path:
+                self._logger.info(f"HIJACK: ✅ Final success - Plugin content reached: '{final_path}'")
             else:
-                # Unexpected path, try one more back
-                self._logger.warning(f"HIJACK: Unexpected path after first back: '{current_path}', trying second back")
-                xbmc.executebuiltin('Action(Back)')
-                xbmc.sleep(100)
-                final_path = xbmc.getInfoLabel("Container.FolderPath")
-                self._logger.info(f"HIJACK: After second back: '{final_path}'")
+                self._logger.warning(f"HIJACK: ❌ Failed to reach plugin content after {max_attempts} attempts: '{final_path}'")
+                # Fallback: try one more aggressive approach
+                self._fallback_navigation()
             
             self._cleanup_properties()
                 
         except Exception as e:
-            self._logger.error(f"HIJACK: Error during XSP navigation: {e}")
+            self._logger.error(f"HIJACK: Error during multi-step navigation: {e}")
             self._fallback_navigation()
 
     def _is_currently_on_xsp(self, path: str, window: str) -> bool:
