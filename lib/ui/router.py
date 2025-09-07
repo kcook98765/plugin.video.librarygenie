@@ -116,6 +116,7 @@ class Router:
                 breadcrumb_path = params.get('breadcrumb_path', [])
 
                 if folder_id:
+                    # Use the initialized handler_factory
                     lists_handler = self.handler_factory.get_lists_handler()
                     lists_handler.show_folder(context, folder_id, breadcrumb_path)
                 else:
@@ -128,6 +129,7 @@ class Router:
                 if query_manager:
                     search_folder_id = query_manager.get_or_create_search_history_folder()
                     if search_folder_id:
+                        # Use the initialized handler_factory
                         lists_handler = self.handler_factory.get_lists_handler()
                         breadcrumb_path = params.get('breadcrumb_path', [])
                         lists_handler.show_folder(context, search_folder_id, breadcrumb_path)
