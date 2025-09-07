@@ -368,9 +368,9 @@ class LibraryScanner:
                             INSERT OR REPLACE INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
                              poster, fanart, plot, rating, votes, duration, mpaa, genre, director, studio, country, 
-                             writer, art, is_removed, display_title, duration_seconds)
+                             writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
-                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -396,6 +396,9 @@ class LibraryScanner:
                             movie.get("writer", ""),
                             # JSON fields
                             art_json,
+                            # File paths
+                            movie["file_path"],
+                            movie["file_path"].lower() if movie.get("file_path") else "",
                             # Pre-computed fields
                             display_title,
                             duration_seconds

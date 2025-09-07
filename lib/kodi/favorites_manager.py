@@ -244,34 +244,35 @@ class Phase4FavoritesManager:
             # Strategy 2: Normalized path matching
             elif classification == 'mappable_file':
                 self.logger.info("    Using file path matching strategy")
-                self.logger.info(f"    Looking for path: '{normalized_key}'")
+                self.logger.info(f"    Looking for normalized_path: '{normalized_key}'")
 
                 # Try exact normalized path match
                 result = self.conn_manager.execute_single("""
-                    SELECT id, title, play FROM media_items
-                    WHERE play = ? AND is_removed = 0
+                    SELECT id, title, file_path, normalized_path FROM media_items
+                    WHERE normalized_path = ? AND is_removed = 0
                 """, [normalized_key])
 
                 if result:
-                    self.logger.info(f"    Found exact path match: ID {result['id']} - '{result['title']}'")
-                    self.logger.info(f"    Matched play path: {result['play']}")
+                    self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}'")
+                    self.logger.info(f"    Matched file_path: {result['file_path']}")
                     return result["id"]
                 else:
-                    self.logger.info("    No exact path match found")
+                    self.logger.info("    No exact normalized path match found")
 
-                    # Show some sample paths for debugging
+                    # Show some sample normalized paths for debugging
                     sample_paths = self.conn_manager.execute_query("""
-                        SELECT play FROM media_items 
-                        WHERE is_removed = 0 AND play IS NOT NULL AND play != ''
+                        SELECT normalized_path, file_path FROM media_items 
+                        WHERE is_removed = 0 AND normalized_path IS NOT NULL AND normalized_path != ''
                         LIMIT 5
                     """)
 
                     if sample_paths:
-                        self.logger.info("    Sample paths in database:")
+                        self.logger.info("    Sample normalized paths in database:")
                         for sample in sample_paths:
-                            self.logger.info(f"      play path: '{sample['play']}'")
+                            self.logger.info(f"      normalized: '{sample['normalized_path']}'")
+                            self.logger.info(f"      file_path:  '{sample['file_path']}'")
                     else:
-                        self.logger.info("    No paths found in database")
+                        self.logger.info("    No normalized paths found in database")
 
                     # Always try file_path matching as backup
                     self.logger.info("    Trying file_path matching")
@@ -307,8 +308,8 @@ class Phase4FavoritesManager:
             with self.conn_manager.transaction() as conn:
                 # Strategy 1: Try exact file path match
                 result = conn.execute("""
-                    SELECT id, title, play FROM media_items
-                    WHERE play = ? AND is_removed = 0
+                    SELECT id, title, file_path FROM media_items
+                    WHERE file_path = ? AND is_removed = 0
                 """, [normalized_key]).fetchone()
 
                 if result:
@@ -317,8 +318,8 @@ class Phase4FavoritesManager:
 
                 # Strategy 2: Try case-insensitive file_path match
                 result = conn.execute("""
-                    SELECT id, title, play FROM media_items
-                    WHERE LOWER(play) = LOWER(?) AND is_removed = 0
+                    SELECT id, title, file_path FROM media_items
+                    WHERE LOWER(file_path) = LOWER(?) AND is_removed = 0
                 """, [normalized_key]).fetchone()
 
                 if result:
@@ -327,8 +328,8 @@ class Phase4FavoritesManager:
 
                 # Strategy 3: Try normalized_path match (in case it exists but wasn't found earlier)
                 result = conn.execute("""
-                    SELECT id, title, play FROM media_items
-                    WHERE LOWER(play) = LOWER(?) AND is_removed = 0
+                    SELECT id, title, file_path, normalized_path FROM media_items
+                    WHERE LOWER(normalized_path) = LOWER(?) AND is_removed = 0
                 """, [normalized_key]).fetchone()
 
                 if result:
@@ -338,8 +339,8 @@ class Phase4FavoritesManager:
                 # Strategy 4: Try to match by converting backslashes to forward slashes in file_path
                 backslash_version = normalized_key.replace('/', '\\')
                 result = conn.execute("""
-                    SELECT id, title, play FROM media_items
-                    WHERE play = ? AND is_removed = 0
+                    SELECT id, title, file_path FROM media_items
+                    WHERE file_path = ? AND is_removed = 0
                 """, [backslash_version]).fetchone()
 
                 if result:
@@ -376,7 +377,7 @@ class Phase4FavoritesManager:
             with self.conn_manager.transaction() as conn:
                 backslash_filename = filename.replace('/', '\\')
                 results = conn.execute("""
-                    SELECT id, title, play FROM media_items
+                    SELECT id, title, play as file_path FROM media_items
                     WHERE is_removed = 0
                     AND (play LIKE ? OR play LIKE ?)
                     LIMIT 10
@@ -385,7 +386,7 @@ class Phase4FavoritesManager:
                 self.logger.info(f"      Found {len(results)} potential fuzzy matches")
 
                 for i, result in enumerate(results):
-                    self.logger.info(f"        Match {i+1}: ID {result['id']} - '{result['title']}' - {result['play']}")
+                    self.logger.info(f"        Match {i+1}: ID {result['id']} - '{result['title']}' - {result['file_path']}")
 
                 if results and len(results) == 1:
                     # Exactly one match - probably correct
@@ -395,7 +396,7 @@ class Phase4FavoritesManager:
                 elif len(results) > 1:
                     # Try to find exact filename match (case insensitive)
                     for result in results:
-                        result_filename = result['play'].split('/')[-1].split('\\')[-1].lower()
+                        result_filename = result['file_path'].split('/')[-1].split('\\')[-1].lower()
                         if result_filename == filename.lower():
                             self.logger.info(f"      Exact filename match found: ID {result['id']} - '{result['title']}'")
                             return result["id"]

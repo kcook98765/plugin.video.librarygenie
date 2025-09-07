@@ -538,12 +538,6 @@ class MigrationManager:
             conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (9, datetime('now'))")
             print("Applied migration 9: Removed duplicate poster/fanart columns")
 
-        # Version 18: Remove file_path column from media_items
-        if version < 18:
-            remove_file_path_column(conn)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (18, datetime('now'))")
-            print("Applied migration 18: Removed file_path column from media_items")
-
         print(f"Database schema is up to date (version {get_current_version(conn)})")
         return True
 
@@ -577,7 +571,7 @@ def remove_duplicate_art_columns(conn):
         # Check if columns exist
         cursor = conn.execute("PRAGMA table_info(media_items)")
         columns = [row[1] for row in cursor.fetchall()]
-
+        
         # Migrate data from poster/fanart columns to art JSON before dropping
         if 'poster' in columns or 'fanart' in columns:
             # Update art JSON with poster/fanart data where art is empty or missing
@@ -589,7 +583,7 @@ def remove_duplicate_art_columns(conn):
                 )
                 WHERE art IS NULL OR art = '' OR art = '{}'
             """)
-
+            
             # For existing art JSON, merge poster/fanart if not already present
             conn.execute("""
                 UPDATE media_items 
@@ -602,7 +596,7 @@ def remove_duplicate_art_columns(conn):
                 )
                 WHERE art IS NOT NULL AND art != ''
             """)
-
+            
             # Create new table without poster/fanart columns
             conn.execute("""
                 CREATE TABLE media_items_new (
@@ -634,7 +628,7 @@ def remove_duplicate_art_columns(conn):
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
             """)
-
+            
             # Copy data to new table
             conn.execute("""
                 INSERT INTO media_items_new 
@@ -644,92 +638,22 @@ def remove_duplicate_art_columns(conn):
                        normalized_path, is_removed, created_at, updated_at
                 FROM media_items
             """)
-
+            
             # Drop old table and rename new one
             conn.execute("DROP TABLE media_items")
             conn.execute("ALTER TABLE media_items_new RENAME TO media_items")
-
+            
             # Recreate indexes
             conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
             conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
             conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
             conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
-
+            
             print("Removed duplicate poster/fanart columns from media_items table")
-
+            
     except Exception as e:
         print(f"Failed to remove duplicate art columns: {e}")
         raise
-
-def remove_file_path_column(conn):
-    """Remove file_path column from media_items table"""
-    try:
-        cursor = conn.execute("PRAGMA table_info(media_items)")
-        columns = [row[1] for row in cursor.fetchall()]
-
-        if 'file_path' in columns:
-            # Create new table without file_path column
-            conn.execute("""
-                CREATE TABLE media_items_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    media_type TEXT NOT NULL,
-                    title TEXT,
-                    year INTEGER,
-                    imdbnumber TEXT,
-                    tmdb_id TEXT,
-                    kodi_id INTEGER,
-                    source TEXT,
-                    play TEXT,
-                    plot TEXT,
-                    rating REAL,
-                    votes INTEGER,
-                    duration INTEGER,
-                    mpaa TEXT,
-                    genre TEXT,
-                    director TEXT,
-                    studio TEXT,
-                    country TEXT,
-                    writer TEXT,
-                    cast TEXT,
-                    art TEXT,
-                    normalized_path TEXT,
-                    is_removed INTEGER DEFAULT 0,
-                    display_title TEXT,
-                    duration_seconds INTEGER,
-                    poster TEXT,
-                    fanart TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-
-            # Copy data to new table
-            conn.execute("""
-                INSERT INTO media_items_new 
-                SELECT id, media_type, title, year, imdbnumber, tmdb_id, kodi_id, 
-                       source, play, plot, rating, votes, duration, mpaa, genre, 
-                       director, studio, country, writer, cast, art, normalized_path, 
-                       is_removed, display_title, duration_seconds, poster, fanart, 
-                       created_at, updated_at
-                FROM media_items
-            """)
-
-            # Drop old table and rename new one
-            conn.execute("DROP TABLE media_items")
-            conn.execute("ALTER TABLE media_items_new RENAME TO media_items")
-
-            # Recreate indexes
-            conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
-            conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
-            conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
-            conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
-
-            print("Removed file_path column from media_items table")
-
-    except Exception as e:
-        print(f"Failed to remove file_path column: {e}")
-        raise
-
 
 # Global migration manager instance
 _migration_instance = None

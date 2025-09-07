@@ -151,7 +151,7 @@ class ExportEngine:
         items_data = []
 
         query = """
-                SELECT li.list_id, mi.kodi_id, mi.title, mi.year, mi.normalized_path,
+                SELECT li.list_id, mi.kodi_id, mi.title, mi.year, mi.file_path,
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.media_type
                 FROM list_items li
                 INNER JOIN media_items mi ON li.media_item_id = mi.id
@@ -172,7 +172,7 @@ class ExportEngine:
                     'kodi_id': item_row[1],
                     'title': item_row[2],
                     'year': item_row[3],
-                    'normalized_path': item_row[4],
+                    'file_path': item_row[4],
                     'imdb_id': item_row[5],
                     'tmdb_id': item_row[6],
                     'media_type': item_row[7]
@@ -197,7 +197,7 @@ class ExportEngine:
         library_data = []
 
         query = """
-                SELECT kodi_id, title, year, normalized_path, imdbnumber as imdb_id, tmdb_id,
+                SELECT kodi_id, title, year, file_path, imdbnumber as imdb_id, tmdb_id,
                        media_type, created_at, updated_at
                 FROM media_items
                 WHERE is_removed = 0
@@ -216,7 +216,7 @@ class ExportEngine:
                     'kodi_id': movie_row[0],
                     'title': movie_row[1],
                     'year': movie_row[2],
-                    'normalized_path': movie_row[3],
+                    'file_path': movie_row[3],
                     'imdb_id': movie_row[4],
                     'tmdb_id': movie_row[5],
                     'media_type': movie_row[6],
@@ -242,7 +242,7 @@ class ExportEngine:
 
         # Query for media items that are marked as removed or not in current library
         query = """
-                SELECT kodi_id, title, year, normalized_path, imdbnumber as imdb_id, tmdb_id,
+                SELECT kodi_id, title, year, file_path, imdbnumber as imdb_id, tmdb_id,
                        media_type, created_at, updated_at
                 FROM media_items
                 WHERE is_removed = 1 OR kodi_id IS NULL OR kodi_id = 0
@@ -261,7 +261,7 @@ class ExportEngine:
                     'kodi_id': item_row[0],
                     'title': item_row[1],
                     'year': item_row[2],
-                    'normalized_path': item_row[3],
+                    'file_path': item_row[3],
                     'imdb_id': item_row[4],
                     'tmdb_id': item_row[5],
                     'media_type': item_row[6],
@@ -335,7 +335,7 @@ class ExportEngine:
             writer = csv.writer(output)
 
             # Write header
-            headers = ["list_id", "kodi_id", "title", "year", "normalized_path", "imdb_id", "tmdb_id"]
+            headers = ["list_id", "kodi_id", "title", "year", "file_path", "imdb_id", "tmdb_id"]
             writer.writerow(headers)
 
             # Write data
@@ -345,7 +345,7 @@ class ExportEngine:
                     item.get("kodi_id", ""),
                     item.get("title", ""),
                     item.get("year", ""),
-                    item.get("normalized_path", ""),
+                    item.get("file_path", ""),
                     item.get("imdb_id", ""),
                     item.get("tmdb_id", "")
                 ]

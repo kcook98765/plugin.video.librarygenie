@@ -343,7 +343,7 @@ class Phase3LibraryScanner:
                             normalized_movie.get("year"),
                             normalized_movie.get("imdb_id"),
                             normalized_movie.get("tmdb_id"),
-                            normalized_movie["play"],
+                            normalized_movie["file_path"],
                             # Artwork
                             normalized_movie.get("poster", ""),
                             normalized_movie.get("fanart", ""),
@@ -379,7 +379,7 @@ class Phase3LibraryScanner:
                 "year": movie.get("year"),
                 "imdb_id": movie.get("imdbnumber") if movie.get("imdbnumber", "").startswith("tt") else None,
                 "tmdb_id": None,  # Would extract from uniqueid
-                "play": movie.get("file", ""),
+                "file_path": movie.get("file", ""),
                 "date_added": movie.get("dateadded", ""),
                 # Default empty values for optional fields
                 "poster": "",
