@@ -142,14 +142,13 @@ class Router:
                 return handle_restore_backup(params, context)
 
             elif action == "activate_ai_search":
-                from .tools_handler import handle_activate_ai_search
-                return handle_activate_ai_search(params, context)
-            elif action == 'ai_search_prompt':
-                from .ai_search_handler import get_ai_search_handler
-                ai_search_handler = get_ai_search_handler()
-                success = ai_search_handler.prompt_and_search()
-                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=success)
-                return
+                return self.tools_handler.activate_ai_search(context)
+
+            elif action == 'test_ai_search_connection':
+                return self.tools_handler.test_ai_search_connection(context)
+
+            elif action == 'find_similar_movies':
+                return self.ai_search_handler.find_similar_movies(context)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)

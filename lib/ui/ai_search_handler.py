@@ -321,6 +321,258 @@ class AISearchHandler:
             self.logger.error(f"AI SEARCH PROMPT: Error in prompt and search: {e}")
             return False
 
+    def find_similar_movies(self, context) -> bool:
+        """
+        Find movies similar to the current item using AI search
+        
+        Args:
+            context: Plugin context with parameters
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            # Get parameters from context
+            imdb_id = context.params.get('imdb_id')
+            title = context.params.get('title', 'Unknown')
+            year = context.params.get('year', '')
+            is_plugin_context = context.params.get('is_plugin_context', False)
+
+            if not imdb_id or not imdb_id.startswith('tt'):
+                self.logger.error("SIMILAR MOVIES: Invalid or missing IMDb ID")
+                xbmcgui.Dialog().notification(
+                    "Similar Movies",
+                    "No valid IMDb ID found",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                return False
+
+            self.logger.info(f"SIMILAR MOVIES: Finding movies similar to {title} ({imdb_id})")
+
+            # Check if AI search is activated
+            if not self.ai_client.is_activated():
+                self.logger.warning("SIMILAR MOVIES: AI search not activated")
+                xbmcgui.Dialog().notification(
+                    "Similar Movies",
+                    "AI Search not activated",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    5000
+                )
+                return False
+
+            # Show facet selection dialog
+            facets = self._show_facet_selection_dialog()
+            if not facets:
+                self.logger.info("SIMILAR MOVIES: User cancelled facet selection")
+                return False
+
+            # Show progress dialog
+            progress = xbmcgui.DialogProgress()
+            movie_desc = f"{title} ({year})" if year else title
+            progress.create("Similar Movies", f"Finding movies similar to: {movie_desc}")
+            progress.update(20, "Connecting to AI search server...")
+
+            # Test connection first
+            connection_test = self.ai_client.test_connection()
+            if not connection_test.get('success'):
+                progress.close()
+                error_msg = connection_test.get('error', 'Connection failed')
+                self.logger.error(f"SIMILAR MOVIES: Connection test failed: {error_msg}")
+                xbmcgui.Dialog().notification(
+                    "Similar Movies",
+                    f"Connection failed: {error_msg}",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    5000
+                )
+                return False
+
+            progress.update(40, "Searching for similar movies...")
+
+            # Call similar movies endpoint
+            similar_imdb_ids = self.ai_client.search_similar_movies(imdb_id, facets)
+
+            if not similar_imdb_ids:
+                progress.close()
+                self.logger.info("SIMILAR MOVIES: No similar movies found")
+                xbmcgui.Dialog().notification(
+                    "Similar Movies",
+                    "No similar movies found",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                return False
+
+            progress.update(60, "Matching with local library...")
+
+            # Match IMDb IDs with local media items
+            matched_items = self._match_imdb_ids_to_media_items(similar_imdb_ids)
+
+            progress.update(80, "Creating results list...")
+
+            # Create search history list for similar movies
+            if matched_items:
+                list_id = self._create_similar_movies_list(title, year, matched_items, len(similar_imdb_ids), facets)
+                
+                if list_id:
+                    progress.close()
+                    self.logger.info(f"SIMILAR MOVIES: Successfully created list {list_id} with {len(matched_items)} items")
+                    
+                    # Show success notification
+                    xbmcgui.Dialog().notification(
+                        "Similar Movies",
+                        f"Found {len(matched_items)} similar movies in your library",
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+                    
+                    # Redirect to the created list only if in plugin context
+                    if is_plugin_context:
+                        self._redirect_to_search_list(list_id)
+                    
+                    return True
+                else:
+                    progress.close()
+                    self.logger.error("SIMILAR MOVIES: Failed to create search history list")
+                    xbmcgui.Dialog().notification(
+                        "Similar Movies",
+                        "Failed to save results",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        5000
+                    )
+                    return False
+            else:
+                progress.close()
+                self.logger.info("SIMILAR MOVIES: No matches found in local library")
+                xbmcgui.Dialog().notification(
+                    "Similar Movies",
+                    f"No similar movies found in your library (searched {len(similar_imdb_ids)} movies)",
+                    xbmcgui.NOTIFICATION_INFO,
+                    5000
+                )
+                return False
+
+        except Exception as e:
+            if 'progress' in locals():
+                progress.close()
+            self.logger.error(f"SIMILAR MOVIES: Error finding similar movies: {e}")
+            import traceback
+            self.logger.error(f"SIMILAR MOVIES: Traceback: {traceback.format_exc()}")
+            xbmcgui.Dialog().notification(
+                "Similar Movies",
+                "Error occurred",
+                xbmcgui.NOTIFICATION_ERROR,
+                5000
+            )
+            return False
+
+    def _show_facet_selection_dialog(self) -> Optional[Dict[str, bool]]:
+        """
+        Show dialog for user to select similarity facets
+        
+        Returns:
+            Dict with facet selections or None if cancelled
+        """
+        try:
+            # Define facets with descriptions
+            facet_options = [
+                ("Plot/Story", "plot", "Compare story and plot elements"),
+                ("Mood/Tone", "mood", "Compare emotional tone and atmosphere"),
+                ("Themes", "themes", "Compare underlying themes and subtext"),
+                ("Genre/Style", "genre", "Compare genre and cinematic style")
+            ]
+
+            # Show multi-select dialog
+            dialog = xbmcgui.Dialog()
+            selected_indices = dialog.multiselect(
+                "Select similarity aspects to compare:",
+                [f"{label} - {desc}" for label, _, desc in facet_options]
+            )
+
+            if selected_indices is None or len(selected_indices) == 0:
+                return None
+
+            # Build facets dict from selections
+            facets = {}
+            for i, (_, key, _) in enumerate(facet_options):
+                facets[key] = i in selected_indices
+
+            # Ensure at least one facet is selected
+            if not any(facets.values()):
+                return None
+
+            self.logger.info(f"SIMILAR MOVIES: Selected facets: {facets}")
+            return facets
+
+        except Exception as e:
+            self.logger.error(f"SIMILAR MOVIES: Error in facet selection: {e}")
+            return None
+
+    def _create_similar_movies_list(self, title: str, year: str, matched_items: List[Dict[str, Any]], 
+                                   total_results: int, facets: Dict[str, bool]) -> Optional[int]:
+        """
+        Create a search history list for similar movies results
+        
+        Args:
+            title: Original movie title
+            year: Original movie year
+            matched_items: List of matched media items
+            total_results: Total number of similar movies found
+            facets: Selected similarity facets
+            
+        Returns:
+            List ID if successful, None if failed
+        """
+        try:
+            # Build facet description
+            selected_facets = [key.title() for key, selected in facets.items() if selected]
+            facet_desc = ", ".join(selected_facets)
+
+            # Create search history list with similar movies description
+            movie_desc = f"{title} ({year})" if year else title
+            query_desc = f"Similar to: {movie_desc}"
+            description = f"Found {total_results} similar movies ({facet_desc}), {len(matched_items)} in your library"
+            
+            list_id = self.query_manager.create_search_history_list(
+                query=query_desc,
+                search_type="similar_movies",
+                result_count=len(matched_items),
+                description=description
+            )
+            
+            if not list_id:
+                self.logger.error("SIMILAR MOVIES: Failed to create search history list")
+                return None
+            
+            self.logger.info(f"SIMILAR MOVIES: Created search history list {list_id}")
+            
+            # Add matched items to the list
+            added_count = 0
+            for item in matched_items:
+                try:
+                    # Add item to list using media_item_id
+                    success = self.query_manager.add_media_item_to_list(list_id, item['id'])
+                    if success:
+                        added_count += 1
+                    else:
+                        self.logger.warning(f"SIMILAR MOVIES: Failed to add item {item['id']} to list {list_id}")
+                        
+                except Exception as e:
+                    self.logger.error(f"SIMILAR MOVIES: Error adding item {item.get('id', 'unknown')} to list: {e}")
+            
+            self.logger.info(f"SIMILAR MOVIES: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
+            
+            if added_count > 0:
+                return list_id
+            else:
+                # Clean up empty list
+                self.query_manager.delete_list(list_id)
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"SIMILAR MOVIES: Error creating search history list: {e}")
+            return None
+
 
 def get_ai_search_handler():
     """Factory function to get AI search handler"""

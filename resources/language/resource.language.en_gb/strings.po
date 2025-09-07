@@ -1176,15 +1176,15 @@ msgstr ""
 
 # Sync & Remote Services
 msgctxt "#34100"
-msgid "Sync Status"
+msgid "AI Search"
 msgstr ""
 
 msgctxt "#34101"
-msgid "Last sync"
+msgid "Enter AI Search Query"
 msgstr ""
 
 msgctxt "#34102"
-msgid "Sync now"
+msgid "AI Search Results"
 msgstr ""
 
 msgctxt "#34103"
@@ -1199,68 +1199,10 @@ msgctxt "#34105"
 msgid "Sync failed"
 msgstr ""
 
-msgctxt "#34106"
-msgid "Authentication required"
+msgctxt "#34201"
+msgid "Similar Movies"
 msgstr ""
 
-msgctxt "#34107"
-msgid "Device authorization"
-msgstr ""
-
-msgctxt "#34108"
-msgid "Authorization pending"
-msgstr ""
-
-msgctxt "#34109"
-msgid "Authorization complete"
-msgstr ""
-
-msgctxt "#34110"
-msgid "Authorization failed"
-msgstr ""
-
-msgctxt "#34111"
-msgid "Token expired"
-msgstr ""
-
-msgctxt "#34112"
-msgid "Refreshing token..."
-msgstr ""
-
-msgctxt "#34113"
-msgid "Connection test successful"
-msgstr ""
-
-msgctxt "#34114"
-msgid "Connection test failed"
-msgstr ""
-
-msgctxt "#34115"
-msgid "Pending operations"
-msgstr ""
-
-msgctxt "#34116"
-msgid "Retry pending operations"
-msgstr ""
-
-# AI Search Sync Messages
-msgctxt "#34120"
-msgid "Starting remote library sync"
-msgstr ""
-
-msgctxt "#34121"
-msgid "No movies with IMDb IDs found"
-msgstr ""
-
-msgctxt "#34122"
-msgid "Remote library sync completed"
-msgstr ""
-
-msgctxt "#34123"
-msgid "Batch sync progress"
-msgstr ""
-
-# Storage & File Management
 msgctxt "#34200"
 msgid "Storage Management"
 msgstr ""
