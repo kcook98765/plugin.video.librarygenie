@@ -174,6 +174,16 @@ class MenuBuilder:
         except Exception as e:
             self.logger.error(f"BREADCRUMB: Failed to add breadcrumb item: {e}")
 
+    def _add_breadcrumb_notification(self, breadcrumb_path: str):
+        """Show breadcrumb as a notification"""
+        try:
+            self.logger.info(f"BREADCRUMB NOTIFICATION: Displaying breadcrumb '{breadcrumb_path}'")
+            xbmcgui.Dialog().notification("Breadcrumb", breadcrumb_path)
+            self.logger.info("BREADCRUMB NOTIFICATION: Successfully displayed breadcrumb notification")
+        except Exception as e:
+            self.logger.error(f"BREADCRUMB NOTIFICATION: Failed to display breadcrumb notification: {e}")
+
+
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
         """Build a menu specifically for movie items with enhanced ListItems"""
         self.logger.debug(f"MOVIE MENU: Starting build_movie_menu with {len(movies)} movies")

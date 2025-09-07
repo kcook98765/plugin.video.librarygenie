@@ -24,20 +24,20 @@ class BreadcrumbHelper:
             elif action == "show_folder":
                 return self._get_folder_breadcrumb(context_params, query_manager)
             elif action == "favorites":
-                return "Favorites > Kodi Favorites"
+                return "Kodi Favorites"
             elif action == "search_results":
                 query = context_params.get('query', '')
-                return f"Search > \"{query}\" results"
+                return f"Search: \"{query}\""
             elif action == "search_history":
-                return "Search > Search History"
+                return "Search History"
             elif action == "lists":
                 return "Lists"
             elif action == "library_browse":
-                return "Library > Browse Movies"
+                return "Browse Movies"
             elif action == "show_list_tools":
                 return self._get_tools_breadcrumb(context_params, query_manager)
             elif action == "show_favorites_tools":
-                return "Favorites > Kodi Favorites > Tools"
+                return "Favorites Tools"
             else:
                 # Return None for main menu and unrecognized actions
                 return None
@@ -64,9 +64,9 @@ class BreadcrumbHelper:
                 folder_info = query_manager.get_folder_info(folder_id)
                 if folder_info:
                     folder_name = folder_info.get('name', 'Unknown Folder')
-                    return f"Lists > {folder_name} > {list_name}"
+                    return f"{folder_name} > {list_name}"
 
-            return f"Lists > {list_name}"
+            return list_name
 
         except Exception as e:
             self.logger.error(f"Error getting list breadcrumb: {e}")
@@ -90,9 +90,9 @@ class BreadcrumbHelper:
                 parent_info = query_manager.get_folder_info(parent_id)
                 if parent_info:
                     parent_name = parent_info.get('name', 'Unknown Folder')
-                    return f"Lists > {parent_name} > {folder_name}"
+                    return f"{parent_name} > {folder_name}"
 
-            return f"Lists > {folder_name}"
+            return folder_name
 
         except Exception as e:
             self.logger.error(f"Error getting folder breadcrumb: {e}")
@@ -104,33 +104,27 @@ class BreadcrumbHelper:
         list_id = params.get('list_id')
 
         if list_type == 'favorites':
-            return "Favorites > Kodi Favorites > Tools"
+            return "Favorites Tools"
         elif list_type == 'lists_main':
-            return "Lists > Tools"
+            return "Lists Tools"
         elif list_type == 'user_list' and list_id and query_manager:
             try:
                 list_info = query_manager.get_list_info(list_id)
                 if list_info:
                     list_name = list_info.get('name', 'Unknown List')
-                    folder_id = list_info.get('folder_id')
-                    if folder_id:
-                        folder_info = query_manager.get_folder_info(folder_id)
-                        if folder_info:
-                            folder_name = folder_info.get('name', 'Unknown Folder')
-                            return f"Lists > {folder_name} > {list_name} > Tools"
-                    return f"Lists > {list_name} > Tools"
+                    return f"{list_name} Tools"
             except Exception:
                 pass
-            return "Lists > Unknown List > Tools"
+            return "List Tools"
         elif list_type == 'folder' and list_id and query_manager:
             try:
                 folder_info = query_manager.get_folder_info(list_id)
                 if folder_info:
                     folder_name = folder_info.get('name', 'Unknown Folder')
-                    return f"Lists > {folder_name} > Tools"
+                    return f"{folder_name} Tools"
             except Exception:
                 pass
-            return "Lists > Unknown Folder > Tools"
+            return "Folder Tools"
         else:
             return "Tools"
 
