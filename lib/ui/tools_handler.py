@@ -232,7 +232,7 @@ class ToolsHandler:
                     return self._export_single_list(context, list_id)
                 elif selected_index == 2:  # Delete
                     from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
+                    lists_handler = ListsHandler(context)
                     result = lists_handler.delete_list(context, list_id)
 
                     # For search history deletion, check if this was the last list in the folder
@@ -254,7 +254,7 @@ class ToolsHandler:
                     return self._merge_lists(context, list_id)
                 elif selected_index == 1:  # Rename
                     from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
+                    lists_handler = ListsHandler(context)
                     return lists_handler.rename_list(context, list_id)
                 elif selected_index == 2:  # Move to folder
                     return self._move_list_to_folder(context, list_id)
@@ -262,7 +262,7 @@ class ToolsHandler:
                     return self._export_single_list(context, list_id)
                 elif selected_index == 4:  # Delete
                     from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
+                    lists_handler = ListsHandler(context)
                     result = lists_handler.delete_list(context, list_id)
 
                     # For regular list deletion, set flag to navigate back to lists menu
@@ -369,7 +369,7 @@ class ToolsHandler:
                     return self._create_subfolder(context, folder_id)
                 elif selected_index == 2:  # Rename
                     from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
+                    lists_handler = ListsHandler(context)
                     return lists_handler.rename_folder(context, folder_id)
                 elif selected_index == 3:  # Move folder
                     return self._move_folder(context, folder_id)
@@ -377,7 +377,7 @@ class ToolsHandler:
                     return self._export_folder_lists(context, folder_id)
                 elif selected_index == 5:  # Delete
                     from .lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
+                    lists_handler = ListsHandler(context)
                     result = lists_handler.delete_folder(context, folder_id)
 
                     # For folder deletion, set flag to navigate back to lists menu
