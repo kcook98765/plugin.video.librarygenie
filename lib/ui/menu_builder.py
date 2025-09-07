@@ -49,7 +49,7 @@ class MenuBuilder:
                 failed_items += 1
                 self.logger.error(f"MENU BUILD: Failed to add menu item {idx+1}: {e}")
 
-        self.logger.debug(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
+        self.logger.debug(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_movies} failed")
         self.logger.debug(f"MENU BUILD: Calling endOfDirectory(handle={addon_handle}, cacheToDisc=True)")
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
         self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching enabled")
@@ -316,6 +316,31 @@ class MenuBuilder:
             # Create ListItem using renderer's method
             self.logger.info(f"MENU BUILDER: Calling renderer.create_simple_listitem for '{label}'")
             list_item = self.renderer.create_simple_listitem(label, description, action, icon)
+
+            # Set metadata based on Kodi version to avoid deprecation warnings
+            if kodi_major >= 20:
+                # Kodi v20+ (Nexus/Omega): Use InfoTagVideo
+                try:
+                    video_info_tag = list_item.getVideoInfoTag()
+                    video_info_tag.setTitle(label)
+                    video_info_tag.setPlot(description)
+                    if params.get('content_type'):
+                        video_info_tag.setGenres([params.get('content_type')])
+                except Exception as e:
+                    self.logger.error(f"Failed to set metadata via InfoTagVideo: {e}")
+                    # Fallback to setInfo for compatibility
+                    list_item.setInfo('video', {
+                        'title': label,
+                        'plot': description,
+                        'genre': params.get('content_type', '')
+                    })
+            else:
+                # Kodi v19 (Matrix): Use setInfo
+                list_item.setInfo('video', {
+                    'title': label,
+                    'plot': description,
+                    'genre': params.get('content_type', '')
+                })
 
             self.logger.info(f"MENU BUILDER: Successfully created menu item '{label}' -> {url}")
             return url, list_item

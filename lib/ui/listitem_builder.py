@@ -531,22 +531,22 @@ class ListItemBuilder:
             is_playable = bool(item.get('play'))
             is_folder = not is_playable
 
-            # *** MODIFICATION START ***
             # Ensure list items that are meant to display list contents are marked as folders.
             # This prevents Kodi from trying to show video info for them.
-            if is_folder:
-                # If it's explicitly marked as not playable and not a video, it should be a folder.
-                # However, if the action is specifically to "show_list", it MUST be a folder.
-                action = item.get("action", "")
-                if action == "show_list":
-                    is_folder = True  # Lists should be navigable folders
-                else:
-                    is_folder = False # Default to not a folder unless it's a "show_list" action or similar
+            action = item.get("action", "")
+            if action == "show_list":
+                is_folder = True  # Lists should be navigable folders
+            elif is_playable:
+                is_folder = False # Playable items are not folders
+            else:
+                # Default to not a folder unless it's explicitly a "show_list" action
+                is_folder = False
 
             # For playable items, set additional properties
             if is_playable:
                 li.setProperty('IsPlayable', 'true')
-            # *** MODIFICATION END ***
+            else:
+                li.setProperty('IsPlayable', 'false') # Explicitly mark non-playable items
 
             # Resume for plugin-only: only if you maintain your own resume store
             # (Skip resume for external items - at your discretion)
@@ -937,7 +937,62 @@ class ListItemBuilder:
             if media_item.get('tmdb_id'):
                 info_labels['tmdb'] = media_item['tmdb_id']
 
-            listitem.setInfo('video', info_labels)
+            # Call the version-specific metadata setting function
+            from ..utils.kodi_version import get_kodi_major_version
+            kodi_major = get_kodi_major_version()
+
+            if kodi_major >= 20:
+                # Kodi v20+ (Nexus/Omega): Use InfoTagVideo
+                try:
+                    video_info_tag = listitem.getVideoInfoTag()
+
+                    # Set basic properties
+                    if info_labels.get('title'):
+                        video_info_tag.setTitle(info_labels['title'])
+                    if info_labels.get('plot'):
+                        video_info_tag.setPlot(info_labels['plot'])
+                    if info_labels.get('year'):
+                        video_info_tag.setYear(int(info_labels['year']))
+                    if info_labels.get('rating'):
+                        video_info_tag.setRating(float(info_labels['rating']))
+                    if info_labels.get('votes'):
+                        video_info_tag.setVotes(int(info_labels['votes']))
+                    if info_labels.get('mpaa'):
+                        video_info_tag.setMpaa(info_labels['mpaa'])
+                    if info_labels.get('duration'):
+                        video_info_tag.setDuration(int(info_labels['duration'])) # Duration is already in seconds
+                    if info_labels.get('premiered'):
+                        video_info_tag.setPremiered(info_labels['premiered'])
+                    if info_labels.get('studio'):
+                        video_info_tag.setStudios([info_labels['studio']])
+                    if info_labels.get('genre'):
+                        genres = info_labels['genre'].split(',') if isinstance(info_labels['genre'], str) else [info_labels['genre']]
+                        video_info_tag.setGenres([g.strip() for g in genres if g.strip()])
+                    if info_labels.get('playcount'):
+                        video_info_tag.setPlaycount(int(info_labels['playcount']))
+                    if info_labels.get('imdbnumber'):
+                        video_info_tag.setIMDbNumber(info_labels['imdbnumber'])
+                    if info_labels.get('tmdb'):
+                        video_info_tag.setUniqueId(str(info_labels['tmdb']), 'tmdb')
+
+                    # Episode-specific fields
+                    if info_labels.get('mediatype') == 'episode':
+                        if info_labels.get('tvshowtitle'):
+                            video_info_tag.setTvShowTitle(info_labels['tvshowtitle'])
+                        if info_labels.get('season'):
+                            video_info_tag.setSeason(int(info_labels['season']))
+                        if info_labels.get('episode'):
+                            video_info_tag.setEpisode(int(info_labels['episode']))
+                        if info_labels.get('aired'):
+                            video_info_tag.setFirstAired(info_labels['aired'])
+
+                except Exception as e:
+                    self.logger.error(f"Failed to set metadata via InfoTagVideo: {e}")
+                    # Fallback to setInfo for compatibility
+                    listitem.setInfo('video', info_labels)
+            else:
+                # Kodi v19 (Matrix): Use setInfo
+                listitem.setInfo('video', info_labels)
 
             # Set artwork using only art field data from media_items
             artwork = {}
