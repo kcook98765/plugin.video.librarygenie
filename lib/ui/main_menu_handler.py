@@ -49,9 +49,14 @@ class MainMenuHandler:
 
             # 2. Search History (only if there are search history items)
             search_folder_id = query_manager.get_or_create_search_history_folder()
+            context.logger.debug(f"Search folder ID: {search_folder_id}")
+            
+            # Force refresh of search history lists - important for Android TV
             search_lists = query_manager.get_lists_in_folder(search_folder_id)
-            if search_lists:
-                context.logger.info(f"Found {len(search_lists)} search history items")
+            context.logger.info(f"Search history check: folder_id={search_folder_id}, lists_count={len(search_lists) if search_lists else 0}")
+            
+            if search_lists and len(search_lists) > 0:
+                context.logger.info(f"Adding search history menu item with {len(search_lists)} items")
                 menu_items.append({
                     'label': f"📊 Search History",
                     'action': 'show_folder',
@@ -60,6 +65,8 @@ class MainMenuHandler:
                     'icon': 'DefaultRecentlyAdded.png',
                     'description': f'Recent searches ({len(search_lists)} items)'
                 })
+            else:
+                context.logger.info("No search history items found - not showing search history menu")
 
             # 3. Lists
             all_lists = query_manager.get_all_lists_with_folders()

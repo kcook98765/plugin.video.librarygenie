@@ -119,7 +119,10 @@ class SearchHandler:
         """Save search results to search history"""
         try:
             if results.total_count == 0:
+                self._info("No results to save to search history")
                 return
+
+            self._info(f"Saving search history for '{search_terms}' with {results.total_count} results")
 
             # Create search history list with simplified description
             query_desc = f"{search_terms}"
@@ -131,14 +134,22 @@ class SearchHandler:
             )
 
             if list_id:
+                self._info(f"Created search history list with ID: {list_id}")
                 # Convert results to format expected by query manager
                 search_results = {"items": results.items}
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
+                    self._info(f"Successfully added {added} items to search history list {list_id}")
                     self._notify_info(L(32102) % added, ms=3000)  # "Search saved: %d items"
+                else:
+                    self._warn(f"Failed to add items to search history list {list_id}")
+            else:
+                self._warn("Failed to create search history list")
 
         except Exception as e:
-            self._warn(f"Failed to save search history: {e}")
+            self._error(f"Failed to save search history: {e}")
+            import traceback
+            self._error(f"Search history save traceback: {traceback.format_exc()}")
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""
