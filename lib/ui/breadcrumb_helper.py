@@ -23,7 +23,7 @@ class BreadcrumbHelper:
                 return self._get_list_breadcrumb(context_params, query_manager)
             elif action == "show_folder":
                 return self._get_folder_breadcrumb(context_params, query_manager)
-            elif action == "favorites":
+            elif action == "favorites" or action == "kodi_favorites":
                 return "Kodi Favorites"
             elif action == "search_results":
                 query = context_params.get('query', '')
