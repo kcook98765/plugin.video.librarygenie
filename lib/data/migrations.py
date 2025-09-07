@@ -16,39 +16,8 @@ class MigrationManager:
     def __init__(self):
         self.logger = get_logger(__name__)
         self.conn_manager = get_connection_manager()
-        self.migrations = [
-            {
-                'version': 1,
-                'description': 'Create initial tables',
-                'migration': self._create_initial_tables
-            },
-            {
-                'version': 2,
-                'description': 'Add user_lists table',
-                'migration': self._add_user_lists_table
-            },
-            {
-                'version': 3,
-                'description': 'Create favorites and enhanced scan tables',
-                'migration': self._create_favorites_and_scan_tables
-            },
-            {
-                'version': 4,
-                'description': 'Add search history table',
-                'migration': self._add_search_history_table
-            },
-            {
-                'version': 5,
-                'description': 'Create remote cache table',
-                'migration': self._create_remote_cache_table
-            },
-            {
-                'version': 6,
-                'description': 'Add api_key column to auth_state table',
-                'migration': self._add_api_key_column
-            }
-        ]
-
+        # Migration framework for future use - currently empty as all schema is in _create_complete_schema
+        self.migrations = []
 
     def ensure_initialized(self):
         """Ensure database is initialized with complete schema"""
@@ -59,7 +28,7 @@ class MigrationManager:
                 self.logger.info("Database initialized successfully")
             else:
                 self.logger.debug("Database already initialized")
-                self.run_migrations()
+                # No migrations to run in this version
 
         except Exception as e:
             self.logger.error(f"Database initialization failed: {e}")
@@ -86,7 +55,7 @@ class MigrationManager:
                 )
             """)
 
-            # Set current schema version
+            # Set current schema version to 1 (representing the complete initial schema)
             conn.execute(
                 "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
                 [1]
@@ -153,8 +122,6 @@ class MigrationManager:
                     is_removed INTEGER DEFAULT 0,
                     display_title TEXT,
                     duration_seconds INTEGER,
-                    poster TEXT,
-                    fanart TEXT,
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
@@ -188,6 +155,22 @@ class MigrationManager:
                 CREATE INDEX idx_list_items_position 
                 ON list_items (list_id, position)
             """)
+
+            # User lists table for permissions
+            conn.execute("""
+                CREATE TABLE user_lists (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    list_id INTEGER NOT NULL,
+                    permission TEXT NOT NULL DEFAULT 'read',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+                )
+            """)
+            conn.execute("CREATE UNIQUE INDEX idx_user_lists_user_list ON user_lists (user_id, list_id)")
+            conn.execute("CREATE INDEX idx_user_lists_list_id ON user_lists (list_id)")
 
             # Movie heavy meta table
             conn.execute("""
@@ -281,7 +264,7 @@ class MigrationManager:
                 ON pending_operations (operation, created_at)
             """)
 
-            # Search and UI preferences tables
+            # Search history table
             conn.execute("""
                 CREATE TABLE search_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -297,6 +280,9 @@ class MigrationManager:
                 )
             """)
 
+            conn.execute("CREATE INDEX idx_search_history_query_created ON search_history (query_text, created_at)")
+
+            # Search and UI preferences tables
             conn.execute("""
                 CREATE TABLE search_preferences (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -319,21 +305,6 @@ class MigrationManager:
                 )
             """)
 
-            # Insert default data
-            conn.execute("""
-                INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
-                VALUES (1, 'compact', 'poster', 1, 1)
-            """)
-
-            conn.execute("""
-                INSERT INTO search_preferences (preference_key, preference_value) 
-                VALUES 
-                    ('match_mode', 'contains'),
-                    ('include_file_path', 'false'),
-                    ('page_size', '50'),
-                    ('enable_decade_shorthand', 'false')
-            """)
-
             # Library scan log table
             conn.execute("""
                 CREATE TABLE library_scan_log (
@@ -352,12 +323,6 @@ class MigrationManager:
             """)
 
             conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
-
-            # Create reserved Search History folder
-            conn.execute("""
-                INSERT INTO folders (name, parent_id)
-                VALUES ('Search History', NULL)
-            """)
 
             # Kodi favorites tables
             conn.execute("""
@@ -408,494 +373,9 @@ class MigrationManager:
             conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
             conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
 
-    def _apply_migrations(self, conn):
-        """Apply pending database migrations"""
-        version = get_current_version(conn)
-        self.logger.info(f"Current database schema version: {version}")
-
-        # Version 1: Initial schema
-        if version < 1:
-            # The schema is created in _create_complete_schema(),
-            # so we just need to update the version.
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (1, datetime('now'))")
-            print("Applied migration 1: Initial schema")
-
-        # Version 2: Add search_history table
-        if version < 2:
+            # Remote cache table
             conn.execute("""
-                CREATE TABLE search_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    query_text TEXT NOT NULL,
-                    scope_type TEXT NOT NULL DEFAULT 'library',
-                    scope_id INTEGER,
-                    year_filter TEXT,
-                    sort_method TEXT NOT NULL DEFAULT 'title_asc',
-                    include_file_path INTEGER NOT NULL DEFAULT 0,
-                    result_count INTEGER NOT NULL DEFAULT 0,
-                    search_duration_ms INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (2, datetime('now'))")
-            print("Applied migration 2: Added search_history table")
-
-        # Version 3: Add search_preferences table
-        if version < 3:
-            conn.execute("""
-                CREATE TABLE search_preferences (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    preference_key TEXT NOT NULL UNIQUE,
-                    preference_value TEXT NOT NULL,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("""
-                INSERT INTO search_preferences (preference_key, preference_value) 
-                VALUES 
-                    ('match_mode', 'contains'),
-                    ('include_file_path', 'false'),
-                    ('page_size', '50'),
-                    ('enable_decade_shorthand', 'false')
-            """)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (3, datetime('now'))")
-            print("Applied migration 3: Added search_preferences table")
-
-        # Version 4: Add ui_preferences table and default values
-        if version < 4:
-            conn.execute("""
-                CREATE TABLE ui_preferences (
-                    id INTEGER PRIMARY KEY,
-                    ui_density TEXT NOT NULL DEFAULT 'compact',
-                    artwork_preference TEXT NOT NULL DEFAULT 'poster',
-                    show_secondary_label INTEGER NOT NULL DEFAULT 1,
-                    show_plot_in_detailed INTEGER NOT NULL DEFAULT 1,
-                    fallback_icon TEXT DEFAULT 'DefaultVideo.png',
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("""
-                INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
-                VALUES (1, 'compact', 'poster', 1, 1)
-            """)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (4, datetime('now'))")
-            print("Applied migration 4: Added ui_preferences table")
-
-        # Version 5: Add library_scan_log table
-        if version < 5:
-            conn.execute("""
-                CREATE TABLE library_scan_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    scan_type TEXT NOT NULL,
-                    start_time TEXT NOT NULL,
-                    end_time TEXT,
-                    total_items INTEGER DEFAULT 0,
-                    items_added INTEGER DEFAULT 0,
-                    items_updated INTEGER DEFAULT 0,
-                    items_removed INTEGER DEFAULT 0,
-                    error TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (5, datetime('now'))")
-            print("Applied migration 5: Added library_scan_log table")
-
-        # Version 6: Add reserved Search History folder
-        if version < 6:
-            conn.execute("""
-                INSERT INTO folders (name, parent_id)
-                VALUES ('Search History', NULL)
-            """)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (6, datetime('now'))")
-            print("Applied migration 6: Added Search History folder")
-
-        # Version 7: Add kodi_favorite and favorites_scan_log tables
-        if version < 7:
-            conn.execute("""
-                CREATE TABLE kodi_favorite (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    normalized_path TEXT,
-                    original_path TEXT,
-                    favorite_type TEXT,
-                    target_raw TEXT NOT NULL,
-                    target_classification TEXT NOT NULL,
-                    normalized_key TEXT NOT NULL UNIQUE,
-                    media_item_id INTEGER,
-                    is_mapped INTEGER DEFAULT 0,
-                    is_missing INTEGER DEFAULT 0,
-                    present INTEGER DEFAULT 1,
-                    thumb_ref TEXT,
-                    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
-                    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (media_item_id) REFERENCES media_items (id)
-                )
-            """)
-            conn.execute("""
-                CREATE TABLE favorites_scan_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    scan_type TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    file_modified TEXT,
-                    items_found INTEGER DEFAULT 0,
-                    items_mapped INTEGER DEFAULT 0,
-                    items_added INTEGER DEFAULT 0,
-                    items_updated INTEGER DEFAULT 0,
-                    scan_duration_ms INTEGER DEFAULT 0,
-                    success INTEGER DEFAULT 1,
-                    error_message TEXT,
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_media_item_id ON kodi_favorite(media_item_id)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)")
-            conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
-            conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (7, datetime('now'))")
-            print("Applied migration 7: Added kodi_favorite and favorites_scan_log tables")
-
-
-        # Version 8: Add kodi_version column to library_scan_log
-        if version < 8:
-            add_kodi_version_to_scan_log(conn)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (8, datetime('now'))")
-            print("Applied migration 8: Added kodi_version column to library_scan_log")
-
-        # Version 9: Remove duplicate poster/fanart columns, keep only art JSON field
-        if version < 9:
-            remove_duplicate_art_columns(conn)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (9, datetime('now'))")
-            print("Applied migration 9: Removed duplicate poster/fanart columns")
-
-        # Version 10: Simplify auth schema for API key storage
-        if version < 10:
-            self._migration_007_simplify_auth_schema(conn)
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (10, datetime('now'))")
-            print("Applied migration 10: Simplified auth schema")
-
-
-        print(f"Database schema is up to date (version {get_current_version(conn)})")
-        return True
-
-
-    def _migration_007_simplify_auth_schema(self, conn):
-        """Migration 007: Simplify auth schema for API key storage"""
-        self.logger.info("Running migration 007: Simplify auth schema")
-
-        try:
-            # Drop and recreate auth_state table with simplified schema
-            conn.execute("DROP TABLE IF EXISTS auth_state")
-
-            conn.execute("""
-                CREATE TABLE auth_state (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    api_key TEXT,
-                    created_at TEXT,
-                    token_type TEXT DEFAULT 'ApiKey'
-                )
-            """)
-
-            self.logger.info("Migration 007 completed: Auth schema simplified")
-
-        except Exception as e:
-            self.logger.error(f"Migration 007 failed: {e}")
-            raise
-
-
-    def _create_initial_tables(self, conn_manager):
-        """Migration 1: Create initial tables"""
-        with conn_manager.transaction() as conn:
-            self.logger.info("Creating initial tables...")
-
-            # Folders table
-            conn.execute("""
-                CREATE TABLE folders (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    parent_id INTEGER,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
-                )
-            """)
-            conn.execute("CREATE UNIQUE INDEX idx_folders_name_parent ON folders (name, parent_id)")
-            self.logger.info("Created folders table")
-
-            # Lists table
-            conn.execute("""
-                CREATE TABLE lists (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    folder_id INTEGER,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
-                )
-            """)
-            conn.execute("CREATE UNIQUE INDEX idx_lists_name_folder ON lists (name, folder_id)")
-            self.logger.info("Created lists table")
-
-            # Media items table
-            conn.execute("""
-                CREATE TABLE media_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    media_type TEXT NOT NULL,
-                    title TEXT,
-                    year INTEGER,
-                    imdbnumber TEXT,
-                    tmdb_id TEXT,
-                    kodi_id INTEGER,
-                    source TEXT,
-                    play TEXT,
-                    plot TEXT,
-                    rating REAL,
-                    votes INTEGER,
-                    duration INTEGER,
-                    mpaa TEXT,
-                    genre TEXT,
-                    director TEXT,
-                    studio TEXT,
-                    country TEXT,
-                    writer TEXT,
-                    cast TEXT,
-                    art TEXT,
-                    file_path TEXT,
-                    normalized_path TEXT,
-                    is_removed INTEGER DEFAULT 0,
-                    display_title TEXT,
-                    duration_seconds INTEGER,
-                    poster TEXT,
-                    fanart TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
-            conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
-            conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
-            conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
-            self.logger.info("Created media_items table")
-
-            # List items table
-            conn.execute("""
-                CREATE TABLE list_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    list_id INTEGER NOT NULL,
-                    media_item_id INTEGER NOT NULL,
-                    position INTEGER,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
-                    FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
-                )
-            """)
-            conn.execute("CREATE UNIQUE INDEX idx_list_items_unique ON list_items (list_id, media_item_id)")
-            conn.execute("CREATE INDEX idx_list_items_position ON list_items (list_id, position)")
-            self.logger.info("Created list_items table")
-
-            # Movie heavy meta table
-            conn.execute("""
-                CREATE TABLE movie_heavy_meta (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    kodi_movieid INTEGER,
-                    imdbnumber TEXT,
-                    cast_json TEXT,
-                    ratings_json TEXT,
-                    showlink_json TEXT,
-                    stream_json TEXT,
-                    uniqueid_json TEXT,
-                    tags_json TEXT,
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            self.logger.info("Created movie_heavy_meta table")
-
-            # IMDB exports table
-            conn.execute("""
-                CREATE TABLE imdb_exports (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    imdb_id TEXT,
-                    title TEXT,
-                    year INTEGER,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("CREATE INDEX idx_imdb_exports_imdb_id ON imdb_exports (imdb_id)")
-            self.logger.info("Created imdb_exports table")
-
-            # IMDB to Kodi mapping
-            conn.execute("""
-                CREATE TABLE imdb_to_kodi (
-                    imdb_id TEXT,
-                    kodi_id INTEGER,
-                    media_type TEXT
-                )
-            """)
-            conn.execute("CREATE UNIQUE INDEX idx_imdb_to_kodi_unique ON imdb_to_kodi (imdb_id, kodi_id, media_type)")
-            self.logger.info("Created imdb_to_kodi table")
-
-            # Key-value cache
-            conn.execute("""
-                CREATE TABLE kv_cache (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            self.logger.info("Created kv_cache table")
-
-            # Sync state for remote services
-            conn.execute("""
-                CREATE TABLE sync_state (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    local_snapshot TEXT,
-                    server_version TEXT,
-                    server_etag TEXT,
-                    last_sync_at TEXT,
-                    server_url TEXT
-                )
-            """)
-            self.logger.info("Created sync_state table")
-
-            # Auth state for remote services
-            conn.execute("""
-                CREATE TABLE auth_state (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    access_token TEXT,
-                    expires_at TEXT,
-                    token_type TEXT,
-                    scope TEXT
-                )
-            """)
-            self.logger.info("Created auth_state table")
-
-            # Pending operations for retry
-            conn.execute("""
-                CREATE TABLE pending_operations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    operation TEXT NOT NULL,
-                    imdb_ids TEXT,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    retry_count INTEGER DEFAULT 0,
-                    idempotency_key TEXT
-                )
-            """)
-            conn.execute("CREATE INDEX idx_pending_operations_processing ON pending_operations (operation, created_at)")
-            self.logger.info("Created pending_operations table")
-
-            # Create schema_version table first
-            conn.execute("""
-                CREATE TABLE schema_version (
-                    version INTEGER PRIMARY KEY,
-                    applied_at TEXT NOT NULL
-                )
-            """)
-            conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))", [1])
-            self.logger.info("Created schema_version table and set version to 1")
-
-    def _add_user_lists_table(self, conn_manager):
-        """Migration 2: Add user_lists table"""
-        with conn_manager.transaction() as conn:
-            self.logger.info("Adding user_lists table...")
-            conn.execute("""
-                CREATE TABLE user_lists (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    list_id INTEGER NOT NULL,
-                    permission TEXT NOT NULL DEFAULT 'read',
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
-                )
-            """)
-            conn.execute("CREATE UNIQUE INDEX idx_user_lists_user_list ON user_lists (user_id, list_id)")
-            conn.execute("CREATE INDEX idx_user_lists_list_id ON user_lists (list_id)")
-            self.logger.info("Added user_lists table")
-
-    def _create_favorites_and_scan_tables(self, conn_manager):
-        """Migration 3: Create favorites and enhanced scan tables"""
-        with conn_manager.transaction() as conn:
-            self.logger.info("Creating favorites and scan tables...")
-
-            # Kodi favorites table
-            conn.execute("""
-                CREATE TABLE kodi_favorite (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    normalized_path TEXT,
-                    original_path TEXT,
-                    favorite_type TEXT,
-                    target_raw TEXT NOT NULL,
-                    target_classification TEXT NOT NULL,
-                    normalized_key TEXT NOT NULL UNIQUE,
-                    media_item_id INTEGER,
-                    is_mapped INTEGER DEFAULT 0,
-                    is_missing INTEGER DEFAULT 0,
-                    present INTEGER DEFAULT 1,
-                    thumb_ref TEXT,
-                    first_seen TEXT NOT NULL DEFAULT (datetime('now')),
-                    last_seen TEXT NOT NULL DEFAULT (datetime('now')),
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (media_item_id) REFERENCES media_items (id)
-                )
-            """)
-            conn.execute("CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_media_item_id ON kodi_favorite(media_item_id)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)")
-            self.logger.info("Created kodi_favorite table")
-
-            # Favorites scan log table
-            conn.execute("""
-                CREATE TABLE favorites_scan_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    scan_type TEXT NOT NULL,
-                    file_path TEXT NOT NULL,
-                    file_modified TEXT,
-                    items_found INTEGER DEFAULT 0,
-                    items_mapped INTEGER DEFAULT 0,
-                    items_added INTEGER DEFAULT 0,
-                    items_updated INTEGER DEFAULT 0,
-                    scan_duration_ms INTEGER DEFAULT 0,
-                    success INTEGER DEFAULT 1,
-                    error_message TEXT,
-                    created_at TEXT DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
-            conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
-            self.logger.info("Created favorites_scan_log table")
-
-    def _add_search_history_table(self, conn_manager):
-        """Migration 4: Add search_history table"""
-        with conn_manager.transaction() as conn:
-            self.logger.info("Adding search_history table...")
-            conn.execute("""
-                CREATE TABLE search_history (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    query_text TEXT NOT NULL,
-                    scope_type TEXT NOT NULL DEFAULT 'library',
-                    scope_id INTEGER,
-                    year_filter TEXT,
-                    sort_method TEXT NOT NULL DEFAULT 'title_asc',
-                    include_file_path INTEGER NOT NULL DEFAULT 0,
-                    result_count INTEGER NOT NULL DEFAULT 0,
-                    search_duration_ms INTEGER NOT NULL DEFAULT 0,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-            conn.execute("CREATE INDEX idx_search_history_query_created ON search_history (query_text, created_at)")
-            self.logger.info("Added search_history table")
-
-    def _create_remote_cache_table(self, conn_manager):
-        """Migration 5: Create remote cache table"""
-        with conn_manager.transaction() as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS remote_cache (
+                CREATE TABLE remote_cache (
                     id INTEGER PRIMARY KEY,
                     cache_key TEXT UNIQUE NOT NULL,
                     data TEXT NOT NULL,
@@ -905,158 +385,32 @@ class MigrationManager:
                 )
             """)
 
+            conn.execute("CREATE INDEX idx_remote_cache_key ON remote_cache(cache_key)")
+            conn.execute("CREATE INDEX idx_remote_cache_expires ON remote_cache(expires_at)")
+
+            # Insert default data
             conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_remote_cache_key ON remote_cache(cache_key)
+                INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
+                VALUES (1, 'compact', 'poster', 1, 1)
             """)
 
             conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_remote_cache_expires ON remote_cache(expires_at)
+                INSERT INTO search_preferences (preference_key, preference_value) 
+                VALUES 
+                    ('match_mode', 'contains'),
+                    ('include_file_path', 'false'),
+                    ('page_size', '50'),
+                    ('enable_decade_shorthand', 'false')
             """)
 
-            self.logger.info("Created remote_cache table with indexes")
-
-    def _add_api_key_column(self, conn_manager):
-        """Migration 6: Add api_key column to auth_state table"""
-        with conn_manager.transaction() as conn:
-            # Check if api_key column already exists
-            cursor = conn.execute("PRAGMA table_info(auth_state)")
-            columns = [row[1] for row in cursor.fetchall()]
-
-            if 'api_key' not in columns:
-                conn.execute("""
-                    ALTER TABLE auth_state ADD COLUMN api_key TEXT
-                """)
-                self.logger.info("Added api_key column to auth_state table")
-            else:
-                self.logger.info("api_key column already exists in auth_state table")
-
-
-    def _get_current_version(self):
-        """Get current schema version from database"""
-        try:
-            version = self.conn_manager.execute_single("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1")
-            return version[0] if version else 0
-        except Exception:
-            # schema_version table does not exist yet
-            return 0
-
-    def _update_version(self, version):
-        """Update schema version in database"""
-        self.conn_manager.execute_single("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))", [version])
-
-
-def get_current_version(conn):
-    """Get current schema version"""
-    try:
-        result = conn.execute("SELECT version FROM schema_version ORDER BY version DESC LIMIT 1").fetchone()
-        return result[0] if result else 0
-    except Exception:
-        # schema_version table doesn't exist yet
-        return 0
-
-def add_kodi_version_to_scan_log(conn):
-    """Add kodi_version column to library_scan_log table"""
-    try:
-        # Check if column already exists
-        cursor = conn.execute("PRAGMA table_info(library_scan_log)")
-        columns = [row[1] for row in cursor.fetchall()]
-
-        if 'kodi_version' not in columns:
-            conn.execute("ALTER TABLE library_scan_log ADD COLUMN kodi_version INTEGER")
-            print("Added kodi_version column to library_scan_log table")
-    except Exception as e:
-        print(f"Failed to add kodi_version column: {e}")
-        raise
-
-def remove_duplicate_art_columns(conn):
-    """Remove duplicate poster/fanart columns from media_items table"""
-    try:
-        # Check if columns exist
-        cursor = conn.execute("PRAGMA table_info(media_items)")
-        columns = [row[1] for row in cursor.fetchall()]
-
-        # Migrate data from poster/fanart columns to art JSON before dropping
-        if 'poster' in columns or 'fanart' in columns:
-            # Update art JSON with poster/fanart data where art is empty or missing
+            # Create reserved Search History folder
             conn.execute("""
-                UPDATE media_items 
-                SET art = json_object(
-                    'poster', COALESCE(poster, ''),
-                    'fanart', COALESCE(fanart, '')
-                )
-                WHERE art IS NULL OR art = '' OR art = '{}'
+                INSERT INTO folders (name, parent_id)
+                VALUES ('Search History', NULL)
             """)
 
-            # For existing art JSON, merge poster/fanart if not already present
-            conn.execute("""
-                UPDATE media_items 
-                SET art = json_patch(
-                    COALESCE(art, '{}'),
-                    json_object(
-                        'poster', COALESCE(poster, json_extract(art, '$.poster'), ''),
-                        'fanart', COALESCE(fanart, json_extract(art, '$.fanart'), '')
-                    )
-                )
-                WHERE art IS NOT NULL AND art != ''
-            """)
+            self.logger.info("Complete database schema created successfully")
 
-            # Create new table without poster/fanart columns
-            conn.execute("""
-                CREATE TABLE media_items_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    media_type TEXT NOT NULL,
-                    title TEXT,
-                    year INTEGER,
-                    imdbnumber TEXT,
-                    tmdb_id TEXT,
-                    kodi_id INTEGER,
-                    source TEXT,
-                    play TEXT,
-                    plot TEXT,
-                    rating REAL,
-                    votes INTEGER,
-                    duration INTEGER,
-                    mpaa TEXT,
-                    genre TEXT,
-                    director TEXT,
-                    studio TEXT,
-                    country TEXT,
-                    writer TEXT,
-                    cast TEXT,
-                    art TEXT,
-                    file_path TEXT,
-                    normalized_path TEXT,
-                    is_removed INTEGER DEFAULT 0,
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-                )
-            """)
-
-            # Copy data to new table
-            conn.execute("""
-                INSERT INTO media_items_new 
-                SELECT id, media_type, title, year, imdbnumber, tmdb_id, kodi_id, 
-                       source, play, plot, rating, votes, duration, mpaa, genre, 
-                       director, studio, country, writer, cast, art, file_path, 
-                       normalized_path, is_removed, created_at, updated_at
-                FROM media_items
-            """)
-
-            # Drop old table and rename new one
-            conn.execute("DROP TABLE media_items")
-            conn.execute("ALTER TABLE media_items_new RENAME TO media_items")
-
-            # Recreate indexes
-            conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
-            conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
-            conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
-            conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
-
-            print("Removed duplicate poster/fanart columns from media_items table")
-
-    except Exception as e:
-        print(f"Failed to remove duplicate art columns: {e}")
-        raise
 
 # Global migration manager instance
 _migration_instance = None
