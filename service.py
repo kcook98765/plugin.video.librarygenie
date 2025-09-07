@@ -72,11 +72,23 @@ class LibraryGenieService:
 
     def _should_start_ai_sync(self) -> bool:
         """Check if AI search sync should be started"""
-        return (
-            self.settings.get_ai_search_activated() and
-            self.ai_client.is_configured() and
-            self.settings.get_ai_search_sync_enabled()
-        )
+        # Verify that AI search is properly configured with valid auth
+        if not (self.settings.get_ai_search_activated() and 
+                self.settings.get_ai_search_sync_enabled()):
+            return False
+        
+        # Test if AI client is properly configured and authorized
+        if not self.ai_client.is_configured():
+            self.logger.debug("AI client not configured, skipping sync")
+            return False
+        
+        # Quick connection test to ensure auth is still valid
+        connection_test = self.ai_client.test_connection()
+        if not connection_test.get('success'):
+            self.logger.warning(f"AI search connection invalid: {connection_test.get('error', 'Unknown error')}")
+            return False
+        
+        return True
 
     def _start_ai_sync_thread(self):
         """Start the AI search sync background thread"""
