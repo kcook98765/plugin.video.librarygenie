@@ -140,7 +140,16 @@ class SearchHandler:
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
                     self._info(f"Successfully added {added} items to search history list {list_id}")
-                    self._notify_info(L(32102) % added, ms=3000)  # "Search saved: %d items"
+                    # Use f-string formatting to avoid string formatting errors
+                    base_message = L(32102)  # Should be "Search saved: %d items" or similar
+                    if '%d' in base_message:
+                        formatted_message = base_message % added
+                    elif '{' in base_message:
+                        formatted_message = base_message.format(added)
+                    else:
+                        # Fallback message
+                        formatted_message = f"Search saved: {added} items"
+                    self._notify_info(formatted_message, ms=3000)
                 else:
                     self._warn(f"Failed to add items to search history list {list_id}")
             else:
