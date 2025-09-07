@@ -43,6 +43,63 @@ class AISearchClient:
             
         return headers
 
+    def _make_public_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
+                            headers: Optional[Dict[str, str]] = None, timeout: int = 30) -> Optional[Dict[str, Any]]:
+        """Make HTTP request to AI search server without authentication (for public endpoints)"""
+        server_url = self.settings.get_ai_search_server_url()
+        if not server_url:
+            self.logger.error("No server URL configured")
+            return None
+
+        url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        
+        # Use minimal headers for public endpoints
+        request_headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'LibraryGenie-Kodi/1.0'
+        }
+        
+        if headers:
+            request_headers.update(headers)
+
+        try:
+            # Prepare request data
+            json_data = None
+            if data:
+                json_data = json.dumps(data).encode('utf-8')
+
+            # Create request
+            req = urllib.request.Request(url, data=json_data, headers=request_headers)
+            req.get_method = lambda: method
+
+            # Make request with configurable timeout
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                if response.getcode() == 200:
+                    response_data = response.read().decode('utf-8')
+                    return json.loads(response_data)
+                else:
+                    self.logger.error(f"HTTP {response.getcode()} from {endpoint}")
+                    return None
+
+        except urllib.error.HTTPError as e:
+            try:
+                error_body = e.read().decode('utf-8')
+                error_data = json.loads(error_body)
+                error_msg = error_data.get('error', 'Unknown')
+                self.logger.error(f"HTTP {e.code} error: {error_msg}")
+                return {'error': error_msg}
+            except:
+                self.logger.error(f"HTTP {e.code} error from {endpoint}")
+                return {'error': f'HTTP {e.code} error'}
+
+        except urllib.error.URLError as e:
+            self.logger.error(f"Network error: {e}")
+            return {'error': f'Network error: {str(e)}'}
+
+        except Exception as e:
+            self.logger.error(f"Request failed: {e}")
+            return {'error': f'Request failed: {str(e)}'}
+
     def _make_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
                      headers: Optional[Dict[str, str]] = None, timeout: int = 30) -> Optional[Dict[str, Any]]:
         """Make HTTP request to AI search server"""
@@ -363,6 +420,7 @@ class AISearchClient:
     def search_similar_movies(self, reference_imdb_id: str, facets: Dict[str, bool]) -> Optional[List[str]]:
         """
         Find movies similar to reference movie using /similar_to endpoint
+        Note: This is a public endpoint that doesn't require authentication
 
         Args:
             reference_imdb_id: IMDb ID of reference movie
@@ -372,6 +430,11 @@ class AISearchClient:
             List of similar IMDb IDs or None if failed
         """
         try:
+            # Validate inputs
+            if not reference_imdb_id or not reference_imdb_id.startswith('tt'):
+                self.logger.error("Invalid IMDb ID format")
+                return None
+
             # Build request data
             request_data = {
                 'reference_imdb_id': reference_imdb_id,
@@ -383,12 +446,16 @@ class AISearchClient:
 
             # Ensure at least one facet is enabled
             if not any(request_data[key] for key in ['include_plot', 'include_mood', 'include_themes', 'include_genre']):
+                self.logger.warning("No facets selected for similarity search")
                 return None
 
-            response = self._make_request('similar_to', 'POST', request_data)
+            # Make request without authentication (public endpoint)
+            response = self._make_public_request('similar_to', 'POST', request_data)
 
             if response and response.get('success'):
-                return response.get('results', [])
+                results = response.get('results', [])
+                self.logger.info(f"Found {len(results)} similar movies for {reference_imdb_id}")
+                return results
 
             return None
 
