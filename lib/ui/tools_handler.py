@@ -1377,17 +1377,14 @@ class ToolsHandler:
     def handle_activate_ai_search(self, params: dict, context) -> PluginResponse:
         """Handle AI search activation via OTP code"""
         try:
-            from ..config.settings import SettingsManager
+            from ..remote.ai_search_client import get_ai_search_client
             from .localization import L
             import xbmcgui
-            import requests
-            import json
 
-            settings = SettingsManager()
+            ai_client = get_ai_search_client()
 
             # Check if server URL is configured
-            server_url = settings.get_ai_search_server_url()
-            if not server_url:
+            if not ai_client.settings.get_ai_search_server_url():
                 xbmcgui.Dialog().ok(
                     L(34305),  # "Configuration error"
                     "Please configure the AI Search Server URL first."
@@ -1401,11 +1398,7 @@ class ToolsHandler:
                 type=xbmcgui.INPUT_NUMERIC
             )
 
-            if not otp_code or len(otp_code) != 8:
-                xbmcgui.Dialog().ok(
-                    L(34500),  # "Invalid setting value"
-                    "Please enter a valid 8-digit OTP code."
-                )
+            if not otp_code:
                 return PluginResponse.empty()
 
             # Show progress dialog
@@ -1413,60 +1406,21 @@ class ToolsHandler:
             progress.create(L(37023), L(37024))  # "Authorization in progress", "Visit the authorization URL to complete setup"
 
             try:
-                # Exchange OTP for API key
-                exchange_url = f"{server_url.rstrip('/')}/pairing-code/exchange"
-                payload = {"pairing_code": otp_code}
-
-                context.logger.info(f"Attempting to exchange OTP at: {exchange_url}")
-
-                response = requests.post(
-                    exchange_url,
-                    json=payload,
-                    timeout=10,
-                    headers={"Content-Type": "application/json"}
-                )
-
+                # Attempt activation
+                result = ai_client.activate_with_otp(otp_code)
                 progress.close()
 
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get('success'):
-                        # Store API key and mark as activated
-                        api_key = data.get('api_key')
-                        user_email = data.get('user_email', 'Unknown')
-
-                        settings.set_ai_search_api_key(api_key)
-                        settings.set_ai_search_activated(True)
-                        settings.set_ai_search_otp_code("")  # Clear OTP after successful activation
-
-                        xbmcgui.Dialog().ok(
-                            L(34109),  # "Authorization complete"
-                            f"AI Search activated successfully!\nUser: {user_email}"
-                        )
-                    else:
-                        error_msg = data.get('error', 'Unknown error')
-                        xbmcgui.Dialog().ok(
-                            L(34110),  # "Authorization failed"
-                            f"Activation failed: {error_msg}"
-                        )
+                if result['success']:
+                    xbmcgui.Dialog().ok(
+                        L(34109),  # "Authorization complete"
+                        f"{result['message']}\nUser: {result.get('user_email', 'Unknown')}"
+                    )
                 else:
                     xbmcgui.Dialog().ok(
                         L(34110),  # "Authorization failed"
-                        f"Server error: {response.status_code}"
+                        result['error']
                     )
 
-            except requests.exceptions.Timeout:
-                progress.close()
-                xbmcgui.Dialog().ok(
-                    L(34304),  # "Timeout error"
-                    "Request timed out. Please try again."
-                )
-            except requests.exceptions.RequestException as e:
-                progress.close()
-                xbmcgui.Dialog().ok(
-                    L(34303),  # "Network error"
-                    f"Connection failed: {str(e)[:100]}..."
-                )
             except Exception as e:
                 progress.close()
                 context.logger.error(f"Unexpected error during AI search activation: {e}")

@@ -159,6 +159,14 @@ class SettingsManager:
         self.addon.setSetting('ai_search_api_key', api_key if api_key else "")
 
     def get_ai_search_activated(self) -> bool:
+        """Get AI search activated status"""
+        return self.addon.getSettingBool('ai_search_activated')
+
+    def set_ai_search_activated(self, activated: bool) -> None:
+        """Set AI search activated status"""
+        self.addon.setSettingBool('ai_search_activated', activated)
+
+    def get_ai_search_activated(self) -> bool:
         """Get AI search activation status"""
         return self.addon.getSettingBool('ai_search_activated')
 
