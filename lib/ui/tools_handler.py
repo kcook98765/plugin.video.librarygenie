@@ -1188,7 +1188,7 @@ class ToolsHandler:
             return f"{size:.1f} {size_names[i]}"
 
     def _copy_search_history_to_list(self, context: PluginContext, search_list_id: str) -> DialogResponse:
-        """Move a search history list to a new regular list"""
+        """Convert a search history list to a regular list by moving it out of Search History folder"""
         try:
             query_manager = context.query_manager
             if not query_manager:
@@ -1213,31 +1213,16 @@ class ToolsHandler:
             if not new_name or not new_name.strip():
                 return DialogResponse(success=False)
 
-            # Create new list
-            result = query_manager.create_list(new_name.strip())
-            if result.get("error"):
-                if result["error"] == "duplicate_name":
-                    message = f"List '{new_name}' already exists"
-                else:
-                    message = "Failed to create list"
-                return DialogResponse(success=False, message=message)
+            # Simply update the list: rename it and move it out of Search History folder
+            with query_manager.connection_manager.transaction() as conn:
+                # Update name and remove folder_id to move to root level
+                conn.execute("""
+                    UPDATE lists 
+                    SET name = ?, folder_id = NULL
+                    WHERE id = ?
+                """, [new_name.strip(), int(search_list_id)])
 
-            new_list_id = result['id']
-
-            # Copy all items from search history list to new list
-            search_items = query_manager.get_list_items(search_list_id)
-            moved_count = 0
-
-            for item in search_items:
-                # Use add_library_item_to_list for proper handling of media items
-                result = query_manager.add_library_item_to_list(new_list_id, item)
-                if result:
-                    moved_count += 1
-
-            # Delete the original search history list after successful move
-            delete_result = query_manager.delete_list(search_list_id)
-            if not delete_result.get("success"):
-                self.logger.warning(f"Failed to delete original search history list {search_list_id}")
+            item_count = search_list_info.get('item_count', 0)
 
             # Check if this was the last list in the search history folder
             search_folder_id = query_manager.get_or_create_search_history_folder()
@@ -1248,17 +1233,17 @@ class ToolsHandler:
                 # Still have search history lists, navigate back to folder
                 return DialogResponse(
                     success=True,
-                    message=f"Moved {moved_count} items to '{new_name}'",
+                    message=f"Converted '{new_name}' to regular list with {item_count} items",
                     navigate_to_folder=search_folder_id
                 )
             else:
                 # No more search history lists, navigate back to main menu
                 return DialogResponse(
                     success=True,
-                    message=f"Moved {moved_count} items to '{new_name}'",
+                    message=f"Converted '{new_name}' to regular list with {item_count} items",
                     navigate_to_main=True
                 )
 
         except Exception as e:
-            self.logger.error(f"Error moving search history to list: {e}")
-            return DialogResponse(success=False, message="Error moving search history")
+            self.logger.error(f"Error converting search history to list: {e}")
+            return DialogResponse(success=False, message="Error converting search history")
