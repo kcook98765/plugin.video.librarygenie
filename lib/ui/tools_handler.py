@@ -510,11 +510,22 @@ class ToolsHandler:
 
             if result.get("success"):
                 parent_name = "root level" if target_parent_id is None else folder_options[selected_index]
-                return DialogResponse(
-                    success=True,
-                    message=f"Moved folder to {parent_name}",
-                    refresh_needed=True
-                )
+                
+                # Navigate to the destination location instead of refreshing current view
+                if target_parent_id is None:
+                    # Moved to root level - navigate to main lists menu
+                    return DialogResponse(
+                        success=True,
+                        message=f"Moved folder to {parent_name}",
+                        navigate_to_lists=True
+                    )
+                else:
+                    # Moved to another folder - navigate to that parent folder
+                    return DialogResponse(
+                        success=True,
+                        message=f"Moved folder to {parent_name}",
+                        navigate_to_folder=target_parent_id
+                    )
             else:
                 return DialogResponse(success=False, message="Failed to move folder")
 
