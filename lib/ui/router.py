@@ -137,6 +137,13 @@ class Router:
                 else:
                     self.logger.error("Query manager not available for search history")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            elif action == "restore_backup":
+                from .tools_handler import handle_restore_backup
+                return handle_restore_backup(params, context)
+
+            elif action == "activate_ai_search":
+                from .tools_handler import handle_activate_ai_search
+                return handle_activate_ai_search(params, context)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)

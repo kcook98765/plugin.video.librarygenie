@@ -229,6 +229,30 @@ msgctxt "#30421"
 msgid "Track library changes"
 msgstr ""
 
+msgctxt "#30430"
+msgid "AI Search Server"
+msgstr ""
+
+msgctxt "#30431"
+msgid "AI Search Server URL"
+msgstr ""
+
+msgctxt "#30432"
+msgid "OTP Code (8 digits)"
+msgstr ""
+
+msgctxt "#30433"
+msgid "API Key (internal)"
+msgstr ""
+
+msgctxt "#30434"
+msgid "AI Search Activated"
+msgstr ""
+
+msgctxt "#30435"
+msgid "Activate AI Search"
+msgstr ""
+
 # Dialog Messages
 msgctxt "#30590"
 msgid "Enter list name"

@@ -680,6 +680,10 @@ class ToolsHandler:
                 return self._run_manual_backup()
             elif action == "backup_manager":
                 return self._show_backup_manager()
+            elif action == "restore_backup":
+                return self.handle_restore_backup(params, self)
+            elif action == "activate_ai_search":
+                return self.handle_activate_ai_search(params, self)
             else:
                 self.logger.warning(f"Unknown tools action: {action}")
                 return self._show_tools_menu(params)
@@ -1326,3 +1330,153 @@ class ToolsHandler:
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return DialogResponse(success=False, message="Error converting search history")
+
+    def handle_restore_backup(self, params: dict, context) -> PluginResponse:
+        """Handle backup restoration"""
+        try:
+            from ..import_export.backup_manager import BackupManager
+            from .localization import L
+            import xbmcgui
+
+            backup_manager = BackupManager()
+
+            # Get available backups
+            backups = backup_manager.list_backups()
+            if not backups:
+                xbmcgui.Dialog().ok(L(34018), L(34018))  # "No backups found"
+                return PluginResponse.empty()
+
+            # Let user select backup
+            labels = [f"{backup['name']} ({backup['date']})" for backup in backups]
+            selected = xbmcgui.Dialog().select(L(37014), labels)  # "Select backup to restore"
+
+            if selected < 0:
+                return PluginResponse.empty()
+
+            selected_backup = backups[selected]
+
+            # Confirm restoration
+            if xbmcgui.Dialog().yesno(
+                L(36063),  # "LibraryGenie Restore"
+                L(37007) % selected_backup['name'],  # "Restore from: %s"
+                L(36065)   # "This will replace all current data."
+            ):
+                success = backup_manager.restore_backup(selected_backup['path'])
+                if success:
+                    xbmcgui.Dialog().ok(L(34011), L(34011))  # "Restore completed successfully"
+                else:
+                    xbmcgui.Dialog().ok(L(34012), L(34012))  # "Restore failed"
+
+            return PluginResponse.empty()
+
+        except Exception as e:
+            context.logger.error(f"Error in restore backup handler: {e}")
+            return PluginResponse.error("Failed to restore backup")
+
+
+    def handle_activate_ai_search(self, params: dict, context) -> PluginResponse:
+        """Handle AI search activation via OTP code"""
+        try:
+            from ..config.settings import SettingsManager
+            from .localization import L
+            import xbmcgui
+            import requests
+            import json
+
+            settings = SettingsManager()
+
+            # Check if server URL is configured
+            server_url = settings.get_ai_search_server_url()
+            if not server_url:
+                xbmcgui.Dialog().ok(
+                    L(34305),  # "Configuration error"
+                    "Please configure the AI Search Server URL first."
+                )
+                return PluginResponse.empty()
+
+            # Get OTP code from user
+            otp_dialog = xbmcgui.Dialog()
+            otp_code = otp_dialog.input(
+                L(30432),  # "OTP Code (8 digits)"
+                type=xbmcgui.INPUT_NUMERIC
+            )
+
+            if not otp_code or len(otp_code) != 8:
+                xbmcgui.Dialog().ok(
+                    L(34500),  # "Invalid setting value"
+                    "Please enter a valid 8-digit OTP code."
+                )
+                return PluginResponse.empty()
+
+            # Show progress dialog
+            progress = xbmcgui.DialogProgress()
+            progress.create(L(37023), L(37024))  # "Authorization in progress", "Visit the authorization URL to complete setup"
+
+            try:
+                # Exchange OTP for API key
+                exchange_url = f"{server_url.rstrip('/')}/pairing-code/exchange"
+                payload = {"pairing_code": otp_code}
+
+                context.logger.info(f"Attempting to exchange OTP at: {exchange_url}")
+
+                response = requests.post(
+                    exchange_url,
+                    json=payload,
+                    timeout=10,
+                    headers={"Content-Type": "application/json"}
+                )
+
+                progress.close()
+
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('success'):
+                        # Store API key and mark as activated
+                        api_key = data.get('api_key')
+                        user_email = data.get('user_email', 'Unknown')
+
+                        settings.set_ai_search_api_key(api_key)
+                        settings.set_ai_search_activated(True)
+                        settings.set_ai_search_otp_code("")  # Clear OTP after successful activation
+
+                        xbmcgui.Dialog().ok(
+                            L(34109),  # "Authorization complete"
+                            f"AI Search activated successfully!\nUser: {user_email}"
+                        )
+                    else:
+                        error_msg = data.get('error', 'Unknown error')
+                        xbmcgui.Dialog().ok(
+                            L(34110),  # "Authorization failed"
+                            f"Activation failed: {error_msg}"
+                        )
+                else:
+                    xbmcgui.Dialog().ok(
+                        L(34110),  # "Authorization failed"
+                        f"Server error: {response.status_code}"
+                    )
+
+            except requests.exceptions.Timeout:
+                progress.close()
+                xbmcgui.Dialog().ok(
+                    L(34304),  # "Timeout error"
+                    "Request timed out. Please try again."
+                )
+            except requests.exceptions.RequestException as e:
+                progress.close()
+                xbmcgui.Dialog().ok(
+                    L(34303),  # "Network error"
+                    f"Connection failed: {str(e)[:100]}..."
+                )
+            except Exception as e:
+                progress.close()
+                context.logger.error(f"Unexpected error during AI search activation: {e}")
+                xbmcgui.Dialog().ok(
+                    L(34301),  # "Operation failed"
+                    "An unexpected error occurred."
+                )
+
+            return PluginResponse.empty()
+
+        except Exception as e:
+            context.logger.error(f"Error in AI search activation handler: {e}")
+            return PluginResponse.error("Failed to activate AI search")
