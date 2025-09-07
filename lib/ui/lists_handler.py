@@ -172,14 +172,23 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Use MenuBuilder with breadcrumb support
+            # Show breadcrumb notification for Lists menu
+            if context.breadcrumb_path:
+                from .menu_builder import MenuBuilder
+                menu_builder = MenuBuilder()
+                try:
+                    menu_builder._add_breadcrumb_notification("Lists")
+                    context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'Lists'")
+                except Exception as e:
+                    context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
+
+            # Use MenuBuilder to build the menu
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
                 menu_items,
                 context.addon_handle,
-                context.base_url,
-                breadcrumb_path=context.breadcrumb_path
+                context.base_url
             )
 
             return DirectoryResponse(
@@ -876,14 +885,24 @@ class ListsHandler:
                     False
                 )
 
-            # Use MenuBuilder with breadcrumb support
+            # Show breadcrumb notification for folder view
+            breadcrumb_path = context.breadcrumb_path or folder_info['name']
+            if breadcrumb_path:
+                from .menu_builder import MenuBuilder
+                menu_builder = MenuBuilder()
+                try:
+                    menu_builder._add_breadcrumb_notification(breadcrumb_path)
+                    context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
+                except Exception as e:
+                    context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
+
+            # Use MenuBuilder to build the menu
             from .menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
             menu_builder.build_menu(
                 menu_items,
                 context.addon_handle,
-                context.base_url,
-                breadcrumb_path=context.breadcrumb_path
+                context.base_url
             )
 
             return DirectoryResponse(
@@ -1535,7 +1554,7 @@ class ListsHandler:
             matching_item = None
 
             for item in list_items:
-                if (item.get('kodi_id') == int(dbid) and 
+                if (item.get('kodi_id') == int(dbid) and
                     item.get('media_type') == dbtype):
                     matching_item = item
                     break

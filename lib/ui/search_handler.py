@@ -173,6 +173,17 @@ class SearchHandler:
             if not list_id:
                 return False
 
+            # Show breadcrumb notification for search results
+            search_terms = latest.get('name', '').replace('Search: ', '').strip('"')
+            if search_terms:
+                try:
+                    from .menu_builder import MenuBuilder
+                    menu_builder = MenuBuilder()
+                    menu_builder._add_breadcrumb_notification(f"Search Results: {search_terms}")
+                    self._info(f"SEARCH HANDLER: Showed breadcrumb notification for search: '{search_terms}'")
+                except Exception as e:
+                    self._warn(f"SEARCH HANDLER: Failed to show breadcrumb notification: {e}")
+
             list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
             xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
             self._end_directory(succeeded=True, update=True)

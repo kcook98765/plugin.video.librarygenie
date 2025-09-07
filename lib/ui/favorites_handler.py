@@ -40,15 +40,14 @@ class FavoritesHandler:
             favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
             self.logger.info(f"Found {len(favorites)} favorites to display")
 
-            # Add breadcrumb first if available
-            if context.breadcrumb_path:
-                from .menu_builder import MenuBuilder
-                menu_builder = MenuBuilder()
-                try:
-                    menu_builder._add_breadcrumb_item(context.breadcrumb_path, context.addon_handle, context.base_url)
-                    context.logger.debug(f"Added breadcrumb to Kodi Favorites: '{context.breadcrumb_path}'")
-                except Exception as e:
-                    context.logger.error(f"Failed to add breadcrumb to Kodi Favorites: {e}")
+            # Show breadcrumb notification for Kodi Favorites
+            from .menu_builder import MenuBuilder
+            menu_builder = MenuBuilder()
+            try:
+                menu_builder._add_breadcrumb_notification("Kodi Favorites")
+                context.logger.debug("FAVORITES HANDLER: Showed breadcrumb notification: 'Kodi Favorites'")
+            except Exception as e:
+                context.logger.error(f"FAVORITES HANDLER: Failed to show breadcrumb notification: {e}")
 
             menu_items = []
 
