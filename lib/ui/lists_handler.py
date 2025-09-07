@@ -831,16 +831,6 @@ class ListsHandler:
                 'description': L(36017) % folder_info['name']  # "Access tools and options for '%s'"
             })
 
-            # Only add "Create New List" option for non-reserved folders
-            if folder_info['name'] != 'Search History':
-                menu_items.append({
-                    'label': "[COLOR yellow]+ Create New List in this Folder[/COLOR]", # This string should also be localized
-                    'url': context.build_url('create_list_in_folder', folder_id=folder_id),
-                    'is_folder': True,
-                    'icon': "DefaultAddSource.png",
-                    'description': f"Create a new list in '{folder_info['name']}'" # This string should also be localized
-                })
-
             # Add lists in this folder
             for list_item in lists_in_folder:
                 list_id = list_item.get('id')
