@@ -676,15 +676,22 @@ class ListsHandler:
 
             context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
 
-            # Add breadcrumb first if available
-            if context.breadcrumb_path:
-                from .menu_builder import MenuBuilder
-                menu_builder = MenuBuilder()
+            # Show breadcrumb notification and render list
+            breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action("show_list", {"list_id": list_id}, self.query_manager)
+            if breadcrumb_path:
                 try:
-                    menu_builder._add_breadcrumb_item(context.breadcrumb_path, context.addon_handle, context.base_url)
-                    context.logger.debug(f"Added breadcrumb to list view: '{context.breadcrumb_path}'")
+                    self.menu_builder._add_breadcrumb_notification(breadcrumb_path)
+                    self.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
                 except Exception as e:
-                    context.logger.error(f"Failed to add breadcrumb to list view: {e}")
+                    self.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
+
+            self.menu_builder.build_movie_menu(
+                list_items,
+                context.addon_handle,
+                context.base_url,
+                category=f"List: {list_info['name']}"
+            )
+
 
             # Add Tools & Options at the top of the list view using version-aware renderer
             renderer = get_listitem_renderer()
