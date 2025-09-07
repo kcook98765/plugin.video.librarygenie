@@ -960,16 +960,14 @@ class ToolsHandler:
         """Show tools specific to the main Lists menu"""
         try:
             # Get current folder info
-            current_folder_id = context.get('folder_id')
+            current_folder_id = context.get_param('folder_id')
             current_folder_name = "Root"
             if current_folder_id:
-                with self.connection_manager.get_connection() as conn:
-                    folder_info = conn.execute(
-                        "SELECT name FROM folders WHERE id = ?",
-                        (current_folder_id,)
-                    ).fetchone()
+                query_manager = context.query_manager
+                if query_manager:
+                    folder_info = query_manager.get_folder_by_id(current_folder_id)
                     if folder_info:
-                        current_folder_name = folder_info[0]
+                        current_folder_name = folder_info['name']
 
             # Build comprehensive options for main lists menu - organized by operation type
             options = [
