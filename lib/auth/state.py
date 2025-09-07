@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -12,6 +11,23 @@ from datetime import datetime
 
 from ..data.connection_manager import get_connection_manager
 from ..utils.logger import get_logger
+
+# Import xbmcaddon for addon settings
+try:
+    import xbmcaddon
+except ImportError:
+    # Mock xbmcaddon if not running in Kodi environment
+    class MockAddon:
+        def __init__(self):
+            self._settings = {}
+
+        def getSetting(self, key):
+            return self._settings.get(key, '')
+
+        def setSetting(self, key, value):
+            self._settings[key] = value
+    xbmcaddon = type('xbmcaddon', (object,), {'Addon': MockAddon})()
+
 
 logger = get_logger(__name__)
 
@@ -30,14 +46,14 @@ def get_api_key() -> Optional[str]:
     """Get the stored API key"""
     try:
         conn_manager = get_connection_manager()
-        
+
         result = conn_manager.execute_single("""
             SELECT api_key 
             FROM auth_state 
             ORDER BY id DESC 
             LIMIT 1
         """)
-        
+
         if result and result.get('api_key'):
             logger.debug("API key retrieved successfully")
             return result['api_key']
@@ -53,10 +69,10 @@ def get_api_key() -> Optional[str]:
 def save_api_key(api_key: str) -> bool:
     """
     Save API key to database
-    
+
     Args:
         api_key: The API key to save
-        
+
     Returns:
         bool: True if saved successfully
     """
@@ -64,13 +80,13 @@ def save_api_key(api_key: str) -> bool:
         if not api_key or not api_key.strip():
             logger.error("Cannot save empty API key")
             return False
-        
+
         conn_manager = get_connection_manager()
-        
+
         with conn_manager.transaction() as conn:
             # Clear any existing auth data
             conn.execute("DELETE FROM auth_state")
-            
+
             # Insert new API key
             conn.execute("""
                 INSERT INTO auth_state (api_key, created_at, token_type)
@@ -89,14 +105,53 @@ def save_api_key(api_key: str) -> bool:
         return False
 
 
+def save_tokens(api_key: str = None, access_token: str = None, refresh_token: str = None, expires_at: str = None) -> bool:
+    """Save authentication tokens to addon settings"""
+    try:
+        addon = xbmcaddon.Addon()
+
+        if api_key is not None:
+            addon.setSetting('api_key', api_key)
+        if access_token is not None:
+            addon.setSetting('access_token', access_token)
+        if refresh_token is not None:
+            addon.setSetting('refresh_token', refresh_token)
+        if expires_at is not None:
+            addon.setSetting('token_expires_at', expires_at)
+
+        logger.debug("Authentication tokens saved")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error saving tokens: {e}")
+        return False
+
+
+def clear_tokens() -> bool:
+    """Clear stored authentication tokens"""
+    try:
+        addon = xbmcaddon.Addon()
+        addon.setSetting('api_key', '')
+        addon.setSetting('refresh_token', '')
+        addon.setSetting('access_token', '')
+        addon.setSetting('token_expires_at', '')
+
+        logger.info("Authentication tokens cleared")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error clearing tokens: {e}")
+        return False
+
+
 def clear_auth_data() -> bool:
     """Clear all stored authentication data"""
     try:
         conn_manager = get_connection_manager()
-        
+
         with conn_manager.transaction() as conn:
             conn.execute("DELETE FROM auth_state")
-        
+
         logger.info("Authentication data cleared successfully")
         return True
 
@@ -109,19 +164,19 @@ def get_auth_info() -> Dict[str, Any]:
     """Get detailed authentication information for debugging"""
     try:
         conn_manager = get_connection_manager()
-        
+
         result = conn_manager.execute_single("""
             SELECT api_key, created_at, token_type
             FROM auth_state 
             ORDER BY id DESC 
             LIMIT 1
         """)
-        
+
         if result:
             # Don't log the actual API key for security
             has_key = bool(result.get('api_key'))
             key_length = len(result.get('api_key', '')) if has_key else 0
-            
+
             return {
                 "has_api_key": has_key,
                 "api_key_length": key_length,
@@ -129,7 +184,7 @@ def get_auth_info() -> Dict[str, Any]:
                 "created_at": result.get('created_at'),
                 "is_authorized": has_key
             }
-        
+
         return {
             "has_api_key": False,
             "is_authorized": False
@@ -142,6 +197,3 @@ def get_auth_info() -> Dict[str, Any]:
             "is_authorized": False,
             "error": str(e)
         }
-
-
-
