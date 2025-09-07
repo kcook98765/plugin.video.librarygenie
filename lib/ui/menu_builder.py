@@ -127,66 +127,15 @@ class MenuBuilder:
         )
         self.logger.debug(f"MENU ITEM: Successfully added '{title}' to directory")
 
-    def _add_breadcrumb_item(self, breadcrumb_path: str, addon_handle: int, base_url: str):
-        """Add breadcrumb item at top of directory"""
-        try:
-            kodi_major = get_kodi_major_version()
-            self.logger.info(f"BREADCRUMB: Adding breadcrumb '{breadcrumb_path}' on Kodi v{kodi_major}")
-
-            # Add stack trace to identify caller
-            import traceback
-            stack_info = traceback.extract_stack()
-            caller_info = stack_info[-2] if len(stack_info) > 1 else "unknown"
-            self.logger.info(f"BREADCRUMB CALLER: {caller_info.filename}:{caller_info.lineno} in {caller_info.name}")
-
-            breadcrumb_item = xbmcgui.ListItem(label=f"[COLOR gray]📍 {breadcrumb_path}[/COLOR]")
-
-            # Version-specific metadata setting
-            if kodi_major >= 20:
-                try:
-                    self.logger.info(f"BREADCRUMB v{kodi_major}: Using InfoTagVideo for breadcrumb")
-                    video_info_tag = breadcrumb_item.getVideoInfoTag()
-                    video_info_tag.setPlot('Current location')
-                    self.logger.info(f"BREADCRUMB v{kodi_major}: Successfully set metadata via InfoTagVideo")
-                except Exception as e:
-                    self.logger.error(f"BREADCRUMB v{kodi_major}: InfoTagVideo FAILED: {e}")
-            else:
-                self.logger.info(f"BREADCRUMB v{kodi_major}: Using setInfo() for breadcrumb")
-                breadcrumb_item.setInfo('video', {'plot': 'Current location'})
-                self.logger.info(f"BREADCRUMB v{kodi_major}: Successfully set metadata via setInfo")
-
-            breadcrumb_item.setArt({'icon': "DefaultFolder.png", 'thumb': "DefaultFolder.png"})
-
-            # Add as non-clickable item (no URL)
-            xbmcplugin.addDirectoryItem(
-                addon_handle,
-                f"{base_url}?action=noop",  # No-op action
-                breadcrumb_item,
-                False
-            )
-            self.logger.info(f"BREADCRUMB: Successfully added breadcrumb item")
-
-        except Exception as e:
-            self.logger.error(f"BREADCRUMB: Failed to add breadcrumb item: {e}")
-
     def _show_breadcrumb_if_needed(self, breadcrumb_path: str):
-        """Show breadcrumb notification for non-root views"""
+        """Show breadcrumb notification for non-root views using BreadcrumbHelper"""
         if breadcrumb_path and breadcrumb_path.strip():
             try:
-                self.logger.debug(f"BREADCRUMB: Showing notification for '{breadcrumb_path}'")
-                xbmcgui.Dialog().notification("Navigation", breadcrumb_path, xbmcgui.NOTIFICATION_INFO, 3000)
-                self.logger.debug("BREADCRUMB: Successfully displayed breadcrumb notification")
+                from .breadcrumb_helper import get_breadcrumb_helper
+                breadcrumb_helper = get_breadcrumb_helper()
+                breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
             except Exception as e:
                 self.logger.error(f"BREADCRUMB: Failed to display breadcrumb notification: {e}")
-
-    def _add_breadcrumb_notification(self, breadcrumb_path: str):
-        """Show breadcrumb as a notification"""
-        try:
-            self.logger.debug(f"BREADCRUMB NOTIFICATION: Displaying breadcrumb '{breadcrumb_path}'")
-            xbmcgui.Dialog().notification("Navigation", breadcrumb_path, xbmcgui.NOTIFICATION_INFO, 3000)
-            self.logger.debug("BREADCRUMB NOTIFICATION: Successfully displayed breadcrumb notification")
-        except Exception as e:
-            self.logger.error(f"BREADCRUMB NOTIFICATION: Failed to display breadcrumb notification: {e}")
 
 
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):

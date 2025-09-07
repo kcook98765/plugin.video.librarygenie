@@ -163,16 +163,16 @@ class BreadcrumbHelper:
         else:
             return "Tools"
 
-    def _add_breadcrumb_notification(self, title: str):
-        """Compatibility method - delegates to menu builder for actual notification display"""
+    def show_breadcrumb_notification(self, title: str):
+        """Show breadcrumb as a notification to the user"""
         try:
-            # Import here to avoid circular imports
-            from .menu_builder import MenuBuilder
-            # Create a temporary MenuBuilder instance for the notification
-            menu_builder = MenuBuilder()
-            menu_builder._add_breadcrumb_notification(title)
+            if title and title.strip():
+                import xbmcgui
+                self.logger.debug(f"BREADCRUMB: Showing notification for '{title}'")
+                xbmcgui.Dialog().notification("Navigation", title, xbmcgui.NOTIFICATION_INFO, 3000)
+                self.logger.debug("BREADCRUMB: Successfully displayed breadcrumb notification")
         except Exception as e:
-            self.logger.error(f"Error showing breadcrumb notification: {e}")
+            self.logger.error(f"BREADCRUMB: Failed to display breadcrumb notification: {e}")
 
 
 # Global instance

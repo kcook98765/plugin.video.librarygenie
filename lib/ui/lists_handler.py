@@ -187,7 +187,7 @@ class ListsHandler:
 
             # Show breadcrumb notification for Lists menu
             try:
-                self.breadcrumb_helper._add_breadcrumb_notification("Lists")
+                self.breadcrumb_helper.show_breadcrumb_notification("Lists")
                 context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'Lists'")
             except Exception as e:
                 context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
@@ -720,8 +720,7 @@ class ListsHandler:
 
             if breadcrumb_path:
                 try:
-                    # self.menu_builder._add_breadcrumb_notification(breadcrumb_path)
-                    self.breadcrumb_helper._add_breadcrumb_notification(breadcrumb_path)
+                    self.breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
                     self.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
                 except Exception as e:
                     self.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
@@ -942,13 +941,14 @@ class ListsHandler:
                     False
                 )
 
-            # Show breadcrumb notification for folder view with parent context
-            breadcrumb_path = f"Lists > {folder_info['name']}"
-            try:
-                self.breadcrumb_helper._add_breadcrumb_notification(breadcrumb_path)
-                context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
-            except Exception as e:
-                context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
+            # Show breadcrumb notification for folder view with proper hierarchy
+            breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action('show_folder', {'folder_id': folder_id}, query_manager)
+            if breadcrumb_path:
+                try:
+                    self.breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
+                    context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
+                except Exception as e:
+                    context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
 
             # Build directory items
             for item in menu_items:
