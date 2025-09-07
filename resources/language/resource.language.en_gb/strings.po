@@ -585,11 +585,11 @@ msgid "Add this item to a LibraryGenie list"
 
 # Search UI and Operations
 msgctxt "#33000"
-msgid "Search"
+msgid "Local Search"
 msgstr ""
 
 msgctxt "#33001"
-msgid "Search Movies and Lists"
+msgid "Local Search Movies and Lists"
 msgstr ""
 
 msgctxt "#33002"

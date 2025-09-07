@@ -38,9 +38,9 @@ class MainMenuHandler:
             context.logger.info("Building root-level main menu")
             menu_items = []
 
-            # 1. Search
+            # 1. Local Search
             menu_items.append({
-                'label': f"🔍 Search",
+                'label': f"🔍 Local Search",
                 'action': 'prompt_and_search',
                 'is_folder': True,
                 'icon': 'DefaultAddonsSearch.png',
