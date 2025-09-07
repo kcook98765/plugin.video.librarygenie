@@ -88,7 +88,7 @@ class DataMatcher:
         """Match by title, year, and file path"""
         title = item_data.get("title")
         year = item_data.get("year")
-        file_path = item_data.get("file_path")
+        normalized_path = item_data.get("normalized_path") or item_data.get("file_path")  # fallback for old exports
 
         if not title:
             return None
@@ -101,9 +101,9 @@ class DataMatcher:
             conditions.append("year = ?")
             params.append(year)
 
-        if file_path:
-            conditions.append("file_path = ?")
-            params.append(file_path)
+        if normalized_path:
+            conditions.append("normalized_path = ?")
+            params.append(normalized_path)
 
         query = f"SELECT id FROM media_items WHERE {' AND '.join(conditions)}"
         result = self.conn_manager.execute_single(query, params)
@@ -112,7 +112,7 @@ class DataMatcher:
             return result[0] if hasattr(result, '__getitem__') else result.get('id')
 
         # If no exact match, try fuzzy title match without path
-        if file_path:
+        if normalized_path:
             fuzzy_query = "SELECT id FROM media_items WHERE title = ? AND is_removed = 0"
             fuzzy_params = [title]
             if year:
@@ -483,7 +483,7 @@ class ImportEngine:
                     unmatched_items.append({
                         "title": item_data.get("title", "Unknown"),
                         "year": item_data.get("year"),
-                        "file_path": item_data.get("file_path", "")
+                        "normalized_path": item_data.get("normalized_path") or item_data.get("file_path", "")
                     })
                     continue
 
