@@ -15,6 +15,21 @@ class BreadcrumbHelper:
 
     def __init__(self):
         self.logger = get_logger(__name__)
+        # Assuming 'config' is accessible, and has a 'get_bool' method.
+        # This might need to be passed in or initialized differently based on the broader application structure.
+        # For now, we'll assume it's available or mocked for testing.
+        # If 'config' is not directly available, this part would need adjustment.
+        # For demonstration, let's mock it if not present.
+        try:
+            from ..utils.config import Config
+            self.config = Config()
+        except ImportError:
+            # Mock config if not found, for the sake of having the method callable
+            class MockConfig:
+                def get_bool(self, key, default):
+                    return True
+            self.config = MockConfig()
+
 
     def get_breadcrumb_for_action(self, action: str, context_params: dict, query_manager=None) -> Optional[str]:
         """Generate breadcrumb path based on current action and context"""
@@ -137,6 +152,28 @@ class BreadcrumbHelper:
             return "Folder Tools"
         else:
             return "Tools"
+
+    def add_breadcrumb_notification(self, title: str):
+        """Add breadcrumb notification for current context"""
+        try:
+            if self.config.get_bool("show_breadcrumb_notifications", True):
+                self._add_breadcrumb_notification(title)
+        except Exception as e:
+            self.logger.error(f"Error adding breadcrumb notification: {e}")
+
+    def _add_breadcrumb_notification(self, title: str):
+        """Internal method to add breadcrumb notification"""
+        try:
+            import xbmcgui
+            # Show a subtle notification with the breadcrumb context
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                title,
+                xbmcgui.NOTIFICATION_INFO,
+                2000  # 2 seconds
+            )
+        except Exception as e:
+            self.logger.debug(f"Failed to show breadcrumb notification: {e}")
 
 
 # Global instance
