@@ -119,7 +119,7 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == 2:  # Cancel
                 self.logger.info(f"TOOLS DEBUG: Favorites tools cancelled (selected_index: {selected_index})")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, navigate_to_favorites=True)
 
             # Handle selected option
             if selected_index == 0:  # Scan Favorites
@@ -221,7 +221,7 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 self.logger.info(f"TOOLS DEBUG: User list tools cancelled (selected_index: {selected_index})")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, navigate_to_list=list_id)
 
             # Handle selected option
             if is_search_history:
@@ -352,7 +352,7 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 self.logger.info(f"TOOLS DEBUG: Folder tools cancelled (selected_index: {selected_index})")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, navigate_to_folder=folder_id)
 
             # Handle selected option - calculate indices based on reserved status
             if is_reserved:
@@ -1040,7 +1040,7 @@ class ToolsHandler:
 
             if selected_index < 0 or selected_index == 11:  # Cancel
                 self.logger.info(f"TOOLS DEBUG: Lists main tools cancelled (selected_index: {selected_index})")
-                return DialogResponse(success=False)
+                return DialogResponse(success=False, navigate_to_lists=True)
 
             # Handle selected option
             if selected_index == 0:  # Create New List in Folder
