@@ -492,10 +492,12 @@ class ToolsHandler:
             # Get available parent folders (excluding self and children)
             all_folders = query_manager.get_all_folders()
             folder_options = ["[Root Level]"]
+            folder_mapping = [None]  # None represents root level
 
             for f in all_folders:
                 if str(f['id']) != str(folder_id) and f['name'] != 'Search History':
                     folder_options.append(f['name'])
+                    folder_mapping.append(f['id'])
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
@@ -504,8 +506,8 @@ class ToolsHandler:
             if selected_index < 0:
                 return DialogResponse(success=False)
 
-            # Move folder
-            target_parent_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
+            # Move folder using the correct mapping
+            target_parent_id = folder_mapping[selected_index]
             result = query_manager.move_folder(folder_id, target_parent_id)
 
             if result.get("success"):
