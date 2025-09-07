@@ -117,7 +117,7 @@ def _show_librarygenie_menu(addon):
         if dbtype == 'movie':
             if dbid and dbid != '0':
                 # Library movie - add list management options
-                _add_library_movie_options(dbtype, dbid, options, actions)
+                _add_library_movie_options(dbtype, dbid, options, actions, addon)
             else:
                 # External/plugin movie - add external item options
                 _add_external_item_options(options, actions, addon)
@@ -193,7 +193,7 @@ def _show_librarygenie_menu(addon):
         )
 
 
-def _add_library_movie_options(dbtype, dbid, options, actions):
+def _add_library_movie_options(dbtype, dbid, options, actions, addon):
     """Add library-specific options for movies"""
 
     # Get container information to determine context
@@ -421,7 +421,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
 
         # Add standard library item options
         if dbtype == 'movie':
-            _add_library_movie_options(dbtype, dbid, options, actions)
+            _add_library_movie_options(dbtype, dbid, options, actions, addon)
         elif dbtype == 'episode':
             _add_library_episode_options(options, actions, addon, dbtype, dbid)
         elif dbtype == 'musicvideo':
