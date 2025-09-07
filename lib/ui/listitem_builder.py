@@ -279,14 +279,7 @@ class ListItemBuilder:
                 except (ValueError, TypeError):
                     pass
 
-        # artwork (flatten)
-        poster = src.get('poster') or src.get('thumbnail')
-        fanart = src.get('fanart')
-        if poster:
-            out['poster'] = poster
-        if fanart:
-            out['fanart'] = fanart
-
+        # artwork - only from art JSON field now
         art_blob = src.get('art')
         if art_blob:
             try:
@@ -406,7 +399,7 @@ class ListItemBuilder:
                 info = self._build_lightweight_info(item)
                 li.setInfo('video', info)
 
-            # Art (poster/fanart minimum)
+            # Art from art field
             art = self._build_art_dict(item)
             if art:
                 li.setArt(art)
@@ -524,7 +517,7 @@ class ListItemBuilder:
                 info = self._build_lightweight_info(item)
                 li.setInfo('video', info)
 
-            # Apply exact same art keys as library items (Step 4)
+            # Apply art from art field same as library items
             art = self._build_art_dict(item)
             if art:
                 li.setArt(art)
@@ -703,10 +696,10 @@ class ListItemBuilder:
         return info
 
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
-        """Build artwork dictionary from item data"""
+        """Build artwork dictionary from item data - uses only art field"""
         art = {}
 
-        # First check if we have a JSON-RPC art dict
+        # Get art data from the art JSON field only
         item_art = item.get('art')
         if item_art:
             # Handle both dict and JSON string formats
@@ -717,14 +710,11 @@ class ListItemBuilder:
                     item_art = {}
 
             if isinstance(item_art, dict):
-                # Copy all art keys from JSON-RPC art dict
+                # Copy all art keys from the art dict
                 for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape',
                                'clearlogo', 'clearart', 'discart', 'icon']:
                     if art_key in item_art and item_art[art_key]:
                         art[art_key] = item_art[art_key]
-
-        # No longer check top-level poster/fanart fields since they're removed
-        # All art data should be in the art JSON field
 
         # If we have poster but no thumb/icon, set them for list view compatibility
         if art.get('poster') and not art.get('thumb'):
@@ -948,24 +938,17 @@ class ListItemBuilder:
 
             listitem.setInfo('video', info_labels)
 
-            # Set artwork using media_items data
+            # Set artwork using only art field data from media_items
             artwork = {}
-            if media_item.get('poster'):
-                artwork['poster'] = media_item['poster']
-            if media_item.get('fanart'):
-                artwork['fanart'] = media_item['fanart']
-
-            # Parse additional art if available
             art_data = media_item.get('art')
             if art_data:
                 try:
                     if isinstance(art_data, str):
-                        additional_art = json.loads(art_data)
-                        artwork.update(additional_art)
+                        artwork = json.loads(art_data)
                     elif isinstance(art_data, dict):
-                        artwork.update(art_data)
+                        artwork = art_data.copy()
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    artwork = {}
 
             if artwork:
                 listitem.setArt(artwork)
