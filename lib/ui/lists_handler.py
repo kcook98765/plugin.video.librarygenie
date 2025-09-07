@@ -867,7 +867,11 @@ class ListsHandler:
 
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            context.logger.info(f"Folder '{folder_info['name']}' has {len(lists_in_folder)} lists")
+            context.logger.info(f"Folder '{folder_info['name']}' (id={folder_id}) has {len(lists_in_folder)} lists")
+            
+            # Debug: Log each list found
+            for lst in lists_in_folder:
+                context.logger.debug(f"  Found list in folder: {lst['name']} (id={lst['id']}, folder_id={lst.get('folder_id')})")
 
             menu_items = []
 

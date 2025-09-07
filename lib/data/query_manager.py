@@ -1474,22 +1474,42 @@ class QueryManager:
             self.logger.error(f"Failed to check if folder {folder_id} is reserved: {e}")
             return False
 
-    def get_lists_in_folder(self, folder_id: str) -> List[Dict[str, Any]]:
-        """Get all lists in a folder with item counts"""
+    def get_lists_in_folder(self, folder_id: Optional[str]) -> List[Dict[str, Any]]:
+        """Get all lists in a specific folder"""
         try:
-            lists = self.connection_manager.execute_query("""
-                SELECT 
-                    l.id,
-                    l.name,
-                    COUNT(li.id) as item_count,
-                    date(l.created_at) as created
-                FROM lists l
-                LEFT JOIN list_items li ON l.id = li.list_id
-                WHERE l.folder_id = ?
-                GROUP BY l.id, l.name, l.created_at
-                ORDER BY l.created_at DESC
-            """, [str(folder_id)])
-            return [dict(row) for row in lists]
+            self.logger.debug(f"Getting lists in folder {folder_id}")
+
+            if folder_id is None:
+                # Get lists in root (no folder)
+                self.logger.debug("Querying for lists in root folder (folder_id IS NULL)")
+                results = self.connection_manager.execute_query("""
+                    SELECT l.*, COUNT(li.id) as item_count
+                    FROM lists l
+                    LEFT JOIN list_items li ON l.id = li.list_id
+                    WHERE l.folder_id IS NULL
+                    GROUP BY l.id
+                    ORDER BY l.name
+                """)
+            else:
+                # Get lists in specific folder
+                self.logger.debug(f"Querying for lists in folder_id {folder_id}")
+                results = self.connection_manager.execute_query("""
+                    SELECT l.*, COUNT(li.id) as item_count
+                    FROM lists l
+                    LEFT JOIN list_items li ON l.id = li.list_id
+                    WHERE l.folder_id = ?
+                    GROUP BY l.id
+                    ORDER BY l.name
+                """, [int(folder_id)])
+
+            lists = [dict(row) for row in results]
+            self.logger.debug(f"Found {len(lists)} lists in folder {folder_id}")
+
+            # Log each list found for debugging
+            for lst in lists:
+                self.logger.debug(f"  - List: {lst['name']} (id={lst['id']}, folder_id={lst.get('folder_id')})")
+
+            return lists
 
         except Exception as e:
             self.logger.error(f"Error getting lists in folder {folder_id}: {e}")
@@ -1641,22 +1661,41 @@ class QueryManager:
             if not existing_list:
                 return {"success": False, "error": "list_not_found"}
 
-            # If target_folder_id is provided, verify the folder exists
+            # If target_folder_id is provided, verify the destination folder exists
             if target_folder_id is not None:
-                existing_folder = self.connection_manager.execute_single("""
+                destination_folder = self.connection_manager.execute_single("""
                     SELECT id FROM folders WHERE id = ?
                 """, [int(target_folder_id)])
 
-                if not existing_folder:
-                    return {"success": False, "error": "folder_not_found"}
+                if not destination_folder:
+                    return {"success": False, "error": "destination_folder_not_found"}
 
             # Update the list's folder_id
             with self.connection_manager.transaction() as conn:
-                conn.execute("""
+                result = conn.execute("""
                     UPDATE lists SET folder_id = ? WHERE id = ?
                 """, [int(target_folder_id) if target_folder_id is not None else None, int(list_id)])
 
-            self.logger.debug(f"Successfully moved list {list_id} to folder {target_folder_id}")
+                if result.rowcount == 0:
+                    raise Exception("No rows updated - list may not exist")
+
+            self.logger.info(f"Successfully moved list {list_id} to folder {target_folder_id}")
+
+            # Verify the move by checking the list is now in the target folder
+            verification_query = """
+                SELECT id, name, folder_id FROM lists WHERE id = ?
+            """
+            updated_list = self.connection_manager.execute_single(verification_query, [int(list_id)])
+
+            if updated_list:
+                actual_folder_id = updated_list['folder_id']
+                expected_folder_id = int(target_folder_id) if target_folder_id is not None else None
+                self.logger.debug(f"Verification: List {list_id} now has folder_id={actual_folder_id}, expected={expected_folder_id}")
+
+                if actual_folder_id != expected_folder_id:
+                    self.logger.error(f"Move verification failed: expected folder_id={expected_folder_id}, got={actual_folder_id}")
+                    return {"success": False, "error": "verification_failed"}
+
             return {"success": True}
 
         except Exception as e:
