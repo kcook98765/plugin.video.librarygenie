@@ -77,7 +77,8 @@ class BreadcrumbHelper:
 
                     return f"{folder_name} > {list_name}"
 
-            return list_name
+            # If no folder_id, this is a standalone list - still show under Lists
+            return f"Lists > {list_name}"
 
         except Exception as e:
             self.logger.error(f"Error getting list breadcrumb: {e}")
