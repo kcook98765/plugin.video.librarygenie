@@ -864,10 +864,10 @@ class ListsHandler:
 
             menu_items = []
 
-            # Add Tools & Options for this folder
+            # Add Tools & Options for this folder - ensure folder_id is passed for context
             menu_items.append({
                 'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
-                'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
+                'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id, folder_id=folder_id),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
                 'description': L(36017) % folder_info['name']  # "Access tools and options for '%s'"

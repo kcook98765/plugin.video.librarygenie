@@ -539,6 +539,8 @@ class ToolsHandler:
     def _create_list_in_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Create a new list in the specified folder"""
         try:
+            self.logger.debug(f"TOOLS DEBUG: _create_list_in_folder called with folder_id: {folder_id}")
+            
             # Get list name from user
             new_name = xbmcgui.Dialog().input(
                 L(36056),  # "Enter name for new list:"
@@ -546,13 +548,19 @@ class ToolsHandler:
             )
 
             if not new_name or not new_name.strip():
+                self.logger.debug(f"TOOLS DEBUG: User cancelled list creation or entered empty name")
                 return DialogResponse(success=False)
 
             query_manager = context.query_manager
             if not query_manager:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
-            result = query_manager.create_list(new_name.strip(), folder_id)
+            self.logger.debug(f"TOOLS DEBUG: Creating list '{new_name.strip()}' in folder_id: {folder_id}")
+            
+            # Pass folder_id as the third parameter to create_list (name, description, folder_id)
+            result = query_manager.create_list(new_name.strip(), "", folder_id)
+            
+            self.logger.debug(f"TOOLS DEBUG: create_list result: {result}")
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
@@ -561,6 +569,7 @@ class ToolsHandler:
                     message = "Failed to create list"
                 return DialogResponse(success=False, message=message)
             else:
+                self.logger.info(f"TOOLS DEBUG: Successfully created list '{new_name}' in folder_id: {folder_id}")
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {new_name}",
@@ -1008,15 +1017,19 @@ class ToolsHandler:
     def _show_lists_main_tools(self, context: PluginContext) -> DialogResponse:
         """Show tools specific to the main Lists menu"""
         try:
-            # Get current folder info
+            # Get current folder info from context - this should come from the calling URL
             current_folder_id = context.get_param('folder_id')
             current_folder_name = "Lists"  # Always use "Lists" for root level
+            
+            self.logger.debug(f"TOOLS DEBUG: _show_lists_main_tools called with folder_id from context: {current_folder_id}")
+            
             if current_folder_id:
                 query_manager = context.query_manager
                 if query_manager:
                     folder_info = query_manager.get_folder_by_id(current_folder_id)
                     if folder_info:
                         current_folder_name = folder_info['name']
+                        self.logger.debug(f"TOOLS DEBUG: Resolved folder name: '{current_folder_name}' for folder_id: {current_folder_id}")
 
             # Build comprehensive options for main lists menu - organized by operation type
             # Only show folder-specific options (no duplicate generic ones)
@@ -1058,13 +1071,13 @@ class ToolsHandler:
 
             # Handle selected option
             if selected_index == 0:  # Create New List in Folder
-                # Ensure we have the current folder ID from the context
-                folder_id = current_folder_id or context.get_param('folder_id')
-                return self._create_list_in_folder(context, folder_id)
+                # Use the folder_id from context - this is crucial for proper folder assignment
+                self.logger.debug(f"TOOLS DEBUG: Creating new list in folder_id: {current_folder_id}")
+                return self._create_list_in_folder(context, current_folder_id)
             elif selected_index == 1:  # Create New Subfolder in Folder
-                # Ensure we have the current folder ID from the context
-                folder_id = current_folder_id or context.get_param('folder_id')
-                return self._create_subfolder(context, folder_id)
+                # Use the folder_id from context - this is crucial for proper folder assignment
+                self.logger.debug(f"TOOLS DEBUG: Creating new subfolder in parent folder_id: {current_folder_id}")
+                return self._create_subfolder(context, current_folder_id)
             elif selected_index == 2:  # Import Lists
                 return self._import_lists(context)
             elif selected_index == 3:  # Export All Lists
