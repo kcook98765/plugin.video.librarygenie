@@ -1330,7 +1330,7 @@ class ToolsHandler:
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return DialogResponse(success=False, message="Error converting search history")
 
-    def handle_restore_backup(self, params: dict, context) -> PluginResponse:
+    def handle_restore_backup(self, params: dict, context) -> DialogResponse:
         """Handle backup restoration"""
         try:
             from ..import_export.backup_manager import BackupManager
@@ -1343,14 +1343,14 @@ class ToolsHandler:
             backups = backup_manager.list_backups()
             if not backups:
                 xbmcgui.Dialog().ok(L(34018), L(34018))  # "No backups found"
-                return PluginResponse.empty()
+                return DialogResponse(success=False, message="No backups found")
 
             # Let user select backup
             labels = [f"{backup['name']} ({backup['date']})" for backup in backups]
             selected = xbmcgui.Dialog().select(L(37014), labels)  # "Select backup to restore"
 
             if selected < 0:
-                return PluginResponse.empty()
+                return DialogResponse(success=False, message="Restore cancelled")
 
             selected_backup = backups[selected]
 
@@ -1363,17 +1363,19 @@ class ToolsHandler:
                 success = backup_manager.restore_backup(selected_backup['path'])
                 if success:
                     xbmcgui.Dialog().ok(L(34011), L(34011))  # "Restore completed successfully"
+                    return DialogResponse(success=True, message="Restore completed successfully", refresh_needed=True)
                 else:
                     xbmcgui.Dialog().ok(L(34012), L(34012))  # "Restore failed"
+                    return DialogResponse(success=False, message="Restore failed")
 
-            return PluginResponse.empty()
+            return DialogResponse(success=False, message="Restore cancelled")
 
         except Exception as e:
             context.logger.error(f"Error in restore backup handler: {e}")
-            return PluginResponse.error("Failed to restore backup")
+            return DialogResponse(success=False, message="Failed to restore backup")
 
 
-    def handle_activate_ai_search(self, params: dict, context) -> PluginResponse:
+    def handle_activate_ai_search(self, params: dict, context) -> DialogResponse:
         """Handle AI search activation via OTP code"""
         try:
             from ..auth.auth_helper import get_auth_helper
@@ -1388,7 +1390,7 @@ class ToolsHandler:
                     "Already Authorized",
                     "AI Search is already activated and working."
                 )
-                return PluginResponse.empty()
+                return DialogResponse(success=True, message="AI Search is already activated")
 
             # Start authorization flow
             success = auth_helper.start_device_authorization()
@@ -1400,9 +1402,10 @@ class ToolsHandler:
                     xbmcgui.NOTIFICATION_INFO,
                     5000
                 )
+                return DialogResponse(success=True, message="AI Search activated successfully!")
 
-            return PluginResponse.empty()
+            return DialogResponse(success=False, message="AI Search activation failed")
 
         except Exception as e:
             context.logger.error(f"Error in AI search activation handler: {e}")
-            return PluginResponse.error("Failed to activate AI search")
+            return DialogResponse(success=False, message="Failed to activate AI search")

@@ -148,15 +148,28 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
             elif action == "restore_backup":
-                from .tools_handler import handle_restore_backup
-                return handle_restore_backup(params, context)
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                result = tools_handler.handle_restore_backup(params, context)
+                
+                # Handle the DialogResponse
+                from .response_handler import get_response_handler
+                response_handler = get_response_handler()
+                return response_handler.handle_dialog_response(result, context)
 
             elif action == "activate_ai_search":
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context
                 tools_handler = factory.get_tools_handler()
-                return tools_handler.activate_ai_search(context)
+                result = tools_handler.handle_activate_ai_search(params, context)
+                
+                # Handle the DialogResponse
+                from .response_handler import get_response_handler
+                response_handler = get_response_handler()
+                return response_handler.handle_dialog_response(result, context)
 
             elif action == 'test_ai_search_connection':
                 from .handler_factory import get_handler_factory
