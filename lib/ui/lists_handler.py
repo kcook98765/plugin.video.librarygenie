@@ -913,20 +913,39 @@ class ListsHandler:
 
             # Show breadcrumb notification for folder view with parent context
             breadcrumb_path = f"Lists > {folder_info['name']}"
-            # from .menu_builder import MenuBuilder
-            # menu_builder = MenuBuilder()
             try:
                 self.breadcrumb_helper._add_breadcrumb_notification(breadcrumb_path)
                 context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
             except Exception as e:
                 context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
 
-            # Use MenuBuilder to build the menu
-            # menu_builder.build_menu(
-            #     menu_items,
-            #     context.addon_handle,
-            #     context.base_url
-            # )
+            # Build directory items
+            for item in menu_items:
+                list_item = xbmcgui.ListItem(label=item['label'])
+
+                if 'description' in item:
+                    list_item.setInfo('video', {'plot': item['description']})
+
+                if 'icon' in item:
+                    list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
+
+                if 'context_menu' in item:
+                    list_item.addContextMenuItems(item['context_menu'])
+
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    item['url'],
+                    list_item,
+                    item['is_folder']
+                )
+
+            # End directory
+            xbmcplugin.endOfDirectory(
+                context.addon_handle,
+                succeeded=True,
+                updateListing=False,
+                cacheToDisc=True
+            )
 
             return DirectoryResponse(
                 items=menu_items,
