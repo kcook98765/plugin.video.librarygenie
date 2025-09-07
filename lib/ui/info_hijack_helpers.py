@@ -279,19 +279,19 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
             _log(f"Unsupported db_type for XSP creation: {db_type}", xbmc.LOGWARNING)
             return None
         
-        # Use profile playlists path
-        playlists_dir = "special://profile/playlists/video/"
+        # Use dedicated temp directory outside Kodi's playlist scanning
+        hijack_temp_dir = "special://temp/librarygenie_hijack/"
         xsp_filename = f"lg_hijack_{db_type}_{db_id}.xsp"
-        path = playlists_dir + xsp_filename
+        path = hijack_temp_dir + xsp_filename
         
-        # Ensure playlists directory exists
+        # Ensure hijack temp directory exists
         try:
-            if not xbmcvfs.exists(playlists_dir):
-                _log(f"Creating playlists directory: {playlists_dir}")
-                xbmcvfs.mkdirs(playlists_dir)
+            if not xbmcvfs.exists(hijack_temp_dir):
+                _log(f"Creating hijack temp directory: {hijack_temp_dir}")
+                xbmcvfs.mkdirs(hijack_temp_dir)
         except Exception as e:
-            _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
-            # Fallback to temp
+            _log(f"Failed to create hijack temp directory: {e}", xbmc.LOGWARNING)
+            # Fallback to direct temp
             path = f"special://temp/{xsp_filename}"
         
         # Log the XSP content for debugging
@@ -333,19 +333,19 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
   <order direction="ascending">title</order>
 </smartplaylist>"""
 
-    # Use profile playlists path with generic filename (persistent for debugging)
-    playlists_dir = "special://profile/playlists/video/"
+    # Use dedicated temp directory outside Kodi's playlist scanning (persistent for debugging)
+    hijack_temp_dir = "special://temp/librarygenie_hijack/"
     xsp_filename = "lg_hijack_debug.xsp"
-    path = playlists_dir + xsp_filename
+    path = hijack_temp_dir + xsp_filename
 
-    # Ensure playlists directory exists
+    # Ensure hijack temp directory exists
     try:
-        if not xbmcvfs.exists(playlists_dir):
-            _log(f"Creating playlists directory: {playlists_dir}")
-            xbmcvfs.mkdirs(playlists_dir)
+        if not xbmcvfs.exists(hijack_temp_dir):
+            _log(f"Creating hijack temp directory: {hijack_temp_dir}")
+            xbmcvfs.mkdirs(hijack_temp_dir)
     except Exception as e:
-        _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
-        # Fallback to temp
+        _log(f"Failed to create hijack temp directory: {e}", xbmc.LOGWARNING)
+        # Fallback to direct temp
         path = f"special://temp/{xsp_filename}"
 
     # Log the raw XSP content for debugging
@@ -464,6 +464,23 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
 
     return result
 
+def cleanup_old_hijack_files():
+    """Clean up old hijack XSP files to prevent accumulation"""
+    try:
+        hijack_temp_dir = "special://temp/librarygenie_hijack/"
+        if xbmcvfs.exists(hijack_temp_dir):
+            dirs, files = xbmcvfs.listdir(hijack_temp_dir)
+            for file in files:
+                if file.endswith('.xsp') and 'lg_hijack' in file:
+                    file_path = hijack_temp_dir + file
+                    try:
+                        xbmcvfs.delete(file_path)
+                        _log(f"Cleaned up old hijack file: {file}")
+                    except Exception as e:
+                        _log(f"Failed to cleanup hijack file {file}: {e}", xbmc.LOGWARNING)
+    except Exception as e:
+        _log(f"Error during hijack file cleanup: {e}", xbmc.LOGWARNING)
+
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
     Proper hijack flow: Close current info dialog, navigate to native list, then open info.
@@ -472,6 +489,9 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     try:
         overall_start_time = time.perf_counter()
         logger.info(f"🎬 HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
+        
+        # Clean up any old hijack files before starting
+        cleanup_old_hijack_files()
         
         # 🔒 SUBSTEP 1: Close any open dialog first
         substep1_start = time.perf_counter()
@@ -701,7 +721,7 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
         _log(f"Opening movie info for dbid={dbid}, url={movie_url}")
 
         if not xsp_path:
-            xsp_path = f"/tmp/temp_movie_{dbid}.xsp"
+            xsp_path = f"special://temp/librarygenie_hijack/temp_movie_{dbid}.xsp"
 
         _log(f"Using XSP path: {xsp_path}")
 
