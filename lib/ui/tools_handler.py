@@ -185,8 +185,8 @@ class ToolsHandler:
                     # Additive operations
                     f"[COLOR yellow]{L(36004) % short_name}[/COLOR]",  # "Merge Into %s"
                     # Modify operations
-                    f"[COLOR yellow]{L(36051) % short_name}[/COLOR]",  # "Rename %s"
-                    f"[COLOR yellow]{L(36052) % short_name}[/COLOR]",  # "Move %s to Folder"
+                    f"[COLOR yellow]{L(36051).replace('%s', short_name)}[/COLOR]",  # "Rename %s"
+                    f"[COLOR yellow]{L(36052).replace('%s', short_name)}[/COLOR]",  # "Move %s to Folder"
                     # Export operations
                     f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
                     # Destructive operations
