@@ -156,21 +156,7 @@ class MigrationManager:
                 ON list_items (list_id, position)
             """)
 
-            # User lists table for permissions
-            conn.execute("""
-                CREATE TABLE user_lists (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    list_id INTEGER NOT NULL,
-                    permission TEXT NOT NULL DEFAULT 'read',
-                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
-                )
-            """)
-            conn.execute("CREATE UNIQUE INDEX idx_user_lists_user_list ON user_lists (user_id, list_id)")
-            conn.execute("CREATE INDEX idx_user_lists_list_id ON user_lists (list_id)")
+            
 
             # Movie heavy meta table
             conn.execute("""
