@@ -80,9 +80,9 @@
     <setting id="ai_search_server_url" type="text" label="30431" default=""/>
     <setting id="ai_search_otp_code" type="text" label="30432" default="" enable="!eq(-1,)" option="hidden"/>
     <setting id="ai_search_api_key" type="text" label="30433" default="" visible="false"/>
-    <setting id="ai_search_activated" type="bool" label="30434" default="false" visible="false"/>
-    <setting id="ai_search_activate_action" type="action" label="30435" action="RunPlugin(plugin://plugin.video.librarygenie/?action=activate_ai_search)" enable="!eq(-4,)"/>
-  </category>
+    <setting id="ai_search_activated" type="bool" label="30423" help="30424" default="false" enable="!eq(-3,)" />
+        <setting id="ai_search_sync_interval" type="slider" label="30425" help="30426" default="3600" range="1800,1,86400" option="int" enable="eq(-1,true)" />
+    </category>
 
   <!-- UI Settings -->
   <category label="30020">

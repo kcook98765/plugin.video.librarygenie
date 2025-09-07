@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -11,7 +10,7 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from ..config.settings import SettingsManager
 from ..utils.logger import get_logger
@@ -21,29 +20,29 @@ from ..auth.otp_auth import exchange_otp_for_api_key, test_api_connection
 
 class AISearchClient:
     """Client for AI search server integration using OTP authentication"""
-    
+
     def __init__(self):
         self.logger = get_logger(__name__)
         self.settings = SettingsManager()
-    
+
     def is_configured(self) -> bool:
         """Check if AI search is properly configured"""
         return bool(
             self.settings.get_ai_search_server_url() and 
             is_authorized()
         )
-    
+
     def is_activated(self) -> bool:
         """Check if AI search is activated (has valid API key)"""
         return is_authorized()
-    
+
     def activate_with_otp(self, otp_code: str) -> Dict[str, Any]:
         """
         Activate AI search using OTP code
-        
+
         Args:
             otp_code: 8-digit OTP code
-            
+
         Returns:
             dict: Result with success status and details
         """
@@ -53,18 +52,18 @@ class AISearchClient:
                 'success': False,
                 'error': 'Server URL not configured'
             }
-        
+
         try:
             # Use the new OTP auth system
             result = exchange_otp_for_api_key(otp_code, server_url)
-            
+
             if result['success']:
                 # Update settings to reflect activation
                 self.settings.set_ai_search_activated(True)
                 self.settings.set_ai_search_otp_code("")  # Clear OTP code
-                
+
                 self.logger.info("AI Search activated successfully via OTP")
-                
+
                 return {
                     'success': True,
                     'user_email': result.get('user_email', 'Unknown'),
@@ -72,18 +71,18 @@ class AISearchClient:
                 }
             else:
                 return result
-                
+
         except Exception as e:
             self.logger.error(f"Unexpected error during AI search activation: {e}")
             return {
                 'success': False,
                 'error': f'Activation failed: {str(e)}'
             }
-    
+
     def test_connection(self) -> Dict[str, Any]:
         """
         Test the AI search server connection
-        
+
         Returns:
             dict: Connection test result
         """
@@ -93,13 +92,13 @@ class AISearchClient:
                 'success': False,
                 'error': 'Server URL not configured'
             }
-        
+
         if not is_authorized():
             return {
                 'success': False,
                 'error': 'No API key available'
             }
-        
+
         try:
             return test_api_connection(server_url)
         except Exception as e:
@@ -108,112 +107,86 @@ class AISearchClient:
                 'success': False,
                 'error': f'Connection test failed: {str(e)}'
             }
-    
-    def search(self, query: str, **params) -> Dict[str, Any]:
+
+    def search(self, query: str, **kwargs) -> Optional[Dict[str, Any]]:
         """
-        Perform AI search query using the /kodi/search/movies endpoint
-        
+        Perform AI-powered search
+
         Args:
             query: Search query string
-            **params: Additional search parameters (limit, etc.)
-            
+            **kwargs: Additional search parameters
+
         Returns:
-            dict: Search results
+            Search results or None if search fails
         """
-        if not self.is_configured():
-            return {
-                'success': False,
-                'error': 'AI search not configured or activated',
-                'results': []
-            }
-        
-        server_url = self.settings.get_ai_search_server_url()
-        api_key = get_api_key()
-        
-        if not query or not query.strip():
-            return {
-                'success': False,
-                'error': 'Search query is required',
-                'results': []
-            }
-        
+        if not self.is_activated():
+            self.logger.warning("AI search not activated - cannot perform search")
+            return None
+
         try:
-            search_url = f"{server_url.rstrip('/')}/kodi/search/movies"
-            
-            # Prepare search payload
-            payload = {
-                'query': query.strip(),
-                'limit': params.get('limit', 20)
+            # Prepare search request
+            search_data = {
+                'query': query,
+                'limit': kwargs.get('limit', 50),
+                'offset': kwargs.get('offset', 0)
             }
-            
-            # Make request
-            json_data = json.dumps(payload).encode('utf-8')
-            req = urllib.request.Request(
-                search_url,
-                data=json_data,
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'ApiKey {api_key}'
-                }
-            )
-            
-            with urllib.request.urlopen(req, timeout=30) as response:
-                if response.getcode() == 200:
-                    response_data = response.read().decode('utf-8')
-                    data = json.loads(response_data)
-                    
-                    if data.get('success'):
-                        self.logger.info(f"AI search returned {data.get('total_results', 0)} results")
-                        return data
-                    else:
-                        return {
-                            'success': False,
-                            'error': data.get('error', 'Search failed'),
-                            'results': []
-                        }
-                else:
-                    return {
-                        'success': False,
-                        'error': f'Server error: HTTP {response.getcode()}',
-                        'results': []
-                    }
-                    
-        except urllib.error.HTTPError as e:
-            if e.code == 401:
-                error_msg = 'Authentication failed - API key may be invalid'
+
+            # Add any additional parameters
+            for key, value in kwargs.items():
+                if key not in ['limit', 'offset']:
+                    search_data[key] = value
+
+            # Make search request
+            response = self.http_client.post('/search', search_data)
+
+            if response and response.get('success'):
+                self.logger.info(f"AI search completed: {len(response.get('results', []))} results")
+                return response
             else:
-                error_msg = f'Server error: HTTP {e.code}'
-            
-            self.logger.error(f"HTTP error during AI search: {error_msg}")
-            return {
-                'success': False,
-                'error': error_msg,
-                'results': []
-            }
-            
-        except urllib.error.URLError as e:
-            self.logger.error(f"Network error during AI search: {e}")
-            return {
-                'success': False,
-                'error': f'Connection failed: {str(e)}',
-                'results': []
-            }
-            
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Invalid JSON response from AI search: {e}")
-            return {
-                'success': False,
-                'error': 'Invalid server response',
-                'results': []
-            }
-            
+                error_msg = response.get('error', 'Unknown error') if response else 'No response'
+                self.logger.error(f"AI search failed: {error_msg}")
+                return None
+
         except Exception as e:
-            self.logger.error(f"Unexpected error during AI search: {e}")
-            return {
-                'success': False,
-                'error': f'Search failed: {str(e)}',
-                'results': []
+            self.logger.error(f"Error performing AI search: {e}")
+            return None
+
+    def sync_media_batch(self, media_items: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """
+        Sync a batch of media items with the AI search server
+
+        Args:
+            media_items: List of media item dictionaries with imdb_id, title, year, media_type
+
+        Returns:
+            Sync result or None if sync fails
+        """
+        if not self.is_activated():
+            self.logger.warning("AI search not activated - cannot perform sync")
+            return None
+
+        try:
+            # Prepare sync request
+            sync_data = {
+                'media_items': media_items,
+                'sync_type': 'batch'
             }
+
+            # Make sync request
+            response = self.http_client.post('/sync', sync_data)
+
+            if response and response.get('success'):
+                synced_count = response.get('synced_count', len(media_items))
+                self.logger.debug(f"Media batch sync completed: {synced_count} items synced")
+                return response
+            else:
+                error_msg = response.get('error', 'Unknown error') if response else 'No response'
+                self.logger.warning(f"Media batch sync failed: {error_msg}")
+                return response  # Return response even on failure for error handling
+
+        except Exception as e:
+            self.logger.error(f"Error performing media batch sync: {e}")
+            return None
 
 
 def get_ai_search_client() -> AISearchClient:

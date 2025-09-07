@@ -174,6 +174,10 @@ class SettingsManager:
         """Set AI search activation status"""
         self.addon.setSettingBool('ai_search_activated', activated)
 
+    def get_ai_search_sync_interval(self) -> int:
+        """Get AI search sync interval in seconds"""
+        return max(1800, min(86400, self.addon.getSettingInt('ai_search_sync_interval')))
+
     # Backup Settings
     def get_enable_automatic_backups(self) -> bool:
         """Get enable automatic backups setting"""

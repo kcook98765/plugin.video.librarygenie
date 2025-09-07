@@ -81,6 +81,10 @@ class BackgroundService:
 
         # Scheduled tasks tracking
         self.last_scheduled_check = None
+        self.last_ai_sync_check = None
+
+        # Adaptive sleep timing
+        self.current_sleep = 30  # Start with 30 seconds
 
 
     def run(self):
@@ -109,6 +113,9 @@ class BackgroundService:
                 if self.track_library_changes and self._library_scanner:
                     self._check_library_changes()
 
+                # AI Search Sync (if enabled)
+                if self.config.get_bool("ai_search_sync_enabled", False):
+                    self._sync_ai_search_data()
 
 
                 # Check and run any scheduled tasks
@@ -285,7 +292,7 @@ class BackgroundService:
                     self.logger.warning("Query manager unavailable for search history setup")
             else:
                 self.logger.debug("Addon already initialized - skipping one-time setup")
-                
+
                 # Even on subsequent runs, ensure search history folder exists
                 if self._query_manager:
                     try:
@@ -377,6 +384,75 @@ class BackgroundService:
             self.logger.error(f"Library change detection failed: {e}")
             raise  # Re-raise to trigger backoff
 
+
+    def _sync_ai_search_data(self):
+        """Sync IMDb list in media items with remote AI search data"""
+        try:
+            # Check if AI sync is enabled and if enough time has passed since last sync
+            if not self.config.get_bool("ai_search_sync_enabled", False):
+                return
+
+            sync_interval = self.config.get_int("ai_search_sync_interval_minutes", 60) * 60  # Default 60 minutes
+            current_time = time.time()
+
+            if self.last_ai_sync_check and (current_time - self.last_ai_sync_check < sync_interval):
+                return
+
+            self.last_ai_sync_check = current_time
+            self.logger.info("Starting AI search data synchronization...")
+
+            # Retrieve media items and their IMDb lists
+            media_items = self._get_all_media_items() # Assuming this method exists and returns items with imdb_ids
+            if not media_items:
+                self.logger.warning("No media items found for AI sync.")
+                return
+
+            remote_imdb_ids = self._get_remote_imdb_ids() # Assuming this method fetches remote IMDb IDs
+
+            # Process items in batches with delays
+            batch_size = 50  # Number of items per batch
+            delay_between_calls = 10  # Minimum seconds between batches
+
+            for i in range(0, len(media_items), batch_size):
+                batch = media_items[i:i + batch_size]
+                batch_imdb_ids = [item['imdb_id'] for item in batch if 'imdb_id' in item and item['imdb_id']]
+
+                # Sync with remote data - update local IMDb lists based on remote_imdb_ids
+                # This part would involve API calls to the remote server
+                self._update_media_item_imdb_lists(batch_imdb_ids, remote_imdb_ids)
+
+                # Space out API calls
+                if i + batch_size < len(media_items):
+                    time.sleep(delay_between_calls)
+
+            self.logger.info("AI search data synchronization completed.")
+
+        except Exception as e:
+            self.logger.error(f"AI search data synchronization failed: {e}")
+            raise # Re-raise to trigger backoff
+
+    def _get_all_media_items(self) -> list:
+        """Placeholder: Fetch all media items from the database"""
+        # This method should query your database for media items and return a list
+        # of dictionaries, where each dictionary represents a media item and
+        # contains at least an 'imdb_id'.
+        self.logger.debug("Fetching all media items (placeholder)")
+        # Example: return [{'id': 1, 'title': 'Movie A', 'imdb_id': 'tt0000001'}, ...]
+        return []
+
+    def _get_remote_imdb_ids(self) -> set:
+        """Placeholder: Fetch IMDb IDs from the remote AI search service"""
+        # This method should make API calls to the remote service to get a set of IMDb IDs.
+        self.logger.debug("Fetching remote IMDb IDs (placeholder)")
+        # Example: return {'tt0000001', 'tt0000002', ...}
+        return set()
+
+    def _update_media_item_imdb_lists(self, media_item_ids: list, remote_imdb_ids: set):
+        """Placeholder: Update IMDb lists for media items based on remote data"""
+        # This method would typically iterate through media_item_ids, check against
+        # remote_imdb_ids, and update the database accordingly.
+        self.logger.debug(f"Updating media items: {media_item_ids} against remote IDs (placeholder)")
+        pass
 
 
     def check_scheduled_tasks(self):
