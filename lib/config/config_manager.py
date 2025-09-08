@@ -426,7 +426,7 @@ class ConfigManager:
 
             if storage_type == "custom":
                 # Use custom path set by user
-                custom_path = self.get('backup_local_path', '')
+                custom_path = str(self.get('backup_local_path', ''))
                 logger.debug(f"CONFIG_DEBUG: custom backup path = '{custom_path}'")
                 if custom_path and custom_path.strip():
                     return custom_path.strip()
