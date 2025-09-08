@@ -43,18 +43,32 @@ class InfoHijackManager:
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
-        # Debug: Log dialog state changes
+        # Debug: Log dialog state changes and detect close events
         if hasattr(self, '_last_dialog_state'):
+            last_active, last_id = self._last_dialog_state
             if (dialog_active, current_dialog_id) != self._last_dialog_state:
-                self._logger.debug(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
+                self._logger.info(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
+                
+                # Detect dialog close event (was active, now not active)
+                if last_active and not dialog_active and self._native_info_was_open:
+                    self._logger.info("🔄 HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation")
+                    self._handle_native_info_closed()
+                    self._native_info_was_open = False
+                    self._logger.info("✅ HIJACK STEP 5 COMPLETE: Navigation completed")
+                    self._last_dialog_state = (dialog_active, current_dialog_id)
+                    return
+        else:
+            # Initialize dialog state tracking
+            self._last_dialog_state = (False, 9999)
+        
         self._last_dialog_state = (dialog_active, current_dialog_id)
         
         # Handle dialog close detection
         if not dialog_active and self._native_info_was_open:
-            self._logger.debug("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED - initiating container restore")
+            self._logger.info("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED - initiating container restore")
             self._handle_native_info_closed()
             self._native_info_was_open = False
-            self._logger.debug("✅ HIJACK STEP 5 COMPLETE: Container restoration initiated")
+            self._logger.info("✅ HIJACK STEP 5 COMPLETE: Container restoration initiated")
             return
             
         # Handle dialog open detection - this is where we trigger hijack
