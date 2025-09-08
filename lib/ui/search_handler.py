@@ -53,7 +53,8 @@ class SearchHandler:
         search_terms = self._prompt_for_search_terms()
         if not search_terms:
             self._info("No search terms entered")
-            return self._maybe_dir_response([], False, "No search terms provided", content_type="movies")
+            self._end_directory(succeeded=False, update=False)
+            return False
 
         # Step 2: Use default search options (always search both title and plot)
         search_options = {"search_scope": "both", "match_logic": "all"}
@@ -66,12 +67,13 @@ class SearchHandler:
             self._save_search_history(search_terms, search_options, results)
             if not self._try_redirect_to_saved_search_list():
                 self._error("Failed to redirect to saved search list")
-                return self._maybe_dir_response([], False, "Search display failed", content_type="movies")
+                self._end_directory(succeeded=False, update=False)
+                return False
+            return True
         else:
             self._show_no_results_message(search_terms)
-
-        return self._maybe_dir_response(results.items, results.total_count > 0,
-                                      results.query_summary, content_type="movies")
+            self._end_directory(succeeded=True, update=False)
+            return True
 
     def _prompt_for_search_terms(self) -> Optional[str]:
         """Prompt user for search keywords"""

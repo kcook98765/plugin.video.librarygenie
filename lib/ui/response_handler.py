@@ -24,6 +24,8 @@ class ResponseHandler:
     def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> None:
         """Handle DialogResponse by showing messages and performing actions"""
         try:
+            context.logger.debug(f"RESPONSE HANDLER: Processing DialogResponse - success={response.success}, message='{response.message}'")
+            
             # Show message if present
             if response.message:
                 if response.success:
@@ -43,33 +45,48 @@ class ResponseHandler:
 
             # Handle navigation based on response flags - prioritize specific navigation over refresh
             if response.success:
-                if hasattr(response, 'navigate_to_folder') and response.navigate_to_folder:
+                # Check for navigate_to_folder attribute directly on the response object
+                if getattr(response, 'navigate_to_folder', None):
                     # Navigate to specific folder (highest priority for folder operations)
                     import xbmc
                     folder_id = response.navigate_to_folder
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+                    folder_url = context.build_url("show_folder", folder_id=folder_id)
+                    context.logger.debug(f"RESPONSE HANDLER: Navigating to folder {folder_id} with URL: {folder_url}")
+                    xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
+                    return
 
-                elif hasattr(response, 'navigate_to_lists') and response.navigate_to_lists:
+                elif getattr(response, 'navigate_to_lists', None):
                     # Navigate to lists menu
                     import xbmc
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                    lists_url = context.build_url("lists")
+                    context.logger.debug(f"RESPONSE HANDLER: Navigating to lists with URL: {lists_url}")
+                    xbmc.executebuiltin(f'Container.Update("{lists_url}",replace)')
+                    return
 
-                elif hasattr(response, 'navigate_to_main') and response.navigate_to_main:
+                elif getattr(response, 'navigate_to_main', None):
                     # Navigate to main menu
                     import xbmc
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("main")},replace)')
+                    main_url = context.build_url("main")
+                    context.logger.debug(f"RESPONSE HANDLER: Navigating to main with URL: {main_url}")
+                    xbmc.executebuiltin(f'Container.Update("{main_url}",replace)')
+                    return
 
-                elif response.refresh_needed:
+                elif getattr(response, 'refresh_needed', None):
                     # Only refresh if no specific navigation was requested
                     # For tools operations, we should navigate back to the current view instead of refreshing
                     # to prevent tools dialog from reopening
                     import xbmc
                     current_path = xbmc.getInfoLabel('Container.FolderPath')
+                    context.logger.debug(f"RESPONSE HANDLER: Refreshing current path: {current_path}")
                     if 'show_list_tools' in current_path:
                         # If we're in tools context, navigate to parent instead of refreshing
                         xbmc.executebuiltin('Action(ParentDir)')
                     else:
                         xbmc.executebuiltin('Container.Refresh')
+                else:
+                    # For successful responses with just a message and no navigation flags,
+                    # don't do any navigation - let the tools handler's direct navigation work
+                    context.logger.debug(f"RESPONSE HANDLER: Success response with no navigation flags - letting direct navigation work")
 
         except Exception as e:
             context.logger.error(f"Error handling dialog response: {e}")

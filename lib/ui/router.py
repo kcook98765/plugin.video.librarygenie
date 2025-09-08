@@ -61,8 +61,12 @@ class Router:
 
                 result = tools_handler.show_list_tools(context, list_type, list_id)
 
-                # Use response handler to process the result
-                return response_handler.handle_dialog_response(result, context)
+                # Use response handler to process the result - ensure we don't return anything that would cause fallthrough
+                response_handler.handle_dialog_response(result, context)
+                
+                # End directory properly to prevent Kodi from trying to load this as a directory
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                return True  # Always return True to prevent fallthrough to main menu
             elif action == "noop":
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
@@ -77,8 +81,8 @@ class Router:
                 factory = get_handler_factory()
                 factory.context = context # Set context before using factory
                 search_handler = factory.get_search_handler()
-                search_handler.prompt_and_search(context)
-                return True
+                result = search_handler.prompt_and_search(context)
+                return result
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
@@ -200,8 +204,14 @@ class Router:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
                 if not handler:
-                    self.logger.debug(f"No handler found for action '{action}', will show main menu")
-                    return False
+                    self.logger.debug(f"No handler found for action '{action}', will show main menu (redirecting to Lists)")
+                    # Show Lists as main menu instead of traditional main menu
+                    from .handler_factory import get_handler_factory
+                    factory = get_handler_factory()
+                    factory.context = context
+                    lists_handler = factory.get_lists_handler()
+                    response = lists_handler.show_lists_menu(context)
+                    return response.success if hasattr(response, 'success') else True
 
                 # Use the registered handler
                 handler(context)

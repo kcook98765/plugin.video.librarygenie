@@ -77,7 +77,7 @@ class LibraryGenieService:
 
             if not scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan...")
-                
+
                 # Perform initial full scan with DialogBG for better UX
                 result = scanner.perform_full_scan(use_dialog_bg=True)
 
@@ -130,43 +130,107 @@ class LibraryGenieService:
 
         except Exception as e:
             self.logger.error(f"Service error: {e}")
-            
+
     def run(self):
-        """Main service loop"""
+        """Main service loop - optimized for minimal resource usage"""
         self.logger.info("🔥 LibraryGenie service starting main loop...")
         tick_count = 0
-        last_dialog_state = None
+        last_dialog_active = False
         last_armed_state = None
+        hijack_mode = False
+
+        # Reduced logging frequency
+        log_interval = 300  # Log every 30 seconds in normal mode, 10 seconds in hijack mode
 
         while not self.monitor.abortRequested():
             try:
                 tick_count += 1
 
-                # Debug logging every 50 ticks (5 seconds) 
-                if tick_count % 50 == 0:
-                    dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                # Check if we need hijack functionality
+                dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+
+                # Determine if we're in hijack mode (need frequent ticks)
+                needs_hijack = dialog_active or armed_state == '1'
+
+                # State change detection for mode switching
+                if needs_hijack != hijack_mode:
+                    hijack_mode = needs_hijack
+                    if hijack_mode:
+                        self.logger.info("🎯 Entering hijack mode - frequent ticking enabled")
+                        log_interval = 100  # 10 seconds in hijack mode
+                    else:
+                        self.logger.info("😴 Exiting hijack mode - entering idle mode")
+                        log_interval = 300  # 30 seconds in normal mode
+
+                # Conditional debug logging - only when state changes or at intervals
+                should_log = (
+                    dialog_active != last_dialog_active or 
+                    armed_state != last_armed_state or 
+                    tick_count % log_interval == 0
+                )
+
+                if should_log and self.settings.get_debug_logging():
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
-                    armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+                    mode_str = "HIJACK" if hijack_mode else "IDLE"
+                    self.logger.info(f"🔍 SERVICE [{mode_str}] TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
 
-                    # Only log when state changes or every 500 ticks
-                    current_state = (dialog_active, armed_state)
-                    if current_state != last_dialog_state or tick_count % 500 == 0:
-                        self.logger.info(f"🔍 SERVICE TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
-                        last_dialog_state = current_state
+                # Store state for next comparison
+                last_dialog_active = dialog_active
+                last_armed_state = armed_state
 
-                # Run hijack manager tick
-                self.hijack_manager.tick()
+                # Run hijack manager tick only when needed
+                if hijack_mode:
+                    self.hijack_manager.tick()
 
-                # Sleep for a short time to prevent excessive CPU usage
-                if self.monitor.waitForAbort(0.1):  # 100ms
-                    break
+                    # Check if we should exit hijack mode AFTER hijack manager has processed
+                    dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    back_in_plugin = container_path and 'plugin.video.librarygenie' in container_path
+                    
+                    # Check if we're currently on XSP/temp content that needs navigation away from
+                    on_xsp_content = container_path and (
+                        'special://temp' in container_path or
+                        'lg_hijack' in container_path or
+                        '.xsp' in container_path or
+                        'librarygenie_hijack' in container_path
+                    )
+
+                    # Only exit hijack mode if we're truly back in plugin content AND not on XSP
+                    if not dialog_active and back_in_plugin and not on_xsp_content:
+                        # We're back in plugin content and away from XSP - safe to exit hijack mode
+                        self.logger.info("😴 Exiting hijack mode - dialog closed and back in plugin content")
+                        # hijack_mode will be set to False in the next iteration automatically
+                    elif dialog_active:
+                        # Dialog is still active - definitely stay in hijack mode to monitor for close
+                        self.logger.debug(f"HIJACK: Dialog still active - staying in hijack mode to monitor for close")
+                    elif not dialog_active and on_xsp_content:
+                        # Dialog closed but we're still on XSP content - CRITICAL: keep hijack mode active for navigation
+                        self.logger.info(f"HIJACK: ⚠️ Dialog closed but still on XSP content: '{container_path}' - STAYING in hijack mode for navigation")
+                    elif not dialog_active and not back_in_plugin:
+                        # Dialog closed but we're not back in plugin yet - keep hijack mode active for navigation
+                        self.logger.info(f"HIJACK: ⚠️ Dialog closed but not back in plugin: '{container_path}' - STAYING in hijack mode for navigation")
+                    else:
+                        # Any other state - keep hijack mode active for safety
+                        self.logger.debug(f"HIJACK: Staying in hijack mode - other state detected")
+
+                # Adaptive sleep timing based on mode
+                if hijack_mode:
+                    # Fast ticking when hijack is needed (100ms)
+                    if self.monitor.waitForAbort(0.1):
+                        break
+                else:
+                    # Slow ticking when idle to save resources (1 second)
+                    if self.monitor.waitForAbort(1.0):
+                        break
 
             except Exception as e:
                 self.logger.error(f"💥 SERVICE ERROR: {e}")
                 import traceback
                 self.logger.error(f"SERVICE TRACEBACK: {traceback.format_exc()}")
-                if self.monitor.waitForAbort(1.0):  # 1 second on error
+                # Error recovery with longer wait
+                if self.monitor.waitForAbort(2.0):
                     break
 
         self.logger.info("🛑 LibraryGenie service stopped")

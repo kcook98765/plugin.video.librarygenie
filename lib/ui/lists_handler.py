@@ -127,12 +127,14 @@ class ListsHandler:
                 tools_url = context.build_url('show_list_tools', list_type='lists_main')
 
             menu_items.append({
-                'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
+                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR]",  # "Tools & Options"
                 'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': L(36018)  # "Access lists tools and options"
+                'description': "Search, Favorites, Import/Export & Settings"  # Enhanced description
             })
+
+            # Search and other tools are now accessible via Tools & Options menu
 
             # Get all existing folders to display as navigable items
             all_folders = query_manager.get_all_folders()
@@ -185,10 +187,10 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Show breadcrumb notification for Lists menu
+            # Show breadcrumb notification for Lists menu (now main interface)
             try:
-                self.breadcrumb_helper.show_breadcrumb_notification("Lists")
-                context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'Lists'")
+                self.breadcrumb_helper.show_breadcrumb_notification("LibraryGenie")
+                context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'LibraryGenie' (main interface)")
             except Exception as e:
                 context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
 

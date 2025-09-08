@@ -256,12 +256,12 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
                     result = lists_handler.rename_list(context, list_id)
-                    
+
                     # Navigate back to the lists view after successful rename
                     if result.success:
                         result.navigate_to_lists = True
                         result.refresh_needed = False  # Override refresh to prevent tools reopening
-                    
+
                     return result
                 elif selected_index == 2:  # Move to folder
                     return self._move_list_to_folder(context, list_id)
@@ -378,7 +378,7 @@ class ToolsHandler:
                     from .lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
                     result = lists_handler.rename_folder(context, folder_id)
-                    
+
                     # Navigate back to the folder after successful rename
                     if result.success:
                         result.navigate_to_folder = folder_id
@@ -386,7 +386,7 @@ class ToolsHandler:
                         # Ensure no other navigation flags are set
                         result.navigate_to_main = False
                         result.navigate_to_lists = False
-                    
+
                     return result
                 elif selected_index == 3:  # Move folder
                     return self._move_folder(context, folder_id)
@@ -432,9 +432,9 @@ class ToolsHandler:
 
             # Move list
             target_folder_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
-            
+
             self.logger.debug(f"Moving list {list_id} to folder {target_folder_id} (selected_index: {selected_index})")
-            
+
             result = query_manager.move_list_to_folder(list_id, target_folder_id)
 
             if result.get("success"):
@@ -443,7 +443,7 @@ class ToolsHandler:
                     success=True,
                     message=L(36033) % folder_name,  # "Moved list to %s"
                 )
-                
+
                 # Navigate to appropriate location after move
                 if target_folder_id is None:
                     response.navigate_to_lists = True
@@ -453,7 +453,7 @@ class ToolsHandler:
                     response.navigate_to_lists = False
                     response.navigate_to_main = False
                     response.refresh_needed = False
-                    
+
                 self.logger.debug(f"Set navigation to folder {target_folder_id}")
                 return response
             else:
@@ -1082,72 +1082,67 @@ class ToolsHandler:
                     self.logger.warning(f"TOOLS DEBUG: Query manager not available for folder resolution")
                     current_folder_id = None
 
-            # Build comprehensive options for main lists menu - organized by operation type
-            # Only show folder-specific options (no duplicate generic ones)
-            options = [
-                # Creation operations - always folder-specific, even for root
-                f"[COLOR lightgreen]📋 {L(36009) % current_folder_name}[/COLOR]",  # "Create a new list in '%s'"
-                f"[COLOR lightgreen]📁 {L(36010) % current_folder_name}[/COLOR]",  # "Create a new subfolder in '%s'"
-                # Import operations - should be folder-aware
-                f"[COLOR white]Import Lists to {current_folder_name}[/COLOR]",
-                # Export operations
-                "[COLOR white]Export All Lists[/COLOR]",
-                # Backup operations
-                "[COLOR white]Manual Backup[/COLOR]",
-                "[COLOR white]Backup Manager[/COLOR]",
-                "[COLOR white]Test Backup Config[/COLOR]",
-                # Management operations
-                "[COLOR yellow]Library Statistics[/COLOR]",
-                "[COLOR yellow]Force Library Rescan[/COLOR]",
-                "[COLOR yellow]Clear Search History[/COLOR]",
-                "[COLOR yellow]Reset Preferences[/COLOR]",
-                # Cancel
-                f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+            # Main lists menu tools - enhanced with search and favorites
+            tools_options = [
+                "🔍 Local Search",
+                "📊 Search History",
+                "⭐ Kodi Favorites",
+                "---",  # Separator
+                "Create New List",
+                "Create New Folder",
+                "Import Lists from File",
+                "Export All Lists",
+                "Settings & Preferences",
+                "Database Backup",
+                "Restore from Backup"
             ]
 
+            # Check if AI Search is available
+            from ..remote.ai_search_client import get_ai_search_client
+            ai_client = get_ai_search_client()
+            if ai_client.is_activated():
+                tools_options.insert(1, "🤖 AI Search")
+
+
             # Debug logging for lists main tools options
-            self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for lists main tools (folder: '{current_folder_name}', folder_id: {current_folder_id}):")
-            for i, option in enumerate(options):
+            self.logger.debug(f"TOOLS DEBUG: Built {len(tools_options)} options for lists main tools (folder: '{current_folder_name}', folder_id: {current_folder_id}):")
+            for i, option in enumerate(tools_options):
                 self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36000), list(options))  # "Tools & Options"
+            selected_index = dialog.select(L(36000), list(tools_options))  # "Tools & Options"
 
             self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from lists main tools dialog")
 
-            if selected_index < 0 or selected_index == 11:  # Cancel
+            if selected_index < 0 or selected_index == len(tools_options) - 1:  # Cancel
                 self.logger.debug(f"TOOLS DEBUG: Lists main tools cancelled (selected_index: {selected_index})")
                 return DialogResponse(success=False)
 
-            # Handle selected option
-            if selected_index == 0:  # Create New List in Folder
-                # Use the folder_id from context - this is crucial for proper folder assignment
-                self.logger.debug(f"TOOLS DEBUG: Creating new list in folder_id: {current_folder_id}")
-                return self._create_list_in_folder(context, current_folder_id)
-            elif selected_index == 1:  # Create New Subfolder in Folder
-                # Use the folder_id from context - this is crucial for proper folder assignment
-                self.logger.debug(f"TOOLS DEBUG: Creating new subfolder in parent folder_id: {current_folder_id}")
-                return self._create_subfolder(context, current_folder_id)
-            elif selected_index == 2:  # Import Lists to current folder
-                self.logger.debug(f"TOOLS DEBUG: Importing lists to folder_id: {current_folder_id}")
-                return self._import_lists(context, current_folder_id)
-            elif selected_index == 3:  # Export All Lists
-                return self._export_all_lists(context)
-            elif selected_index == 4:  # Manual Backup
-                return self._run_manual_backup()
-            elif selected_index == 5:  # Backup Manager
-                return self._show_backup_manager()
-            elif selected_index == 6:  # Test Backup Config
-                return self._test_backup_config()
-            elif selected_index == 7:  # Library Statistics
-                return self._show_library_stats()
-            elif selected_index == 8:  # Force Library Rescan
-                return self._force_rescan()
-            elif selected_index == 9:  # Clear Search History
-                return self._clear_search_history()
-            elif selected_index == 10:  # Reset Preferences
-                return self._reset_preferences()
+            # Handle main lists menu actions
+            selected_option = tools_options[selected_index]
+            if selected_option == "🔍 Local Search":
+                return self._handle_local_search(context)
+            elif selected_option == "🤖 AI Search":
+                return self._handle_ai_search(context)
+            elif selected_option == "📊 Search History":
+                return self._handle_search_history(context)
+            elif selected_option == "⭐ Kodi Favorites":
+                return self._handle_kodi_favorites(context)
+            elif selected_option == "Create New List":
+                return self._handle_create_list(context)
+            elif selected_option == "Create New Folder":
+                return self._handle_create_folder(context)
+            elif selected_option == "Import Lists from File":
+                return self._handle_import_lists(context)
+            elif selected_option == "Export All Lists":
+                return self._handle_export_all_lists(context)
+            elif selected_option == "Settings & Preferences":
+                return self._handle_open_settings(context)
+            elif selected_option == "Database Backup":
+                return self._handle_create_backup(context)
+            elif selected_option == "Restore from Backup":
+                return self._handle_restore_backup_from_tools(context)
 
             return DialogResponse(success=False)
 
@@ -1559,3 +1554,105 @@ class ToolsHandler:
         except Exception as e:
             context.logger.error(f"Error in AI search activation handler: {e}")
             return DialogResponse(success=False, message="Failed to activate AI search")
+
+    def _handle_local_search(self, context: PluginContext) -> DialogResponse:
+        """Execute local search directly"""
+        try:
+            from .handler_factory import get_handler_factory
+            
+            # Get search handler and execute search
+            factory = get_handler_factory()
+            factory.context = context
+            search_handler = factory.get_search_handler()
+            
+            # Execute the search directly
+            success = search_handler.prompt_and_search(context)
+            
+            if success:
+                return DialogResponse(
+                    success=True, 
+                    message="Search completed",
+                    refresh_needed=False,
+                    navigate_to_main=False
+                )
+            else:
+                return DialogResponse(
+                    success=True, 
+                    message="Search cancelled",
+                    refresh_needed=False
+                )
+        except Exception as e:
+            context.logger.error(f"Error executing search: {e}")
+            return DialogResponse(success=False, message="Failed to execute search")
+
+    def _handle_ai_search(self, context: PluginContext) -> DialogResponse:
+        """Navigate to AI search"""
+        try:
+            import xbmc
+            ai_search_url = context.build_url('ai_search_prompt')
+            xbmc.executebuiltin(f'Container.Update("{ai_search_url}",replace)')
+            return DialogResponse(success=True, message="Opening AI search...")
+        except Exception as e:
+            context.logger.error(f"Error navigating to AI search: {e}")
+            return DialogResponse(success=False, message="Failed to open AI search")
+
+    def _handle_search_history(self, context: PluginContext) -> DialogResponse:
+        """Navigate to search history"""
+        try:
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message="Query manager not available")
+                
+            search_folder_id = query_manager.get_or_create_search_history_folder()
+            
+            if search_folder_id:
+                # Navigate directly using xbmc.executebuiltin instead of relying on DialogResponse navigation
+                import xbmc
+                folder_url = context.build_url("show_folder", folder_id=search_folder_id)
+                context.logger.debug(f"TOOLS: Navigating directly to search history folder {search_folder_id} with URL: {folder_url}")
+                xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
+                # Return a simple success response without any navigation flags to avoid conflicts
+                return DialogResponse(success=True, message="")
+            else:
+                return DialogResponse(success=False, message="Could not access search history")
+        except Exception as e:
+            context.logger.error(f"Error navigating to search history: {e}")
+            return DialogResponse(success=False, message="Failed to open search history")
+
+    def _handle_kodi_favorites(self, context: PluginContext) -> DialogResponse:
+        """Navigate to Kodi favorites"""
+        try:
+            # Check if favorites integration is enabled
+            addon = context.addon
+            favorites_enabled = addon.getSettingBool('favorites_integration_enabled')
+
+            if not favorites_enabled:
+                return DialogResponse(
+                    success=False,
+                    message="Kodi Favorites integration is disabled in settings"
+                )
+
+            import xbmc
+            favorites_url = context.build_url('kodi_favorites')
+            xbmc.executebuiltin(f'Container.Update("{favorites_url}",replace)')
+            return DialogResponse(success=True, message="Opening Kodi favorites...")
+        except Exception as e:
+            context.logger.error(f"Error navigating to favorites: {e}")
+            return DialogResponse(success=False, message="Failed to open favorites")
+
+    def _handle_open_settings(self, context: PluginContext) -> DialogResponse:
+        """Handle opening addon settings"""
+        try:
+            import xbmc
+            xbmc.executebuiltin(f'Addon.OpenSettings({context.addon.getAddonInfo("id")})')
+
+            return DialogResponse(
+                success=True,
+                message="Settings opened"
+            )
+        except Exception as e:
+            context.logger.error(f"Error opening settings: {e}")
+            return DialogResponse(
+                success=False,
+                message="Failed to open settings"
+            )
