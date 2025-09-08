@@ -66,7 +66,7 @@ class AuthorizationHelper:
                 self.logger.debug("No server URL configured for API key verification")
                 return False
             
-            return is_api_key_valid(server_url)
+            return is_api_key_valid(str(server_url))
             
         except Exception as e:
             self.logger.error(f"Error verifying API key: {e}")
@@ -82,7 +82,7 @@ class AuthorizationHelper:
             server_url = cfg.get('ai_search_server_url', '')
             
             if server_url:
-                test_result = test_api_connection(server_url)
+                test_result = test_api_connection(str(server_url))
                 if test_result.get('success'):
                     dialog.ok(
                         "Authorization Status",
@@ -123,7 +123,7 @@ class AuthorizationHelper:
                 return False
             
             self.logger.info("Starting OTP authorization flow")
-            success = run_otp_authorization_flow(server_url)
+            success = run_otp_authorization_flow(str(server_url))
             
             if success:
                 self.logger.info("OTP authorization completed successfully")
