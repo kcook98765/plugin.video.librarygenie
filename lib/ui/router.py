@@ -198,13 +198,10 @@ class Router:
                 if query_manager:
                     search_folder_id = query_manager.get_or_create_search_history_folder()
                     if search_folder_id:
-                        # Use the handler factory
-                        from .handler_factory import get_handler_factory
-                        factory = get_handler_factory()
-                        factory.context = context
-                        lists_handler = factory.get_lists_handler()
-                        response = lists_handler.show_folder(context, search_folder_id)
-                        return response
+                        # Use hot path for folder display
+                        from .routes_hot import get_hot_routes
+                        hot_routes = get_hot_routes(context)
+                        return hot_routes.show_folder(str(search_folder_id))
                     else:
                         self.logger.error("Could not access search history folder")
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
