@@ -1604,9 +1604,12 @@ class ToolsHandler:
             search_folder_id = query_manager.get_or_create_search_history_folder()
             
             if search_folder_id:
-                result = DialogResponse(success=True, message="Opening search history...")
-                result.navigate_to_folder = search_folder_id
-                return result
+                # Navigate directly using xbmc.executebuiltin instead of relying on DialogResponse navigation
+                import xbmc
+                folder_url = context.build_url("show_folder", folder_id=search_folder_id)
+                context.logger.debug(f"TOOLS: Navigating directly to search history folder {search_folder_id} with URL: {folder_url}")
+                xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
+                return DialogResponse(success=True, message="Opening search history...")
             else:
                 return DialogResponse(success=False, message="Could not access search history")
         except Exception as e:
