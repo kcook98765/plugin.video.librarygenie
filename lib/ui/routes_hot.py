@@ -19,6 +19,9 @@ from .localization import L
 from ..utils.logger import get_logger
 from ..core.use_cases_hot import get_hot_use_cases
 
+# Import version detection for proper metadata handling
+from ..utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus
+
 
 class HotRoutes:
     """Consolidated hot route handlers with minimal import overhead"""
@@ -267,7 +270,20 @@ class HotRoutes:
         """Show empty lists state with minimal UI"""
         # Add Tools & Options
         tools_item = xbmcgui.ListItem(label="[COLOR yellow]⚙️ Tools & Options[/COLOR]")
-        tools_item.setInfo('video', {'plot': 'Search, Favorites, Import/Export & Settings'})
+        
+        # Use version-aware metadata setting
+        kodi_major = get_kodi_major_version()
+        if kodi_major >= 20:
+            try:
+                video_info_tag = tools_item.getVideoInfoTag()
+                video_info_tag.setPlot('Search, Favorites, Import/Export & Settings')
+            except Exception:
+                # Fallback to setInfo for v19/v20 compatibility
+                if kodi_major < 21:
+                    tools_item.setInfo('video', {'plot': 'Search, Favorites, Import/Export & Settings'})
+        else:
+            tools_item.setInfo('video', {'plot': 'Search, Favorites, Import/Export & Settings'})
+            
         tools_item.setArt({'icon': "DefaultAddonProgram.png"})
         xbmcplugin.addDirectoryItem(
             self.context.addon_handle,
@@ -278,7 +294,18 @@ class HotRoutes:
         
         # Add Create First List option
         create_item = xbmcgui.ListItem(label="[COLOR lightgreen]+ Create Your First List[/COLOR]")
-        create_item.setInfo('video', {'plot': 'Create your first list to get started'})
+        
+        # Use version-aware metadata setting  
+        if kodi_major >= 20:
+            try:
+                video_info_tag = create_item.getVideoInfoTag()
+                video_info_tag.setPlot('Create your first list to get started')
+            except Exception:
+                if kodi_major < 21:
+                    create_item.setInfo('video', {'plot': 'Create your first list to get started'})
+        else:
+            create_item.setInfo('video', {'plot': 'Create your first list to get started'})
+            
         create_item.setArt({'icon': "DefaultAddSource.png"})
         xbmcplugin.addDirectoryItem(
             self.context.addon_handle,
@@ -293,7 +320,19 @@ class HotRoutes:
     def _add_lists_menu_header(self):
         """Add Tools & Options header to lists menu"""
         tools_item = xbmcgui.ListItem(label="[COLOR yellow]⚙️ Tools & Options[/COLOR]")
-        tools_item.setInfo('video', {'plot': 'Search, Favorites, Import/Export & Settings'})
+        
+        # Use version-aware metadata setting
+        kodi_major = get_kodi_major_version()
+        if kodi_major >= 20:
+            try:
+                video_info_tag = tools_item.getVideoInfoTag()
+                video_info_tag.setPlot('Search, Favorites, Import/Export & Settings')
+            except Exception:
+                if kodi_major < 21:
+                    tools_item.setInfo('video', {'plot': 'Search, Favorites, Import/Export & Settings'})
+        else:
+            tools_item.setInfo('video', {'plot': 'Search, Favorites, Import/Export & Settings'})
+            
         tools_item.setArt({'icon': "DefaultAddonProgram.png"})
         xbmcplugin.addDirectoryItem(
             self.context.addon_handle,
@@ -309,7 +348,18 @@ class HotRoutes:
         list_count = folder_info.get('list_count', 0)
         
         list_item = xbmcgui.ListItem(label=f"[COLOR cyan]{folder_name}[/COLOR]")
-        list_item.setInfo('video', {'plot': f"Folder with {list_count} lists"})
+        
+        # Use version-aware metadata setting
+        kodi_major = get_kodi_major_version()
+        if kodi_major >= 20:
+            try:
+                video_info_tag = list_item.getVideoInfoTag()
+                video_info_tag.setPlot(f"Folder with {list_count} lists")
+            except Exception:
+                if kodi_major < 21:
+                    list_item.setInfo('video', {'plot': f"Folder with {list_count} lists"})
+        else:
+            list_item.setInfo('video', {'plot': f"Folder with {list_count} lists"})
         
         context_menu = [
             (f"Tools & Options for '{folder_name}'",
@@ -337,7 +387,17 @@ class HotRoutes:
         
         list_item = xbmcgui.ListItem(label=display_name)
         if description:
-            list_item.setInfo('video', {'plot': description})
+            # Use version-aware metadata setting
+            kodi_major = get_kodi_major_version()
+            if kodi_major >= 20:
+                try:
+                    video_info_tag = list_item.getVideoInfoTag()
+                    video_info_tag.setPlot(description)
+                except Exception:
+                    if kodi_major < 21:
+                        list_item.setInfo('video', {'plot': description})
+            else:
+                list_item.setInfo('video', {'plot': description})
         
         context_menu = [
             (f"Tools & Options for '{name}'",
