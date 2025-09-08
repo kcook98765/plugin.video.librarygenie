@@ -198,59 +198,42 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - detect XSP and execute proper navigation"""
+        """Handle the native info dialog being closed - trust Kodi's automatic navigation"""
         try:
-            self._logger.info("🔄 HIJACK STEP 5: Native info dialog closed, starting navigation back to plugin")
+            self._logger.info("🔄 HIJACK STEP 5: Native info dialog closed, checking navigation state")
             
             # Wait for dialog close animation to complete
-            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=3.0):
-                self._logger.warning("HIJACK: GUI not ready after 3s, proceeding anyway")
+            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=2.0):
+                self._logger.warning("HIJACK: GUI not ready after 2s, proceeding anyway")
             
-            # Log current state for verification
+            # Check current state after dialog close
             current_path = xbmc.getInfoLabel("Container.FolderPath")
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
-            self._logger.info(f"HIJACK: Current state - Path: '{current_path}', Window: '{current_window}'")
+            self._logger.info(f"HIJACK: Current state after dialog close - Path: '{current_path}', Window: '{current_window}'")
             
-            # Execute first back command
-            self._logger.info("HIJACK: Executing first back command")
-            xbmc.executebuiltin('Action(Back)')
-            
-            # Wait for first navigation to complete
-            if not self._wait_for_navigation_complete("first back", max_wait=3.0):
-                self._logger.warning("HIJACK: First back navigation timeout")
-            
-            # Check if we're now on an XSP path (temporary hijack list)
-            intermediate_path = xbmc.getInfoLabel("Container.FolderPath")
-            intermediate_window = xbmc.getInfoLabel("System.CurrentWindow")
-            
-            self._logger.info(f"HIJACK: After first back - Path: '{intermediate_path}', Window: '{intermediate_window}'")
-            
-            # Detect if we're on XSP/temporary list that needs second back
-            if self._is_currently_on_xsp(intermediate_path, intermediate_window):
-                self._logger.info(f"HIJACK: ✋ Detected XSP path: '{intermediate_path}', executing second back")
+            # Check if we're on XSP/temporary content that needs navigation
+            if self._is_currently_on_xsp(current_path, current_window):
+                self._logger.info(f"HIJACK: ✋ Detected XSP path: '{current_path}', executing back to return to plugin")
                 
-                # Brief pause before second back
-                xbmc.sleep(150)
-                
-                # Execute second back command to return to original plugin content
-                self._logger.info("HIJACK: Executing second back command")
+                # Execute back command to return to original plugin content
+                self._logger.info("HIJACK: Executing back command to exit XSP")
                 xbmc.executebuiltin('Action(Back)')
                 
-                # Wait for second navigation to complete
-                if not self._wait_for_navigation_complete("second back", max_wait=3.0):
-                    self._logger.warning("HIJACK: Second back navigation timeout")
+                # Wait for navigation to complete
+                if not self._wait_for_navigation_complete("XSP exit", max_wait=3.0):
+                    self._logger.warning("HIJACK: XSP exit navigation timeout")
                 
                 final_path = xbmc.getInfoLabel("Container.FolderPath")
                 if final_path and 'plugin.video.librarygenie' in final_path:
-                    self._logger.info(f"HIJACK: ✅ Double-back successful, returned to plugin: '{final_path}'")
+                    self._logger.info(f"HIJACK: ✅ Successfully returned to plugin: '{final_path}'")
                 else:
-                    self._logger.warning(f"HIJACK: Double-back failed, unexpected path: '{final_path}'")
+                    self._logger.warning(f"HIJACK: Navigation failed, unexpected path: '{final_path}'")
             else:
-                # Single back was sufficient - we're already back in plugin content
-                if intermediate_path and 'plugin.video.librarygenie' in intermediate_path:
-                    self._logger.info(f"HIJACK: ✅ Single back successful, returned to plugin: '{intermediate_path}'")
+                # Already back in plugin content - Kodi's navigation history worked correctly
+                if current_path and 'plugin.video.librarygenie' in current_path:
+                    self._logger.info(f"HIJACK: ✅ Already back in plugin content (Kodi navigation history): '{current_path}'")
                 else:
-                    self._logger.warning(f"HIJACK: Single back insufficient, unexpected path: '{intermediate_path}'")
+                    self._logger.warning(f"HIJACK: Unexpected path after dialog close: '{current_path}'")
             
             self._cleanup_properties()
                 
