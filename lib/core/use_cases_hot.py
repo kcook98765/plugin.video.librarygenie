@@ -251,9 +251,9 @@ class HotUseCases:
         
         try:
             # Lazy import favorites manager only when needed
-            from ..kodi.favorites_manager import get_favorites_manager
+            from ..kodi.favorites_manager import Phase4FavoritesManager
             
-            favorites_manager = get_favorites_manager()
+            favorites_manager = Phase4FavoritesManager()
             if not favorites_manager:
                 return []
             
