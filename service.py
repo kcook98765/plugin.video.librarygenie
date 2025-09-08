@@ -157,10 +157,10 @@ class LibraryGenieService:
                 if needs_hijack != hijack_mode:
                     hijack_mode = needs_hijack
                     if hijack_mode:
-                        self.logger.debug("🎯 Entering hijack mode - frequent ticking enabled")
+                        self.logger.info("🎯 Entering hijack mode - frequent ticking enabled")
                         log_interval = 100  # 10 seconds in hijack mode
                     else:
-                        self.logger.debug("😴 Exiting hijack mode - entering idle mode")
+                        self.logger.info("😴 Exiting hijack mode - entering idle mode")
                         log_interval = 300  # 30 seconds in normal mode
                 
                 # Conditional debug logging - only when state changes or at intervals
@@ -174,7 +174,7 @@ class LibraryGenieService:
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     mode_str = "HIJACK" if hijack_mode else "IDLE"
-                    self.logger.debug(f"🔍 SERVICE [{mode_str}] TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
+                    self.logger.info(f"🔍 SERVICE [{mode_str}] TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
                 
                 # Store state for next comparison
                 last_dialog_active = dialog_active
