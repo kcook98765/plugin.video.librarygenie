@@ -77,8 +77,8 @@ class Router:
                 factory = get_handler_factory()
                 factory.context = context # Set context before using factory
                 search_handler = factory.get_search_handler()
-                search_handler.prompt_and_search(context)
-                return True
+                result = search_handler.prompt_and_search(context)
+                return result
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
