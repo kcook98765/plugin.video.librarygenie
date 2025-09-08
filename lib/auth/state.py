@@ -105,7 +105,7 @@ def save_api_key(api_key: str) -> bool:
         return False
 
 
-def save_tokens(api_key: str = None, access_token: str = None, refresh_token: str = None, expires_at: str = None) -> bool:
+def save_tokens(api_key: Optional[str] = None, access_token: Optional[str] = None, refresh_token: Optional[str] = None, expires_at: Optional[str] = None) -> bool:
     """Save authentication tokens to addon settings"""
     try:
         addon = xbmcaddon.Addon()
