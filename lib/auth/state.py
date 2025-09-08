@@ -11,22 +11,7 @@ from datetime import datetime
 
 from ..data.connection_manager import get_connection_manager
 from ..utils.logger import get_logger
-
-# Import xbmcaddon for addon settings
-try:
-    import xbmcaddon
-except ImportError:
-    # Mock xbmcaddon if not running in Kodi environment
-    class MockAddon:
-        def __init__(self):
-            self._settings = {}
-
-        def getSetting(self, key):
-            return self._settings.get(key, '')
-
-        def setSetting(self, key, value):
-            self._settings[key] = value
-    xbmcaddon = type('xbmcaddon', (object,), {'Addon': MockAddon})()
+from ..config.settings import SettingsManager
 
 
 logger = get_logger(__name__)
@@ -108,16 +93,16 @@ def save_api_key(api_key: str) -> bool:
 def save_tokens(api_key: Optional[str] = None, access_token: Optional[str] = None, refresh_token: Optional[str] = None, expires_at: Optional[str] = None) -> bool:
     """Save authentication tokens to addon settings"""
     try:
-        addon = xbmcaddon.Addon()
+        settings = SettingsManager()
 
         if api_key is not None:
-            addon.setSetting('api_key', api_key)
+            settings.set_ai_search_api_key(api_key)
         if access_token is not None:
-            addon.setSetting('access_token', access_token)
+            settings.set_setting('access_token', access_token)
         if refresh_token is not None:
-            addon.setSetting('refresh_token', refresh_token)
+            settings.set_setting('refresh_token', refresh_token)
         if expires_at is not None:
-            addon.setSetting('token_expires_at', expires_at)
+            settings.set_setting('token_expires_at', expires_at)
 
         logger.debug("Authentication tokens saved")
         return True
@@ -130,13 +115,13 @@ def save_tokens(api_key: Optional[str] = None, access_token: Optional[str] = Non
 def get_tokens() -> Dict[str, str]:
     """Get all stored authentication tokens"""
     try:
-        addon = xbmcaddon.Addon()
+        settings = SettingsManager()
         
         return {
-            'api_key': addon.getSetting('api_key'),
-            'access_token': addon.getSetting('access_token'),
-            'refresh_token': addon.getSetting('refresh_token'),
-            'expires_at': addon.getSetting('token_expires_at')
+            'api_key': settings.get_ai_search_api_key() or '',
+            'access_token': settings.addon.getSetting('access_token'),
+            'refresh_token': settings.addon.getSetting('refresh_token'),
+            'expires_at': settings.addon.getSetting('token_expires_at')
         }
 
     except Exception as e:
@@ -152,11 +137,11 @@ def get_tokens() -> Dict[str, str]:
 def clear_tokens() -> bool:
     """Clear stored authentication tokens"""
     try:
-        addon = xbmcaddon.Addon()
-        addon.setSetting('api_key', '')
-        addon.setSetting('refresh_token', '')
-        addon.setSetting('access_token', '')
-        addon.setSetting('token_expires_at', '')
+        settings = SettingsManager()
+        settings.set_ai_search_api_key('')
+        settings.set_setting('refresh_token', '')
+        settings.set_setting('access_token', '')
+        settings.set_setting('token_expires_at', '')
 
         logger.info("Authentication tokens cleared")
         return True
