@@ -35,6 +35,9 @@ class InfoHijackManager:
         # Anti-spam debugging
         self._last_debug_log = 0.0
         self._debug_log_interval = 10.0  # Log at most every 10 seconds
+        
+        # Extended monitoring for user "back" navigation to XSP pages
+        self._extended_monitoring_active = False
 
     def tick(self):
         current_time = time.time()
@@ -167,8 +170,8 @@ class InfoHijackManager:
                                 self._logger.info(f"✅ HIJACK STEP 3 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
                                 self._native_info_was_open = True  # Mark for close detection
                                 
-                                # Enable XSP safety net monitoring for 60 seconds
-                                self._hijack_monitoring_expires = time.time() + 60.0
+                                # Enable XSP auto-navigation monitoring for 120 seconds
+                                self._hijack_monitoring_expires = time.time() + 120.0
                                 self._hijack_xsp_created = True
                                 self._safety_attempts = 0  # Reset attempt counter
                                 
@@ -432,8 +435,15 @@ class InfoHijackManager:
         if not self._is_on_librarygenie_hijack_xsp(current_path):
             return
         
-        # Only monitor within reasonable time window after hijack (60 seconds)
+        # Only monitor within 120-second window after hijack for user "back" navigation
         if current_time > self._hijack_monitoring_expires:
+            # Log expiration only once when transitioning out of monitoring
+            if self._hijack_xsp_created:
+                self._debug_log_with_rate_limit(
+                    "XSP AUTO-NAV: 120-second monitoring window expired",
+                    current_time, self._logger.info
+                )
+                self._cleanup_hijack_monitoring_state()
             return
         
         # Rate limiting: at least 2 seconds between attempts to avoid rapid-fire navigation

@@ -149,15 +149,25 @@ class LibraryGenieService:
                 # Check if we need hijack functionality
                 dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
                 armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+                
+                # Also check if we're in extended monitoring period for XSP auto-navigation
+                container_path = xbmc.getInfoLabel('Container.FolderPath')
+                in_extended_monitoring = (
+                    hasattr(self.hijack_manager, '_hijack_monitoring_expires') and 
+                    time.time() < self.hijack_manager._hijack_monitoring_expires
+                )
 
-                # Determine if we're in hijack mode (need frequent ticks)
-                needs_hijack = dialog_active or armed_state == '1'
+                # Determine if we're in hijack mode (need frequent 100ms ticks)
+                needs_hijack = dialog_active or armed_state == '1' or in_extended_monitoring
 
                 # State change detection for mode switching
                 if needs_hijack != hijack_mode:
                     hijack_mode = needs_hijack
                     if hijack_mode:
-                        self.logger.info("🎯 Entering hijack mode - frequent ticking enabled")
+                        if in_extended_monitoring:
+                            self.logger.info("🎯 Entering hijack mode - extended monitoring for XSP auto-navigation (120s)")
+                        else:
+                            self.logger.info("🎯 Entering hijack mode - frequent ticking enabled")
                         log_interval = 100  # 10 seconds in hijack mode
                     else:
                         self.logger.info("😴 Exiting hijack mode - entering idle mode")
