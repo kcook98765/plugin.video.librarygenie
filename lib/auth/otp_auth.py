@@ -154,7 +154,7 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
         }
 
 
-def test_api_connection(server_url: str, api_key: str = None) -> Dict[str, Any]:
+def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Test API connection using the /kodi/test endpoint
 
@@ -297,7 +297,7 @@ def run_otp_authorization_flow(server_url: str) -> bool:
         return False
 
 
-def is_api_key_valid(server_url: str = None, api_key: str = None) -> bool:
+def is_api_key_valid(server_url: Optional[str] = None, api_key: Optional[str] = None) -> bool:
     """
     Check if the current API key is valid by testing the connection
 
@@ -311,7 +311,7 @@ def is_api_key_valid(server_url: str = None, api_key: str = None) -> bool:
     try:
         if not server_url:
             cfg = get_config()
-            server_url = cfg.get('ai_search_server_url', '')
+            server_url = str(cfg.get('ai_search_server_url', ''))
 
         if not server_url:
             return False
