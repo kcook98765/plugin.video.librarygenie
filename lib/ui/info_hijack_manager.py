@@ -23,6 +23,18 @@ class InfoHijackManager:
         self._native_info_was_open = False
         self._cooldown_until = 0.0
         self._last_hijack_time = 0.0
+        
+        # XSP Safety Net state tracking
+        self._hijack_monitoring_expires = 0.0
+        self._last_safety_attempt = 0.0
+        self._safety_attempts = 0
+        self._last_monitored_path = None
+        self._path_stable_since = 0.0
+        self._hijack_xsp_created = False
+        
+        # Anti-spam debugging
+        self._last_debug_log = 0.0
+        self._debug_log_interval = 10.0  # Log at most every 10 seconds
 
     def tick(self):
         current_time = time.time()
@@ -89,6 +101,11 @@ class InfoHijackManager:
         
         # Update dialog state for next iteration (only if no close detected)
         self._last_dialog_state = (dialog_active, current_dialog_id)
+        
+        # XSP SAFETY NET: Monitor for users stuck on LibraryGenie hijack XSP pages
+        # This is the core fix for the reported issue
+        if not dialog_active and not self._in_progress:
+            self._xsp_safety_net_monitoring(current_time)
             
         # Handle dialog open detection - this is where we trigger hijack
         if dialog_active:
@@ -149,6 +166,11 @@ class InfoHijackManager:
                             if ok:
                                 self._logger.info(f"✅ HIJACK STEP 3 COMPLETE: Successfully opened native info for {dbtype} {dbid_int} in {end_time - start_time:.3f}s")
                                 self._native_info_was_open = True  # Mark for close detection
+                                
+                                # Enable XSP safety net monitoring for 60 seconds
+                                self._hijack_monitoring_expires = time.time() + 60.0
+                                self._hijack_xsp_created = True
+                                self._safety_attempts = 0  # Reset attempt counter
                                 
                                 # Set cooldown
                                 operation_time = time.time() - current_time
@@ -218,8 +240,8 @@ class InfoHijackManager:
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
             self._logger.info(f"HIJACK: Current state after dialog close - Path: '{current_path}', Window: '{current_window}'")
             
-            # Check if we're on XSP/temporary content that needs navigation
-            if self._is_currently_on_xsp(current_path, current_window):
+            # Check if we're on our own LibraryGenie hijack XSP content that needs navigation
+            if self._is_on_librarygenie_hijack_xsp(current_path):
                 self._logger.info(f"HIJACK: ✋ Detected XSP path: '{current_path}', executing back to return to plugin")
                 
                 # Execute back command to return to original plugin content
@@ -250,32 +272,24 @@ class InfoHijackManager:
             self._logger.error(f"HIJACK: Traceback: {traceback.format_exc()}")
             self._cleanup_properties()
 
-    def _is_currently_on_xsp(self, path: str, window: str) -> bool:
-        """Determine if we're currently on an XSP path"""
+    def _is_on_librarygenie_hijack_xsp(self, path: str) -> bool:
+        """SAFE: Only detect LibraryGenie's own hijack XSP files"""
         if not path:
             return False
-            
-        self._logger.info(f"HIJACK: XSP Detection - Path: '{path}', Window: '{window}'")
-            
-        # Direct XSP indicators - check for our hijack temp directory specifically
-        xsp_indicators = ['.xsp', 'smartplaylist', 'lg_hijack', 'playlists/video', 'librarygenie_hijack']
-        for indicator in xsp_indicators:
-            if indicator in path.lower():
-                self._logger.info(f"HIJACK: ✅ XSP DETECTED via indicator '{indicator}' in path")
+        
+        # Only target our specific temp directory and file patterns
+        lg_hijack_indicators = [
+            'special://temp/librarygenie_hijack/',
+            'lg_hijack_movie_',
+            'lg_hijack_episode_',
+            'lg_hijack_musicvideo_',
+            'lg_hijack_tvshow_'
+        ]
+        
+        for indicator in lg_hijack_indicators:
+            if indicator in path:
                 return True
-            
-        # Check for special://temp paths which are likely XSP
-        if 'special://temp' in path.lower():
-            self._logger.info(f"HIJACK: ✅ XSP DETECTED via special://temp path")
-            return True
-            
-        # Window context check - Videos window but not plugin content
-        if window and 'video' in window.lower():
-            if 'plugin.video.librarygenie' not in path:
-                self._logger.info(f"HIJACK: ✅ XSP DETECTED via window context - Videos window with non-plugin path")
-                return True
-                
-        self._logger.info(f"HIJACK: ❌ No XSP detected in path")
+        
         return False
 
     def _execute_single_back_with_verification(self) -> bool:
@@ -403,6 +417,139 @@ class InfoHijackManager:
         """Clean up hijack properties"""
         xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPath,Home)')
         xbmc.executebuiltin('ClearProperty(LG.InfoHijack.ReturnPosition,Home)')
+        
+        # Also cleanup monitoring state
+        self._cleanup_hijack_monitoring_state()
+
+    def _xsp_safety_net_monitoring(self, current_time: float):
+        """
+        XSP Safety Net: Monitor for users stuck on LibraryGenie hijack XSP pages
+        This is the core fix for the reported issue with proper safety measures
+        """
+        # Only monitor if we should based on context and timeouts
+        if not self._should_monitor_for_hijack_cleanup(current_time):
+            return
+        
+        current_path = xbmc.getInfoLabel("Container.FolderPath")
+        
+        # Only target our specific LibraryGenie hijack XSP files
+        if not self._is_on_librarygenie_hijack_xsp(current_path):
+            return
+        
+        # Verify user is actually stuck, not actively navigating
+        if not self._verify_user_is_stuck(current_path, current_time):
+            return
+        
+        # Apply all safety timeouts and rate limiting
+        if not self._check_safety_timeouts(current_time):
+            return
+        
+        # Log the safety net trigger with rate limiting
+        self._debug_log_with_rate_limit(
+            f"🚨 XSP SAFETY NET: User stuck on LibraryGenie hijack XSP page '{current_path}' - executing back navigation",
+            current_time, self._logger.info
+        )
+        
+        # Attempt safe navigation back to plugin
+        self._attempt_safe_navigation_back(current_path, current_time)
+
+    def _should_monitor_for_hijack_cleanup(self, current_time: float) -> bool:
+        """Only monitor if we recently performed a hijack AND it makes sense to monitor"""
+        
+        # Must be within the 60-second monitoring window
+        if current_time > self._hijack_monitoring_expires:
+            if self._hijack_xsp_created:  # Log expiration only once
+                self._debug_log_with_rate_limit(
+                    "XSP SAFETY NET: Monitoring window expired (60s), disabling safety net",
+                    current_time, self._logger.info
+                )
+                self._cleanup_hijack_monitoring_state()
+            return False
+        
+        # Must have evidence of hijack XSP creation
+        if not self._hijack_xsp_created:
+            return False
+        
+        return True
+
+    def _verify_user_is_stuck(self, current_path: str, current_time: float) -> bool:
+        """Verify user is stuck rather than intentionally navigating"""
+        
+        # Check if path has changed (user actively navigating)
+        if self._last_monitored_path != current_path:
+            self._last_monitored_path = current_path
+            self._path_stable_since = current_time
+            return False  # Path changed, user is navigating
+        
+        # Path must be stable for at least 5 seconds to consider user "stuck"
+        if current_time - self._path_stable_since < 5.0:
+            return False
+        
+        return True
+
+    def _check_safety_timeouts(self, current_time: float) -> bool:
+        """Apply safety timeouts and rate limiting to prevent runaway behavior"""
+        
+        # Rate limiting: At least 10 seconds between safety attempts
+        if current_time - self._last_safety_attempt < 10.0:
+            return False
+        
+        # Maximum attempts: Only try 3 times total within monitoring window
+        if self._safety_attempts >= 3:
+            self._debug_log_with_rate_limit(
+                "XSP SAFETY NET: Maximum attempts (3) reached, disabling safety net",
+                current_time, self._logger.warning
+            )
+            self._cleanup_hijack_monitoring_state()
+            return False
+        
+        return True
+
+    def _attempt_safe_navigation_back(self, current_path: str, current_time: float):
+        """Attempt one safe navigation back with full verification"""
+        
+        try:
+            # Record attempt
+            self._safety_attempts += 1
+            self._last_safety_attempt = current_time
+            
+            # Execute single back navigation
+            xbmc.executebuiltin('Action(Back)')
+            
+            # Wait for navigation to complete
+            xbmc.sleep(500)
+            
+            # Verify navigation succeeded
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            if final_path and 'plugin.video.librarygenie' in final_path:
+                self._debug_log_with_rate_limit(
+                    f"✅ XSP SAFETY NET: Successfully returned to plugin: '{final_path}'",
+                    current_time, self._logger.info
+                )
+                # Success - can disable monitoring now
+                self._cleanup_hijack_monitoring_state()
+            else:
+                self._debug_log_with_rate_limit(
+                    f"⚠️ XSP SAFETY NET: Navigation attempt {self._safety_attempts}/3 may have failed. Path: '{final_path}'",
+                    current_time, self._logger.warning
+                )
+        
+        except Exception as e:
+            self._logger.error(f"❌ XSP SAFETY NET: Error during navigation attempt: {e}")
+
+    def _cleanup_hijack_monitoring_state(self):
+        """Clean up hijack monitoring state when done"""
+        self._hijack_xsp_created = False
+        self._safety_attempts = 0
+        self._last_monitored_path = None
+        self._path_stable_since = 0.0
+        self._hijack_monitoring_expires = 0.0
+
+    def _debug_log_with_rate_limit(self, message: str, current_time: float, log_func):
+        """Anti-spam debug logging - only log at most every 10 seconds"""
+        if current_time - self._last_debug_log >= self._debug_log_interval:
+            log_func(message)
+            self._last_debug_log = current_time
 
     def _wait_for_gui_ready(self, context: str, max_wait: float = 2.0) -> bool:
         """Wait for Kodi GUI to be ready to accept actions"""
