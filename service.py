@@ -184,17 +184,21 @@ class LibraryGenieService:
                 if hijack_mode:
                     self.hijack_manager.tick()
 
-                    # Exit hijack mode only if no dialog is active AND we're back in plugin content
+                    # Check if we should exit hijack mode
                     dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     back_in_plugin = container_path and 'plugin.video.librarygenie' in container_path
 
-                    if not dialog_active and back_in_plugin:
+                    # Only exit hijack mode if dialog closed AND we're back in plugin content AND hijack manager isn't processing
+                    if not dialog_active and back_in_plugin and not self.hijack_manager._native_info_was_open:
                         self.logger.info("😴 Exiting hijack mode - back in plugin content")
                         # hijack_mode will be set to False in the next iteration automatically
                     elif not dialog_active and not back_in_plugin:
-                        # Dialog closed but we're not back in plugin yet - keep hijack mode active
-                        self.logger.debug(f"HIJACK: Dialog closed but still in XSP/temp content: '{container_path}' - staying in hijack mode")
+                        # Dialog closed but we're not back in plugin yet - keep hijack mode active for navigation
+                        self.logger.debug(f"HIJACK: Dialog closed but still in XSP/temp content: '{container_path}' - staying in hijack mode for navigation")
+                    elif not dialog_active and self.hijack_manager._native_info_was_open:
+                        # Dialog closed and hijack manager needs to process navigation - stay in hijack mode
+                        self.logger.debug(f"HIJACK: Dialog closed, hijack manager processing navigation - staying in hijack mode")
 
                 # Adaptive sleep timing based on mode
                 if hijack_mode:

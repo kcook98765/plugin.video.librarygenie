@@ -43,33 +43,31 @@ class InfoHijackManager:
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
-        # Debug: Log dialog state changes and detect close events
+        # Handle dialog close detection - check before updating state
         if hasattr(self, '_last_dialog_state'):
             last_active, last_id = self._last_dialog_state
+            
+            # Log state changes for debugging
             if (dialog_active, current_dialog_id) != self._last_dialog_state:
                 self._logger.info(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
-                
-                # Detect dialog close event (was active, now not active)
-                if last_active and not dialog_active and self._native_info_was_open:
-                    self._logger.info("🔄 HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
-                    try:
-                        self._handle_native_info_closed()
-                        self._logger.info("✅ HIJACK STEP 5 COMPLETE: Navigation back to plugin completed")
-                    except Exception as e:
-                        self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
-                    finally:
-                        self._native_info_was_open = False
-                    # Update state after processing
+            
+            # Primary detection: dialog was active, now not active
+            if last_active and not dialog_active and self._native_info_was_open:
+                self._logger.info("🔄 HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
+                try:
+                    self._handle_native_info_closed()
+                    self._logger.info("✅ HIJACK STEP 5 COMPLETE: Navigation back to plugin completed")
+                except Exception as e:
+                    self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
+                finally:
+                    self._native_info_was_open = False
                     self._last_dialog_state = (dialog_active, current_dialog_id)
-                    return
+                return
         else:
             # Initialize dialog state tracking
             self._last_dialog_state = (False, 9999)
         
-        # Update dialog state for next iteration
-        self._last_dialog_state = (dialog_active, current_dialog_id)
-        
-        # Handle dialog close detection (fallback method)
+        # Secondary detection: fallback for missed state changes
         if not dialog_active and self._native_info_was_open:
             self._logger.info("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED (fallback detection) - initiating navigation back to plugin")
             try:
@@ -79,7 +77,11 @@ class InfoHijackManager:
                 self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error (fallback): {e}")
             finally:
                 self._native_info_was_open = False
+                self._last_dialog_state = (dialog_active, current_dialog_id)
             return
+        
+        # Update dialog state for next iteration (only if no close detected)
+        self._last_dialog_state = (dialog_active, current_dialog_id)
             
         # Handle dialog open detection - this is where we trigger hijack
         if dialog_active:
