@@ -132,41 +132,74 @@ class LibraryGenieService:
             self.logger.error(f"Service error: {e}")
             
     def run(self):
-        """Main service loop"""
+        """Main service loop - optimized for minimal resource usage"""
         self.logger.info("🔥 LibraryGenie service starting main loop...")
         tick_count = 0
-        last_dialog_state = None
+        last_dialog_active = False
         last_armed_state = None
-
+        hijack_mode = False
+        
+        # Reduced logging frequency
+        log_interval = 300  # Log every 30 seconds in normal mode, 10 seconds in hijack mode
+        
         while not self.monitor.abortRequested():
             try:
                 tick_count += 1
-
-                # Debug logging every 50 ticks (5 seconds) 
-                if tick_count % 50 == 0:
-                    dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                
+                # Check if we need hijack functionality
+                dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+                
+                # Determine if we're in hijack mode (need frequent ticks)
+                needs_hijack = dialog_active or armed_state == '1'
+                
+                # State change detection for mode switching
+                if needs_hijack != hijack_mode:
+                    hijack_mode = needs_hijack
+                    if hijack_mode:
+                        self.logger.debug("🎯 Entering hijack mode - frequent ticking enabled")
+                        log_interval = 100  # 10 seconds in hijack mode
+                    else:
+                        self.logger.debug("😴 Exiting hijack mode - entering idle mode")
+                        log_interval = 300  # 30 seconds in normal mode
+                
+                # Conditional debug logging - only when state changes or at intervals
+                should_log = (
+                    dialog_active != last_dialog_active or 
+                    armed_state != last_armed_state or 
+                    tick_count % log_interval == 0
+                )
+                
+                if should_log and self.settings.get_debug_logging():
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
-                    armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+                    mode_str = "HIJACK" if hijack_mode else "IDLE"
+                    self.logger.debug(f"🔍 SERVICE [{mode_str}] TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
+                
+                # Store state for next comparison
+                last_dialog_active = dialog_active
+                last_armed_state = armed_state
 
-                    # Only log when state changes or every 500 ticks
-                    current_state = (dialog_active, armed_state)
-                    if current_state != last_dialog_state or tick_count % 500 == 0:
-                        self.logger.info(f"🔍 SERVICE TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
-                        last_dialog_state = current_state
-
-                # Run hijack manager tick
-                self.hijack_manager.tick()
-
-                # Sleep for a short time to prevent excessive CPU usage
-                if self.monitor.waitForAbort(0.1):  # 100ms
-                    break
+                # Run hijack manager tick only when needed
+                if hijack_mode:
+                    self.hijack_manager.tick()
+                
+                # Adaptive sleep timing based on mode
+                if hijack_mode:
+                    # Fast ticking when hijack is needed (100ms)
+                    if self.monitor.waitForAbort(0.1):
+                        break
+                else:
+                    # Slow ticking when idle to save resources (1 second)
+                    if self.monitor.waitForAbort(1.0):
+                        break
 
             except Exception as e:
                 self.logger.error(f"💥 SERVICE ERROR: {e}")
                 import traceback
                 self.logger.error(f"SERVICE TRACEBACK: {traceback.format_exc()}")
-                if self.monitor.waitForAbort(1.0):  # 1 second on error
+                # Error recovery with longer wait
+                if self.monitor.waitForAbort(2.0):
                     break
 
         self.logger.info("🛑 LibraryGenie service stopped")
