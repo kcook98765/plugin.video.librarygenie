@@ -24,6 +24,8 @@ class ResponseHandler:
     def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> None:
         """Handle DialogResponse by showing messages and performing actions"""
         try:
+            context.logger.debug(f"RESPONSE HANDLER: Processing DialogResponse - success={response.success}, message='{response.message}'")
+            
             # Show message if present
             if response.message:
                 if response.success:
@@ -81,6 +83,10 @@ class ResponseHandler:
                         xbmc.executebuiltin('Action(ParentDir)')
                     else:
                         xbmc.executebuiltin('Container.Refresh')
+                else:
+                    # For successful responses with just a message and no navigation flags,
+                    # don't do any navigation - let the tools handler's direct navigation work
+                    context.logger.debug(f"RESPONSE HANDLER: Success response with no navigation flags - letting direct navigation work")
 
         except Exception as e:
             context.logger.error(f"Error handling dialog response: {e}")

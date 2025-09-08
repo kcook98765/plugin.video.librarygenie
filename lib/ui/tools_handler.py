@@ -1599,8 +1599,10 @@ class ToolsHandler:
     def _handle_search_history(self, context: PluginContext) -> DialogResponse:
         """Navigate to search history"""
         try:
-            from ..data.query_manager import get_query_manager
-            query_manager = get_query_manager()
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message="Query manager not available")
+                
             search_folder_id = query_manager.get_or_create_search_history_folder()
             
             if search_folder_id:
@@ -1609,7 +1611,8 @@ class ToolsHandler:
                 folder_url = context.build_url("show_folder", folder_id=search_folder_id)
                 context.logger.debug(f"TOOLS: Navigating directly to search history folder {search_folder_id} with URL: {folder_url}")
                 xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
-                return DialogResponse(success=True, message="Opening search history...")
+                # Return a simple success response without any navigation flags to avoid conflicts
+                return DialogResponse(success=True, message="")
             else:
                 return DialogResponse(success=False, message="Could not access search history")
         except Exception as e:

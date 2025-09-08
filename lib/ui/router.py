@@ -61,8 +61,9 @@ class Router:
 
                 result = tools_handler.show_list_tools(context, list_type, list_id)
 
-                # Use response handler to process the result
-                return response_handler.handle_dialog_response(result, context)
+                # Use response handler to process the result - ensure we don't return anything that would cause fallthrough
+                response_handler.handle_dialog_response(result, context)
+                return True  # Always return True to prevent fallthrough to main menu
             elif action == "noop":
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
