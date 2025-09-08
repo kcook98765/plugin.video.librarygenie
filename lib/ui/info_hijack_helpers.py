@@ -68,6 +68,27 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
         _log(f"JSON parse error for {method}: {raw}", xbmc.LOGWARNING)
         return {}
 
+def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait: float = 1.0) -> bool:
+    """Monitor for dialog actually closing instead of using fixed sleep"""
+    start_time = time.time()
+    check_interval = 0.02  # 20ms checks for very responsive detection
+    
+    while (time.time() - start_time) < max_wait:
+        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        
+        # Dialog closed when ID changes from the initial dialog
+        if current_dialog_id != initial_dialog_id:
+            elapsed = time.time() - start_time
+            logger.debug(f"HIJACK: Dialog close detected {context} after {elapsed:.3f}s ({initial_dialog_id}→{current_dialog_id})")
+            return True
+        
+        xbmc.sleep(int(check_interval * 1000))
+    
+    elapsed = time.time() - start_time
+    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+    logger.warning(f"HIJACK: Dialog close timeout {context} after {elapsed:.1f}s (still {current_dialog_id})")
+    return False
+
 def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     t_start = time.perf_counter()
     end = time.time() + (timeout_ms / 1000.0)
@@ -500,11 +521,13 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
             logger.info(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
             xbmc.executebuiltin('Action(Back)')
-            # Wait for dialog to close
-            xbmc.sleep(200)
-            # Verify dialog closed
-            after_close_id = xbmcgui.getCurrentWindowDialogId()
-            logger.info(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
+            
+            # Monitor for dialog actually closing instead of fixed sleep
+            if wait_for_dialog_close("SUBSTEP 1 dialog close", current_dialog_id, logger, max_wait=1.0):
+                after_close_id = xbmcgui.getCurrentWindowDialogId()
+                logger.info(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
+            else:
+                logger.warning(f"⚠️ SUBSTEP 1: Dialog close timeout, proceeding anyway")
         else:
             logger.info(f"✅ SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
         substep1_end = time.perf_counter()

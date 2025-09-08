@@ -148,9 +148,14 @@ class InfoHijackManager:
                             
                             # 🚪 STEP 2: CLOSE CURRENT DIALOG
                             self._logger.info(f"🚪 HIJACK STEP 2: CLOSING CURRENT DIALOG")
+                            initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
                             xbmc.executebuiltin('Action(Back)')
-                            xbmc.sleep(200)  # Wait for dialog to close
-                            self._logger.info(f"✅ HIJACK STEP 2 COMPLETE: Dialog closed")
+                            
+                            # Monitor for dialog actually closing instead of fixed sleep
+                            if self._wait_for_dialog_close("Step 2 dialog close", initial_dialog_id, max_wait=1.0):
+                                self._logger.info(f"✅ HIJACK STEP 2 COMPLETE: Dialog closed")
+                            else:
+                                self._logger.warning(f"⚠️ HIJACK STEP 2: Dialog close timeout, proceeding anyway")
                             
                             # Convert dbid to int safely
                             try:
@@ -506,6 +511,30 @@ class InfoHijackManager:
         if current_time - self._last_debug_log >= self._debug_log_interval:
             log_func(message)
             self._last_debug_log = current_time
+
+    def _wait_for_dialog_close(self, context: str, initial_dialog_id: int, max_wait: float = 1.0) -> bool:
+        """
+        Monitor for dialog actually closing instead of using fixed sleep.
+        Much more responsive than waiting arbitrary amounts of time.
+        """
+        start_time = time.time()
+        check_interval = 0.02  # 20ms checks for very responsive detection
+        
+        while (time.time() - start_time) < max_wait:
+            current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+            
+            # Dialog closed when ID changes from the initial dialog
+            if current_dialog_id != initial_dialog_id:
+                elapsed = time.time() - start_time
+                self._logger.debug(f"HIJACK: Dialog close detected {context} after {elapsed:.3f}s ({initial_dialog_id}→{current_dialog_id})")
+                return True
+            
+            xbmc.sleep(int(check_interval * 1000))
+        
+        elapsed = time.time() - start_time
+        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        self._logger.warning(f"HIJACK: Dialog close timeout {context} after {elapsed:.1f}s (still {current_dialog_id})")
+        return False
 
     def _wait_for_window_manager_ready(self, context: str, max_wait: float = 3.0) -> bool:
         """
