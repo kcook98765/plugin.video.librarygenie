@@ -184,7 +184,7 @@ class LibraryGenieService:
                 if hijack_mode:
                     self.hijack_manager.tick()
 
-                    # Check if we should exit hijack mode
+                    # Check if we should exit hijack mode AFTER hijack manager has processed
                     dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     back_in_plugin = container_path and 'plugin.video.librarygenie' in container_path
@@ -192,8 +192,12 @@ class LibraryGenieService:
                     # Only exit hijack mode if ALL conditions are met:
                     # 1. No dialog is active
                     # 2. We're back in plugin content 
-                    # 3. Hijack manager has finished processing any navigation
-                    if not dialog_active and back_in_plugin and not self.hijack_manager._native_info_was_open:
+                    # 3. Hijack manager is NOT processing navigation (_native_info_was_open = False)
+                    # 4. Hijack manager is NOT in progress (_in_progress = False)
+                    if (not dialog_active and 
+                        back_in_plugin and 
+                        not self.hijack_manager._native_info_was_open and 
+                        not self.hijack_manager._in_progress):
                         self.logger.info("😴 Exiting hijack mode - dialog closed and back in plugin content")
                         # hijack_mode will be set to False in the next iteration automatically
                     elif dialog_active:
@@ -205,6 +209,9 @@ class LibraryGenieService:
                     elif not dialog_active and self.hijack_manager._native_info_was_open:
                         # Dialog closed and hijack manager needs to process navigation - stay in hijack mode
                         self.logger.debug(f"HIJACK: Dialog closed, hijack manager processing navigation - staying in hijack mode")
+                    elif self.hijack_manager._in_progress:
+                        # Hijack manager is actively processing - stay in hijack mode
+                        self.logger.debug(f"HIJACK: Hijack manager in progress - staying in hijack mode")
 
                 # Adaptive sleep timing based on mode
                 if hijack_mode:
