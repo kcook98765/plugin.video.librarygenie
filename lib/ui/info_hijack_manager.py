@@ -43,15 +43,18 @@ class InfoHijackManager:
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
+        # CRITICAL FIX: Always check for dialog close detection, regardless of mode
         # Handle dialog close detection - check before updating state
         if hasattr(self, '_last_dialog_state'):
             last_active, last_id = self._last_dialog_state
             
-            # Log state changes for debugging
+            # Log state changes for debugging (but only significant ones)
             if (dialog_active, current_dialog_id) != self._last_dialog_state:
-                self._logger.info(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
+                # Only log state changes involving our hijacked dialogs or when we have a native dialog open
+                if self._native_info_was_open or dialog_active or last_active:
+                    self._logger.info(f"🔍 HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
             
-            # Primary detection: dialog was active, now not active
+            # PRIMARY DETECTION: dialog was active, now not active, and we had a native info open
             if last_active and not dialog_active and self._native_info_was_open:
                 self._logger.info("🔄 HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
                 try:
@@ -67,7 +70,7 @@ class InfoHijackManager:
             # Initialize dialog state tracking
             self._last_dialog_state = (False, 9999)
         
-        # Secondary detection: fallback for missed state changes
+        # SECONDARY DETECTION: fallback for missed state changes (also always check)
         if not dialog_active and self._native_info_was_open:
             self._logger.info("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED (fallback detection) - initiating navigation back to plugin")
             try:
