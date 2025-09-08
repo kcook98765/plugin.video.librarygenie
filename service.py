@@ -189,10 +189,16 @@ class LibraryGenieService:
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     back_in_plugin = container_path and 'plugin.video.librarygenie' in container_path
 
-                    # Only exit hijack mode if dialog closed AND we're back in plugin content AND hijack manager isn't processing
+                    # Only exit hijack mode if ALL conditions are met:
+                    # 1. No dialog is active
+                    # 2. We're back in plugin content 
+                    # 3. Hijack manager has finished processing any navigation
                     if not dialog_active and back_in_plugin and not self.hijack_manager._native_info_was_open:
-                        self.logger.info("😴 Exiting hijack mode - back in plugin content")
+                        self.logger.info("😴 Exiting hijack mode - dialog closed and back in plugin content")
                         # hijack_mode will be set to False in the next iteration automatically
+                    elif dialog_active:
+                        # Dialog is still active - definitely stay in hijack mode to monitor for close
+                        self.logger.debug(f"HIJACK: Dialog still active - staying in hijack mode to monitor for close")
                     elif not dialog_active and not back_in_plugin:
                         # Dialog closed but we're not back in plugin yet - keep hijack mode active for navigation
                         self.logger.debug(f"HIJACK: Dialog closed but still in XSP/temp content: '{container_path}' - staying in hijack mode for navigation")
