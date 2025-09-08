@@ -51,11 +51,15 @@ class InfoHijackManager:
                 
                 # Detect dialog close event (was active, now not active)
                 if last_active and not dialog_active and self._native_info_was_open:
-                    self._logger.info("🔄 HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation")
-                    self._handle_native_info_closed()
-                    self._native_info_was_open = False
-                    self._logger.info("✅ HIJACK STEP 5 COMPLETE: Navigation completed")
-                    self._last_dialog_state = (dialog_active, current_dialog_id)
+                    self._logger.info("🔄 HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
+                    try:
+                        self._handle_native_info_closed()
+                        self._logger.info("✅ HIJACK STEP 5 COMPLETE: Navigation back to plugin completed")
+                    except Exception as e:
+                        self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
+                    finally:
+                        self._native_info_was_open = False
+                        self._last_dialog_state = (dialog_active, current_dialog_id)
                     return
         else:
             # Initialize dialog state tracking
@@ -63,12 +67,16 @@ class InfoHijackManager:
         
         self._last_dialog_state = (dialog_active, current_dialog_id)
         
-        # Handle dialog close detection
+        # Handle dialog close detection (fallback method)
         if not dialog_active and self._native_info_was_open:
-            self._logger.info("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED - initiating container restore")
-            self._handle_native_info_closed()
-            self._native_info_was_open = False
-            self._logger.info("✅ HIJACK STEP 5 COMPLETE: Container restoration initiated")
+            self._logger.info("🔄 HIJACK STEP 5: NATIVE INFO DIALOG CLOSED (fallback detection) - initiating navigation back to plugin")
+            try:
+                self._handle_native_info_closed()
+                self._logger.info("✅ HIJACK STEP 5 COMPLETE: Navigation back to plugin completed (fallback)")
+            except Exception as e:
+                self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error (fallback): {e}")
+            finally:
+                self._native_info_was_open = False
             return
             
         # Handle dialog open detection - this is where we trigger hijack

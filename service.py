@@ -77,7 +77,7 @@ class LibraryGenieService:
 
             if not scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan...")
-                
+
                 # Perform initial full scan with DialogBG for better UX
                 result = scanner.perform_full_scan(use_dialog_bg=True)
 
@@ -130,7 +130,7 @@ class LibraryGenieService:
 
         except Exception as e:
             self.logger.error(f"Service error: {e}")
-            
+
     def run(self):
         """Main service loop - optimized for minimal resource usage"""
         self.logger.info("🔥 LibraryGenie service starting main loop...")
@@ -138,21 +138,21 @@ class LibraryGenieService:
         last_dialog_active = False
         last_armed_state = None
         hijack_mode = False
-        
+
         # Reduced logging frequency
         log_interval = 300  # Log every 30 seconds in normal mode, 10 seconds in hijack mode
-        
+
         while not self.monitor.abortRequested():
             try:
                 tick_count += 1
-                
+
                 # Check if we need hijack functionality
                 dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
                 armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
-                
+
                 # Determine if we're in hijack mode (need frequent ticks)
                 needs_hijack = dialog_active or armed_state == '1'
-                
+
                 # State change detection for mode switching
                 if needs_hijack != hijack_mode:
                     hijack_mode = needs_hijack
@@ -162,20 +162,20 @@ class LibraryGenieService:
                     else:
                         self.logger.info("😴 Exiting hijack mode - entering idle mode")
                         log_interval = 300  # 30 seconds in normal mode
-                
+
                 # Conditional debug logging - only when state changes or at intervals
                 should_log = (
                     dialog_active != last_dialog_active or 
                     armed_state != last_armed_state or 
                     tick_count % log_interval == 0
                 )
-                
+
                 if should_log and self.settings.get_debug_logging():
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     mode_str = "HIJACK" if hijack_mode else "IDLE"
                     self.logger.info(f"🔍 SERVICE [{mode_str}] TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
-                
+
                 # Store state for next comparison
                 last_dialog_active = dialog_active
                 last_armed_state = armed_state
@@ -183,7 +183,19 @@ class LibraryGenieService:
                 # Run hijack manager tick only when needed
                 if hijack_mode:
                     self.hijack_manager.tick()
-                
+
+                    # Exit hijack mode only if no dialog is active AND we're back in plugin content
+                    dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    back_in_plugin = container_path and 'plugin.video.librarygenie' in container_path
+
+                    if not dialog_active and back_in_plugin:
+                        self.logger.info("😴 Exiting hijack mode - back in plugin content")
+                        self._set_hijack_mode(False)
+                    elif not dialog_active and not back_in_plugin:
+                        # Dialog closed but we're not back in plugin yet - keep hijack mode active
+                        self.logger.debug(f"HIJACK: Dialog closed but still in XSP/temp content: '{container_path}' - staying in hijack mode")
+
                 # Adaptive sleep timing based on mode
                 if hijack_mode:
                     # Fast ticking when hijack is needed (100ms)
