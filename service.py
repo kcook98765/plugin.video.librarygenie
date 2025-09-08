@@ -191,7 +191,7 @@ class LibraryGenieService:
 
                     if not dialog_active and back_in_plugin:
                         self.logger.info("😴 Exiting hijack mode - back in plugin content")
-                        self._set_hijack_mode(False)
+                        # hijack_mode will be set to False in the next iteration automatically
                     elif not dialog_active and not back_in_plugin:
                         # Dialog closed but we're not back in plugin yet - keep hijack mode active
                         self.logger.debug(f"HIJACK: Dialog closed but still in XSP/temp content: '{container_path}' - staying in hijack mode")
