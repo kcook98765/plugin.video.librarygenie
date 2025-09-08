@@ -353,10 +353,41 @@ class HotRoutes:
         )
     
     def _add_media_item(self, item: Dict[str, Any]):
-        """Add media item to directory listing with inline rendering"""
+        """Add media item to directory listing using proper ListItemBuilder for info hijack"""
+        try:
+            # Lazy import ListItemBuilder only when rendering media items
+            from .listitem_builder import ListItemBuilder
+            
+            # Create builder instance for this context
+            builder = ListItemBuilder(
+                addon_handle=self.context.addon_handle,
+                addon_id=self.context.addon.getAddonInfo('id')
+            )
+            
+            # Use the proper builder to create the item with info hijack support
+            result = builder._build_single_item(item)
+            if result:
+                url, list_item, is_folder = result
+                
+                # Add the properly built item to directory
+                xbmcplugin.addDirectoryItem(
+                    self.context.addon_handle,
+                    url,
+                    list_item,
+                    is_folder
+                )
+            else:
+                self.logger.warning(f"Failed to build media item: {item.get('title', 'Unknown')}")
+                
+        except Exception as e:
+            self.logger.error(f"Error adding media item {item.get('title', 'Unknown')}: {e}")
+            # Fallback to simple rendering if builder fails
+            self._add_simple_media_item_fallback(item)
+    
+    def _add_simple_media_item_fallback(self, item: Dict[str, Any]):
+        """Fallback simple media item rendering if builder fails"""
         title = item.get('title', 'Unknown Title')
         year = item.get('year', '')
-        plot = item.get('plot', '')
         
         # Build display label
         label = title
@@ -364,36 +395,15 @@ class HotRoutes:
             label += f" ({year})"
         
         list_item = xbmcgui.ListItem(label=label)
+        list_item.setInfo('video', {'title': title, 'plot': item.get('plot', '')})
         
-        # Set basic info
-        info_data = {'title': title, 'plot': plot}
-        if year:
-            info_data['year'] = int(year) if str(year).isdigit() else 0
-        
-        list_item.setInfo('video', info_data)
-        
-        # Set art if available
-        poster = item.get('poster') or item.get('art', {}).get('poster') if item.get('art') else None
-        if poster:
-            list_item.setArt({'poster': poster, 'thumb': poster})
-        
-        # Build playable URL if available
-        file_path = item.get('file_path') or item.get('play')
-        if file_path:
-            xbmcplugin.addDirectoryItem(
-                self.context.addon_handle,
-                file_path,
-                list_item,
-                False
-            )
-        else:
-            # Non-playable item
-            xbmcplugin.addDirectoryItem(
-                self.context.addon_handle,
-                self.context.build_url('noop'),
-                list_item,
-                False
-            )
+        # Use noop URL as fallback
+        xbmcplugin.addDirectoryItem(
+            self.context.addon_handle,
+            self.context.build_url('noop'),
+            list_item,
+            False
+        )
     
     def _add_folder_tools_item(self, folder_id: str):
         """Add tools item for folder"""
