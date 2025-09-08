@@ -358,10 +358,11 @@ class HotRoutes:
             # Lazy import ListItemBuilder only when rendering media items
             from .listitem_builder import ListItemBuilder
             
-            # Create builder instance for this context
+            # Create builder instance for this context - pass context for full functionality
             builder = ListItemBuilder(
                 addon_handle=self.context.addon_handle,
-                addon_id=self.context.addon.getAddonInfo('id')
+                addon_id=self.context.addon.getAddonInfo('id'),
+                context=self.context  # Pass full context for rich metadata
             )
             
             # Use the proper builder to create the item with info hijack support
