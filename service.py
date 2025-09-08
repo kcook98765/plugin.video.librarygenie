@@ -184,8 +184,23 @@ class LibraryGenieService:
                 if hijack_mode:
                     self.hijack_manager.tick()
                     
-                    # Let InfoHijackManager handle all complex exit logic
-                    # Service only needs to check basic conditions for when monitoring is needed
+                    # Check if we can safely exit hijack mode AFTER hijack manager has processed
+                    # Stay in hijack mode if user is still on LibraryGenie XSP pages
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    on_lg_hijack_xsp = container_path and (
+                        'special://temp/librarygenie_hijack/' in container_path or
+                        'lg_hijack_movie_' in container_path or
+                        'lg_hijack_episode_' in container_path or
+                        'lg_hijack_musicvideo_' in container_path
+                    )
+                    
+                    # Only allow hijack mode exit if NOT on our XSP pages
+                    if on_lg_hijack_xsp:
+                        # Force hijack mode to stay active for next iteration
+                        needs_hijack = True
+                        if not dialog_active and dialog_active != last_dialog_active:  # Log when dialog closes but still on XSP
+                            self.logger.info(f"🔄 HIJACK: Dialog closed but staying in hijack mode - user on LibraryGenie XSP: '{container_path[:60]}...'")
+                    # Normal hijack mode detection will handle other cases
 
                 # Adaptive sleep timing based on mode
                 if hijack_mode:
