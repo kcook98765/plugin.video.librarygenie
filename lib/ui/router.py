@@ -31,12 +31,11 @@ class Router:
     def dispatch(self, context: PluginContext) -> bool:
         """
         Dispatch request to appropriate handler based on context
-        HOT/COLD PATH OPTIMIZATION: Routes frequent actions to consolidated hot routes
         Returns True if handler was found and called, False otherwise
         """
         action = context.get_param('action', '')
         params = context.get_params() # Get all params for modular tools
-        self.logger.debug(f"Router dispatching action: '{action}' (hot/cold optimized)")
+        self.logger.debug(f"Router dispatching action: '{action}'")
 
         # Generate breadcrumb context for navigation
         from .breadcrumb_helper import get_breadcrumb_helper
@@ -47,55 +46,8 @@ class Router:
         context.breadcrumb_path = breadcrumb_path
 
         try:
-            # === HOT PATH ROUTING (most frequent actions - minimal imports) ===
-            if action in ['', 'home', 'main_menu']:
-                # Main menu entry point - hot path
-                from .routes_hot import get_hot_routes
-                hot_routes = get_hot_routes(context)
-                return hot_routes.show_main_menu()
-            
-            elif action in ['lists', 'show_lists_menu']:
-                # Lists menu display - hot path
-                from .routes_hot import get_hot_routes
-                hot_routes = get_hot_routes(context)
-                return hot_routes.show_lists_menu()
-            
-            elif action == 'prompt_and_search':
-                # Basic search functionality - hot path
-                from .routes_hot import get_hot_routes  
-                hot_routes = get_hot_routes(context)
-                return hot_routes.prompt_and_search()
-            
-            elif action in ['show_list', 'view_list']:
-                # View specific list contents - hot path
-                list_id = context.get_param('list_id')
-                if not list_id:
-                    self.logger.error("Missing list_id for show_list")
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
-                    return False
-                from .routes_hot import get_hot_routes
-                hot_routes = get_hot_routes(context)
-                return hot_routes.view_list(list_id)
-            
-            elif action == 'show_folder':
-                # Show folder contents - hot path
-                folder_id = params.get('folder_id')
-                if not folder_id:
-                    self.logger.error("Missing folder_id for show_folder")
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
-                    return False
-                from .routes_hot import get_hot_routes
-                hot_routes = get_hot_routes(context)
-                return hot_routes.show_folder(folder_id)
-            
-            elif action == 'kodi_favorites':
-                # Basic Kodi favorites display - hot path
-                from .routes_hot import get_hot_routes
-                hot_routes = get_hot_routes(context)
-                return hot_routes.show_favorites_basic()
-            
-            # === COLD PATH ROUTING (less frequent - lazy import as needed) ===
-            elif action == "show_list_tools":
+            # Handle special router-managed actions
+            if action == "show_list_tools":
                 from .handler_factory import get_handler_factory
                 from .response_handler import get_response_handler
 
@@ -198,10 +150,13 @@ class Router:
                 if query_manager:
                     search_folder_id = query_manager.get_or_create_search_history_folder()
                     if search_folder_id:
-                        # Use hot path for folder display
-                        from .routes_hot import get_hot_routes
-                        hot_routes = get_hot_routes(context)
-                        return hot_routes.show_folder(str(search_folder_id))
+                        # Use the handler factory
+                        from .handler_factory import get_handler_factory
+                        factory = get_handler_factory()
+                        factory.context = context
+                        lists_handler = factory.get_lists_handler()
+                        response = lists_handler.show_folder(context, search_folder_id)
+                        return response
                     else:
                         self.logger.error("Could not access search history folder")
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
@@ -249,11 +204,14 @@ class Router:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
                 if not handler:
-                    self.logger.debug(f"No handler found for action '{action}', will show main menu via hot path")
-                    # Use hot path for default main menu
-                    from .routes_hot import get_hot_routes
-                    hot_routes = get_hot_routes(context)
-                    return hot_routes.show_main_menu()
+                    self.logger.debug(f"No handler found for action '{action}', will show main menu (redirecting to Lists)")
+                    # Show Lists as main menu instead of traditional main menu
+                    from .handler_factory import get_handler_factory
+                    factory = get_handler_factory()
+                    factory.context = context
+                    lists_handler = factory.get_lists_handler()
+                    response = lists_handler.show_lists_menu(context)
+                    return response.success if hasattr(response, 'success') else True
 
                 # Use the registered handler
                 handler(context)
