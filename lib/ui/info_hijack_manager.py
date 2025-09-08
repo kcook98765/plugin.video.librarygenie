@@ -248,16 +248,27 @@ class InfoHijackManager:
         if not path:
             return False
             
-        # Direct XSP indicators
-        xsp_indicators = ['.xsp', 'smartplaylist', 'lg_hijack', 'playlists/video']
-        if any(indicator in path.lower() for indicator in xsp_indicators):
+        self._logger.debug(f"HIJACK: XSP Detection - Path: '{path}', Window: '{window}'")
+            
+        # Direct XSP indicators - check for our hijack temp directory specifically
+        xsp_indicators = ['.xsp', 'smartplaylist', 'lg_hijack', 'playlists/video', 'librarygenie_hijack']
+        for indicator in xsp_indicators:
+            if indicator in path.lower():
+                self._logger.debug(f"HIJACK: XSP detected via indicator '{indicator}' in path")
+                return True
+            
+        # Check for special://temp paths which are likely XSP
+        if 'special://temp' in path.lower():
+            self._logger.debug(f"HIJACK: XSP detected via special://temp path")
             return True
             
         # Window context check - Videos window but not plugin content
         if window and 'video' in window.lower():
             if 'plugin.video.librarygenie' not in path:
+                self._logger.debug(f"HIJACK: XSP detected via window context - Videos window with non-plugin path")
                 return True
                 
+        self._logger.debug(f"HIJACK: No XSP detected in path")
         return False
 
     def _execute_single_back_with_verification(self) -> bool:
