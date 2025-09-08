@@ -63,6 +63,9 @@ class Router:
 
                 # Use response handler to process the result - ensure we don't return anything that would cause fallthrough
                 response_handler.handle_dialog_response(result, context)
+                
+                # End directory properly to prevent Kodi from trying to load this as a directory
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True  # Always return True to prevent fallthrough to main menu
             elif action == "noop":
                 return self._handle_noop(context)
