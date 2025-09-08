@@ -234,9 +234,9 @@ class InfoHijackManager:
         try:
             self._logger.info("🔄 HIJACK STEP 5: Native info dialog closed, checking navigation state")
             
-            # Wait for dialog close animation to complete
-            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=2.0):
-                self._logger.warning("HIJACK: GUI not ready after 2s, proceeding anyway")
+            # Wait longer for dialog close animation to complete (this was the issue)
+            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=5.0):
+                self._logger.warning("HIJACK: GUI not ready after 5s, proceeding anyway")
             
             # Check current state after dialog close
             current_path = xbmc.getInfoLabel("Container.FolderPath")
@@ -246,6 +246,9 @@ class InfoHijackManager:
             # Check if we're on our own LibraryGenie hijack XSP content that needs navigation
             if self._is_on_librarygenie_hijack_xsp(current_path):
                 self._logger.info(f"HIJACK: ✋ Detected XSP path: '{current_path}', executing back to return to plugin")
+                
+                # Wait additional time to ensure modal dialog animation completes
+                xbmc.sleep(500)  # Extra safety margin for modal dialog animation
                 
                 # Execute back command to return to original plugin content
                 self._logger.info("HIJACK: Executing back command to exit XSP")
