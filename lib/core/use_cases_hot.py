@@ -220,6 +220,11 @@ class HotUseCases:
                 # Filter by folder if specified
                 if folder_id:
                     all_lists = [item for item in all_lists if item.get('folder_id') == folder_id]
+                    # When browsing inside a folder, don't show subfolders - only lists
+                    all_folders = []
+                else:
+                    # Filter out Search History folder from main view (it has its own navigation)
+                    all_folders = [f for f in (all_folders or []) if f.get('name') != 'Search History']
                 
                 # Filter out Kodi Favorites from main view
                 user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
