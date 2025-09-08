@@ -16,10 +16,7 @@ import xbmcplugin
 # Import new modular components
 from lib.ui.plugin_context import PluginContext
 from lib.ui.router import Router
-from lib.ui.main_menu_handler import MainMenuHandler
-from lib.ui.search_handler import SearchHandler
-from lib.ui.lists_handler import ListsHandler
-from lib.ui.favorites_handler import FavoritesHandler
+from lib.ui.handler_factory import get_handler_factory
 from lib.utils.logger import get_logger
 
 # Import required functions
@@ -41,11 +38,17 @@ def handle_signout():
 
     addon = xbmcaddon.Addon()
 
+    from lib.ui.localization import L
+
     # Confirm sign out
-    if xbmcgui.Dialog().yesno(
-        addon.getLocalizedString(35002),  # "LibraryGenie"
-        addon.getLocalizedString(35029),  # "Sign out"
-        addon.getLocalizedString(35030)   # "Are you sure you want to sign out?"
+    dialog = xbmcgui.Dialog()
+    if dialog.yesno(
+        heading=L(35002),  # "LibraryGenie"
+        line1=L(35029),    # "Sign out"
+        line2=L(35030),    # "Are you sure you want to sign out?"
+        line3="",
+        nolabel=L(36003),  # "Cancel"
+        yeslabel=L(35029)  # "Sign out"
     ):
         if clear_tokens():
             xbmcgui.Dialog().notification(
@@ -61,73 +64,7 @@ def handle_signout():
             )
 
 
-def _check_and_trigger_initial_scan():
-    """Check if library needs initial scan and trigger if needed"""
-    try:
-        from lib.library.scanner import get_library_scanner
-        from lib.data.migrations import get_migration_manager
 
-        logger = get_logger(__name__)
-
-        # Ensure database is initialized first
-        migration_manager = get_migration_manager()
-        migration_manager.ensure_initialized()
-
-        # Check if library needs indexing
-        scanner = get_library_scanner()
-        if not scanner.is_library_indexed():
-            logger.info("Library not indexed - triggering initial scan")
-
-            # Show notification that initial scan is starting
-            addon = xbmcaddon.Addon()
-            xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),  # "LibraryGenie"
-                "Initial library scan starting...",
-                xbmcgui.NOTIFICATION_INFO,
-                5000
-            )
-
-            # Run scan in background thread to avoid blocking UI
-            import threading
-
-            def run_initial_scan():
-                try:
-                    result = scanner.perform_full_scan()
-                    if result.get("success"):
-                        logger.info(f"Initial library scan completed: {result.get('items_added', 0)} movies indexed")
-                        # Show completion notification
-                        xbmcgui.Dialog().notification(
-                            addon.getLocalizedString(35002),  # "LibraryGenie"
-                            f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
-                            xbmcgui.NOTIFICATION_INFO,
-                            5000
-                        )
-                    else:
-                        logger.warning(f"Initial library scan failed: {result.get('error', 'Unknown error')}")
-                        # Show error notification
-                        xbmcgui.Dialog().notification(
-                            addon.getLocalizedString(35002),  # "LibraryGenie"
-                            "Initial library scan failed",
-                            xbmcgui.NOTIFICATION_ERROR,
-                            5000
-                        )
-                except Exception as e:
-                    logger.error(f"Initial library scan thread failed: {e}")
-                    # Show error notification
-                    xbmcgui.Dialog().notification(
-                        addon.getLocalizedString(35002),  # "LibraryGenie"
-                        "Initial library scan failed",
-                        xbmcgui.NOTIFICATION_ERROR,
-                        5000
-                    )
-
-            scan_thread = threading.Thread(target=run_initial_scan)
-            scan_thread.daemon = True  # Don't block Kodi shutdown
-            scan_thread.start()
-
-    except Exception as e:
-        logger = get_logger(__name__)
-        logger.error(f"Failed to check/trigger initial scan: {e}")
 
 
 def handle_on_select(params: dict, addon_handle: int):
@@ -279,14 +216,14 @@ def _handle_restore_backup(context: PluginContext):
     try:
         from lib.ui.tools_handler import ToolsHandler
         tools_handler = ToolsHandler()
-        
+
         # Call the restore backup method from tools handler
         response = tools_handler.restore_backup_from_settings()
-        
+
         # Handle the response appropriately
         from lib.ui.response_types import DialogResponse
         from lib.ui.response_handler import get_response_handler
-        
+
         if isinstance(response, DialogResponse):
             response_handler = get_response_handler()
             response_handler.handle_dialog_response(response, context)
@@ -306,46 +243,138 @@ def _handle_restore_backup(context: PluginContext):
 def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
-    from lib.import_export.shortlist_importer import get_shortlist_importer
+
+    logger.info("=== SHORTLIST IMPORT HANDLER CALLED ===")
 
     try:
+        logger.info("Starting ShortList import process")
+
         # Show confirmation dialog
         dialog = xbmcgui.Dialog()
 
+        from lib.ui.localization import L
+
+        logger.info("Showing confirmation dialog")
         if not dialog.yesno(
-            "ShortList Import",
-            "This will import all items from ShortList addon into a 'ShortList Import' list.",
-            "Only items that match movies in your Kodi library will be imported.",
-            "Continue?"
+            L(30071),  # "Import from ShortList addon"
+            L(37000) + "\n" + L(37001),  # Combined message
+            nolabel=L(36003),  # "Cancel"
+            yeslabel=L(37002)  # "Continue"
         ):
+            logger.info("User cancelled ShortList import")
             return
+
+        logger.info("User confirmed import, proceeding...")
 
         # Show progress dialog
         progress = xbmcgui.DialogProgress()
         progress.create("ShortList Import", "Checking ShortList addon...")
         progress.update(10)
 
-        importer = get_shortlist_importer()
+        logger.info("Attempting to get ShortList importer instance...")
+        try:
+            from lib.import_export.shortlist_importer import get_shortlist_importer
+            logger.info("Successfully imported get_shortlist_importer function")
 
-        # Check if ShortList is available
-        if not importer.is_shortlist_installed():
+            importer = get_shortlist_importer()
+            logger.info(f"Successfully got importer instance: {type(importer)}")
+
+        except Exception as import_e:
+            logger.error(f"Error importing or getting ShortList importer: {import_e}")
+            import traceback
+            logger.error(f"Import error traceback: {traceback.format_exc()}")
             progress.close()
             dialog.notification(
                 "LibraryGenie",
-                "ShortList addon not found or not enabled",
-                xbmcgui.NOTIFICATION_WARNING,
+                "Failed to load ShortList importer",
+                xbmcgui.NOTIFICATION_ERROR,
+                5000
+            )
+            return
+
+        # Check if ShortList is available
+        logger.info("Checking if ShortList addon is installed...")
+        try:
+            is_installed = importer.is_shortlist_installed()
+            logger.info(f"ShortList installed check result: {is_installed}")
+
+            if not is_installed:
+                progress.close()
+                dialog.notification(
+                    "LibraryGenie",
+                    "ShortList addon not found or not enabled",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    5000
+                )
+                return
+        except Exception as check_e:
+            logger.error(f"Error checking ShortList installation: {check_e}")
+            import traceback
+            logger.error(f"Check error traceback: {traceback.format_exc()}")
+            progress.close()
+            dialog.notification(
+                "LibraryGenie",
+                "Error checking ShortList addon",
+                xbmcgui.NOTIFICATION_ERROR,
                 5000
             )
             return
 
         progress.update(30, "Scanning ShortList data...")
 
+        logger.info("About to call importer.import_shortlist_items()")
+        logger.info(f"Importer type: {type(importer)}")
+        logger.info(f"Importer instance: {importer}")
+
+        # Check if the method exists
+        if hasattr(importer, 'import_shortlist_items'):
+            logger.info(f"import_shortlist_items method exists: {importer.import_shortlist_items}")
+            logger.info(f"import_shortlist_items callable: {callable(importer.import_shortlist_items)}")
+        else:
+            logger.error("import_shortlist_items method does not exist on importer!")
+            progress.close()
+            dialog.notification(
+                "LibraryGenie",
+                "ShortList importer missing method",
+                xbmcgui.NOTIFICATION_ERROR,
+                5000
+            )
+            return
+
         # Perform the import
-        result = importer.import_shortlist_items()
+        logger.info("=== CALLING IMPORT METHOD ===")
+        try:
+            logger.info("Calling import_shortlist_items method...")
+            result = importer.import_shortlist_items()
+            logger.info(f"=== IMPORT METHOD COMPLETED ===")
+            logger.info(f"Import result type: {type(result)}")
+            logger.info(f"Import result: {result}")
+        except TypeError as te:
+            logger.error(f"=== IMPORT METHOD TYPEERROR ===")
+            logger.error(f"TypeError calling import_shortlist_items: {te}")
+            import traceback
+            logger.error(f"TypeError traceback: {traceback.format_exc()}")
+
+            # Try to get more info about the method signature
+            import inspect
+            try:
+                sig = inspect.signature(importer.import_shortlist_items)
+                logger.error(f"Method signature: {sig}")
+            except Exception as sig_e:
+                logger.error(f"Could not get method signature: {sig_e}")
+
+            raise
+        except Exception as e:
+            logger.error(f"=== IMPORT METHOD ERROR ===")
+            logger.error(f"Error calling import_shortlist_items: {e}")
+            import traceback
+            logger.error(f"Import method traceback: {traceback.format_exc()}")
+            raise
 
         progress.update(100, "Import complete!")
         progress.close()
 
+        logger.info("Processing import results...")
         if result.get("success"):
             message = (
                 f"Import completed!\n"
@@ -354,12 +383,23 @@ def handle_shortlist_import():
                 f"Unmapped: {result.get('items_unmapped', 0)} items"
             )
             dialog.ok("ShortList Import", message)
+            logger.info("ShortList import completed successfully")
         else:
             error_msg = result.get("error", "Unknown error occurred")
             dialog.ok("ShortList Import", f"Import failed: {error_msg}")
+            logger.error(f"ShortList import failed: {error_msg}")
 
     except Exception as e:
+        logger.error(f"=== SHORTLIST HANDLER EXCEPTION ===")
         logger.error(f"ShortList import handler error: {e}")
+        import traceback
+        logger.error(f"Handler exception traceback: {traceback.format_exc()}")
+
+        try:
+            progress.close()
+        except:
+            pass
+
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Import failed with error",
@@ -392,17 +432,15 @@ def main():
         # Log window state for debugging
         _log_window_state(context)
 
-        # Check if this is first run and trigger library scan if needed
-        _check_and_trigger_initial_scan()
-
         # Create router and register handlers
         router = Router()
         _register_all_handlers(router)
 
         # Try to dispatch the request
         if not router.dispatch(context):
-            # No handler found, show main menu
-            main_menu_handler = MainMenuHandler()
+            # No handler found, show main menu using lazy factory
+            factory = get_handler_factory()
+            main_menu_handler = factory.get_main_menu_handler()
             main_menu_handler.show_main_menu(context)
 
     except Exception as e:
@@ -452,41 +490,58 @@ def _log_window_state(context: PluginContext):
 
 
 def _register_all_handlers(router: Router):
-    """Register all action handlers with the router"""
+    """Register all action handlers with the router using lazy factory"""
 
-    # Create handler instances
-    main_menu_handler = MainMenuHandler()
-    search_handler = SearchHandler()
-    lists_handler = ListsHandler()
-    favorites_handler = FavoritesHandler()
+    # Get handler factory for lazy loading
+    factory = get_handler_factory()
 
-    # Register new modular handlers
-    router.register_handler('search', search_handler.prompt_and_search)
-    router.register_handler('lists', lists_handler.show_lists_menu)
-    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, favorites_handler.show_favorites_menu(ctx)))
+    # Register handlers with lazy instantiation - handlers only created when needed
+    router.register_handler('search', lambda ctx: factory.get_search_handler().prompt_and_search(ctx))
+    router.register_handler('ai_search_prompt', lambda ctx: factory.get_search_handler().ai_search_prompt(ctx))
+    router.register_handler('lists', lambda ctx: factory.get_lists_handler().show_lists_menu(ctx))
+    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, factory.get_favorites_handler().show_favorites_menu(ctx)))
 
     # Register ListsHandler methods that expect specific parameters
-    router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_list(ctx)))
-    router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, lists_handler.create_folder(ctx)))
+    router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().create_list(ctx)))
+    router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().create_folder(ctx)))
 
     # Register list and folder view handlers
-    router.register_handler('show_list', lambda ctx: lists_handler.view_list(ctx, ctx.get_param('list_id')))
-    router.register_handler('show_folder', lambda ctx: lists_handler.show_folder(ctx, ctx.get_param('folder_id')))
+    router.register_handler('show_list', lambda ctx: factory.get_lists_handler().view_list(ctx, ctx.get_param('list_id')))
+    router.register_handler('show_folder', lambda ctx: factory.get_lists_handler().show_folder(ctx, ctx.get_param('folder_id')))
 
-    # Register parameter-based handlers
-    router.register_handler('delete_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_list(ctx, ctx.get_param('list_id'))))
-    router.register_handler('rename_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_list(ctx, ctx.get_param('list_id'))))
-    router.register_handler('remove_from_list', lambda ctx: _handle_dialog_response(ctx, lists_handler.remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id'))))
+    # Register parameter-based handlers with proper context setting
+    def _handle_delete_list(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().delete_list(ctx, ctx.get_param('list_id')))
+    
+    def _handle_rename_list(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id')))
+    
+    def _handle_remove_from_list_handler(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id')))
+    
+    def _handle_rename_folder(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().rename_folder(ctx, ctx.get_param('folder_id')))
+    
+    def _handle_delete_folder(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id')))
 
-    router.register_handler('rename_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.rename_folder(ctx, ctx.get_param('folder_id'))))
-    router.register_handler('delete_folder', lambda ctx: _handle_dialog_response(ctx, lists_handler.delete_folder(ctx, ctx.get_param('folder_id'))))
+    router.register_handler('delete_list', _handle_delete_list)
+    router.register_handler('rename_list', _handle_rename_list)
+    router.register_handler('remove_from_list', _handle_remove_from_list_handler)
+    router.register_handler('rename_folder', _handle_rename_folder)
+    router.register_handler('delete_folder', _handle_delete_folder)
 
     # Register FavoritesHandler methods
-    router.register_handler('scan_favorites_execute', lambda ctx: favorites_handler.handle_scan_favorites(ctx))
-    router.register_handler('save_favorites_as', lambda ctx: favorites_handler.handle_save_favorites_as(ctx))
-    router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, favorites_handler.add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
+    router.register_handler('scan_favorites_execute', lambda ctx: factory.get_favorites_handler().handle_scan_favorites(ctx))
+    router.register_handler('save_favorites_as', lambda ctx: factory.get_favorites_handler().handle_save_favorites_as(ctx))
+    router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, factory.get_favorites_handler().add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
 
-    # Register remaining handlers
+    # Register remaining handlers (these don't use handlers so no lazy loading needed)
     router.register_handlers({
         'authorize': lambda ctx: handle_authorize(),
         'signout': lambda ctx: handle_signout(),
@@ -510,6 +565,59 @@ def _handle_dialog_response(context: PluginContext, response):
         return response_handler.handle_dialog_response(response, context)
 
     return response
+
+
+def _handle_remove_from_list(context: PluginContext, lists_handler):
+    """Handle remove_from_list with fallback logic"""
+    list_id = context.get_param('list_id')
+    item_id = context.get_param('item_id')
+    
+    if item_id:
+        # Direct removal using item_id
+        response = lists_handler.remove_from_list(context, list_id, item_id)
+    else:
+        # Fallback: find item by library identifiers
+        dbtype = context.get_param('dbtype')
+        dbid = context.get_param('dbid')
+        title = context.get_param('title', '')
+        
+        if dbtype and dbid:
+            # Try to find the media_item in the list by matching library identifiers
+            try:
+                query_manager = context.query_manager
+                list_items = query_manager.get_list_items(list_id)
+                
+                # Find matching item
+                matching_item = None
+                for item in list_items:
+                    if (item.get('kodi_id') == int(dbid) and 
+                        item.get('media_type') == dbtype):
+                        matching_item = item
+                        break
+                
+                if matching_item and 'id' in matching_item:
+                    response = lists_handler.remove_from_list(context, list_id, str(matching_item['id']))
+                else:
+                    from lib.ui.response_types import DialogResponse
+                    response = DialogResponse(
+                        success=False,
+                        message="Could not find item in list"
+                    )
+            except Exception as e:
+                logger.error(f"Error finding item for removal: {e}")
+                from lib.ui.response_types import DialogResponse
+                response = DialogResponse(
+                    success=False,
+                    message="Error finding item"
+                )
+        else:
+            from lib.ui.response_types import DialogResponse
+            response = DialogResponse(
+                success=False,
+                message="Invalid remove request"
+            )
+    
+    return _handle_dialog_response(context, response)
 
 
 def _handle_directory_response(context: PluginContext, response):

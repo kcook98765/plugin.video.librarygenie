@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -22,35 +21,65 @@ class ResponseHandler:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> bool:
-        """
-        Handle DialogResponse with notifications and navigation
-        Returns True if response was handled successfully
-        """
+    def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> None:
+        """Handle DialogResponse by showing messages and performing actions"""
         try:
-            if not isinstance(response, DialogResponse):
-                self.logger.warning("Expected DialogResponse but got different type")
-                return False
+            # Show message if present
+            if response.message:
+                if response.success:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        response.message,
+                        xbmcgui.NOTIFICATION_INFO,
+                        3000
+                    )
+                else:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        response.message,
+                        xbmcgui.NOTIFICATION_ERROR,
+                        5000
+                    )
 
-            # Show notification if there's a message
-            if hasattr(response, 'message') and response.message:
-                notification_type = xbmcgui.NOTIFICATION_INFO if response.success else xbmcgui.NOTIFICATION_ERROR
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie", 
-                    response.message, 
-                    notification_type,
-                    5000
-                )
-
-            # Handle navigation flags for successful operations
+            # Handle navigation based on response flags - prioritize specific navigation over refresh
             if response.success:
-                return self._handle_success_navigation(response, context)
-            else:
-                return self._handle_failure_navigation(response, context)
+                if hasattr(response, 'navigate_to_folder') and response.navigate_to_folder:
+                    # Navigate to specific folder (highest priority for folder operations)
+                    import xbmc
+                    folder_id = response.navigate_to_folder
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+
+                elif hasattr(response, 'navigate_to_lists') and response.navigate_to_lists:
+                    # Navigate to lists menu
+                    import xbmc
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+
+                elif hasattr(response, 'navigate_to_main') and response.navigate_to_main:
+                    # Navigate to main menu
+                    import xbmc
+                    xbmc.executebuiltin(f'Container.Update({context.build_url("main")},replace)')
+
+                elif response.refresh_needed:
+                    # Only refresh if no specific navigation was requested
+                    # For tools operations, we should navigate back to the current view instead of refreshing
+                    # to prevent tools dialog from reopening
+                    import xbmc
+                    current_path = xbmc.getInfoLabel('Container.FolderPath')
+                    if 'show_list_tools' in current_path:
+                        # If we're in tools context, navigate to parent instead of refreshing
+                        xbmc.executebuiltin('Action(ParentDir)')
+                    else:
+                        xbmc.executebuiltin('Container.Refresh')
 
         except Exception as e:
-            self.logger.error(f"Error handling dialog response: {e}")
-            return False
+            context.logger.error(f"Error handling dialog response: {e}")
+            # Fallback error notification
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "An error occurred",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
 
     def handle_directory_response(self, response: DirectoryResponse, context: PluginContext) -> bool:
         """
@@ -68,13 +97,13 @@ class ResponseHandler:
 
             # Get all parameters from the response
             kodi_params = response.to_kodi_params()
-            
+
             # Handle sort methods separately if provided
             sort_methods = kodi_params.get('sortMethods')
             if sort_methods and isinstance(sort_methods, (list, tuple)):
                 for sort_method in sort_methods:
                     xbmcplugin.addSortMethod(context.addon_handle, sort_method)
-            
+
             # End directory with proper parameters
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
@@ -139,7 +168,7 @@ class ResponseHandler:
         try:
             # For failed operations, we might want to stay in current view
             # or navigate back to a safe location
-            
+
             # If there are specific failure navigation flags, handle them here
             if hasattr(response, 'navigate_on_failure'):
                 navigation_target = getattr(response, 'navigate_on_failure', None)
@@ -149,7 +178,7 @@ class ResponseHandler:
                     xbmc.executebuiltin(f'Container.Update({context.build_url("main_menu")},replace)')
                 elif navigation_target == 'favorites':
                     xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
-                
+
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
@@ -210,6 +239,49 @@ class ResponseHandler:
             success=False,
             **kwargs
         )
+
+    def handle_response(self, response: DialogResponse, context: PluginContext) -> None:
+        """Handle dialog response and perform appropriate navigation"""
+        try:
+            self.logger.debug(f"RESPONSE HANDLER: Processing response - success={response.success}")
+
+            if not response.success:
+                if response.message:
+                    self.logger.debug(f"RESPONSE HANDLER: Showing error message: {response.message}")
+                    xbmcgui.Dialog().ok("Error", response.message)
+                return
+
+            # Show success message if provided
+            if response.message:
+                self.logger.debug(f"RESPONSE HANDLER: Showing success message: {response.message}")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message,
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+
+            # Handle navigation based on response flags - don't continue processing after navigation
+            if response.navigate_to_main:
+                self.logger.debug("RESPONSE HANDLER: Navigating to main menu")
+                context.navigate_to_main_menu()
+                return
+            elif response.navigate_to_lists:
+                self.logger.debug("RESPONSE HANDLER: Navigating to lists menu")
+                context.navigate_to_lists_menu()
+                return
+            elif response.navigate_to_folder:
+                self.logger.debug(f"RESPONSE HANDLER: Navigating to folder: {response.navigate_to_folder}")
+                context.navigate_to_folder(response.navigate_to_folder)
+                return
+            elif response.refresh_needed:
+                self.logger.debug("RESPONSE HANDLER: Refreshing current container")
+                xbmc.executebuiltin('Container.Refresh')
+                return
+
+        except Exception as e:
+            self.logger.error(f"Error handling dialog response: {e}")
+            xbmcgui.Dialog().ok("Error", "An error occurred while processing the request")
 
 
 # Factory function

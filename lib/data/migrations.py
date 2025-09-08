@@ -16,6 +16,8 @@ class MigrationManager:
     def __init__(self):
         self.logger = get_logger(__name__)
         self.conn_manager = get_connection_manager()
+        # Migration framework for future use - currently empty as all schema is in _create_complete_schema
+        self.migrations = []
 
     def ensure_initialized(self):
         """Ensure database is initialized with complete schema"""
@@ -26,6 +28,7 @@ class MigrationManager:
                 self.logger.info("Database initialized successfully")
             else:
                 self.logger.debug("Database already initialized")
+                # No migrations to run in this version
 
         except Exception as e:
             self.logger.error(f"Database initialization failed: {e}")
@@ -52,7 +55,7 @@ class MigrationManager:
                 )
             """)
 
-            # Set current schema version
+            # Set current schema version to 1 (representing the complete initial schema)
             conn.execute(
                 "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
                 [1]
@@ -102,8 +105,6 @@ class MigrationManager:
                     kodi_id INTEGER,
                     source TEXT,
                     play TEXT,
-                    poster TEXT,
-                    fanart TEXT,
                     plot TEXT,
                     rating REAL,
                     votes INTEGER,
@@ -119,6 +120,8 @@ class MigrationManager:
                     file_path TEXT,
                     normalized_path TEXT,
                     is_removed INTEGER DEFAULT 0,
+                    display_title TEXT,
+                    duration_seconds INTEGER,
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
@@ -152,6 +155,8 @@ class MigrationManager:
                 CREATE INDEX idx_list_items_position 
                 ON list_items (list_id, position)
             """)
+
+
 
             # Movie heavy meta table
             conn.execute("""
@@ -217,14 +222,19 @@ class MigrationManager:
                 )
             """)
 
-            # Auth state for remote services
+            # Auth state table for device authorization
             conn.execute("""
                 CREATE TABLE auth_state (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    access_token TEXT,
-                    expires_at TEXT,
-                    token_type TEXT,
-                    scope TEXT
+                    device_code TEXT,
+                    user_code TEXT,
+                    verification_uri TEXT,
+                    verification_uri_complete TEXT,
+                    expires_in INTEGER,
+                    interval_seconds INTEGER,
+                    api_key TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
             """)
 
@@ -245,7 +255,7 @@ class MigrationManager:
                 ON pending_operations (operation, created_at)
             """)
 
-            # Search and UI preferences tables
+            # Search history table
             conn.execute("""
                 CREATE TABLE search_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -261,6 +271,9 @@ class MigrationManager:
                 )
             """)
 
+            conn.execute("CREATE INDEX idx_search_history_query_created ON search_history (query_text, created_at)")
+
+            # Search and UI preferences tables
             conn.execute("""
                 CREATE TABLE search_preferences (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -283,26 +296,12 @@ class MigrationManager:
                 )
             """)
 
-            # Insert default data
-            conn.execute("""
-                INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
-                VALUES (1, 'compact', 'poster', 1, 1)
-            """)
-
-            conn.execute("""
-                INSERT INTO search_preferences (preference_key, preference_value) 
-                VALUES 
-                    ('match_mode', 'contains'),
-                    ('include_file_path', 'false'),
-                    ('page_size', '50'),
-                    ('enable_decade_shorthand', 'false')
-            """)
-
             # Library scan log table
             conn.execute("""
                 CREATE TABLE library_scan_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     scan_type TEXT NOT NULL,
+                    kodi_version INTEGER,
                     start_time TEXT NOT NULL,
                     end_time TEXT,
                     total_items INTEGER DEFAULT 0,
@@ -316,12 +315,6 @@ class MigrationManager:
 
             conn.execute("CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time)")
 
-            # Create reserved Search History folder
-            conn.execute("""
-                INSERT INTO folders (name, parent_id)
-                VALUES ('Search History', NULL)
-            """)
-
             # Kodi favorites tables
             conn.execute("""
                 CREATE TABLE kodi_favorite (
@@ -333,7 +326,7 @@ class MigrationManager:
                     target_raw TEXT NOT NULL,
                     target_classification TEXT NOT NULL,
                     normalized_key TEXT NOT NULL UNIQUE,
-                    library_movie_id INTEGER,
+                    media_item_id INTEGER,
                     is_mapped INTEGER DEFAULT 0,
                     is_missing INTEGER DEFAULT 0,
                     present INTEGER DEFAULT 1,
@@ -342,7 +335,7 @@ class MigrationManager:
                     last_seen TEXT NOT NULL DEFAULT (datetime('now')),
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                    FOREIGN KEY (library_movie_id) REFERENCES media_items (id)
+                    FOREIGN KEY (media_item_id) REFERENCES media_items (id)
                 )
             """)
 
@@ -365,11 +358,64 @@ class MigrationManager:
 
             # Favorites indexes
             conn.execute("CREATE INDEX idx_kodi_favorite_normalized_key ON kodi_favorite(normalized_key)")
-            conn.execute("CREATE INDEX idx_kodi_favorite_library_movie_id ON kodi_favorite(library_movie_id)")
+            conn.execute("CREATE INDEX idx_kodi_favorite_media_item_id ON kodi_favorite(media_item_id)")
             conn.execute("CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)")
             conn.execute("CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)")
             conn.execute("CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)")
             conn.execute("CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)")
+
+            # Remote cache table
+            conn.execute("""
+                CREATE TABLE remote_cache (
+                    id INTEGER PRIMARY KEY,
+                    cache_key TEXT UNIQUE NOT NULL,
+                    data TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )
+            """)
+
+            conn.execute("CREATE INDEX idx_remote_cache_key ON remote_cache(cache_key)")
+            conn.execute("CREATE INDEX idx_remote_cache_expires ON remote_cache(expires_at)")
+
+            # Insert default data
+            conn.execute("""
+                INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
+                VALUES (1, 'compact', 'poster', 1, 1)
+            """)
+
+            conn.execute("""
+                INSERT INTO search_preferences (preference_key, preference_value) 
+                VALUES 
+                    ('match_mode', 'contains'),
+                    ('include_file_path', 'false'),
+                    ('page_size', '50'),
+                    ('enable_decade_shorthand', 'false')
+            """)
+
+            # Create reserved Search History folder
+            conn.execute("""
+                INSERT INTO folders (name, parent_id)
+                VALUES ('Search History', NULL)
+            """)
+
+            self.logger.info("Complete database schema created successfully")
+
+
+    def _get_current_version(self):
+        """Get the current schema version"""
+        try:
+            result = self.conn_manager.execute_single("SELECT version FROM schema_version")
+            return result if result is not None else 0
+        except Exception:
+            # If schema_version table doesn't exist, assume version 0
+            return 0
+
+    def run_migrations(self):
+        """Run all pending migrations"""
+        # No migrations needed for pre-release - fresh database only
+        self.logger.debug("No migrations to apply for pre-release version")
 
 
 # Global migration manager instance

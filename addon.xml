@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.librarygenie"
        name="LibraryGenie"
-       version="0.1.0"
+       version="0.1.1"
        provider-name="LibraryGenie Team">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
@@ -10,8 +10,13 @@
     <provides>video</provides>
   </extension>
   <extension point="xbmc.service" library="service.py" start="login"/>
-  <extension point="xbmc.python.script" library="context.py">
-    <provides>executable</provides>
+  <extension point="kodi.context.item">
+    <menu id="kodi.core.main">
+      <item library="context.py">
+        <label>37028</label>
+        <visible>true</visible>
+      </item>
+    </menu>
   </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
@@ -25,12 +30,5 @@
       <icon>icon.png</icon>
       <fanart>fanart.png</fanart>
     </assets>
-    <contextmenu>
-      <item library="context.py">
-        <label>32200</label>
-        <description>32201</description>
-        <visible>String.IsEqual(ListItem.DBTYPE,movie) | String.IsEqual(ListItem.DBTYPE,episode) | String.IsEqual(ListItem.DBTYPE,musicvideo) | String.StartsWith(ListItem.FileNameAndPath,plugin://plugin.video.librarygenie/) | String.StartsWith(ListItem.FileNameAndPath,plugin://)</visible>
-      </item>
-    </contextmenu>
   </extension>
 </addon>

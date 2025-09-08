@@ -6,179 +6,50 @@ LibraryGenie - Context Menu Script
 Handles context menu actions for adding media to lists
 """
 
+import sys
 import xbmc
 import xbmcaddon
 import xbmcgui
 import urllib.parse
 from typing import List, Union
 
+# Import localization module
+try:
+    from resources.lib.ui.localization import L as _L
+
+    def L(string_id):
+        """Get localized string with better error handling"""
+        try:
+            result = _L(string_id)
+            # Return empty string if localization failed or returned a malformed string
+            if not result or result.startswith('string_') or result.startswith('String_'):
+                return ""
+            return result
+        except Exception:
+            return ""
+
+except ImportError:
+    # Fallback for simple string retrieval
+    def L(string_id):
+        return ""
+
 
 def main():
     """Main context menu handler"""
     try:
+        # Debug: Log that context menu was triggered
+        xbmc.log("LibraryGenie: Context menu script triggered", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Context script sys.argv: {sys.argv}", xbmc.LOGINFO)
+
         addon = xbmcaddon.Addon()
 
-        # Get the currently playing/selected item info
-        if xbmc.getCondVisibility('Container.Content(movies)'):
-            dbid = xbmc.getInfoLabel('ListItem.DBID')
-            dbtype = 'movie'
-            # Handle library items
-            if dbid and dbid != '0':
-                # Check if quick-add is enabled and has a default list configured
-                quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-                default_list_id = addon.getSetting('default_list_id')
+        # Debug: Log current item info
+        dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+        file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+        xbmc.log(f"LibraryGenie: Context - DBTYPE={dbtype}, FilePath={file_path}", xbmc.LOGINFO)
 
-                if quick_add_enabled and default_list_id:
-                    # Show context menu with both quick-add and regular add options
-                    options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
-                    ]
-
-                    dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", list(options))
-
-                    if selected == 0:  # Quick add
-                        plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
-                    elif selected == 1:  # Regular add
-                        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-                    else:
-                        return  # User cancelled
-                else:
-                    # Standard add to list dialog
-                    plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-
-                xbmc.executebuiltin(f"RunPlugin({plugin_url})")
-                return
-            else:
-                # Handle plugin/external movie items
-                _handle_external_item(addon)
-                return
-
-        elif xbmc.getCondVisibility('Container.Content(episodes)'):
-            dbid = xbmc.getInfoLabel('ListItem.DBID')
-            dbtype = 'episode'
-            # Handle library episodes
-            if dbid and dbid != '0':
-                # Check if quick-add is enabled and has a default list configured
-                quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-                default_list_id = addon.getSetting('default_list_id')
-
-                if quick_add_enabled and default_list_id:
-                    # Show context menu with both quick-add and regular add options
-                    options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
-                    ]
-
-                    dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", list(options))
-
-                    if selected == 0:  # Quick add
-                        plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
-                    elif selected == 1:  # Regular add
-                        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-                    else:
-                        return  # User cancelled
-                else:
-                    # Standard add to list dialog
-                    plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-
-                xbmc.executebuiltin(f"RunPlugin({plugin_url})")
-                return
-            else:
-                # Handle plugin/external episode items
-                _handle_external_item(addon)
-                return
-
-        elif xbmc.getCondVisibility('Container.Content(musicvideos)'):
-            dbid = xbmc.getInfoLabel('ListItem.DBID')
-            dbtype = 'musicvideo'
-            # Handle library music videos
-            if dbid and dbid != '0':
-                # Check if quick-add is enabled and has a default list configured
-                quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-                default_list_id = addon.getSetting('default_list_id')
-
-                if quick_add_enabled and default_list_id:
-                    # Show context menu with both quick-add and regular add options
-                    options = [
-                        "Quick Add to Default List",
-                        "Add to List..."
-                    ]
-
-                    dialog = xbmcgui.Dialog()
-                    selected = dialog.select("Add to List", list(options))
-
-                    if selected == 0:  # Quick add
-                        plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
-                    elif selected == 1:  # Regular add
-                        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-                    else:
-                        return  # User cancelled
-                else:
-                    # Standard add to list dialog
-                    plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-
-                xbmc.executebuiltin(f"RunPlugin({plugin_url})")
-                return
-            else:
-                # Handle plugin/external music video items
-                _handle_external_item(addon)
-                return
-
-        else:
-            # Try to get from player if something is playing
-            if xbmc.getCondVisibility('Player.HasMedia'):
-                dbid = xbmc.getInfoLabel('Player.Art(dbid)')
-                dbtype = xbmc.getInfoLabel('Player.Art(type)')
-                if dbid and dbid != '0':
-                    # Check if quick-add is enabled and has a default list configured
-                    quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-                    default_list_id = addon.getSetting('default_list_id')
-
-                    if quick_add_enabled and default_list_id:
-                        # Show context menu with both quick-add and regular add options
-                        options = [
-                            "Quick Add to Default List",
-                            "Add to List..."
-                        ]
-
-                        dialog = xbmcgui.Dialog()
-                        selected = dialog.select("Add to List", list(options))
-
-                        if selected == 0:  # Quick add
-                            plugin_url = f"plugin://plugin.video.librarygenie/?action=quick_add&dbtype={dbtype}&dbid={dbid}"
-                        elif selected == 1:  # Regular add
-                            plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-                        else:
-                            return  # User cancelled
-                    else:
-                        # Standard add to list dialog
-                        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&dbtype={dbtype}&dbid={dbid}"
-
-                    xbmc.executebuiltin(f"RunPlugin({plugin_url})")
-                    return
-
-            # Check if current item is a plugin item
-            file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-            if file_path and file_path.startswith('plugin://'):
-                # Check if this is a LibraryGenie item
-                if file_path.startswith('plugin://plugin.video.librarygenie/'):
-                    _handle_librarygenie_item(addon)
-                    return
-                else:
-                    _handle_external_item(addon)
-                    return
-
-            # No supported item found
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No supported media item found",
-                xbmcgui.NOTIFICATION_WARNING,
-                3000
-            )
-            return
+        # Always show LibraryGenie submenu with conditional options
+        _show_librarygenie_menu(addon)
 
     except Exception as e:
         xbmc.log(f"LibraryGenie context menu error: {str(e)}", xbmc.LOGERROR)
@@ -190,73 +61,451 @@ def main():
         )
 
 
-def _handle_librarygenie_item(addon):
-    """Handle LibraryGenie items with dynamic context options"""
+def _show_librarygenie_menu(addon):
+    """Show LibraryGenie submenu with conditional options"""
     try:
-        # Get item metadata from ListItem properties
-        media_item_id = xbmc.getInfoLabel('ListItem.Property(media_item_id)')
-        list_id = xbmc.getInfoLabel('ListItem.Property(list_id)')
-        item_title = xbmc.getInfoLabel('ListItem.Title') or xbmc.getInfoLabel('ListItem.Label')
+        # IMPORTANT: Cache all item info BEFORE showing any dialogs
+        # This prevents losing context when the dialog opens
+        item_info = {
+            'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
+            'dbid': xbmc.getInfoLabel('ListItem.DBID'),
+            'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'title': xbmc.getInfoLabel('ListItem.Title'),
+            'label': xbmc.getInfoLabel('ListItem.Label'),
+            'media_item_id': xbmc.getInfoLabel('ListItem.Property(media_item_id)'),
+            'list_id': xbmc.getInfoLabel('ListItem.Property(list_id)'),
+            'container_content': xbmc.getInfoLabel('Container.Content'),
+            'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
+            'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
+            'is_musicvideos': xbmc.getCondVisibility('Container.Content(musicvideos)'),
+            # Try InfoHijack properties as fallback
+            'hijack_dbid': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)'),
+            'hijack_dbtype': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)'),
+            'hijack_armed': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+        }
 
-        if not media_item_id:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No item ID found",
-                xbmcgui.NOTIFICATION_WARNING,
-                3000
-            )
-            return
+        # Debug log the cached info
+        xbmc.log(f"LibraryGenie: Cached item info: {item_info}", xbmc.LOGINFO)
 
-        # Build dynamic options based on context and settings
+        # Build options list - Search is always available
         options = []
         actions = []
 
-        # Check if quick-add is enabled and has a default list configured
-        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-        default_list_id = addon.getSetting('default_list_id')
+        # Always add Search option
+        search_label = L(33000)
+        if not search_label or search_label.startswith('string_'):
+            search_label = "Search"
+        options.append(search_label)
+        actions.append("search")
 
-        # Add to List option (always available)
-        options.append("Add to List...")
-        actions.append(f"plugin://plugin.video.librarygenie/?action=add_to_list&media_item_id={media_item_id}")
+        # Use cached values instead of fresh getInfoLabel calls
+        dbtype = item_info['dbtype']
+        dbid = item_info['dbid']
+        file_path = item_info['file_path']
 
-        # Quick Add option (if configured)
-        if quick_add_enabled and default_list_id:
-            options.append("Quick Add to Default List")
-            actions.append(f"plugin://plugin.video.librarygenie/?action=quick_add&media_item_id={media_item_id}")
+        # Use hijack properties as fallback if regular properties are empty
+        if not dbid and item_info['hijack_dbid']:
+            dbid = item_info['hijack_dbid']
+            xbmc.log(f"LibraryGenie: Using hijack DBID fallback: {dbid}", xbmc.LOGINFO)
 
-        # Remove from List option (if we're in a list context)
-        if list_id:
-            options.append(f"Remove from List")
-            actions.append(f"plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&item_id={media_item_id}")
+        if not dbtype and item_info['hijack_dbtype']:
+            dbtype = item_info['hijack_dbtype']
+            xbmc.log(f"LibraryGenie: Using hijack DBType fallback: {dbtype}", xbmc.LOGINFO)
 
-        # Show context menu if we have options
-        if options:
+        # FIRST: Check if we're in a LibraryGenie context (prioritize this over regular library items)
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        
+        # Check for LibraryGenie context indicators
+        is_librarygenie_context = (
+            container_path.startswith('plugin://plugin.video.librarygenie/') or
+            (file_path and file_path.startswith('plugin://plugin.video.librarygenie/')) or
+            (item_info.get('hijack_armed') == '1' and item_info.get('hijack_dbid'))
+        )
+        
+        if is_librarygenie_context:
+            xbmc.log(f"LibraryGenie: Detected LibraryGenie context - using LibraryGenie options", xbmc.LOGINFO)
+            _add_librarygenie_item_options(options, actions, addon, item_info)
+        
+        # SECOND: Handle regular library items (only if not in LibraryGenie context)
+        elif dbtype == 'movie':
+            if dbid and dbid != '0':
+                # Library movie - add list management options
+                _add_library_movie_options(dbtype, dbid, options, actions, addon)
+            else:
+                # External/plugin movie - add external item options
+                _add_external_item_options(options, actions, addon)
+
+        elif dbtype == 'episode':
+            if dbid and dbid != '0':
+                # Library episode - add list management options
+                _add_library_episode_options(options, actions, addon, dbtype, dbid)
+            else:
+                # External/plugin episode - add external item options
+                _add_external_item_options(options, actions, addon)
+
+        elif dbtype == 'musicvideo':
+            if dbid and dbid != '0':
+                # Library music video - add list management options
+                _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
+            else:
+                # External/plugin music video - add external item options
+                _add_external_item_options(options, actions, addon)
+
+        # THIRD: Fallback to container context checks for items without explicit dbtype
+        elif item_info['is_movies'] and not dbtype:
+            _add_external_item_options(options, actions, addon)
+
+        elif item_info['is_episodes'] and not dbtype:
+            _add_external_item_options(options, actions, addon)
+
+        elif item_info['is_musicvideos'] and not dbtype:
+            _add_external_item_options(options, actions, addon)
+
+        elif file_path and file_path.startswith('plugin://'):
+            # Other plugin item - add external item options
+            _add_external_item_options(options, actions, addon)
+
+        else:
+            # Unknown/unsupported item - only show search
+            pass
+
+        # Show the menu
+        xbmc.log(f"LibraryGenie: About to show context menu with {len(options)} options: {options}", xbmc.LOGINFO)
+        if len(options) > 1:
             dialog = xbmcgui.Dialog()
+            xbmc.log(f"LibraryGenie: Showing dialog with options: {options}", xbmc.LOGINFO)
             selected = dialog.select("LibraryGenie", options)
+            xbmc.log(f"LibraryGenie: Dialog returned selection: {selected}", xbmc.LOGINFO)
 
             if selected >= 0:
-                plugin_url = actions[selected]
-                xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+                xbmc.log(f"LibraryGenie: Executing action: {actions[selected]}", xbmc.LOGINFO)
+                _execute_action(actions[selected], addon)
+            else:
+                xbmc.log("LibraryGenie: User canceled dialog or no selection made", xbmc.LOGINFO)
         else:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No actions available for this item",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
+            # Only search available, execute directly
+            xbmc.log(f"LibraryGenie: Only one option available, executing directly: {actions[0] if actions else 'none'}", xbmc.LOGINFO)
+            _execute_action("search", addon)
 
     except Exception as e:
-        xbmc.log(f"LibraryGenie item context error: {str(e)}", xbmc.LOGERROR)
+        xbmc.log(f"LibraryGenie submenu error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
             "LibraryGenie",
-            "Failed to process LibraryGenie item",
+            "Menu error occurred",
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )
 
 
-def _handle_external_item(addon):
-    """Handle plugin/external items by gathering available metadata"""
+def _add_library_movie_options(dbtype, dbid, options, actions, addon):
+    """Add library-specific options for movies"""
+
+    # Get container information to determine context
+    container_path = xbmc.getInfoLabel('Container.FolderPath')
+
+    list_id = None
+    if 'plugin.video.librarygenie' in container_path and 'list_id=' in container_path:
+        # Extract list_id from container path
+        import re
+        match = re.search(r'list_id=(\d+)', container_path)
+        if match:
+            list_id = match.group(1)
+
+    # Check if quick-add is enabled and we have a default list
+    from lib.config.settings import SettingsManager
+    settings = SettingsManager()
+    quick_add_enabled = settings.get_enable_quick_add()
+    default_list_id = settings.get_default_list_id()
+
+    # Add remove from list option if we're in a list context
+    if list_id:
+        options.append("Remove from List")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_library_item_from_list&list_id={list_id}&dbtype={dbtype}&dbid={dbid}&title={xbmc.getInfoLabel('ListItem.Title')})")
+
+    # Add quick-add option if enabled and configured
+    if quick_add_enabled and default_list_id:
+        options.append("Quick Add to Default List")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=quick_add_context&dbtype={dbtype}&dbid={dbid}&title={xbmc.getInfoLabel('ListItem.Title')})")
+
+    # Always add general "Add to List..." option
+    options.append("Add to List...")
+    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list_context&dbtype={dbtype}&dbid={dbid}&title={xbmc.getInfoLabel('ListItem.Title')})")
+
+
+def _add_library_episode_options(options, actions, addon, dbtype, dbid):
+    """Add context menu options for library episodes"""
+    xbmc.log(f"_add_library_episode_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
+
+    # Get current context information
+    container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
+    list_id = xbmc.getInfoLabel('ListItem.Property(list_id)') or ''
+
+    # Extract list_id from URL if not in property
+    if not list_id and 'action=show_list' in container_path and 'list_id=' in container_path:
+        import re
+        match = re.search(r'list_id=(\d+)', container_path)
+        if match:
+            list_id = match.group(1)
+
+    # Remove from list option (only when in a list context and not Search History)
+    if list_id and 'action=show_list' in container_path:
+        if 'Search History' not in container_path:
+            media_item_id = xbmc.getInfoLabel('ListItem.Property(media_item_id)') or ''
+            if not media_item_id:
+                media_item_id = f"episode_{dbid}"
+
+            options.append("Remove from List")
+            actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
+
+    # Quick add functionality
+    try:
+        if SettingsManager:
+            settings = SettingsManager()
+            quick_add_enabled = settings.get_enable_quick_add()
+            default_list_id = settings.get_default_list_id()
+        else:
+            # Fallback to addon settings if SettingsManager not available
+            quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+            default_list_id = addon.getSetting('default_list_id')
+    except Exception:
+        # Fallback to addon settings
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
+
+    if quick_add_enabled and default_list_id:
+        # Quick add option
+        options.append("Quick Add to Default List")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=quick_add_library_item&dbtype={dbtype}&dbid={dbid})")
+
+        # Regular add to list option
+        options.append("Add to List...")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
+    else:
+        # Only regular add to list option
+        options.append("Add to List...")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
+
+    # Search option
+    options.append("Search")
+    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.TVShowTitle')} {xbmc.getInfoLabel('ListItem.Title')}")
+
+
+def _add_library_musicvideo_options(options, actions, addon, dbtype, dbid):
+    """Add context menu options for library music videos"""
+    xbmc.log(f"_add_library_musicvideo_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
+
+    # Get current context information
+    container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
+    list_id = xbmc.getInfoLabel('ListItem.Property(list_id)') or ''
+
+    # Extract list_id from URL if not in property
+    if not list_id and 'action=show_list' in container_path and 'list_id=' in container_path:
+        import re
+        match = re.search(r'list_id=(\d+)', container_path)
+        if match:
+            list_id = match.group(1)
+
+    # Remove from list option (only when in a list context and not Search History)
+    if list_id and 'action=show_list' in container_path:
+        if 'Search History' not in container_path:
+            media_item_id = xbmc.getInfoLabel('ListItem.Property(media_item_id)') or ''
+            if not media_item_id:
+                media_item_id = f"musicvideo_{dbid}"
+
+            options.append("Remove from List")
+            actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
+
+    # Quick add functionality
+    try:
+        if SettingsManager:
+            settings = SettingsManager()
+            quick_add_enabled = settings.get_enable_quick_add()
+            default_list_id = settings.get_default_list_id()
+        else:
+            # Fallback to addon settings if SettingsManager not available
+            quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+            default_list_id = addon.getSetting('default_list_id')
+    except Exception:
+        # Fallback to addon settings
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
+
+    if quick_add_enabled and default_list_id:
+        # Quick add option
+        options.append("Quick Add to Default List")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=quick_add_library_item&dbtype={dbtype}&dbid={dbid})")
+
+        # Regular add to list option
+        options.append("Add to List...")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
+    else:
+        # Only regular add to list option
+        options.append("Add to List...")
+        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
+
+    # Search option
+    options.append("Search")
+    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.Artist')} {xbmc.getInfoLabel('ListItem.Title')}")
+
+
+def _add_external_item_options(options, actions, addon):
+    """Add options for external/plugin items"""
+    # For external items, we can only do add to list (no quick add since we need to gather metadata)
+    add_to_list_label = L(31000)  # "Add to List..."
+    options.append(add_to_list_label)
+    actions.append("add_external_item")
+
+
+def _add_librarygenie_item_options(options, actions, addon, item_info):
+    """Add options for LibraryGenie items"""
+    xbmc.log(f"LibraryGenie: _add_librarygenie_item_options called with item_info: {item_info}", xbmc.LOGINFO)
+    
+    # Use cached item metadata
+    media_item_id = item_info['media_item_id']
+    list_id = item_info['list_id']
+    dbtype = item_info['dbtype']
+    dbid = item_info['dbid']
+    container_path = xbmc.getInfoLabel('Container.FolderPath')
+    
+    xbmc.log(f"LibraryGenie: Current container path: {container_path}", xbmc.LOGINFO)
+
+    # Use hijack properties as fallback
+    if not dbid and item_info.get('hijack_dbid'):
+        dbid = item_info['hijack_dbid']
+    if not dbtype and item_info.get('hijack_dbtype'):
+        dbtype = item_info['hijack_dbtype']
+
+    xbmc.log(f"LibraryGenie: _add_librarygenie_item_options - dbtype={dbtype}, dbid={dbid}, media_item_id={media_item_id}", xbmc.LOGINFO)
+    xbmc.log(f"LibraryGenie: Container path: {container_path}", xbmc.LOGINFO)
+
+    # Extract list_id from container path if we're viewing a list
+    extracted_list_id = None
+    if 'list_id=' in container_path:
+        try:
+            import re
+            list_id_match = re.search(r'list_id=(\d+)', container_path)
+            if list_id_match:
+                extracted_list_id = list_id_match.group(1)
+                xbmc.log(f"LibraryGenie: Extracted list_id from container: {extracted_list_id}", xbmc.LOGINFO)
+        except Exception as e:
+            xbmc.log(f"LibraryGenie: Failed to extract list_id: {e}", xbmc.LOGINFO)
+
+    # First priority: items with media_item_id (existing LibraryGenie items)
+    if media_item_id and media_item_id != '':
+        xbmc.log(f"LibraryGenie: Using media_item_id path for {media_item_id}", xbmc.LOGINFO)
+        # Check if quick-add is enabled and has a default list configured
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
+
+        if quick_add_enabled and default_list_id:
+            quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
+            options.append(quick_add_label)
+            actions.append(f"quick_add&media_item_id={media_item_id}")
+
+        add_to_list_label = L(31000) if L(31000) else "Add to List..."
+        options.append(add_to_list_label)
+        actions.append(f"add_to_list&media_item_id={media_item_id}")
+
+        # If we're in a list context, add remove option
+        target_list_id = list_id if list_id and list_id != '' else extracted_list_id
+        if target_list_id:
+            remove_label = L(31010) if L(31010) else "Remove from List"
+            options.append(remove_label)
+            actions.append(f"remove_from_list&list_id={target_list_id}&item_id={media_item_id}")
+            xbmc.log(f"LibraryGenie: Added remove option for list {target_list_id}", xbmc.LOGINFO)
+
+    # Second priority: library items with valid dbtype and dbid in LibraryGenie context
+    elif dbtype in ('movie', 'episode', 'musicvideo') and dbid and dbid not in ('0', ''):
+        xbmc.log(f"LibraryGenie: Using library item path for {dbtype} {dbid}", xbmc.LOGINFO)
+
+        # If we're in a list context, add remove option first
+        if extracted_list_id and item_info.get('title'):
+            remove_label = L(31010) if L(31010) else "Remove from List"
+            options.append(remove_label)
+            # For library items in lists without media_item_id, we need to identify by title/dbid
+            title = item_info.get('title', '')
+            actions.append(f"remove_library_item_from_list&list_id={extracted_list_id}&dbtype={dbtype}&dbid={dbid}&title={title}")
+            xbmc.log(f"LibraryGenie: Added remove option for library item {dbtype} {dbid} in list {extracted_list_id}", xbmc.LOGINFO)
+
+        # Add LibraryGenie-specific add options (not the full library options to avoid duplicates)
+        # Check if quick-add is enabled and has a default list configured
+        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
+        default_list_id = addon.getSetting('default_list_id')
+
+        if quick_add_enabled and default_list_id:
+            quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
+            options.append(quick_add_label)
+            actions.append(f"quick_add_context&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
+
+        add_to_list_label = L(31000) if L(31000) else "Add to List..."
+        options.append(add_to_list_label)
+        actions.append(f"add_library_item_to_list_context&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
+
+    # Third priority: items in movie container (but without library metadata)
+    elif item_info.get('is_movies') and item_info.get('title'):
+        xbmc.log(f"LibraryGenie: Using external item path for movie container item", xbmc.LOGINFO)
+
+        # If we're in a list context, add remove option first
+        if extracted_list_id:
+            remove_label = L(31010) if L(31010) else "Remove from List"
+            options.append(remove_label)
+            title = item_info.get('title', '')
+            actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
+            xbmc.log(f"LibraryGenie: Added remove option for external item in list {extracted_list_id}", xbmc.LOGINFO)
+
+        _add_external_item_options(options, actions, addon)
+
+    # Fallback: any item with a title in LibraryGenie context
+    elif item_info.get('title'):
+        xbmc.log(f"LibraryGenie: Using fallback path for titled item", xbmc.LOGINFO)
+
+        # If we're in a list context, add remove option first
+        if extracted_list_id:
+            remove_label = L(31010) if L(31010) else "Remove from List"
+            options.append(remove_label)
+            title = item_info.get('title', '')
+            actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
+            xbmc.log(f"LibraryGenie: Added remove option for fallback item in list {extracted_list_id}", xbmc.LOGINFO)
+
+        _add_external_item_options(options, actions, addon)
+
+
+def _execute_action(action_with_params, addon):
+    """Execute the selected action"""
+    try:
+        if action_with_params == "search":
+            # Launch LibraryGenie search
+            plugin_url = "plugin://plugin.video.librarygenie/?action=search"
+            xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+
+        elif action_with_params == "add_external_item":
+            # Handle external item by gathering metadata
+            _handle_external_item_add(addon)
+
+        elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
+            # Handle remove actions by building plugin URL
+            plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
+            xbmc.log(f"LibraryGenie: Executing remove action: {plugin_url}", xbmc.LOGINFO)
+            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+            xbmc.log(f"LibraryGenie: Remove action executed, waiting for result", xbmc.LOGINFO)
+
+        else:
+            # Handle other actions by building plugin URL
+            plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
+            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+
+    except Exception as e:
+        xbmc.log(f"LibraryGenie action execution error: {str(e)}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Action failed",
+            xbmcgui.NOTIFICATION_ERROR,
+            3000
+        )
+
+
+def _handle_external_item_add(addon):
+    """Handle adding external/plugin items by gathering available metadata"""
     try:
         # Gather all available metadata from the focused item
         item_data = {
@@ -279,7 +528,7 @@ def _handle_external_item(addon):
             'media_type': 'movie'  # Default, will be refined below
         }
 
-        # Try to determine media type from context or file path
+        # Try to determine media type from context
         if xbmc.getCondVisibility('Container.Content(episodes)'):
             item_data['media_type'] = 'episode'
             item_data['tvshowtitle'] = xbmc.getInfoLabel('ListItem.TVShowTitle')
@@ -291,12 +540,42 @@ def _handle_external_item(addon):
             item_data['artist'] = xbmc.getInfoLabel('ListItem.Artist')
             item_data['album'] = xbmc.getInfoLabel('ListItem.Album')
 
-        # Gather artwork
-        item_data['poster'] = xbmc.getInfoLabel('ListItem.Art(poster)') or xbmc.getInfoLabel('ListItem.Thumb')
-        item_data['fanart'] = xbmc.getInfoLabel('ListItem.Art(fanart)')
-        item_data['thumb'] = xbmc.getInfoLabel('ListItem.Art(thumb)')
-        item_data['banner'] = xbmc.getInfoLabel('ListItem.Art(banner)')
-        item_data['clearlogo'] = xbmc.getInfoLabel('ListItem.Art(clearlogo)')
+        # Gather comprehensive artwork for version-aware storage
+        art_data = {}
+        art_fields = {
+            'poster': 'ListItem.Art(poster)',
+            'fanart': 'ListItem.Art(fanart)',
+            'thumb': 'ListItem.Art(thumb)',
+            'banner': 'ListItem.Art(banner)',
+            'landscape': 'ListItem.Art(landscape)',
+            'clearlogo': 'ListItem.Art(clearlogo)',
+            'clearart': 'ListItem.Art(clearart)',
+            'discart': 'ListItem.Art(discart)',
+            'icon': 'ListItem.Art(icon)'
+        }
+
+        for art_key, info_label in art_fields.items():
+            art_value = xbmc.getInfoLabel(info_label)
+            if art_value:
+                art_data[art_key] = art_value
+
+        # Fallback to ListItem.Thumb for poster if not available
+        if not art_data.get('poster'):
+            thumb_fallback = xbmc.getInfoLabel('ListItem.Thumb')
+            if thumb_fallback:
+                art_data['poster'] = thumb_fallback
+                if not art_data.get('thumb'):
+                    art_data['thumb'] = thumb_fallback
+
+        # Store collected art data
+        item_data['art_data'] = art_data
+
+        # Also set individual fields for backward compatibility
+        item_data['poster'] = art_data.get('poster', '')
+        item_data['fanart'] = art_data.get('fanart', '')
+        item_data['thumb'] = art_data.get('thumb', '')
+        item_data['banner'] = art_data.get('banner', '')
+        item_data['clearlogo'] = art_data.get('clearlogo', '')
 
         # Try to get IMDb ID or other unique identifiers
         item_data['imdbnumber'] = xbmc.getInfoLabel('ListItem.IMDBNumber')
@@ -341,7 +620,7 @@ def _handle_external_item(addon):
         xbmc.executebuiltin(f"RunPlugin({plugin_url})")
 
     except Exception as e:
-        xbmc.log(f"LibraryGenie external item context error: {str(e)}", xbmc.LOGERROR)
+        xbmc.log(f"LibraryGenie external item add error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Failed to process external item",

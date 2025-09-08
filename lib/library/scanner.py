@@ -6,14 +6,17 @@ LibraryGenie - Library Scanner
 Handles full scans and delta detection of Kodi's video library
 """
 
+import json
 from datetime import datetime
-from typing import List, Dict, Set, Any, Optional
+from typing import List, Dict, Set, Any, Optional, Callable
 
 from ..data import QueryManager
 from ..data.connection_manager import get_connection_manager
 from ..kodi.json_rpc_client import get_kodi_client
 from ..utils.logger import get_logger
+from ..utils.kodi_version import get_kodi_major_version
 
+from ..ui.localization import L
 
 class LibraryScanner:
     """Scans and indexes Kodi's video library"""
@@ -24,9 +27,19 @@ class LibraryScanner:
         self.kodi_client = get_kodi_client()
         self.conn_manager = get_connection_manager()
         self.batch_size = 200  # Batch size for database operations
+        self._abort_requested = False
 
-    def perform_full_scan(self) -> Dict[str, Any]:
-        """Perform a complete library scan"""
+    def request_abort(self):
+        """Request abort of current scan operation"""
+        self._abort_requested = True
+        self.logger.info("Scan abort requested")
+
+    def _should_abort(self) -> bool:
+        """Check if scan should be aborted"""
+        return self._abort_requested
+
+    def perform_full_scan(self, progress_callback: Optional[Callable] = None, progress_dialog: Optional[Any] = None, use_dialog_bg: bool = False) -> Dict[str, Any]:
+        """Perform a complete library scan with optional DialogBG support"""
         self.logger.info("Starting full library scan")
 
         # Initialize query manager
@@ -34,11 +47,32 @@ class LibraryScanner:
             self.logger.error("Failed to initialize database for full scan")
             return {"success": False, "error": "Database initialization failed"}
 
+        # Initialize progress dialog if requested
+        dialog_bg = None
+        if use_dialog_bg:
+            import xbmcgui
+            dialog_bg = xbmcgui.DialogProgressBG()
+            dialog_bg.create("LibraryGenie", "Initializing library scan...")
+
+        # Get current Kodi version for tracking
+        try:
+            current_version = get_kodi_major_version()
+        except Exception as e:
+            self.logger.warning(f"Failed to get Kodi version: {e}")
+            current_version = None
+
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("full", scan_start)
+        scan_id = self._log_scan_start("full", scan_start, current_version)
 
         try:
+            # Reset abort flag
+            self._abort_requested = False
+
             # Clear existing data (full refresh)
+            if dialog_bg:
+                dialog_bg.update(10, "LibraryGenie", "Clearing existing index...")
+            elif progress_dialog:
+                progress_dialog.update(20, "LibraryGenie", "Clearing existing index...")
             self._clear_library_index()
 
             # Get total count for progress tracking
@@ -46,14 +80,38 @@ class LibraryScanner:
             self.logger.info(f"Full scan: {total_movies} movies to process")
 
             if total_movies == 0:
+                if dialog_bg:
+                    dialog_bg.update(100, "LibraryGenie", "No movies found")
+                    dialog_bg.close()
                 self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0)
                 return {"success": True, "items_found": 0, "items_added": 0}
+
+            # Calculate paging
+            total_pages = (total_movies + self.batch_size - 1) // self.batch_size
+            self.logger.info(f"Processing {total_pages} pages of {self.batch_size} items each")
+
+            if dialog_bg:
+                dialog_bg.update(20, "LibraryGenie", f"Processing {total_movies} movies...")
+            elif progress_dialog:
+                progress_dialog.update(30, "LibraryGenie", f"Processing {total_movies} movies...")
 
             # Process movies in pages
             offset = 0
             total_added = 0
+            page_num = 0
 
             while offset < total_movies:
+                page_num += 1
+
+                # Check for abort between pages
+                if self._should_abort():
+                    self.logger.info(f"Full scan aborted by user at page {page_num}/{total_pages}")
+                    if dialog_bg:
+                        dialog_bg.update(100, "LibraryGenie", "Scan aborted")
+                        dialog_bg.close()
+                    self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error="Aborted by user")
+                    return {"success": False, "error": "Scan aborted by user", "items_added": total_added}
+
                 response = self.kodi_client.get_movies(offset, self.batch_size)
                 movies = response.get("movies", [])
 
@@ -65,12 +123,41 @@ class LibraryScanner:
                 total_added += added_count
 
                 offset += len(movies)
-                self.logger.debug(f"Full scan progress: {offset}/{total_movies} movies processed")
+                items_processed = min(offset, total_movies)
+
+                # Calculate percentage for more frequent updates
+                progress_percentage = min(int((items_processed / total_movies) * 80) + 20, 100)  # Reserve 20% for initialization
+
+                self.logger.debug(f"Full scan progress: {items_processed}/{total_movies} movies processed ({progress_percentage}%)")
+
+                # Call progress callback if provided
+                if progress_callback:
+                    try:
+                        progress_callback(page_num, total_pages, items_processed)
+                    except Exception as e:
+                        self.logger.warning(f"Progress callback error: {e}")
+                
+                # Update dialog progress more frequently
+                progress_message = f"Processing: {items_processed}/{total_movies} ({progress_percentage}%)"
+                if dialog_bg:
+                    dialog_bg.update(progress_percentage, "LibraryGenie", progress_message)
+                elif progress_dialog:
+                    progress_dialog.update(progress_percentage, "LibraryGenie", progress_message)
+
+                # Brief pause to allow UI updates - reduced for better performance
+                import time
+                time.sleep(0.05)  # Reduced from 0.1 to 0.05 seconds
 
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
 
             self.logger.info(f"Full scan complete: {total_added} movies indexed")
+
+            if dialog_bg:
+                dialog_bg.update(100, "LibraryGenie", f"Scan complete: {total_added} movies indexed")
+                dialog_bg.close()
+            elif progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", "Full scan complete.")
 
             return {
                 "success": True,
@@ -81,6 +168,11 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error(f"Full scan failed: {e}")
+            if dialog_bg:
+                dialog_bg.update(100, "LibraryGenie", f"Scan failed: {e}")
+                dialog_bg.close()
+            elif progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", f"Scan failed: {e}")
             self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
@@ -92,8 +184,20 @@ class LibraryScanner:
             self.logger.error("Failed to initialize database for delta scan")
             return {"success": False, "error": "Database initialization failed"}
 
+        # Get current Kodi version
+        try:
+            current_version = get_kodi_major_version()
+        except Exception as e:
+            self.logger.warning(f"Failed to get Kodi version: {e}")
+            current_version = None
+
+        # Check if Kodi version has changed since last scan
+        if current_version and self._has_kodi_version_changed(current_version):
+            self.logger.info(f"Kodi version changed to {current_version}, forcing full scan")
+            return self.perform_full_scan()
+
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("delta", scan_start)
+        scan_id = self._log_scan_start("delta", scan_start, current_version)
 
         try:
             # Get current Kodi library state (quick check)
@@ -199,7 +303,7 @@ class LibraryScanner:
             movies = self.conn_manager.execute_query(f"""
                 SELECT kodi_id, title, year, imdbnumber as imdb_id, tmdb_id, play as file_path,
                        created_at, updated_at, is_removed, created_at,
-                       poster, fanart, poster as thumb, plot, plot as plotoutline, duration as runtime,
+                       art, plot, plot as plotoutline, duration as runtime,
                        rating, genre, mpaa, director, country, studio,
                        0 as playcount, 0 as resume_time
                 FROM media_items
@@ -245,7 +349,7 @@ class LibraryScanner:
             raise
 
     def _batch_insert_movies(self, movies: List[Dict[str, Any]]) -> int:
-        """Insert movies in batches"""
+        """Insert movies in batches with full metadata"""
         if not movies:
             return 0
 
@@ -255,24 +359,89 @@ class LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 for movie in movies:
                     try:
-                        # For Kodi library items, store core identification fields plus plot
-                        # Rich metadata will be fetched via JSON-RPC when needed
-                        plot_data = movie.get("plot", "")
+                        # Store comprehensive movie data from JSON-RPC
+                        # Art data as JSON string for artwork URLs
+                        art_json = json.dumps(movie.get("art", {})) if movie.get("art") else ""
+
+                        # Extract unique IDs
+                        uniqueid = movie.get("uniqueid", {})
+                        tmdb_id = uniqueid.get("tmdb", "") if uniqueid else ""
+
+                        # Handle resume data
+                        resume_data = movie.get("resume", {})
+                        resume_json = json.dumps(resume_data) if resume_data else ""
+
+                        # Detect Kodi version once and store appropriate format
+                        kodi_major = get_kodi_major_version()
+
+                        # Pre-compute display fields for faster list building
+                        display_title = f"{movie['title']} ({movie.get('year', '')})" if movie.get('year') else movie['title']
+
+                        # Store genre in version-appropriate format
+                        genre_list = movie.get('genre', '').split(',') if isinstance(movie.get('genre'), str) else movie.get('genre', [])
+                        if kodi_major >= 20:
+                            # v20+: Store as JSON array for InfoTagVideo.setGenres()
+                            genre_data = json.dumps([g.strip() for g in genre_list if g.strip()]) if genre_list else "[]"
+                        else:
+                            # v19: Store as comma-separated string for setInfo()
+                            genre_data = ', '.join([g.strip() for g in genre_list if g.strip()]) if genre_list else ''
+
+                        # Store director in version-appropriate format
+                        director_str = movie.get("director", "")
+                        if isinstance(director_str, list):
+                            director_str = ", ".join(director_str) if director_str else ""
+
+                        if kodi_major >= 20:
+                            # v20+: Store as JSON array for InfoTagVideo.setDirectors()
+                            director_data = json.dumps([director_str]) if director_str else "[]"
+                        else:
+                            # v19: Store as string for setInfo()
+                            director_data = director_str
+
+                        # Duration: always store in seconds (can convert to minutes for v19 if needed)
+                        duration_minutes = movie.get("runtime", 0)
+                        duration_seconds = duration_minutes * 60 if duration_minutes else 0
+
+                        # Studio handling
+                        studio_str = movie.get("studio", "")
+                        if isinstance(studio_str, list):
+                            studio_str = studio_str[0] if studio_str else ""
 
                         conn.execute("""
-                            INSERT INTO media_items
-                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, plot, source, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                            INSERT OR REPLACE INTO media_items
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
+                             plot, rating, votes, duration, mpaa, genre, director, studio, country, 
+                             writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                         """, [
                             'movie',
                             movie["kodi_id"],
                             movie["title"],
                             movie.get("year"),
                             movie.get("imdb_id"),
-                            movie.get("tmdb_id"),
+                            tmdb_id,
                             movie["file_path"],
-                            plot_data,
-                            'lib'  # Mark as Kodi library item
+                            'lib',  # Mark as Kodi library item
+                            # Metadata
+                            movie.get("plot", ""),
+                            movie.get("rating", 0.0),
+                            movie.get("votes", 0),
+                            movie.get("runtime", 0),  # Duration in minutes
+                            movie.get("mpaa", ""),
+                            genre_data,  # Version-appropriate genre format
+                            director_data,  # Version-appropriate director format
+                            studio_str,
+                            movie.get("country", ""),
+                            movie.get("writer", ""),
+                            # JSON fields - store complete art data
+                            art_json,
+                            # File paths
+                            movie["file_path"],
+                            movie["file_path"].lower() if movie.get("file_path") else "",
+                            # Pre-computed fields
+                            display_title,
+                            duration_seconds
                         ])
                         inserted_count += 1
                     except Exception as e:
@@ -362,14 +531,14 @@ class LibraryScanner:
             self.logger.error(f"Failed to update last_seen: {e}")
             return 0
 
-    def _log_scan_start(self, scan_type: str, started_at: str) -> Optional[int]:
+    def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: int = None) -> Optional[int]:
         """Log the start of a scan"""
         try:
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO library_scan_log (scan_type, start_time)
-                    VALUES (?, ?)
-                """, [scan_type, started_at])
+                    INSERT INTO library_scan_log (scan_type, kodi_version, start_time)
+                    VALUES (?, ?, ?)
+                """, [scan_type, kodi_version, started_at])
                 return cursor.lastrowid
         except Exception as e:
             self.logger.error(f"Failed to log scan start: {e}")
@@ -394,6 +563,32 @@ class LibraryScanner:
                 """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
         except Exception as e:
             self.logger.error(f"Failed to log scan completion: {e}")
+
+    def _has_kodi_version_changed(self, current_version: int) -> bool:
+        """Check if Kodi version has changed since last scan"""
+        try:
+            last_scan = self.conn_manager.execute_single("""
+                SELECT kodi_version
+                FROM library_scan_log
+                WHERE end_time IS NOT NULL AND kodi_version IS NOT NULL
+                ORDER BY id DESC LIMIT 1
+            """)
+
+            if not last_scan:
+                # No previous successful scan with version info
+                return False
+
+            last_version = last_scan['kodi_version']
+            if last_version != current_version:
+                self.logger.info(f"Kodi version changed from {last_version} to {current_version}")
+                return True
+
+            return False
+
+        except Exception as e:
+            self.logger.warning(f"Failed to check Kodi version change: {e}")
+            # Assume no change on error to avoid unnecessary full scans
+            return False
 
 
 # Global scanner instance

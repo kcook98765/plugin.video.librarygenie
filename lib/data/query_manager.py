@@ -64,29 +64,24 @@ class QueryManager:
         else:
             canonical["duration_minutes"] = 0
 
-        # Art normalization - flatten art dict or use direct keys AND preserve original art dict
+        # Art normalization - use version-aware art storage
+        from ..utils.kodi_version import get_kodi_major_version
+
         art = item.get("art", {})
-        if isinstance(art, dict):
-            canonical["poster"] = art.get("poster", "")
-            canonical["fanart"] = art.get("fanart", "")
-            canonical["thumb"] = art.get("thumb", "") if art.get("thumb") else ""
-            canonical["banner"] = art.get("banner", "") if art.get("banner") else ""
-            canonical["landscape"] = art.get("landscape", "") if art.get("landscape") else ""
-            canonical["clearlogo"] = art.get("clearlogo", "") if art.get("clearlogo") else ""
-            # Preserve the original art dict for the builder
-            canonical["art"] = art
-        else:
-            canonical["poster"] = str(item.get("poster", item.get("thumbnail", "")))
-            canonical["fanart"] = str(item.get("fanart", ""))
-            canonical["thumb"] = ""
-            canonical["banner"] = ""
-            canonical["landscape"] = ""
-            canonical["clearlogo"] = ""
-            # Create art dict from individual fields
-            canonical["art"] = {
-                "poster": canonical["poster"],
-                "fanart": canonical["fanart"]
+        if not isinstance(art, dict):
+            # Handle individual art fields
+            art = {
+                "poster": str(item.get("poster", item.get("thumbnail", ""))),
+                "fanart": str(item.get("fanart", "")),
+                "thumb": str(item.get("thumb", "")),
+                "banner": str(item.get("banner", "")),
+                "landscape": str(item.get("landscape", "")),
+                "clearlogo": str(item.get("clearlogo", ""))
             }
+
+        # Store art dict in format appropriate for current Kodi version
+        kodi_major = get_kodi_major_version()
+        canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
 
         # Resume - always present for library items, in seconds
         resume_data = item.get("resume", {})
@@ -180,7 +175,7 @@ class QueryManager:
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
 
-            # Use unified lists/list_items structure
+            # Use unified lists/list_items structure with comprehensive fields
             query = """
                 SELECT 
                     li.media_item_id as id,
@@ -191,7 +186,22 @@ class QueryManager:
                     mi.title,
                     mi.year,
                     mi.imdbnumber as imdb_id,
-                    mi.art as data_json
+                    mi.tmdb_id,
+                    mi.plot,
+                    mi.rating,
+                    mi.votes,
+                    mi.duration,
+                    mi.mpaa,
+                    mi.genre,
+                    mi.director,
+                    mi.studio,
+                    mi.country,
+                    mi.writer,
+                    mi.art,
+                    mi.play as file_path,
+                    mi.source,
+                    mi.created_at,
+                    mi.updated_at
                 FROM list_items li
                 JOIN media_items mi ON li.media_item_id = mi.id
                 WHERE li.list_id = ?
@@ -222,16 +232,16 @@ class QueryManager:
                     except json.JSONDecodeError as e:
                         self.logger.warning(f"Failed to parse JSON data: {e}")
 
-                # Enrich with Kodi data if available
-                if item.get('kodi_id') and item.get('media_type') in ['movie', 'episode']:
-                    # Enrich with Kodi data
-                    enriched_item = self._enrich_with_kodi_data([item])[0]
+                # Use stored data from media_items - no more JSON-RPC enrichment needed
+                # Parse additional data from stored fields
+                if item.get('art') and isinstance(item['art'], str):
+                    try:
+                        item['art'] = json.loads(item['art'])
+                    except json.JSONDecodeError:
+                        item['art'] = {}
 
-                    # Normalize to canonical format
-                    canonical_item = self._normalize_to_canonical(enriched_item)
-                else:
-                    # Normalize to canonical format
-                    canonical_item = self._normalize_to_canonical(item)
+                # Normalize to canonical format using stored data
+                canonical_item = self._normalize_to_canonical(item)
 
                 items.append(canonical_item)
 
@@ -276,13 +286,19 @@ class QueryManager:
                 self.logger.error(f"Failed to create list '{name}': {e}")
                 return {"error": "database_error"}
 
-    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None):
+    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None, art_data=None):
         """Add an item to a list using unified tables structure"""
         try:
             self.logger.debug(f"Adding '{title}' to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
-                # Create media item data
+                # Create media item data with version-aware art storage
+                from ..utils.kodi_version import get_kodi_major_version
+                kodi_major = get_kodi_major_version()
+
+                # Use provided art_data or empty dict
+                art_dict = art_data or {}
+
                 media_data = {
                     'media_type': 'movie',
                     'title': title,
@@ -292,8 +308,6 @@ class QueryManager:
                     'kodi_id': kodi_id,
                     'source': 'manual',
                     'play': '',
-                    'poster': '',
-                    'fanart': '',
                     'plot': '',
                     'rating': 0.0,
                     'votes': 0,
@@ -305,7 +319,7 @@ class QueryManager:
                     'country': '',
                     'writer': '',
                     'cast': '',
-                    'art': ''
+                    'art': json.dumps(self._format_art_for_kodi_version(art_dict, kodi_major))
                 }
 
                 # Insert or get media item
@@ -547,10 +561,10 @@ class QueryManager:
             # Generate list name with timestamp - keep it shorter for better UI display
             from datetime import datetime
             timestamp = datetime.now().strftime("%m/%d %H:%M")
-            
+
             # Shorten query if needed for display
             display_query = query if len(query) <= 20 else f"{query[:17]}..."
-            
+
             list_name = f"Search: '{display_query}' ({timestamp})"
 
             # Truncate if too long
@@ -642,13 +656,31 @@ class QueryManager:
             'imdb_id': item.get('imdb_id', ''),
             'source': item.get('source', 'search'),
             'runtime': item.get('runtime', item.get('duration', 0)),
-            'art': item.get('art', {}),
             'resume': item.get('resume', {})
         }
 
+        # Collect all possible art data for version-aware storage
+        art_data = {}
+
+        # Check for existing art dictionary
+        if item.get('art') and isinstance(item['art'], dict):
+            art_data.update(item['art'])
+
+        # Collect individual art fields for comprehensive coverage
+        art_fields = ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearlogo', 'clearart', 'discart', 'icon']
+        for field in art_fields:
+            if item.get(field):
+                art_data[field] = item[field]
+
+        # Add thumbnail fallback
+        if item.get('thumbnail') and not art_data.get('thumb'):
+            art_data['thumb'] = item['thumbnail']
+
+        basic_item['art'] = art_data
+
         # Add any additional fields from the original item
         for key, value in item.items():
-            if key not in basic_item:
+            if key not in basic_item and key not in art_fields and key != 'thumbnail':
                 basic_item[key] = value
 
         # Normalize to canonical format
@@ -681,18 +713,17 @@ class QueryManager:
             cursor = conn.execute("""
                 INSERT INTO media_items 
                 (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
-                 play, poster, fanart, plot, rating, votes, duration, mpaa, 
+                 play, plot, rating, votes, duration, mpaa, 
                  genre, director, studio, country, writer, cast, art)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
                 media_data['media_type'], media_data['title'], media_data['year'],
                 media_data['imdbnumber'], media_data['tmdb_id'], media_data['kodi_id'],
-                media_data['source'], media_data['play'], media_data['poster'],
-                media_data['fanart'], media_data['plot'], media_data['rating'],
-                media_data['votes'], media_data['duration'], media_data['mpaa'],
-                media_data['genre'], media_data['director'], media_data['studio'],
-                media_data['country'], media_data['writer'], media_data['cast'],
-                media_data['art']
+                media_data['source'], media_data['play'], media_data['plot'], 
+                media_data['rating'], media_data['votes'], media_data['duration'], 
+                media_data['mpaa'], media_data['genre'], media_data['director'], 
+                media_data['studio'], media_data['country'], media_data['writer'], 
+                media_data['cast'], media_data['art']
             ])
 
             return cursor.lastrowid
@@ -705,37 +736,33 @@ class QueryManager:
         """Get all lists with their folder information"""
         try:
             # Get all lists with folder names
-            query = """
+            lists = self.connection_manager.execute_query("""
                 SELECT 
                     l.id,
                     l.name,
                     COUNT(li.id) as item_count,
                     date(l.created_at) as created,
-                    date(l.created_at) as modified,
-                    COALESCE(f.name, 'Root') as folder_name,
-                    CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_folder
+                    f.name as folder_name,
+                    f.id as folder_id
                 FROM lists l
-                LEFT JOIN folders f ON l.folder_id = f.id
                 LEFT JOIN list_items li ON l.id = li.list_id
+                LEFT JOIN folders f ON l.folder_id = f.id
                 GROUP BY l.id, l.name, l.created_at, f.name, f.id
                 ORDER BY 
-                    CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
-                    CASE WHEN f.name IS NULL THEN 1 ELSE 0 END,
-                    f.name, 
+                    CASE WHEN f.name IS NULL THEN 0 ELSE 1 END,
+                    f.name,
                     l.created_at DESC
-            """
+            """)
 
-            results = self.connection_manager.execute_query(query)
-
-            if results:
+            if lists:
                 # Convert to list of dicts for easier handling
                 formatted_results = []
-                for row in results:
+                for row in lists:
                     row_dict = dict(row)
                     # Ensure string conversion for compatibility
                     row_dict['id'] = str(row_dict['id'])
                     # Add description based on item count and folder
-                    folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] != 'Root' else ""
+                    folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] else ""
                     row_dict['description'] = f"{row_dict['item_count']} items{folder_context}"
                     formatted_results.append(row_dict)
 
@@ -1030,42 +1057,10 @@ class QueryManager:
             return {}
 
     def _enrich_with_kodi_data(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Enrich items with data from Kodi JSON-RPC if kodi_id is available"""
-        if not items:
-            return []
-
-        # Separate movie and episode IDs, removing duplicates
-        movie_ids = list(set([item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'movie']))
-        episode_ids = list(set([item['kodi_id'] for item in items if item.get('kodi_id') and item.get('media_type') == 'episode']))
-
-        enriched_data = {}
-
-        # Only fetch if we have IDs to process
-        if movie_ids:
-            movie_data = self._get_kodi_enrichment_data_batch(movie_ids)
-            enriched_data.update(movie_data)
-
-        if episode_ids:
-            episode_data = self._get_kodi_episode_enrichment_data_batch(episode_ids)
-            enriched_data.update(episode_data)
-
-        # Apply enriched data to items
-        enriched_items = []
-        for item in items:
-            kodi_id = item.get('kodi_id')
-            if kodi_id and kodi_id in enriched_data:
-                # Merge enriched data, prioritizing enriched fields
-                enriched_item = enriched_data[kodi_id].copy()
-                # Update item with enriched data, but keep original if enriched value is empty/default
-                for key, value in enriched_item.items():
-                    if value is not None and value != "" and value != 0 and value != 0.0:
-                         item[key] = value
-                item['source'] = 'lib'  # Mark as library item
-                enriched_items.append(item)
-            else:
-                enriched_items.append(item) # Keep original item if no enrichment found
-
-        return enriched_items
+        """Legacy method - enrichment no longer needed as data is stored in media_items"""
+        # All enrichment data is now stored in media_items table during scan
+        # This method is kept for backward compatibility but does nothing
+        return items
 
 
     def _match_items_to_kodi_library(self, items_to_match: List[tuple]) -> Dict[int, Optional[int]]:
@@ -1130,43 +1125,71 @@ class QueryManager:
     def add_library_item_to_list(self, list_id, kodi_item):
         """Add a Kodi library item to a list using unified structure"""
         try:
-            # Normalize the item first
-            canonical_item = self._normalize_to_canonical(kodi_item)
+            kodi_id = kodi_item.get('kodi_id')
+            media_type = kodi_item.get('media_type', 'movie')
 
-            # Extract basic fields for media_items table
-            media_data = {
-                'media_type': canonical_item['media_type'],
-                'title': canonical_item['title'],
-                'year': canonical_item['year'],
-                'imdbnumber': canonical_item.get('imdb_id', ''),
-                'tmdb_id': canonical_item.get('tmdb_id', ''),
-                'kodi_id': canonical_item.get('kodi_id'),
-                'source': 'lib',
-                'play': '',
-                'poster': canonical_item.get('poster', ''),
-                'fanart': canonical_item.get('fanart', ''),
-                'plot': canonical_item.get('plot', ''),
-                'rating': canonical_item.get('rating', 0.0),
-                'votes': canonical_item.get('votes', 0),
-                'duration': canonical_item.get('duration_minutes', 0),
-                'mpaa': canonical_item.get('mpaa', ''),
-                'genre': canonical_item.get('genre', ''),
-                'director': canonical_item.get('director', ''),
-                'studio': canonical_item.get('studio', ''),
-                'country': canonical_item.get('country', ''),
-                'writer': canonical_item.get('writer', ''),
-                'cast': '',
-                'art': json.dumps(canonical_item.get('art', {}))
-            }
-
-            self.logger.debug(f"Adding library item '{canonical_item['title']}' to list {list_id}")
+            self.logger.debug(f"Adding library item kodi_id={kodi_id}, media_type={media_type} to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
-                # Insert or get media item
-                media_item_id = self._insert_or_get_media_item(conn, media_data)
+                # First check if this library item already exists in media_items
+                existing_item = conn.execute("""
+                    SELECT id FROM media_items WHERE kodi_id = ? AND media_type = ?
+                """, [kodi_id, media_type]).fetchone()
+
+                if existing_item:
+                    # Use existing media item
+                    media_item_id = existing_item['id']
+                    self.logger.logger.debug(f"Found existing media_item with id={media_item_id}")
+                else:
+                    # Create new media item - normalize the item first for proper data extraction
+                    canonical_item = self._normalize_to_canonical(kodi_item)
+
+                    # Extract basic fields for media_items table with version-aware art storage
+                    from ..utils.kodi_version import get_kodi_major_version
+                    kodi_major = get_kodi_major_version()
+
+                    media_data = {
+                        'media_type': canonical_item['media_type'],
+                        'title': canonical_item['title'],
+                        'year': canonical_item['year'],
+                        'imdbnumber': canonical_item.get('imdb_id', ''),
+                        'tmdb_id': canonical_item.get('tmdb_id', ''),
+                        'kodi_id': canonical_item.get('kodi_id'),
+                        'source': 'lib',
+                        'play': '',
+                        'plot': canonical_item.get('plot', ''),
+                        'rating': canonical_item.get('rating', 0.0),
+                        'votes': canonical_item.get('votes', 0),
+                        'duration': canonical_item.get('duration_minutes', 0),
+                        'mpaa': canonical_item.get('mpaa', ''),
+                        'genre': canonical_item.get('genre', ''),
+                        'director': canonical_item.get('director', ''),
+                        'studio': canonical_item.get('studio', ''),
+                        'country': canonical_item.get('country', ''),
+                        'writer': canonical_item.get('writer', ''),
+                        'cast': '',
+                        'art': json.dumps(self._format_art_for_kodi_version(canonical_item.get('art', {}), kodi_major))
+                    }
+
+                    media_item_id = self._insert_or_get_media_item(conn, media_data)
+                    self.logger.debug(f"Created new media_item with id={media_item_id}")
 
                 if not media_item_id:
                     return None
+
+                # Check if item is already in the list
+                existing_list_item = conn.execute("""
+                    SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?
+                """, [int(list_id), media_item_id]).fetchone()
+
+                if existing_list_item:
+                    self.logger.debug(f"Item already exists in list {list_id}")
+                    return {
+                        "id": str(media_item_id),
+                        "title": kodi_item.get('title', 'Unknown'),
+                        "year": kodi_item.get('year', 0),
+                        "already_exists": True
+                    }
 
                 # Get next position
                 position_result = conn.execute("""
@@ -1177,14 +1200,14 @@ class QueryManager:
 
                 # Add to list
                 conn.execute("""
-                    INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                    INSERT INTO list_items (list_id, media_item_id, position)
                     VALUES (?, ?, ?)
                 """, [int(list_id), media_item_id, next_position])
 
             return {
                 "id": str(media_item_id),
-                "title": canonical_item['title'],
-                "year": canonical_item['year']
+                "title": kodi_item.get('title', 'Unknown'),
+                "year": kodi_item.get('year', 0)
             }
 
         except Exception as e:
@@ -1227,6 +1250,23 @@ class QueryManager:
         }
 
         return self._normalize_to_canonical(item)
+
+    def _format_art_for_kodi_version(self, art_dict: Dict[str, Any], kodi_major: int) -> Dict[str, Any]:
+        """Format art dictionary for specific Kodi version compatibility"""
+        if not isinstance(art_dict, dict):
+            return {}
+
+        # Clean up empty values
+        cleaned_art = {k: v for k, v in art_dict.items() if v and str(v).strip()}
+
+        # Kodi v19+ all support the same art format, but ensure consistency
+        # Add fallbacks for missing common art types
+        if cleaned_art.get("poster") and not cleaned_art.get("thumb"):
+            cleaned_art["thumb"] = cleaned_art["poster"]
+        if cleaned_art.get("poster") and not cleaned_art.get("icon"):
+            cleaned_art["icon"] = cleaned_art["poster"]
+
+        return cleaned_art
 
     def _normalize_kodi_movie_details(self, movie_details: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize Kodi JSON-RPC movie details to canonical format"""
@@ -1434,45 +1474,45 @@ class QueryManager:
             self.logger.error(f"Failed to check if folder {folder_id} is reserved: {e}")
             return False
 
-    def get_lists_in_folder(self, folder_id):
-        """Get all lists within a specific folder"""
+    def get_lists_in_folder(self, folder_id: Optional[str]) -> List[Dict[str, Any]]:
+        """Get all lists in a specific folder"""
         try:
             self.logger.debug(f"Getting lists in folder {folder_id}")
 
-            lists = self.connection_manager.execute_query("""
-                SELECT 
-                    l.id,
-                    l.name,
-                    l.created_at,
-                    l.created_at as updated_at,
-                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
-                    f.name as folder_name
-                FROM lists l
-                LEFT JOIN folders f ON l.folder_id = f.id
-                WHERE l.folder_id = ?
-                ORDER BY l.created_at DESC
-            """, [int(folder_id)])
+            if folder_id is None:
+                # Get lists in root (no folder)
+                self.logger.debug("Querying for lists in root folder (folder_id IS NULL)")
+                results = self.connection_manager.execute_query("""
+                    SELECT l.*, COUNT(li.id) as item_count
+                    FROM lists l
+                    LEFT JOIN list_items li ON l.id = li.list_id
+                    WHERE l.folder_id IS NULL
+                    GROUP BY l.id
+                    ORDER BY l.name
+                """)
+            else:
+                # Get lists in specific folder
+                self.logger.debug(f"Querying for lists in folder_id {folder_id}")
+                results = self.connection_manager.execute_query("""
+                    SELECT l.*, COUNT(li.id) as item_count
+                    FROM lists l
+                    LEFT JOIN list_items li ON l.id = li.list_id
+                    WHERE l.folder_id = ?
+                    GROUP BY l.id
+                    ORDER BY l.name
+                """, [int(folder_id)])
 
-            # Convert to expected format
-            result = []
-            for row in lists:
-                folder_context = f" ({row['folder_name']})" if row['folder_name'] else ""
+            lists = [dict(row) for row in results]
+            self.logger.debug(f"Found {len(lists)} lists in folder {folder_id}")
 
-                result.append({
-                    "id": str(row['id']),
-                    "name": row['name'],
-                    "description": f"{row['item_count']} items{folder_context}",
-                    "item_count": row['item_count'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                    "modified": row['updated_at'][:10] if row['updated_at'] else '',
-                    "folder_name": row['folder_name']
-                })
+            # Log each list found for debugging
+            for lst in lists:
+                self.logger.debug(f"  - List: {lst['name']} (id={lst['id']}, folder_id={lst.get('folder_id')})")
 
-            self.logger.debug(f"Retrieved {len(result)} lists in folder {folder_id}")
-            return result
+            return lists
 
         except Exception as e:
-            self.logger.error(f"Failed to get lists in folder {folder_id}: {e}")
+            self.logger.error(f"Error getting lists in folder {folder_id}: {e}")
             return []
 
     def get_folder_by_id(self, folder_id):
@@ -1500,21 +1540,35 @@ class QueryManager:
             self.logger.error(f"Failed to get folder {folder_id}: {e}")
             return None
 
-    def get_all_folders(self):
-        """Get all folders with their list counts"""
+    def get_all_folders(self, parent_id=None):
+        """Get all folders with their list counts. If parent_id is provided, get subfolders of that folder."""
         try:
-            folders = self.connection_manager.execute_query("""
-                SELECT 
-                    f.id, f.name, f.created_at,
-                    COUNT(l.id) as list_count
-                FROM folders f
-                LEFT JOIN lists l ON l.folder_id = f.id
-                WHERE f.parent_id IS NULL
-                GROUP BY f.id, f.name, f.created_at
-                ORDER BY 
-                    CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
-                    f.name
-            """)
+            if parent_id is None:
+                # Get top-level folders
+                folders = self.connection_manager.execute_query("""
+                    SELECT 
+                        f.id, f.name, f.created_at,
+                        COUNT(l.id) as list_count
+                    FROM folders f
+                    LEFT JOIN lists l ON l.folder_id = f.id
+                    WHERE f.parent_id IS NULL
+                    GROUP BY f.id, f.name, f.created_at
+                    ORDER BY 
+                        CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
+                        f.name
+                """)
+            else:
+                # Get subfolders of specified parent
+                folders = self.connection_manager.execute_query("""
+                    SELECT 
+                        f.id, f.name, f.created_at,
+                        COUNT(l.id) as list_count
+                    FROM folders f
+                    LEFT JOIN lists l ON l.folder_id = f.id
+                    WHERE f.parent_id = ?
+                    GROUP BY f.id, f.name, f.created_at
+                    ORDER BY f.name
+                """, [parent_id])
 
             result = []
             for row in folders or []:
@@ -1525,7 +1579,10 @@ class QueryManager:
                     "list_count": row['list_count']
                 })
 
-            self.logger.debug(f"Retrieved {len(result)} folders")
+            if parent_id is None:
+                self.logger.debug(f"Retrieved {len(result)} top-level folders")
+            else:
+                self.logger.debug(f"Retrieved {len(result)} subfolders for folder {parent_id}")
             return result
 
         except Exception as e:
@@ -1596,35 +1653,48 @@ class QueryManager:
         try:
             self.logger.debug(f"Moving list {list_id} to folder {target_folder_id}")
 
-            # Check if list exists
-            existing_list = self.connection_manager.execute_single("""
-                SELECT id, name FROM lists WHERE id = ?
-            """, [int(list_id)])
-
-            if not existing_list:
-                return {"success": False, "error": "list_not_found"}
-
-            # If target_folder_id is provided, verify the folder exists
-            if target_folder_id is not None:
-                existing_folder = self.connection_manager.execute_single("""
-                    SELECT id FROM folders WHERE id = ?
-                """, [int(target_folder_id)])
-
-                if not existing_folder:
-                    return {"success": False, "error": "folder_not_found"}
-
-            # Update the list's folder_id
             with self.connection_manager.transaction() as conn:
-                conn.execute("""
-                    UPDATE lists SET folder_id = ? WHERE id = ?
-                """, [int(target_folder_id) if target_folder_id is not None else None, int(list_id)])
+                # Verify the list exists
+                list_exists = conn.execute("""
+                    SELECT id, name FROM lists WHERE id = ?
+                """, [int(list_id)]).fetchone()
 
-            self.logger.debug(f"Successfully moved list {list_id} to folder {target_folder_id}")
+                if not list_exists:
+                    self.logger.error(f"List {list_id} not found")
+                    return {"error": "list_not_found"}
+
+                # Verify the target folder exists if not None
+                if target_folder_id is not None:
+                    folder_exists = conn.execute("""
+                        SELECT id, name FROM folders WHERE id = ?
+                    """, [int(target_folder_id)]).fetchone()
+
+                    if not folder_exists:
+                        self.logger.error(f"Target folder {target_folder_id} not found")
+                        return {"error": "folder_not_found"}
+
+                    self.logger.debug(f"Moving list '{list_exists['name']}' to folder '{folder_exists['name']}'")
+                else:
+                    self.logger.debug(f"Moving list '{list_exists['name']}' to root level")
+
+                # Update the folder_id for the list
+                cursor = conn.execute("""
+                    UPDATE lists 
+                    SET folder_id = ?
+                    WHERE id = ?
+                """, [target_folder_id, int(list_id)])
+
+                if cursor.rowcount == 0:
+                    self.logger.error(f"No rows updated when moving list {list_id}")
+                    return {"error": "update_failed"}
+
+                self.logger.info(f"Successfully moved list {list_id} to folder {target_folder_id}")
+
             return {"success": True}
 
         except Exception as e:
             self.logger.error(f"Failed to move list {list_id} to folder {target_folder_id}: {e}")
-            return {"success": False, "error": "database_error"}
+            return {"error": "database_error"}
 
     def merge_lists(self, source_list_id: str, target_list_id: str) -> Dict[str, Any]:
         """Merge items from source list into target list"""
@@ -1675,10 +1745,10 @@ class QueryManager:
             self.logger.error(f"Failed to merge list {source_list_id} into list {target_list_id}: {e}")
             return {"success": False, "error": "database_error"}
 
-    def move_folder(self, folder_id: str, target_parent_id: Optional[str]) -> Dict[str, Any]:
-        """Move a folder to a different parent folder"""
+    def move_folder(self, folder_id: str, target_folder_id: Optional[str]) -> Dict[str, Any]:
+        """Move a folder to a different destination folder (or root level if None)"""
         try:
-            self.logger.debug(f"Moving folder {folder_id} to parent {target_parent_id}")
+            self.logger.debug(f"Moving folder {folder_id} to destination {target_folder_id}")
 
             # Check if folder exists
             existing_folder = self.connection_manager.execute_single("""
@@ -1688,30 +1758,30 @@ class QueryManager:
             if not existing_folder:
                 return {"success": False, "error": "folder_not_found"}
 
-            # If target_parent_id is provided, verify the parent folder exists
-            if target_parent_id is not None:
-                parent_folder = self.connection_manager.execute_single("""
+            # If target_folder_id is provided, verify the destination folder exists
+            if target_folder_id is not None:
+                destination_folder = self.connection_manager.execute_single("""
                     SELECT id FROM folders WHERE id = ?
-                """, [int(target_parent_id)])
+                """, [int(target_folder_id)])
 
-                if not parent_folder:
-                    return {"success": False, "error": "parent_folder_not_found"}
+                if not destination_folder:
+                    return {"success": False, "error": "destination_folder_not_found"}
 
                 # Check for circular reference (folder can't be moved into itself or its children)
-                if str(folder_id) == str(target_parent_id):
+                if str(folder_id) == str(target_folder_id):
                     return {"success": False, "error": "circular_reference"}
 
-            # Update the folder's parent_id
+            # Update the folder's parent_id to the new destination
             with self.connection_manager.transaction() as conn:
                 conn.execute("""
                     UPDATE folders SET parent_id = ? WHERE id = ?
-                """, [int(target_parent_id) if target_parent_id is not None else None, int(folder_id)])
+                """, [int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
 
-            self.logger.debug(f"Successfully moved folder {folder_id} to parent {target_parent_id}")
+            self.logger.debug(f"Successfully moved folder {folder_id} to destination {target_folder_id}")
             return {"success": True}
 
         except Exception as e:
-            self.logger.error(f"Failed to move folder {folder_id} to parent {target_parent_id}: {e}")
+            self.logger.error(f"Failed to move folder {folder_id} to destination {target_folder_id}: {e}")
             return {"success": False, "error": "database_error"}
 
 

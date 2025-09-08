@@ -24,6 +24,7 @@ from ..data.connection_manager import get_connection_manager
 from ..search.simple_search_engine import SimpleSearchEngine
 from ..utils.logger import get_logger
 from .localization import L
+from .menu_builder import MenuBuilder
 
 try:
     from .response_types import DirectoryResponse
@@ -44,7 +45,7 @@ class SearchHandler:
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
 
-    def prompt_and_search(self, context=None) -> Optional[Any]:
+    def prompt_and_search(self, context: PluginContext) -> bool:
         """Main entry point for simple search"""
         self._ensure_handle_from_context(context)
 
@@ -69,14 +70,14 @@ class SearchHandler:
         else:
             self._show_no_results_message(search_terms)
 
-        return self._maybe_dir_response(results.items, results.total_count > 0, 
+        return self._maybe_dir_response(results.items, results.total_count > 0,
                                       results.query_summary, content_type="movies")
 
     def _prompt_for_search_terms(self) -> Optional[str]:
         """Prompt user for search keywords"""
         try:
             terms = xbmcgui.Dialog().input(
-                L(32100),  # "Enter keywords to search for:"
+                L(33002),  # "Enter search terms"
                 type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None
@@ -119,26 +120,46 @@ class SearchHandler:
         """Save search results to search history"""
         try:
             if results.total_count == 0:
+                self._info("No results to save to search history")
                 return
+
+            self._info(f"Saving search history for '{search_terms}' with {results.total_count} results")
 
             # Create search history list with simplified description
             query_desc = f"{search_terms}"
 
             list_id = self.query_manager.create_search_history_list(
-                query=query_desc, 
-                search_type="simple", 
+                query=query_desc,
+                search_type="simple",
                 result_count=results.total_count
             )
 
             if list_id:
+                self._info(f"Created search history list with ID: {list_id}")
                 # Convert results to format expected by query manager
                 search_results = {"items": results.items}
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
-                    self._notify_info(L(32102) % added, ms=3000)  # "Search saved: %d items"
+                    self._info(f"Successfully added {added} items to search history list {list_id}")
+                    # Use f-string formatting to avoid string formatting errors
+                    base_message = L(32102)  # Should be "Search saved: %d items" or similar
+                    if '%d' in base_message:
+                        formatted_message = base_message % added
+                    elif '{' in base_message:
+                        formatted_message = base_message.format(added)
+                    else:
+                        # Fallback message
+                        formatted_message = f"Search saved: {added} items"
+                    self._notify_info(formatted_message, ms=3000)
+                else:
+                    self._warn(f"Failed to add items to search history list {list_id}")
+            else:
+                self._warn("Failed to create search history list")
 
         except Exception as e:
-            self._warn(f"Failed to save search history: {e}")
+            self._error(f"Failed to save search history: {e}")
+            import traceback
+            self._error(f"Search history save traceback: {traceback.format_exc()}")
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""
@@ -164,7 +185,7 @@ class SearchHandler:
 
     def _show_no_results_message(self, search_terms: str):
         """Show message when no results found"""
-        self._notify_info(L(32101) % search_terms)  # "No results found for '%s'"
+        self._notify_info(L(32101).format(search_terms))  # "No results found for '{0}'"
 
     # Helper methods
     def _ensure_handle_from_context(self, context):
@@ -177,7 +198,7 @@ class SearchHandler:
         if xbmcplugin and self.addon_handle is not None:
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=succeeded, updateListing=update)
 
-    def _maybe_dir_response(self, items: List[Dict[str, Any]], success: bool, 
+    def _maybe_dir_response(self, items: List[Dict[str, Any]], success: bool,
                            message: str, content_type: str = "movies") -> Optional[Any]:
         """Return DirectoryResponse if available"""
         if DirectoryResponse is None:
@@ -199,3 +220,25 @@ class SearchHandler:
 
     def _notify_error(self, msg: str, ms: int = 4000):
         xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_ERROR, ms)
+
+    def ai_search_prompt(self, context: PluginContext) -> bool:
+        """Prompt user for AI search query and perform AI search"""
+        try:
+            from .ai_search_handler import get_ai_search_handler
+            
+            context.logger.info("AI SEARCH: Starting AI search prompt")
+            
+            # Use the new AI search handler
+            ai_search_handler = get_ai_search_handler()
+            success = ai_search_handler.prompt_and_search()
+            
+            # End directory based on success
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=success)
+            return success
+
+        except Exception as e:
+            context.logger.error(f"AI SEARCH: Error in ai_search_prompt: {e}")
+            import traceback
+            context.logger.error(f"AI SEARCH: Traceback: {traceback.format_exc()}")
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False

@@ -1,25 +1,27 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
 LibraryGenie - Authorization Helper
-Handles authorization prompts and user guidance
+Handles authorization prompts and user guidance for OTP-based auth
 """
 
 import xbmcgui
 from ..utils.logger import get_logger
-from .state import is_authorized
-from .device_code import run_authorize_flow
+from .state import is_authorized, get_api_key, clear_auth_data
+from .otp_auth import run_otp_authorization_flow, test_api_connection, is_api_key_valid
+from ..config import get_config
 
 
 class AuthorizationHelper:
-    """Helper for managing authorization UX"""
+    """Helper for managing OTP-based authorization UX"""
 
     def __init__(self, string_getter=None):
         self.logger = get_logger(__name__)
         self._get_string = string_getter or (lambda x: f"String {x}")
 
-    def check_authorization_or_prompt(self, feature_name: str = "remote feature") -> bool:
+    def check_authorization_or_prompt(self, feature_name: str = "AI search") -> bool:
         """
         Check if authorized, and if not, prompt user to authorize
 
@@ -30,17 +32,21 @@ class AuthorizationHelper:
             bool: True if authorized (or user completed auth), False otherwise
         """
         if is_authorized():
-            return True
+            # Verify the API key is still valid
+            if self.verify_api_key():
+                return True
+            else:
+                self.logger.warning("Stored API key is invalid, clearing auth data")
+                clear_auth_data()
 
         # Show authorization prompt
         dialog = xbmcgui.Dialog()
-
+        
         result = dialog.yesno(
-            "Authorization Required",
-            f"The {feature_name} requires authorization with the remote server.\n\n"
-            "Would you like to authorize this device now?",
+            "Authentication Required",
+            f"The {feature_name} feature requires authorization with the remote server.\n\nWould you like to authorize this device now?",
             nolabel="Cancel",
-            yeslabel="Authorize"
+            yeslabel="Authorize Device"
         )
 
         if not result:
@@ -48,21 +54,22 @@ class AuthorizationHelper:
             return False
 
         # Start authorization flow
-        try:
-            success = run_authorize_flow()
-            if success:
-                self.logger.info(f"Authorization successful for {feature_name}")
-                return True
-            else:
-                self.logger.info(f"Authorization failed for {feature_name}")
-                return False
+        return self.start_device_authorization()
 
+    def verify_api_key(self) -> bool:
+        """Verify that the stored API key is still valid"""
+        try:
+            cfg = get_config()
+            server_url = cfg.get('ai_search_server_url', '')
+            
+            if not server_url:
+                self.logger.debug("No server URL configured for API key verification")
+                return False
+            
+            return is_api_key_valid(str(server_url))
+            
         except Exception as e:
-            self.logger.error(f"Authorization flow error: {e}")
-            dialog.ok(
-                "Authorization Error",
-                f"Failed to complete authorization:\n{str(e)[:100]}..."
-            )
+            self.logger.error(f"Error verifying API key: {e}")
             return False
 
     def show_authorization_status(self):
@@ -70,42 +77,83 @@ class AuthorizationHelper:
         dialog = xbmcgui.Dialog()
 
         if is_authorized():
-            dialog.ok(
-                "Authorization Status",
-                "Device is currently authorized for remote services."
-            )
+            # Test the connection
+            cfg = get_config()
+            server_url = cfg.get('ai_search_server_url', '')
+            
+            if server_url:
+                test_result = test_api_connection(str(server_url))
+                if test_result.get('success'):
+                    dialog.ok(
+                        "Authorization Status",
+                        f"Device is authorized for AI search.\n\nUser: {test_result.get('user_email', 'Unknown')}\nRole: {test_result.get('user_role', 'Unknown')}"
+                    )
+                else:
+                    dialog.ok(
+                        "Authorization Status",
+                        f"Device has an API key but connection test failed:\n\n{test_result.get('error', 'Unknown error')}"
+                    )
+            else:
+                dialog.ok(
+                    "Authorization Status",
+                    "Device has an API key but no server URL is configured."
+                )
         else:
             result = dialog.yesno(
                 "Authorization Status",
-                "Device is not authorized for remote services.\n\n"
-                "Would you like to authorize now?",
+                "Device is not authorized for AI search.\n\nWould you like to authorize now?",
                 nolabel="Cancel",
-                yeslabel="Authorize"
+                yeslabel="Authorize Device"
             )
 
             if result:
-                self.check_authorization_or_prompt("remote services")
+                self.start_device_authorization()
 
-    def start_device_authorization(self):
-        """Start the device authorization flow"""
+    def start_device_authorization(self) -> bool:
+        """Start the OTP authorization flow"""
         try:
-            self.logger.info("Starting device authorization flow")
-            success = run_authorize_flow()
+            cfg = get_config()
+            server_url = cfg.get('ai_search_server_url', '')
+            
+            if not server_url:
+                xbmcgui.Dialog().ok(
+                    "Configuration Required",
+                    "Please configure the AI Search Server URL in addon settings before authorizing."
+                )
+                return False
+            
+            self.logger.info("Starting OTP authorization flow")
+            success = run_otp_authorization_flow(str(server_url))
             
             if success:
-                self.logger.info("Device authorization completed successfully")
+                self.logger.info("OTP authorization completed successfully")
                 return True
             else:
-                self.logger.info("Device authorization failed or was cancelled")
+                self.logger.info("OTP authorization failed or was cancelled")
                 return False
                 
         except Exception as e:
-            self.logger.error(f"Error during device authorization: {e}")
+            self.logger.error(f"Error during OTP authorization: {e}")
             xbmcgui.Dialog().notification(
                 "Authorization Error",
                 f"Failed to authorize device: {str(e)[:50]}...",
                 xbmcgui.NOTIFICATION_ERROR
             )
+            return False
+
+    def clear_authorization(self) -> bool:
+        """Clear stored authorization data"""
+        try:
+            result = clear_auth_data()
+            if result:
+                xbmcgui.Dialog().notification(
+                    "Authorization Cleared",
+                    "Device authorization has been cleared.",
+                    xbmcgui.NOTIFICATION_INFO
+                )
+            return result
+        except Exception as e:
+            self.logger.error(f"Error clearing authorization: {e}")
             return False
 
 

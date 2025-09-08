@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Phase 3 Enhanced Library Scanner
-Rock-solid scanner with paging, retry/backoff, DB hardening, and abort responsiveness
+LibraryGenie - Enhanced Library Scanner (Phase 3)
+Improved scanner with robust paging, retry/backoff, and DB hardening
 """
 
+import json
 import time
 from datetime import datetime
 from typing import List, Dict, Set, Any, Optional, Callable
@@ -283,7 +284,7 @@ class Phase3LibraryScanner:
 
             if not response.data:
                 break
-                
+
             movies = response.data.get("movies", [])
             if not movies:
                 break

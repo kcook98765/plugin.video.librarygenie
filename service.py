@@ -2,350 +2,354 @@
 # -*- coding: utf-8 -*-
 
 """
-LibraryGenie - Background Service
-Handles periodic tasks and library monitoring
+LibraryGenie Service - Kodi Background Service
+Handles periodic tasks, cache management, and AI search synchronization
 """
-
-import time
-from typing import Dict, Any
-from datetime import datetime
 
 import xbmc
 import xbmcaddon
-import xbmcgui # Added for notifications
+import xbmcgui
+import time
+import threading
+from typing import Optional
 
-from lib.config import get_config
-from lib.auth.refresh import maybe_refresh
 from lib.utils.logger import get_logger
+from lib.config.settings import SettingsManager
+from lib.remote.ai_search_client import get_ai_search_client
+from lib.library.scanner import LibraryScanner
+from lib.data.storage_manager import get_storage_manager
+from lib.data.migrations import initialize_database
+from lib.ui.localization import L
+from lib.ui.info_hijack_manager import InfoHijackManager # Import added
+
+logger = get_logger(__name__)
+addon = xbmcaddon.Addon()
 
 
-class BackgroundService:
-    """Background service for token refresh and library monitoring"""
+class LibraryGenieService:
+    """Background service for LibraryGenie addon"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
-        self.config = get_config()
-        self.addon = xbmcaddon.Addon()
+        self.logger = logger
+        self.settings = SettingsManager()
+        self.ai_client = get_ai_search_client()
+        self.storage_manager = get_storage_manager()
         self.monitor = xbmc.Monitor()
+        self.sync_thread = None
+        self.sync_stop_event = threading.Event()
+        self.hijack_manager = InfoHijackManager(self.logger) # Hijack manager initialized
+        self.logger.info("🚀 LibraryGenie service initialized with InfoHijack manager")
 
-        # Service configuration with safe defaults
-        self.interval = max(60, self.config.get_background_interval_seconds())  # Minimum 60s
-        self.track_library_changes = self.config.get_bool("track_library_changes", False)  # Default off
-        self.token_refresh_enabled = self.config.get_bool("background_token_refresh", True)
+        # Debug: Check initial dialog state
+        initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        initial_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+        self.logger.info(f"🔍 SERVICE INIT: Initial dialog state - ID: {initial_dialog_id}, VideoInfo active: {initial_dialog_active}")
 
-        # ✨ Gate: user setting to enable the hijack behavior
-        self.info_hijack_enabled = self.config.get_bool("info_hijack_enabled", True)
-        self._info_hijack = None
-        if self.info_hijack_enabled:
-            try:
-                from lib.ui.info_hijack_manager import InfoHijackManager
-                self._info_hijack = InfoHijackManager(logger=self.logger)
-                self.logger.debug("InfoHijackManager initialized (enabled)")
-            except Exception as e:
-                self.logger.warning(f"Failed to init InfoHijackManager: {e}")
-        else:
-            self.logger.debug("Info hijack disabled by setting")
-
-        # Error handling and backoff
-        self.consecutive_failures = 0
-        self.max_consecutive_failures = 5
-        self.base_backoff_seconds = 60
-        self.max_backoff_seconds = 300  # 5 minutes
-
-        self.logger.info(f"Background service starting (interval: {self.interval}s, library_tracking: {self.track_library_changes})")
-
-        # Initialize library scanner (always needed for initial setup)
-        self._library_scanner = None
+    def _show_notification(self, message: str, icon: int = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
+        """Show a Kodi notification"""
         try:
-            from lib.library.scanner import get_library_scanner
-            self._library_scanner = get_library_scanner()
-            self.logger.debug("Library scanner initialized")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                message,
+                icon,
+                time_ms
+            )
         except Exception as e:
-            self.logger.warning(f"Failed to initialize library scanner: {e}")
+            self.logger.error(f"Failed to show notification: {e}")
 
+    def _initialize_database(self):
+        """Initialize database schema if needed"""
+        try:
+            self.logger.info("Checking database initialization...")
+            initialize_database()
+            self.logger.info("Database initialization completed")
+        except Exception as e:
+            self.logger.error(f"Database initialization failed: {e}")
+            self._show_notification(
+                f"Database initialization failed: {str(e)[:50]}...",
+                xbmcgui.NOTIFICATION_ERROR
+            )
 
+    def _check_and_perform_initial_scan(self):
+        """Check if library has been scanned and perform initial scan if needed"""
+        try:
+            scanner = LibraryScanner()
 
-        # Token refresh tracking
-        self._last_token_check = 0
-        self._token_check_interval = 300  # Check tokens every 5 minutes minimum
+            if not scanner.is_library_indexed():
+                self.logger.info("Library not indexed, performing initial scan...")
+                
+                # Perform initial full scan with DialogBG for better UX
+                result = scanner.perform_full_scan(use_dialog_bg=True)
 
-        # Scheduled tasks tracking
-        self.last_scheduled_check = None
+                if result.get('success'):
+                    items_added = result.get('items_added', 0)
+                    self.logger.info(f"Initial library scan completed: {items_added} movies indexed")
+                    self._show_notification(
+                        f"Library scan completed: {items_added} movies indexed",
+                        time_ms=8000
+                    )
+                else:
+                    error = result.get('error', 'Unknown error')
+                    self.logger.error(f"Initial library scan failed: {error}")
+                    self._show_notification(
+                        f"Library scan failed: {error[:40]}...",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        time_ms=8000
+                    )
+            else:
+                self.logger.info("Library already indexed, skipping initial scan")
 
+        except Exception as e:
+            self.logger.error(f"Error during initial scan check: {e}")
+            self._show_notification(
+                f"Scan check failed: {str(e)[:50]}...",
+                xbmcgui.NOTIFICATION_ERROR
+            )
 
+    def start(self):
+        """Start the background service"""
+        self.logger.info("LibraryGenie background service starting...")
+
+        try:
+            # Initialize database if needed
+            self._initialize_database()
+
+            # Check if library needs initial scan
+            self._check_and_perform_initial_scan()
+
+            # Start AI search sync if enabled
+            if self._should_start_ai_sync():
+                self._start_ai_sync_thread()
+
+            # Main service loop
+            self.run() # Changed to call run() which contains the hijack manager loop
+
+            # Cleanup
+            self._stop_ai_sync_thread()
+            self.logger.info("LibraryGenie background service stopped")
+
+        except Exception as e:
+            self.logger.error(f"Service error: {e}")
+            
     def run(self):
         """Main service loop"""
-        self.logger.info("Background service started")
+        self.logger.info("🔥 LibraryGenie service starting main loop...")
+        tick_count = 0
+        last_dialog_state = None
+        last_armed_state = None
 
-        # Perform initial checks
-        self._initial_setup()
-
-        # Main loop using proper Monitor.waitForAbort
         while not self.monitor.abortRequested():
-            # Initialize current_interval with a default value before try block
-            current_interval = self.interval
-
             try:
-                cycle_start = time.time()
+                tick_count += 1
 
-                # Determine current interval (with backoff if needed)
-                current_interval = self._get_current_interval()
+                # Debug logging every 50 ticks (5 seconds) 
+                if tick_count % 50 == 0:
+                    dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
+                    dialog_id = xbmcgui.getCurrentWindowDialogId()
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
 
-                # Token refresh check (throttled)
-                if self.token_refresh_enabled:
-                    self._check_and_refresh_token_throttled()
+                    # Only log when state changes or every 500 ticks
+                    current_state = (dialog_active, armed_state)
+                    if current_state != last_dialog_state or tick_count % 500 == 0:
+                        self.logger.info(f"🔍 SERVICE TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
+                        last_dialog_state = current_state
 
-                # Library change detection (if enabled and cheap)
-                if self.track_library_changes and self._library_scanner:
-                    self._check_library_changes()
+                # Run hijack manager tick
+                self.hijack_manager.tick()
 
-
-
-                # Check and run any scheduled tasks
-                self.check_scheduled_tasks()
-
-                # Reset failure count on successful cycle
-                self.consecutive_failures = 0
-
-                cycle_duration = time.time() - cycle_start
-                self.logger.debug(f"Service cycle completed in {cycle_duration:.2f}s")
+                # Sleep for a short time to prevent excessive CPU usage
+                if self.monitor.waitForAbort(0.1):  # 100ms
+                    break
 
             except Exception as e:
-                self.consecutive_failures += 1
-                self.logger.error(f"Background service error (failure #{self.consecutive_failures}): {e}")
+                self.logger.error(f"💥 SERVICE ERROR: {e}")
+                import traceback
+                self.logger.error(f"SERVICE TRACEBACK: {traceback.format_exc()}")
+                if self.monitor.waitForAbort(1.0):  # 1 second on error
+                    break
 
-                if self.consecutive_failures >= self.max_consecutive_failures:
-                    self.logger.warning(f"Too many consecutive failures ({self.consecutive_failures}), applying backoff")
+        self.logger.info("🛑 LibraryGenie service stopped")
 
-            # Wait for next cycle, but poll quickly so Info hijack feels instant
-            waited = 0.0
-            step = 0.15  # 150 ms
-            while waited < current_interval and not self.monitor.abortRequested():
-                # ✨ run the hijack tick only when enabled/available
-                if self._info_hijack is not None:
-                    try:
-                        self._info_hijack.tick()
-                    except Exception as e:
-                        self.logger.debug(f"InfoHijack tick error: {e}")
+    def _should_start_ai_sync(self) -> bool:
+        """Check if AI search sync should be started"""
+        # Verify that AI search is properly configured with valid auth
+        if not (self.settings.get_ai_search_activated() and 
+                self.settings.get_ai_search_sync_enabled()):
+            return False
 
-                # use waitForAbort to be responsive to shutdowns
-                remaining = max(0.0, current_interval - waited)
-                if self.monitor.waitForAbort(min(step, remaining)):
-                    return
-                waited += step
+        # Test if AI client is properly configured and authorized
+        if not self.ai_client.is_configured():
+            self.logger.debug("AI client not configured, skipping sync")
+            return False
 
-        self.logger.info("Background service stopped")
+        # Quick connection test to ensure auth is still valid
+        connection_test = self.ai_client.test_connection()
+        if not connection_test.get('success'):
+            error = connection_test.get('error', 'Unknown error')
+            self.logger.warning(f"AI search connection invalid: {error}")
 
-    def _get_current_interval(self) -> int:
-        """Get current interval with exponential backoff on failures"""
-        if self.consecutive_failures == 0:
-            return self.interval
+            # If it's an auth error, disable AI search to prevent constant retries
+            if 'API key' in error or '401' in error:
+                self.logger.info("Disabling AI search due to authentication failure")
+                self.settings.set_ai_search_activated(False)
 
-        # Apply exponential backoff
-        backoff_multiplier = min(2 ** (self.consecutive_failures - 1), 8)  # Cap at 8x
-        backoff_interval = min(
-            self.base_backoff_seconds * backoff_multiplier,
-            self.max_backoff_seconds
-        )
+            return False
 
-        return max(self.interval, backoff_interval)
+        return True
 
-    def _initial_setup(self):
-        """Perform initial setup tasks"""
-        try:
-            # Check if library needs initial indexing
-            if self._library_scanner and not self._library_scanner.is_library_indexed():
-                self.logger.info("Library not indexed, performing initial scan")
-
-                # Show notification that initial scan is starting
-                try:
-                    xbmcgui.Dialog().notification(
-                        self.addon.getLocalizedString(35002),  # "LibraryGenie"
-                        "Initial library scan starting...",
-                        xbmcgui.NOTIFICATION_INFO,
-                        5000
-                    )
-                except Exception as e:
-                    self.logger.warning(f"Failed to show initial scan notification: {e}")
-
-                try:
-                    result = self._library_scanner.perform_full_scan()
-                    if result.get("success"):
-                        self.logger.info(f"Initial scan complete: {result.get('items_added', 0)} movies indexed")
-                        # Show completion notification
-                        try:
-                            xbmcgui.Dialog().notification(
-                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
-                                f"Initial scan complete: {result.get('items_added', 0)} movies indexed",
-                                xbmcgui.NOTIFICATION_INFO,
-                                5000
-                            )
-                        except Exception as e:
-                            self.logger.warning(f"Failed to show completion notification: {e}")
-                    else:
-                        self.logger.warning(f"Initial scan failed: {result.get('error', 'Unknown error')}")
-                        # Show error notification
-                        try:
-                            xbmcgui.Dialog().notification(
-                                self.addon.getLocalizedString(35002),  # "LibraryGenie"
-                                "Initial library scan failed",
-                                xbmcgui.NOTIFICATION_ERROR,
-                                5000
-                            )
-                        except Exception as e:
-                            self.logger.warning(f"Failed to show error notification: {e}")
-                except Exception as e:
-                    self.logger.error(f"Initial scan failed with exception: {e}")
-                    # Show error notification on exception during scan
-                    try:
-                        xbmcgui.Dialog().notification(
-                            self.addon.getLocalizedString(35002),  # "LibraryGenie"
-                            "Initial library scan failed",
-                            xbmcgui.NOTIFICATION_ERROR,
-                            5000
-                        )
-                    except Exception as e:
-                        self.logger.warning(f"Failed to show error notification: {e}")
-            else:
-                if self._library_scanner:
-                    self.logger.debug("Library already indexed")
-                else:
-                    self.logger.debug("Library scanner unavailable - skipping initial scan")
-
-        except Exception as e:
-            self.logger.error(f"Initial setup failed: {e}")
-
-
-
-
-    def _check_and_refresh_token_throttled(self):
-        """Check and refresh authentication token if needed (throttled)"""
-        try:
-            current_time = time.time()
-
-            # Only check tokens every few minutes, not every cycle
-            if current_time - self._last_token_check < self._token_check_interval:
-                return
-
-            self._last_token_check = current_time
-
-            success = maybe_refresh()
-            if success:
-                self.logger.debug("Token refresh check completed successfully")
-            # Don't log failures as errors - user may not be authorized yet
-
-        except Exception as e:
-            self.logger.error(f"Token refresh check failed: {e}")
-            raise  # Re-raise to trigger backoff
-
-    def _check_library_changes(self):
-        """Check for library changes using delta scan (cheap operation)"""
-        try:
-            # Skip during playback to avoid interruption
-            if xbmc.Player().isPlaying():
-                return
-
-            # Check if library scanner is available
-            if self._library_scanner is None:
-                self.logger.warning("Library scanner is not initialized")
-                return
-
-            # Use delta scan which should be cheap
-            result = self._library_scanner.perform_delta_scan()
-
-            if result.get("success"):
-                changes = result.get("items_added", 0) + result.get("items_removed", 0)
-                if changes > 0:
-                    self.logger.debug(f"Library changes detected: +{result.get('items_added', 0)} -{result.get('items_removed', 0)} movies")
-            else:
-                self.logger.warning(f"Library scan failed: {result.get('error', 'Unknown error')}")
-
-        except Exception as e:
-            self.logger.error(f"Library change detection failed: {e}")
-            raise  # Re-raise to trigger backoff
-
-
-
-    def check_scheduled_tasks(self):
-        """Check and run any scheduled tasks"""
-        try:
-            current_time = datetime.now()
-
-            # Only run scheduled tasks if enough time has passed
-            if self.last_scheduled_check:
-                time_since_last = (current_time - self.last_scheduled_check).total_seconds()
-                if time_since_last < 300:  # 5 minutes minimum between scheduled task checks
-                    return
-
-            self.last_scheduled_check = current_time
-
-            # Check for library changes if tracking is enabled
-            if self.config.get_bool("track_library_changes", False):
-                self._check_library_changes()
-
-            # Check for scheduled backups
-            self.check_scheduled_backups()
-
-            # TODO: Add other scheduled tasks here (token refresh, etc.)
-
-        except Exception as e:
-            self.logger.error(f"Error in scheduled tasks: {e}")
-
-    def check_scheduled_backups(self):
-        """Check if scheduled backup should run"""
-        try:
-            from lib.import_export import get_timestamp_backup_manager
-
-            backup_manager = get_timestamp_backup_manager()
-
-            if backup_manager.should_run_backup():
-                self.logger.info("Running scheduled backup")
-                result = backup_manager.run_automatic_backup()
-
-                if result["success"]:
-                    self.logger.info(f"Scheduled backup completed: {result.get('filename')} at {result.get('storage_location')}")
-                else:
-                    self.logger.error(f"Scheduled backup failed: {result.get('error')}")
-
-        except Exception as e:
-            self.logger.error(f"Error checking scheduled backups: {e}")
-
-# The `run` function was modified to include database initialization.
-def run():
-    """Main background service entry point"""
-    logger = get_logger(__name__)
-
-    try:
-        # Force database initialization first
-        try:
-            from lib.data.migrations import initialize_database
-            initialize_database()
-            logger.info("Database initialization completed")
-        except Exception as db_error:
-            logger.error(f"Database initialization failed: {db_error}")
-            # Continue anyway - some features might still work
-
-        config = get_config()
-
-        # Check if background service is enabled
-        enabled = config.get_bool("background_task_enabled", True)
-        if not enabled:
-            logger.info("Background service disabled in settings")
+    def _start_ai_sync_thread(self):
+        """Start the AI search sync background thread"""
+        if self.sync_thread and self.sync_thread.is_alive():
             return
 
-        interval = config.get_background_interval_seconds()
-        track_library = config.get_bool("track_library_changes", True)
+        self.logger.info("Starting AI search sync thread")
+        self.sync_stop_event.clear()
+        self.sync_thread = threading.Thread(target=self._ai_sync_worker, daemon=True)
+        self.sync_thread.start()
 
-        logger.info(f"Background service starting (interval: {interval}s, library_tracking: {track_library})")
+    def _stop_ai_sync_thread(self):
+        """Stop the AI search sync background thread"""
+        if self.sync_thread and self.sync_thread.is_alive():
+            self.logger.info("Stopping AI search sync thread")
+            self.sync_stop_event.set()
+            self.sync_thread.join(timeout=10)
 
-        # Initialize services
-        service = BackgroundService() # Removed interval argument as it's handled in __init__
-        service.run()
+    def _ai_sync_worker(self):
+        """Background worker for AI search synchronization"""
+        self.logger.info("AI search sync worker started")
 
-    except Exception as e:
-        logger.error(f"Background service failed to start: {e}")
-        # Don't raise - let Kodi continue
+        try:
+            # Initial sync after 60 seconds
+            if not self.sync_stop_event.wait(60):
+                self._perform_ai_sync()
+
+            # Periodic sync based on settings
+            sync_interval = self.settings.get_ai_search_sync_interval() * 3600  # Convert hours to seconds
+
+            while not self.sync_stop_event.is_set():
+                if self.sync_stop_event.wait(sync_interval):
+                    break  # Stop event was set
+
+                # Perform sync if still enabled
+                if self._should_start_ai_sync():
+                    self._perform_ai_sync()
+                else:
+                    self.logger.info("AI sync disabled, stopping worker")
+                    break
+
+        except Exception as e:
+            self.logger.error(f"AI sync worker error: {e}")
+        finally:
+            self.logger.info("AI search sync worker stopped")
+
+    def _perform_ai_sync(self):
+        """Perform AI search synchronization"""
+        self.logger.info("Starting AI search synchronization")
+
+        # Show start notification
+        self._show_notification(L(34103))  # "Sync in progress..."
+
+        try:
+            # Test connection first
+            connection_test = self.ai_client.test_connection()
+            if not connection_test.get('success'):
+                error_msg = connection_test.get('error', 'Unknown error')
+                self.logger.warning(f"AI search connection failed: {error_msg}")
+                self._show_notification(f"{L(34105)}: {error_msg}", xbmcgui.NOTIFICATION_ERROR)  # "Sync failed: ..."
+                return
+
+            # Get current library version for delta sync
+            server_version = self.ai_client.get_library_version()
+            if not server_version:
+                self.logger.warning("Failed to get server library version")
+
+            # Scan library for movies with IMDb IDs
+            scanner = LibraryScanner()
+            movies_with_imdb = []
+
+            self.logger.info("Scanning local library for movies with IMDb IDs...")
+
+            # Get all movies from Kodi library
+            movies = scanner.scan_movies()
+            for movie in movies:
+                imdb_id = movie.get('imdbnumber', '').strip()
+                if imdb_id and imdb_id.startswith('tt'):
+                    movies_with_imdb.append({
+                        'imdb_id': imdb_id,
+                        'title': movie.get('title', ''),
+                        'year': movie.get('year', 0)
+                    })
+
+            self.logger.info(f"Found {len(movies_with_imdb)} movies with IMDb IDs")
+
+            if not movies_with_imdb:
+                self.logger.info("No movies with IMDb IDs found, skipping sync")
+                self._show_notification(L(30016), xbmcgui.NOTIFICATION_WARNING)  # "No results found" (reusing existing string)
+                return
+
+            # Sync in batches with rate limiting
+            batch_size = 500  # Conservative batch size
+            total_batches = (len(movies_with_imdb) + batch_size - 1) // batch_size
+
+            for i in range(0, len(movies_with_imdb), batch_size):
+                if self.sync_stop_event.is_set():
+                    self.logger.info("Sync cancelled by stop event")
+                    return
+
+                batch = movies_with_imdb[i:i + batch_size]
+                batch_num = (i // batch_size) + 1
+
+                self.logger.info(f"Syncing batch {batch_num}/{total_batches} ({len(batch)} movies)")
+
+                result = self.ai_client.sync_media_batch(batch, batch_size)
+
+                if result and result.get('success'):
+                    results = result.get('results', {})
+                    self.logger.info(
+                        f"Batch {batch_num} sync completed: "
+                        f"{results.get('added', 0)} added, "
+                        f"{results.get('already_present', 0)} existing, "
+                        f"{results.get('invalid', 0)} invalid"
+                    )
+
+                    # Show progress notification for significant batches
+                    if total_batches > 1:
+                        self._show_notification(
+                            f"{L(34401)} {batch_num}/{total_batches}",  # "Processing... X/Y"
+                            time_ms=3000
+                        )
+                else:
+                    error_msg = result.get('error', 'Unknown error') if result else 'No response'
+                    self.logger.error(f"Batch {batch_num} sync failed: {error_msg}")
+                    self._show_notification(
+                        f"{L(34105)}: {error_msg}",  # "Sync failed: ..."
+                        xbmcgui.NOTIFICATION_ERROR
+                    )
+
+                # Rate limiting: 10 second wait between batches (as per documentation)
+                if batch_num < total_batches and not self.sync_stop_event.is_set():
+                    self.logger.debug(f"Waiting 10 seconds before next batch...")
+                    self.sync_stop_event.wait(10)
+
+            self.logger.info("AI search synchronization completed")
+
+            # Show completion notification with summary
+            self._show_notification(
+                f"{L(34104)} - {len(movies_with_imdb)} movies",  # "Sync completed successfully - X movies"
+                time_ms=8000
+            )
+
+        except Exception as e:
+            self.logger.error(f"AI sync failed: {e}")
+            self._show_notification(
+                f"{L(34105)}: {str(e)}",  # "Sync failed: ..."
+                xbmcgui.NOTIFICATION_ERROR,
+                time_ms=8000
+            )
 
 
 if __name__ == '__main__':
-    run()
+    # Entry point for Kodi service
+    service = LibraryGenieService()
+    service.start()

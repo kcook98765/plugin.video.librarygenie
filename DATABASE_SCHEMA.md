@@ -62,8 +62,6 @@ The unified table for storing all media content metadata.
 | `kodi_id` | INTEGER | Kodi database ID (movieid, episodeid, etc.) |
 | `source` | TEXT | Source classification (e.g., 'library', 'external') |
 | `play` | TEXT | Play command or URL |
-| `poster` | TEXT | Poster artwork URL |
-| `fanart` | TEXT | Fanart artwork URL |
 | `plot` | TEXT | Plot/description |
 | `rating` | REAL | Rating score |
 | `votes` | INTEGER | Number of votes |
@@ -79,6 +77,8 @@ The unified table for storing all media content metadata.
 | `file_path` | TEXT | Original file path |
 | `normalized_path` | TEXT | Normalized file path for matching |
 | `is_removed` | INTEGER | Flag indicating if item was removed (0/1) |
+| `display_title` | TEXT | Pre-computed display title with year |
+| `duration_seconds` | INTEGER | Duration in seconds (pre-computed) |
 | `created_at` | TEXT | Creation timestamp |
 | `updated_at` | TEXT | Last update timestamp |
 
@@ -134,7 +134,9 @@ Indexes:
 - INDEX on `is_mapped`.
 - INDEX on `present`.
 
-**Note**: Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favorites". Context menus are handled globally via addon.xml registration instead of per-item context menu generation.
+**Note**: The `media_items` table serves as the primary source for all list operations and UI building. During library scanning, comprehensive lightweight metadata is stored here to eliminate the need for JSON-RPC batch calls during list rendering. Heavy metadata (cast, streamdetails) is stored separately to maintain performance.
+
+Kodi Favorites are also integrated into the unified lists system. A special list named "Kodi Favorites" is created in the `lists` table, and mapped favorites are added as `list_items` pointing to `media_items`. The favorites handler is registered with the router using the action name "kodi_favorites". Context menus are handled globally via addon.xml registration instead of per-item context menu generation.
 
 ---
 
@@ -270,6 +272,7 @@ Records library scan operations and their results.
 |----------------|---------|-------|
 | `id`           | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `scan_type`    | TEXT    | `full`, `delta` |
+| `kodi_version` | INTEGER | Kodi major version when scan was performed |
 | `start_time`   | TEXT    | ISO 8601 timestamp |
 | `end_time`     | TEXT    | ISO 8601 timestamp (nullable) |
 | `total_items`  | INTEGER | Items found during scan |
@@ -360,6 +363,21 @@ Indexes:
 - INDEX on `backup_type`.
 - INDEX on `created_at`.
 - INDEX on `storage_type`.
+
+### `backup_preferences`
+Stores backup configuration and preferences.
+
+| Column                | Type    | Notes |
+|-----------------------|---------|-------|
+| `id`                  | INTEGER | PRIMARY KEY |
+| `auto_backup_enabled` | INTEGER | NOT NULL DEFAULT 0 |
+| `backup_interval_days`| INTEGER | NOT NULL DEFAULT 7 |
+| `max_backups_to_keep` | INTEGER | NOT NULL DEFAULT 5 |
+| `backup_location`     | TEXT    | NOT NULL DEFAULT 'special://userdata/addon_data/script.librarygenie/backups/' |
+| `last_auto_backup`    | TEXT    | Last automatic backup timestamp |
+| `updated_at`          | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+
+**Note**: This table uses a fixed ID of 1 for a single-row configuration pattern.
 
 ### `schema_version`
 Tracks database schema version for migrations.

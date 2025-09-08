@@ -23,6 +23,78 @@ LibraryGenie's local search system provides fast, offline search capabilities ac
 
 ## Architecture
 
+LibraryGenie's search system consists of several key components:
+
+### Core Components
+
+1. **Simple Search Engine** (`lib/search/simple_search_engine.py`)
+   - Main search interface with database-backed keyword matching
+   - Supports configurable search scope (title, plot, both)
+   - Implements intelligent result ranking and filtering
+
+2. **Query Interpreter** (`lib/search/simple_query_interpreter.py`)
+   - Processes user input into structured search queries
+   - Handles keyword extraction and normalization
+   - Supports match logic configuration (all/any keywords)
+
+3. **Text Normalizer** (`lib/search/normalizer.py`)
+   - Unicode normalization and diacritic handling
+   - Punctuation and whitespace cleaning
+   - Case-insensitive matching support
+
+4. **Search Query Object** (`lib/search/simple_search_query.py`)
+   - Encapsulates search parameters and configuration
+   - Manages scope, keywords, and match logic settings
+
+### Database Integration
+
+The search system leverages the `media_items` table with optimized queries:
+
+```sql
+-- Example search query structure
+SELECT * FROM media_items 
+WHERE (title LIKE ? OR plot LIKE ?) 
+AND is_removed = 0 
+ORDER BY (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), title
+```
+
+### Search Flow
+
+1. **Input Processing**: User query → Query Interpreter → Normalized keywords
+2. **Database Query**: Keywords → SQL LIKE patterns → Result set
+3. **Ranking**: Title matches prioritized over plot matches
+4. **History**: Results saved to browsable search history lists
+
+---
+
+## Implementation Details
+
+### Search Scope Options
+
+- **Title Only**: Search only in media title fields
+- **Plot Only**: Search only in plot/description fields  
+- **Both**: Search across both title and plot fields (default)
+
+### Match Logic
+
+- **All Keywords**: All keywords must be present (AND logic)
+- **Any Keyword**: Any keyword match returns result (OR logic)
+
+### Result Ranking
+
+1. **Primary Sort**: Title matches ranked higher than plot-only matches
+2. **Secondary Sort**: Alphabetical by title within each group
+3. **Filtering**: Automatically excludes removed/missing items
+
+### Text Processing
+
+The normalizer handles:
+- **Unicode Normalization**: NFD decomposition for consistent character handling
+- **Diacritic Removal**: Strips accents and diacritical marks
+- **Case Folding**: Converts to lowercase for case-insensitive matching  
+- **Punctuation Handling**: Removes or normalizes punctuation marks
+- **Whitespace Cleanup**: Normalizes spaces and removes extra whitespace
+
 ### Components
 
 1. **SimpleSearchEngine** (`lib/search/simple_search_engine.py`)

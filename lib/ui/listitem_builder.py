@@ -7,11 +7,11 @@ Builds ListItems with proper metadata and resume information
 """
 
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
 import xbmcplugin
 from ..utils.logger import get_logger
-from ..utils.kodi_version import is_kodi_v20_plus, get_kodi_major_version
+from ..utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
 
 
 class ListItemBuilder:
@@ -279,14 +279,7 @@ class ListItemBuilder:
                 except (ValueError, TypeError):
                     pass
 
-        # artwork (flatten)
-        poster = src.get('poster') or src.get('thumbnail')
-        fanart = src.get('fanart')
-        if poster:
-            out['poster'] = poster
-        if fanart:
-            out['fanart'] = fanart
-
+        # artwork - only from art JSON field now
         art_blob = src.get('art')
         if art_blob:
             try:
@@ -362,6 +355,7 @@ class ListItemBuilder:
                 li.setProperty("LG.InfoHijack.Armed", "1")
                 li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty("LG.InfoHijack.DBType", media_type)
+                self.logger.debug(f"🎯 HIJACK ARMED: '{title}' - DBID={kodi_id}, DBType={media_type}")
             except Exception as e:
                 self.logger.error(f"LIB ITEM: ❌ Failed to set InfoHijack properties for '{title}': {e}")
 
@@ -406,7 +400,7 @@ class ListItemBuilder:
                 info = self._build_lightweight_info(item)
                 li.setInfo('video', info)
 
-            # Art (poster/fanart minimum)
+            # Art from art field
             art = self._build_art_dict(item)
             if art:
                 li.setArt(art)
@@ -455,8 +449,15 @@ class ListItemBuilder:
                         video_info_tag.setPlot(description)
                 except Exception as e:
                     self.logger.debug(f"ACTION ITEM v20+: InfoTagVideo failed for folder '{title}': {e}")
+                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
+                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
+                    if kodi_major < 21:
+                        info_dict = {'title': title}
+                        if description:
+                            info_dict['plot'] = description
+                        li.setInfo('video', info_dict)
             else:
-                # v19: Basic folder info
+                # v19: Use setInfo()
                 info_dict = {'title': title}
                 if description:
                     info_dict['plot'] = description
@@ -507,12 +508,17 @@ class ListItemBuilder:
                     self._set_infotag_metadata(video_info_tag, item, title)
                 except Exception as e:
                     self.logger.warning(f"EXT ITEM v20+: InfoTagVideo setup failed for '{title}': {e}")
+                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
+                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
+                    if kodi_major < 21:
+                        info = self._build_lightweight_info(item)
+                        li.setInfo('video', info)
             else:
                 # v19: Use setInfo()
                 info = self._build_lightweight_info(item)
                 li.setInfo('video', info)
 
-            # Apply exact same art keys as library items (Step 4)
+            # Apply art from art field same as library items
             art = self._build_art_dict(item)
             if art:
                 li.setArt(art)
@@ -525,22 +531,22 @@ class ListItemBuilder:
             is_playable = bool(item.get('play'))
             is_folder = not is_playable
 
-            # *** MODIFICATION START ***
             # Ensure list items that are meant to display list contents are marked as folders.
             # This prevents Kodi from trying to show video info for them.
-            if is_folder:
-                # If it's explicitly marked as not playable and not a video, it should be a folder.
-                # However, if the action is specifically to "show_list", it MUST be a folder.
-                action = item.get("action", "")
-                if action == "show_list":
-                    is_folder = True  # Lists should be navigable folders
-                else:
-                    is_folder = False # Default to not a folder unless it's a "show_list" action or similar
+            action = item.get("action", "")
+            if action == "show_list":
+                is_folder = True  # Lists should be navigable folders
+            elif is_playable:
+                is_folder = False # Playable items are not folders
+            else:
+                # Default to not a folder unless it's explicitly a "show_list" action
+                is_folder = False
 
             # For playable items, set additional properties
             if is_playable:
                 li.setProperty('IsPlayable', 'true')
-            # *** MODIFICATION END ***
+            else:
+                li.setProperty('IsPlayable', 'false') # Explicitly mark non-playable items
 
             # Resume for plugin-only: only if you maintain your own resume store
             # (Skip resume for external items - at your discretion)
@@ -586,9 +592,10 @@ class ListItemBuilder:
         if item.get('premiered'):
             info['premiered'] = item['premiered']
 
-        # Content description
-        if item.get('plot'):
-            info['plot'] = item['plot']
+        # Content description - use full plot text for complete information
+        plot_text = item.get('plot', '')
+        if plot_text:
+            info['plot'] = plot_text
         if item.get('plotoutline'):
             info['plotoutline'] = item['plotoutline']
 
@@ -608,9 +615,11 @@ class ListItemBuilder:
         if item.get('mpaa'):
             info['mpaa'] = item['mpaa']
 
-        # Genre handling
-        if item.get('genre'):
-            info['genre'] = item['genre']
+        # Genre handling - data stored in version-appropriate format
+        genre_data = item.get('genre', '')
+        if genre_data:
+            # Data is already in the correct format for this Kodi version
+            info['genre'] = genre_data
 
         # Duration handling - Kodi expects duration in seconds for info dict
         runtime_minutes = item.get('runtime', 0)
@@ -688,10 +697,10 @@ class ListItemBuilder:
         return info
 
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
-        """Build artwork dictionary from item data"""
+        """Build artwork dictionary from item data - uses only art field"""
         art = {}
 
-        # First check if we have a JSON-RPC art dict
+        # Get art data from the art JSON field only
         item_art = item.get('art')
         if item_art:
             # Handle both dict and JSON string formats
@@ -702,16 +711,11 @@ class ListItemBuilder:
                     item_art = {}
 
             if isinstance(item_art, dict):
-                # Copy all art keys from JSON-RPC art dict
+                # Copy all art keys from the art dict
                 for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape',
                                'clearlogo', 'clearart', 'discart', 'icon']:
                     if art_key in item_art and item_art[art_key]:
                         art[art_key] = item_art[art_key]
-
-        # Also check top-level fields (enrichment may have flattened them)
-        for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape', 'clearlogo']:
-            if item.get(art_key) and not art.get(art_key):
-                art[art_key] = item[art_key]
 
         # If we have poster but no thumb/icon, set them for list view compatibility
         if art.get('poster') and not art.get('thumb'):
@@ -804,7 +808,7 @@ class ListItemBuilder:
     def _set_infotag_metadata(self, video_info_tag, item: Dict[str, Any], title: str):
         """
         Set metadata via InfoTagVideo setters for v20+ library items.
-        This keeps metadata lightweight while avoiding setInfo() that can suppress DB resolution.
+        Uses pre-computed fields for optimal performance.
         """
         try:
             # Ensure proper media type is set first for correct identification
@@ -814,7 +818,7 @@ class ListItemBuilder:
             except Exception as e:
                 self.logger.warning(f"LIB ITEM v20+: setMediaType() failed for '{title}': {e}")
 
-            # Core identification - but keep minimal to let DB metadata take precedence
+            # Core identification - minimal to let DB metadata take precedence
             if item.get('title'):
                 video_info_tag.setTitle(item['title'])
 
@@ -826,19 +830,25 @@ class ListItemBuilder:
                 except (ValueError, TypeError):
                     pass
 
-            if item.get('plot'):
-                video_info_tag.setPlot(item['plot'])
+            # Use full plot text for complete information
+            plot_text = item.get('plot', '')
+            if plot_text:
+                video_info_tag.setPlot(plot_text)
 
-            # Genre handling
-            if item.get('genre'):
-                # Convert string to list for setGenres()
-                if isinstance(item['genre'], str):
-                    genres = [g.strip() for g in item['genre'].split(',') if g.strip()]
-                else:
-                    genres = item['genre'] if isinstance(item['genre'], list) else []
-
-                if genres:
-                    video_info_tag.setGenres(genres)
+            # Use stored genre data (format depends on Kodi version during scan)
+            genre_data = item.get('genre', '')
+            if genre_data:
+                try:
+                    # Try to parse as JSON array first (v20+ format)
+                    genres = json.loads(genre_data)
+                    if isinstance(genres, list) and genres:
+                        video_info_tag.setGenres(genres)
+                except (json.JSONDecodeError, TypeError):
+                    # Fallback to string format (v19 format or direct string)
+                    if isinstance(genre_data, str):
+                        genres = [g.strip() for g in genre_data.split(',') if g.strip()]
+                        if genres:
+                            video_info_tag.setGenres(genres)
 
             # Rating
             if item.get('rating'):
@@ -872,3 +882,161 @@ class ListItemBuilder:
 
         except Exception as e:
             self.logger.warning(f"LIB ITEM v20+: InfoTagVideo metadata setup failed for '{title}': {e}")
+
+    def _get_kodi_mediatype(self, media_type: str) -> str:
+        """Map internal media type to Kodi's expected values."""
+        if media_type == 'movie':
+            return 'movie'
+        elif media_type == 'tvshow':
+            return 'tvshow'
+        elif media_type == 'episode':
+            return 'episode'
+        elif media_type == 'musicvideo':
+            return 'musicvideo'
+        else:
+            return 'movie' # Default to movie if unknown
+
+
+    def build_media_listitem(self, media_item: Dict[str, Any]) -> xbmcgui.ListItem:
+        """Build ListItem for media content using enhanced data from media_items table"""
+        try:
+            # Use media_items data directly instead of JSON RPC calls
+            title = media_item.get('title', 'Unknown Title')
+            year = media_item.get('year')
+
+            # Format display title with year if available
+            if year:
+                display_title = f"{title} ({year})"
+            else:
+                display_title = title
+
+            listitem = xbmcgui.ListItem(label=display_title)
+
+            # Set video info using media_items data
+            info_labels = {
+                'title': title,
+                'mediatype': self._get_kodi_mediatype(media_item.get('media_type', 'movie')),
+                'plot': media_item.get('plot', ''),
+                'year': year or 0,
+                'rating': media_item.get('rating', 0.0),
+                'votes': str(media_item.get('votes', 0)),
+                'duration': media_item.get('duration', 0),
+                'mpaa': media_item.get('mpaa', ''),
+                'genre': media_item.get('genre', ''),
+                'director': media_item.get('director', ''),
+                'studio': media_item.get('studio', ''),
+                'country': media_item.get('country', ''),
+                'writer': media_item.get('writer', '')
+            }
+
+            # Add IMDb number if available
+            if media_item.get('imdbnumber'):
+                info_labels['imdbnumber'] = media_item['imdbnumber']
+
+            # Add TMDb ID if available
+            if media_item.get('tmdb_id'):
+                info_labels['tmdb'] = media_item['tmdb_id']
+
+            # Call the version-specific metadata setting function
+            from ..utils.kodi_version import get_kodi_major_version
+            kodi_major = get_kodi_major_version()
+
+            if kodi_major >= 20:
+                # Kodi v20+ (Nexus/Omega): Use InfoTagVideo
+                try:
+                    video_info_tag = listitem.getVideoInfoTag()
+
+                    # Set basic properties
+                    if info_labels.get('title'):
+                        video_info_tag.setTitle(info_labels['title'])
+                    if info_labels.get('plot'):
+                        video_info_tag.setPlot(info_labels['plot'])
+                    if info_labels.get('year'):
+                        video_info_tag.setYear(int(info_labels['year']))
+                    if info_labels.get('rating'):
+                        video_info_tag.setRating(float(info_labels['rating']))
+                    if info_labels.get('votes'):
+                        video_info_tag.setVotes(int(info_labels['votes']))
+                    if info_labels.get('mpaa'):
+                        video_info_tag.setMpaa(info_labels['mpaa'])
+                    if info_labels.get('duration'):
+                        video_info_tag.setDuration(int(info_labels['duration'])) # Duration is already in seconds
+                    if info_labels.get('premiered'):
+                        video_info_tag.setPremiered(info_labels['premiered'])
+                    if info_labels.get('studio'):
+                        video_info_tag.setStudios([info_labels['studio']])
+                    if info_labels.get('genre'):
+                        genres = info_labels['genre'].split(',') if isinstance(info_labels['genre'], str) else [info_labels['genre']]
+                        video_info_tag.setGenres([g.strip() for g in genres if g.strip()])
+                    if info_labels.get('playcount'):
+                        video_info_tag.setPlaycount(int(info_labels['playcount']))
+                    if info_labels.get('imdbnumber'):
+                        video_info_tag.setIMDbNumber(info_labels['imdbnumber'])
+                    if info_labels.get('tmdb'):
+                        video_info_tag.setUniqueId(str(info_labels['tmdb']), 'tmdb')
+
+                    # Episode-specific fields
+                    if info_labels.get('mediatype') == 'episode':
+                        if info_labels.get('tvshowtitle'):
+                            video_info_tag.setTvShowTitle(info_labels['tvshowtitle'])
+                        if info_labels.get('season'):
+                            video_info_tag.setSeason(int(info_labels['season']))
+                        if info_labels.get('episode'):
+                            video_info_tag.setEpisode(int(info_labels['episode']))
+                        if info_labels.get('aired'):
+                            video_info_tag.setFirstAired(info_labels['aired'])
+
+                except Exception as e:
+                    self.logger.error(f"Failed to set metadata via InfoTagVideo: {e}")
+                    # Fallback to setInfo for compatibility
+                    listitem.setInfo('video', info_labels)
+            else:
+                # Kodi v19 (Matrix): Use setInfo
+                listitem.setInfo('video', info_labels)
+
+            # Set artwork using only art field data from media_items
+            artwork = {}
+            art_data = media_item.get('art')
+            if art_data:
+                try:
+                    if isinstance(art_data, str):
+                        artwork = json.loads(art_data)
+                    elif isinstance(art_data, dict):
+                        artwork = art_data.copy()
+                except (json.JSONDecodeError, TypeError):
+                    artwork = {}
+
+            if artwork:
+                listitem.setArt(artwork)
+
+            # Set playable property
+            listitem.setProperty('IsPlayable', 'true')
+
+            # Build play URL using media_items play command or kodi_id
+            play_command = media_item.get('play')
+            kodi_id = media_item.get('kodi_id')
+            media_type = media_item.get('media_type', 'movie')
+
+            if play_command:
+                # Use existing play command
+                url = play_command
+            elif kodi_id and media_type:
+                # Build play URL from kodi_id
+                if media_type == 'movie':
+                    url = f"plugin://plugin.video.librarygenie/?action=play_movie&movie_id={kodi_id}"
+                elif media_type == 'episode':
+                    url = f"plugin://plugin.video.librarygenie/?action=play_episode&episode_id={kodi_id}"
+                else:
+                    url = f"plugin://plugin.video.librarygenie/?action=play_item&item_id={kodi_id}&media_type={media_type}"
+            else:
+                # Fallback - shouldn't happen with proper media_items data
+                url = "plugin://plugin.video.librarygenie/?action=error&message=No play method available"
+
+            return listitem, url
+
+        except Exception as e:
+            self.logger.error(f"Failed to build media listitem: {e}")
+            # Return error listitem
+            error_item = xbmcgui.ListItem(label="Error loading item")
+            error_url = "plugin://plugin.video.librarygenie/?action=error"
+            return error_item, error_url

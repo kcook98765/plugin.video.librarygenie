@@ -37,6 +37,7 @@ class PluginContext:
         # Service singletons (lazy loaded)
         self._query_manager = None
         self._favorites_manager = None
+        self._storage_manager = None
 
         # Navigation context - generate breadcrumb automatically
         self.breadcrumb_path = self._generate_breadcrumb()
@@ -54,7 +55,7 @@ class PluginContext:
 
     @property
     def query_manager(self):
-        """Get query manager singleton"""
+        """Get query manager singleton (lazy loaded)"""
         if self._query_manager is None:
             from ..data.query_manager import get_query_manager
             self._query_manager = get_query_manager()
@@ -65,11 +66,19 @@ class PluginContext:
 
     @property
     def favorites_manager(self):
-        """Get favorites manager singleton"""
+        """Get cached favorites manager instance"""
         if self._favorites_manager is None:
             from ..kodi.favorites_manager import get_phase4_favorites_manager
             self._favorites_manager = get_phase4_favorites_manager()
         return self._favorites_manager
+
+    @property
+    def storage_manager(self):
+        """Get cached storage manager instance"""
+        if self._storage_manager is None:
+            from ..data.storage_manager import get_storage_manager
+            self._storage_manager = get_storage_manager()
+        return self._storage_manager
 
     def get_param(self, key: str, default: Any = None) -> Any:
         """Get parameter value with optional default"""
@@ -102,7 +111,7 @@ class PluginContext:
             action = self.params.get('action', '')
             if not action:
                 return None
-            
+
             # Import here to avoid circular imports
             from .breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
@@ -110,3 +119,91 @@ class PluginContext:
         except Exception as e:
             self.logger.error(f"Error generating breadcrumb: {e}")
             return None
+
+    def display_folder(self, folder_id: str):
+        """Display folder contents with proper breadcrumb"""
+        try:
+            self.logger.info(f"Displaying folder {folder_id}")
+
+            query_manager = get_query_manager()
+            folder_info = query_manager.get_folder_info(folder_id)
+
+            if not folder_info:
+                self.logger.error(f"Folder {folder_id} not found")
+                self._show_error("Folder not found")
+                return
+
+            folder_name = folder_info.get('name', 'Unknown Folder')
+
+            # Generate breadcrumb for folder
+            from .breadcrumb_helper import get_breadcrumb_helper
+            breadcrumb_helper = get_breadcrumb_helper()
+            breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(
+                'show_folder', 
+                {'folder_id': folder_id}, 
+                query_manager
+            )
+            self.logger.info(f"Generated folder breadcrumb: '{breadcrumb_path}'")
+
+            # Get subfolders
+            subfolders = query_manager.get_all_folders(parent_id=folder_id)
+            self.logger.info(f"Folder '{folder_name}' has {len(subfolders)} subfolders")
+
+            # Get lists in this folder
+            lists_in_folder = query_manager.get_lists_in_folder(folder_id)
+            self.logger.info(f"Folder '{folder_name}' has {len(lists_in_folder)} lists")
+
+            # Build menu items
+            menu_items = []
+
+            # Add subfolders
+            for subfolder in subfolders:
+                subfolder_id = subfolder['id']
+                subfolder_name = subfolder['name']
+                list_count = subfolder.get('list_count', 0)
+
+                context_menu = [
+                    (f"Tools & Options for '{subfolder_name}'", f"RunPlugin({self.build_url('show_tools', list_type='folder', list_id=subfolder_id)})")
+                ]
+
+                menu_items.append({
+                    'label': f"[COLOR cyan]{subfolder_name}[/COLOR]",
+                    'url': self.build_url('show_folder', folder_id=subfolder_id),
+                    'is_folder': True,
+                    'description': f"Folder with {list_count} lists",
+                    'context_menu': context_menu
+                })
+
+            # Add lists
+            for list_item in lists_in_folder:
+                list_id = list_item['id']
+                name = list_item['name']
+                item_count = list_item.get('item_count', 0)
+
+                context_menu = [
+                    (f"Tools & Options for '{name}'", f"RunPlugin({self.build_url('show_tools', list_type='user_list', list_id=list_id)})")
+                ]
+
+                menu_items.append({
+                    'label': name,
+                    'url': self.build_url('show_list', list_id=list_id),
+                    'is_folder': True,
+                    'description': f"{item_count} items",
+                    'context_menu': context_menu
+                })
+
+            # Add Tools & Options for folder
+            menu_items.append({
+                'label': f"[COLOR yellow]Tools & Options for '{folder_name}'[/COLOR]",
+                'url': self.build_url('show_tools', list_type='folder', list_id=folder_id),
+                'is_folder': True,
+                'description': "Manage this folder"
+            })
+
+            # Use menu builder to display with breadcrumb
+            menu_builder = MenuBuilder()
+            menu_builder.build_directory_listing(menu_items, self.addon_handle, self.base_url, breadcrumb_path=breadcrumb_path)
+
+        except Exception as e:
+            self.logger.error(f"Error displaying folder {folder_id}: {e}")
+            self._show_error("Error displaying folder")

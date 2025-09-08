@@ -74,7 +74,7 @@ class SettingsManager:
     # Favorites Settings
     def get_enable_favorites_integration(self) -> bool:
         """Get enable favorites integration setting"""
-        return self.addon.getSettingBool('enable_favorites_integration')
+        return self.addon.getSettingBool('favorites_integration_enabled')
 
     def get_favorites_scan_interval(self) -> int:
         """Get favorites scan interval in minutes"""
@@ -133,6 +133,50 @@ class SettingsManager:
     def get_enable_background_token_refresh(self) -> bool:
         """Get enable automatic token refresh in background service setting"""
         return self.addon.getSettingBool('enable_background_token_refresh')
+
+    # AI Search Server Settings
+    def get_ai_search_server_url(self) -> Optional[str]:
+        """Get AI search server URL"""
+        value = self.addon.getSetting('ai_search_server_url')
+        return value.strip() if value else None
+
+    def get_ai_search_otp_code(self) -> Optional[str]:
+        """Get AI search OTP code"""
+        value = self.addon.getSetting('ai_search_otp_code')
+        return value.strip() if value else None
+
+    def set_ai_search_otp_code(self, otp_code: str) -> None:
+        """Set AI search OTP code"""
+        self.addon.setSetting('ai_search_otp_code', otp_code if otp_code else "")
+
+    def get_ai_search_api_key(self) -> Optional[str]:
+        """Get AI search API key"""
+        value = self.addon.getSetting('ai_search_api_key')
+        return value.strip() if value else None
+
+    def set_ai_search_api_key(self, api_key: str) -> None:
+        """Set AI search API key"""
+        self.addon.setSetting('ai_search_api_key', api_key if api_key else "")
+
+    def get_ai_search_activated(self) -> bool:
+        """Get AI search activated status"""
+        return self.addon.getSettingBool('ai_search_activated')
+
+    def set_ai_search_activated(self, activated: bool) -> None:
+        """Set AI search activated status"""
+        self.addon.setSettingBool('ai_search_activated', activated)
+
+    def get_ai_search_activated(self) -> bool:
+        """Get AI search activation status"""
+        return self.addon.getSettingBool('ai_search_activated')
+
+    def set_ai_search_activated(self, activated: bool) -> None:
+        """Set AI search activation status"""
+        self.addon.setSettingBool('ai_search_activated', activated)
+
+    def get_ai_search_sync_interval(self) -> int:
+        """Get AI search sync interval in seconds"""
+        return max(1800, min(86400, self.addon.getSettingInt('ai_search_sync_interval')))
 
     # Backup Settings
     def get_enable_automatic_backups(self) -> bool:

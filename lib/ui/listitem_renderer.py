@@ -12,6 +12,7 @@ import xbmcplugin
 from .listitem_builder import ListItemBuilder
 from ..utils.logger import get_logger
 from .localization import L
+from ..utils.kodi_version import get_kodi_major_version, is_kodi_v21_plus
 
 
 class ListItemRenderer:
@@ -156,10 +157,10 @@ class ListItemRenderer:
             name = list_data.get('name', 'Unnamed List')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info - guard setInfo() for v20+
-            from .listitem_builder import get_kodi_major_version
-            if get_kodi_major_version() >= 20:
-                # v20+: Use InfoTagVideo setters
+            # Set basic info - version-specific approach
+            kodi_major = get_kodi_major_version()
+            if kodi_major >= 20:
+                # v20+: Use InfoTagVideo setters only, no setInfo() fallback
                 try:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
@@ -167,8 +168,15 @@ class ListItemRenderer:
                     self.logger.debug(f"LIST ITEM v20+: Set metadata via InfoTagVideo for '{name}'")
                 except Exception as e:
                     self.logger.warning(f"LIST ITEM v20+: InfoTagVideo failed for '{name}': {e}")
+                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
+                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
+                    if kodi_major < 21:
+                        list_item.setInfo('video', {
+                            'title': name,
+                            'plot': f"User list: {name}"
+                        })
             else:
-                # v19: Use setInfo()
+                # v19: Use setInfo() only
                 list_item.setInfo('video', {
                     'title': name,
                     'plot': f"User list: {name}"
@@ -196,10 +204,10 @@ class ListItemRenderer:
             name = folder_data.get('name', 'Unnamed Folder')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info - guard setInfo() for v20+
-            from .listitem_builder import get_kodi_major_version
-            if get_kodi_major_version() >= 20:
-                # v20+: Use InfoTagVideo setters
+            # Set basic info - version-specific approach
+            kodi_major = get_kodi_major_version()
+            if kodi_major >= 20:
+                # v20+: Use InfoTagVideo setters only, no setInfo() fallback
                 try:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
@@ -207,8 +215,15 @@ class ListItemRenderer:
                     self.logger.debug(f"FOLDER ITEM v20+: Set metadata via InfoTagVideo for '{name}'")
                 except Exception as e:
                     self.logger.warning(f"FOLDER ITEM v20+: InfoTagVideo failed for '{name}': {e}")
+                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
+                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
+                    if kodi_major < 21:
+                        list_item.setInfo('video', {
+                            'title': name,
+                            'plot': f"Folder: {name}"
+                        })
             else:
-                # v19: Use setInfo()
+                # v19: Use setInfo() only
                 list_item.setInfo('video', {
                     'title': name,
                     'plot': f"Folder: {name}"
@@ -280,45 +295,44 @@ class ListItemRenderer:
     def create_simple_listitem(self, title: str, description: Optional[str] = None, action: Optional[str] = None, icon: Optional[str] = None) -> xbmcgui.ListItem:
         """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
         try:
-            self.logger.debug(f"SIMPLE LISTITEM: Creating for '{title}'")
+            kodi_major = get_kodi_major_version()
             list_item = xbmcgui.ListItem(label=title)
 
-            # Set basic info - guard setInfo() for v20+
-            from .listitem_builder import get_kodi_major_version
-            if get_kodi_major_version() >= 20:
-                # v20+: Use InfoTagVideo setters
+            # Set basic info - version-specific approach
+            if kodi_major >= 20:
+                # v20+: Use InfoTagVideo setters only, no setInfo() fallback
                 try:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(title)
                     if description:
                         video_info_tag.setPlot(description)
-                    self.logger.debug(f"SIMPLE LISTITEM v20+: Set metadata via InfoTagVideo for '{title}'")
                 except Exception as e:
-                    self.logger.warning(f"SIMPLE LISTITEM v20+: InfoTagVideo failed for '{title}': {e}")
+                    self.logger.error(f"SIMPLE LISTITEM v{kodi_major}: InfoTagVideo FAILED for '{title}': {e}")
+                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
+                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
+                    if kodi_major < 21:
+                        info = {'title': title}
+                        if description:
+                            info['plot'] = description
+                        list_item.setInfo('video', info)
             else:
-                # v19: Use setInfo()
+                # v19: Use setInfo() only
                 info = {'title': title}
                 if description:
                     info['plot'] = description
-                    self.logger.debug(f"SIMPLE LISTITEM: Set description for '{title}': {len(description)} chars")
 
                 list_item.setInfo('video', info)
-                self.logger.debug(f"SIMPLE LISTITEM v19: Set video info for '{title}': {list(info.keys())}")
 
             # Set icon/artwork
             art = {}
             if icon:
                 art['icon'] = icon
                 art['thumb'] = icon
-                self.logger.debug(f"SIMPLE LISTITEM: Set custom icon for '{title}': {icon}")
             else:
                 art['icon'] = 'DefaultFolder.png'
                 art['thumb'] = 'DefaultFolder.png'
-                self.logger.debug(f"SIMPLE LISTITEM: Set default icon for '{title}'")
 
             list_item.setArt(art)
-
-            self.logger.debug(f"SIMPLE LISTITEM: Successfully created for '{title}' with action '{action}'")
             return list_item
 
         except Exception as e:
@@ -433,6 +447,66 @@ class ListItemRenderer:
             self.logger.debug(f"RENDERER DIRECTORY: Calling endOfDirectory(handle={self.addon_handle}, succeeded=False)")
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
             return False
+
+    def render_list_items(self, list_id: int, sort_method: str = None) -> None:
+        """Render items in a list with optimized performance using media_items data"""
+        try:
+            # Get list metadata
+            list_info = self.query_manager.get_list_by_id(list_id)
+            if not list_info:
+                self.logger.error(f"List not found: {list_id}")
+                return
+
+            # Get list items with enhanced media data - no JSON RPC calls needed
+            items = self.query_manager.get_list_items_with_media(list_id, sort_method)
+
+            if not items:
+                # Show empty list message
+                self.plugin_context.add_item(
+                    url="plugin://plugin.video.librarygenie/?action=empty",
+                    listitem=xbmcgui.ListItem(label="No items in this list"),
+                    isFolder=False
+                )
+                return
+
+            self.logger.debug(f"Rendering {len(items)} list items using media_items data")
+
+            # Process items efficiently using enhanced media_items data
+            for item in items:
+                try:
+                    # Build listitem using enhanced media data from media_items table
+                    # This now uses all the fields we gather in the scanner
+                    listitem, url = self.listitem_builder.build_media_listitem(item)
+
+                    # Add context menu for list management
+                    context_menu = [
+                        (
+                            "Remove from List",
+                            f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&media_item_id={item['id']})"
+                        )
+                    ]
+                    listitem.addContextMenuItems(context_menu)
+
+                    # Add to plugin response
+                    self.plugin_context.add_item(
+                        url=url,
+                        listitem=listitem,
+                        isFolder=False
+                    )
+
+                except Exception as e:
+                    self.logger.error(f"Failed to render list item {item.get('id', 'unknown')}: {e}")
+                    continue
+
+            # Set content type and finish directory
+            self.plugin_context.set_content_type('movies')
+            self.plugin_context.end_directory(cacheToDisc=True)
+
+            self.logger.debug(f"Successfully rendered {len(items)} list items")
+
+        except Exception as e:
+            self.logger.error(f"Failed to render list items: {e}")
+            self.plugin_context.end_directory(succeeded=False)
 
 
 # Global renderer instance

@@ -6,9 +6,13 @@ LibraryGenie - Main Menu Handler
 Handles the main menu display and navigation
 """
 
+from typing import Optional
+from .menu_builder import MenuBuilder
 from .plugin_context import PluginContext
-from .response_types import DirectoryResponse
-from .localization import L
+from ..utils.logger import get_logger
+from ..utils.kodi_version import get_kodi_major_version
+import xbmcplugin
+import xbmcaddon
 
 
 class MainMenuHandler:
@@ -17,73 +21,110 @@ class MainMenuHandler:
     def __init__(self):
         pass
 
-    def show_main_menu(self, context: PluginContext) -> DirectoryResponse:
-        """Show main menu with auth-aware options"""
-        menu_items = []
-
-        # 1. Lists (always visible)
-        menu_items.append({
-            'label': context.addon.getLocalizedString(35016),  # "Lists"
-            'url': context.build_url('lists'),
-            'is_folder': True
-        })
-
-        # 2. Search (always visible)
-        menu_items.append({
-            'label': context.addon.getLocalizedString(35014),  # "Search"
-            'url': context.build_url('search'),
-            'is_folder': True
-        })
-
-        # 3. Search History (if exists)
+    def show_main_menu(self, context: PluginContext) -> bool:
+        """Show main menu with top-level navigation items"""
         try:
-            from ..data.query_manager import get_query_manager
-            query_manager = get_query_manager()
-            if query_manager.initialize():
-                search_folder_id = query_manager.get_or_create_search_history_folder()
-                search_lists = query_manager.get_lists_in_folder(search_folder_id)
-                if search_lists:
-                    menu_items.append({
-                        'label': L(32900),  # "Search History"
-                        'url': context.build_url('show_folder', folder_id=search_folder_id),
-                        'is_folder': True,
-                        'icon': "DefaultAddonProgram.png",
-                        'description': L(32901) % len(search_lists)  # "Browse %d saved searches"
-                    })
-        except Exception as e:
-            context.logger.debug(f"Could not check search history: {e}")
+            kodi_major = get_kodi_major_version()
+            context.logger.info(f"MAIN MENU: Starting main menu display on Kodi v{kodi_major}")
 
-        # 4. Kodi Favorites (if visibility is enabled in settings)
-        if context.addon.getSettingBool("favorites_integration_enabled"):
+            query_manager = context.query_manager
+            if not query_manager:
+                context.logger.error("Query manager not available")
+                return False
+
+            # Build root-level menu items
+            context.logger.info("Building root-level main menu")
+            menu_items = []
+
+            # 1. Local Search
             menu_items.append({
-                'label': context.addon.getLocalizedString(32000),  # "Kodi Favorites (read-only)"
-                'url': context.build_url('kodi_favorites'),
+                'label': f"🔍 Local Search",
+                'action': 'prompt_and_search',
                 'is_folder': True,
-                'icon': "DefaultFavourites.png",
-                'description': context.addon.getLocalizedString(32001)  # "Browse Kodi Favorites"
+                'icon': 'DefaultAddonsSearch.png',
+                'description': 'Search your library'
             })
 
-        # Remote features (when authorized) - keeping this for functionality
-        if context.is_authorized:
+            # 2. AI Search (conditional - only when activated)
+            from ..remote.ai_search_client import get_ai_search_client
+            ai_client = get_ai_search_client()
+            if ai_client.is_activated():
+                context.logger.info("AI Search is activated - adding to main menu")
+                menu_items.append({
+                    'label': f"🤖 AI Search",
+                    'action': 'ai_search_prompt',
+                    'is_folder': False,  # Changed to False since it performs search and redirects
+                    'icon': 'DefaultAddonsSearch.png',
+                    'description': 'AI-powered search with library matching'
+                })
+            else:
+                context.logger.info("AI Search is not activated - not showing in main menu")
+
+            # 3. Search History (always show - service.py handles folder creation)
+            context.logger.info("Adding search history menu item")
             menu_items.append({
-                'label': context.addon.getLocalizedString(35017),  # "Remote Lists"
-                'url': context.build_url('remote_lists'),
-                'is_folder': True
+                'label': f"📊 Search History",
+                'action': 'show_search_history',
+                'is_folder': True,
+                'icon': 'DefaultRecentlyAdded.png',
+                'description': 'Recent searches'
             })
 
-        # Use MenuBuilder (no breadcrumb for main menu)
-        from .menu_builder import MenuBuilder
-        menu_builder = MenuBuilder()
-        menu_builder.build_menu(
-            menu_items,
-            context.addon_handle,
-            context.base_url,
-            breadcrumb_path=None  # No breadcrumb for root menu
-        )
+            # 4. Lists
+            all_lists = query_manager.get_all_lists_with_folders()
+            user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
+            context.logger.info(f"Found {len(user_lists)} user lists")
 
-        return DirectoryResponse(
-            items=menu_items,
-            success=True,
-            cache_to_disc=True,
-            content_type="files"
-        )
+            menu_items.append({
+                'label': f"📋 Lists",
+                'action': 'show_lists_menu',
+                'is_folder': True,
+                'icon': 'DefaultPlaylist.png',
+                'description': f'Manage your lists ({len(user_lists)} lists)'
+            })
+
+            # 5. Kodi Favorites (conditional - check if favorites integration is enabled)
+            addon = xbmcaddon.Addon()
+            favorites_enabled = addon.getSettingBool('favorites_integration_enabled')
+
+            if favorites_enabled:
+                context.logger.info("Kodi Favorites integration is enabled - adding to main menu")
+
+                # Check if there are any favorites
+                favorites_manager = context.favorites_manager
+                if favorites_manager:
+                    favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
+                    favorites_count = len(favorites)
+
+                    menu_items.append({
+                        'label': f"⭐ Kodi Favorites",
+                        'action': 'kodi_favorites',
+                        'is_folder': True,
+                        'icon': 'DefaultShortcut.png',
+                        'description': f'Your Kodi favorites ({favorites_count} items)'
+                    })
+                    context.logger.info(f"Added Kodi Favorites to main menu ({favorites_count} items)")
+                else:
+                    context.logger.warning("Favorites manager not available")
+            else:
+                context.logger.info("Kodi Favorites integration is disabled - not showing in main menu")
+
+            # Use MenuBuilder to create the menu
+            context.logger.info("MAIN MENU: Building menu with MenuBuilder")
+            menu_builder = MenuBuilder()
+            menu_builder.build_menu(
+                menu_items, 
+                context.addon_handle, 
+                context.base_url, 
+                breadcrumb_path=context.breadcrumb_path
+            )
+
+            context.logger.info("MAIN MENU: Successfully completed main menu display")
+            return True
+
+        except Exception as e:
+            context.logger.error(f"MAIN MENU: Error showing main menu: {e}")
+            import traceback
+            context.logger.error(f"MAIN MENU: Traceback: {traceback.format_exc()}")
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False

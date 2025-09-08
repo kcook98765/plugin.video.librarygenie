@@ -48,9 +48,154 @@ class Router:
         try:
             # Handle special router-managed actions
             if action == "show_list_tools":
-                return self._handle_list_tools(context, params)
+                from .handler_factory import get_handler_factory
+                from .response_handler import get_response_handler
+
+                factory = get_handler_factory()
+                factory.context = context # Set context before using factory
+                tools_handler = factory.get_tools_handler()
+                response_handler = get_response_handler()
+
+                list_type = params.get('list_type', 'unknown')
+                list_id = params.get('list_id')
+
+                result = tools_handler.show_list_tools(context, list_type, list_id)
+
+                # Use response handler to process the result
+                return response_handler.handle_dialog_response(result, context)
             elif action == "noop":
                 return self._handle_noop(context)
+            elif action == 'lists' or action == 'show_lists_menu':
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                response = lists_handler.show_lists_menu(context)
+                return response
+            elif action == 'prompt_and_search':
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context # Set context before using factory
+                search_handler = factory.get_search_handler()
+                search_handler.prompt_and_search(context)
+                return True
+            elif action == 'add_to_list':
+                media_item_id = context.get_param('media_item_id')
+                dbtype = context.get_param('dbtype')
+                dbid = context.get_param('dbid')
+
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+
+                if media_item_id:
+                    # Handle adding existing media item to list
+                    success = lists_handler.add_to_list_context(context)
+                    return success
+                elif dbtype and dbid:
+                    # Handle adding library item to list
+                    success = lists_handler.add_library_item_to_list_context(context)
+                    return success
+                else:
+                    # Handle adding external item to list
+                    success = lists_handler.add_external_item_to_list(context)
+                    return success
+            # Added new handler for remove_from_list
+            elif action == 'remove_from_list':
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                return self._handle_remove_from_list(context, lists_handler)
+            elif action == 'remove_library_item_from_list':
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                list_id = context.get_param('list_id')
+                dbtype = context.get_param('dbtype')
+                dbid = context.get_param('dbid')
+                return lists_handler.remove_library_item_from_list(context, list_id, dbtype, dbid)
+            elif action in ['show_list', 'view_list']:
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                list_id = context.get_param('list_id')
+                response = lists_handler.view_list(context, list_id)
+                return response
+            elif action == 'show_folder':
+                folder_id = params.get('folder_id')
+
+                if folder_id:
+                    # Use the handler factory
+                    from .handler_factory import get_handler_factory
+                    factory = get_handler_factory()
+                    factory.context = context
+                    lists_handler = factory.get_lists_handler()
+                    response = lists_handler.show_folder(context, folder_id)
+                    return response
+                else:
+                    self.logger.error("Missing folder_id parameter")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+
+            elif action == 'show_search_history':
+                # Handle search history folder access - look up folder ID only when needed
+                query_manager = context.query_manager
+                if query_manager:
+                    search_folder_id = query_manager.get_or_create_search_history_folder()
+                    if search_folder_id:
+                        # Use the handler factory
+                        from .handler_factory import get_handler_factory
+                        factory = get_handler_factory()
+                        factory.context = context
+                        lists_handler = factory.get_lists_handler()
+                        response = lists_handler.show_folder(context, search_folder_id)
+                        return response
+                    else:
+                        self.logger.error("Could not access search history folder")
+                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                        return False
+                else:
+                    self.logger.error("Query manager not available for search history")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+            elif action == "restore_backup":
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                result = tools_handler.handle_restore_backup(params, context)
+
+                # Handle the DialogResponse
+                from .response_handler import get_response_handler
+                response_handler = get_response_handler()
+                return response_handler.handle_dialog_response(result, context)
+
+            elif action == "activate_ai_search":
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                result = tools_handler.handle_activate_ai_search(params, context)
+
+                # Handle the DialogResponse
+                from .response_handler import get_response_handler
+                response_handler = get_response_handler()
+                return response_handler.handle_dialog_response(result, context)
+
+            elif action == 'test_ai_search_connection':
+                from .handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                return tools_handler.test_ai_search_connection(context)
+
+            elif action == 'find_similar_movies':
+                from .ai_search_handler import AISearchHandler
+                ai_search_handler = AISearchHandler()
+                return ai_search_handler.find_similar_movies(context)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
@@ -82,10 +227,12 @@ class Router:
     def _handle_list_tools(self, context: PluginContext, params: Dict[str, Any]) -> bool:
         """Handle list tools action with response processing"""
         try:
-            from .tools_handler import ToolsHandler
+            from .handler_factory import get_handler_factory
             from .response_handler import get_response_handler
 
-            tools_handler = ToolsHandler()
+            factory = get_handler_factory()
+            factory.context = context # Set context before using factory
+            tools_handler = factory.get_tools_handler()
             response_handler = get_response_handler()
 
             list_type = params.get('list_type', 'unknown')
@@ -110,3 +257,29 @@ class Router:
             self.logger.error(f"Error in noop handler: {e}")
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
+
+    def _handle_remove_from_list(self, context: PluginContext, lists_handler) -> bool:
+        """Handles the remove_from_list action, including fallback logic."""
+        list_id = context.get_param('list_id')
+        item_id = context.get_param('item_id')
+
+        if item_id:
+            # If item_id is directly provided, use it
+            return lists_handler.remove_from_list(context, list_id, item_id)
+        else:
+            # Fallback: try to find the item_id using library identifiers
+            dbtype = context.get_param('dbtype')
+            dbid = context.get_param('dbid')
+            if dbtype and dbid:
+                return lists_handler.remove_library_item_from_list(context, list_id, dbtype, dbid)
+            else:
+                self.logger.error("Cannot remove from list: missing item_id, dbtype, or dbid.")
+                try:
+                    xbmcgui.Dialog().notification(
+                        context.addon.getLocalizedString(35002),
+                        "Could not remove item from list.",
+                        xbmcgui.NOTIFICATION_ERROR
+                    )
+                except Exception:
+                    pass
+                return False

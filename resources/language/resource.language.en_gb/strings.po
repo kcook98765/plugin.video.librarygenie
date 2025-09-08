@@ -200,7 +200,7 @@ msgctxt "#30352"
 msgid "Background task is disabled"
 msgstr ""
 
-# List Management Actions
+# Remote Services Settings
 msgctxt "#30400"
 msgid "Remote Services"
 msgstr ""
@@ -229,33 +229,28 @@ msgctxt "#30421"
 msgid "Track library changes"
 msgstr ""
 
-# List Management Actions
-msgctxt "#30400"
-msgid "Remote Services"
+msgctxt "#30430"
+msgid "AI Search Server"
 msgstr ""
 
-msgctxt "#30410"
-msgid "Authentication"
+msgctxt "#30431"
+msgid "AI Search Server URL"
 msgstr ""
 
-msgctxt "#30411"
-msgid "Remote server URL"
+msgctxt "#30432"
+msgid "OTP Code (8 digits)"
 msgstr ""
 
-msgctxt "#30412"
-msgid "Device name"
+msgctxt "#30433"
+msgid "API Key (internal)"
 msgstr ""
 
-msgctxt "#30413"
-msgid "Auth polling interval (seconds)"
+msgctxt "#30434"
+msgid "AI Search Activated"
 msgstr ""
 
-msgctxt "#30420"
-msgid "Library Sync"
-msgstr ""
-
-msgctxt "#30421"
-msgid "Track library changes"
+msgctxt "#30435"
+msgid "Activate AI Search"
 msgstr ""
 
 # Dialog Messages
@@ -571,22 +566,30 @@ msgctxt "#32020"
 msgid "Missing from library"
 msgstr ""
 
+msgctxt "#32100"
+msgid "Enter search keywords"
+msgstr ""
+
+msgctxt "#32102"
+msgid "Search saved: %d items"
+msgstr ""
+
 msgctxt "#32181"
-msgstr "Integrate with Kodi's built-in favorites for seamless list management"
+msgid "Integrate with Kodi's built-in favorites for seamless list management"
 
 msgctxt "#32200"
-msgstr "Add to LibraryGenie List..."
+msgid "Add to LibraryGenie List..."
 
 msgctxt "#32201"
-msgstr "Add this item to a LibraryGenie list"
+msgid "Add this item to a LibraryGenie list"
 
 # Search UI and Operations
 msgctxt "#33000"
-msgid "Search"
+msgid "Local Search"
 msgstr ""
 
 msgctxt "#33001"
-msgid "Search Movies and Lists"
+msgid "Local Search Movies and Lists"
 msgstr ""
 
 msgctxt "#33002"
@@ -805,7 +808,7 @@ msgid "Create New Subfolder in '%s'"
 msgstr ""
 
 msgctxt "#36011"
-msgid "Move '%s' to Parent Folder"
+msgid "Move '%s' to Folder"
 msgstr ""
 
 msgctxt "#36012"
@@ -881,7 +884,7 @@ msgid "Select destination folder:"
 msgstr ""
 
 msgctxt "#36030"
-msgid "Select parent folder:"
+msgid "Select destination folder:"
 msgstr ""
 
 msgctxt "#36031"
@@ -1136,7 +1139,7 @@ msgid "Restore completed successfully"
 msgstr ""
 
 msgctxt "#34012"
-msgid "Restore from Backup"
+msgid "Restore failed"
 msgstr ""
 
 msgctxt "#34013"
@@ -1173,15 +1176,15 @@ msgstr ""
 
 # Sync & Remote Services
 msgctxt "#34100"
-msgid "Sync Status"
+msgid "AI Search"
 msgstr ""
 
 msgctxt "#34101"
-msgid "Last sync"
+msgid "Enter AI Search Query"
 msgstr ""
 
 msgctxt "#34102"
-msgid "Sync now"
+msgid "AI Search Results"
 msgstr ""
 
 msgctxt "#34103"
@@ -1196,51 +1199,10 @@ msgctxt "#34105"
 msgid "Sync failed"
 msgstr ""
 
-msgctxt "#34106"
-msgid "Authentication required"
+msgctxt "#34201"
+msgid "Similar Movies"
 msgstr ""
 
-msgctxt "#34107"
-msgid "Device authorization"
-msgstr ""
-
-msgctxt "#34108"
-msgid "Authorization pending"
-msgstr ""
-
-msgctxt "#34109"
-msgid "Authorization complete"
-msgstr ""
-
-msgctxt "#34110"
-msgid "Authorization failed"
-msgstr ""
-
-msgctxt "#34111"
-msgid "Token expired"
-msgstr ""
-
-msgctxt "#34112"
-msgid "Refreshing token..."
-msgstr ""
-
-msgctxt "#34113"
-msgid "Connection test successful"
-msgstr ""
-
-msgctxt "#34114"
-msgid "Connection test failed"
-msgstr ""
-
-msgctxt "#34115"
-msgid "Pending operations"
-msgstr ""
-
-msgctxt "#34116"
-msgid "Retry pending operations"
-msgstr ""
-
-# Storage & File Management
 msgctxt "#34200"
 msgid "Storage Management"
 msgstr ""
@@ -1296,11 +1258,11 @@ msgstr ""
 
 # Dialog Messages - Delete Operations
 msgctxt "#30501"
-msgid "Are you sure you want to delete the list '%s'?"
+msgid "Are you sure you want to delete this list?"
 msgstr ""
 
 msgctxt "#30509"
-msgid "Delete"
+msgid "Failed to delete list"
 msgstr ""
 
 # Additional Dialog Messages
@@ -1504,13 +1466,13 @@ msgid "Backup location"
 msgstr ""
 
 msgctxt "#30533"
-msgstr "Storage Location"
+msgid "Storage Location"
 
 msgctxt "#30534"
-msgstr "Default (Addon Data)"
+msgid "Default (Addon Data)"
 
 msgctxt "#30535"
-msgstr "Custom Location"
+msgid "Custom Location"
 
 msgctxt "#30540"
 msgid "Backup Actions"
@@ -1717,7 +1679,218 @@ msgctxt "#36073"
 msgid "Restore Backup Options"
 msgstr ""
 
+# ShortList Import strings
+msgctxt "#37000"
+msgid "This will import all items from ShortList addon into a 'ShortList Import' list."
+msgstr ""
+
+msgctxt "#37001"
+msgid "Only items that match movies in your Kodi library will be imported."
+msgstr ""
+
+msgctxt "#37002"
+msgid "Continue"
+msgstr ""
+
+msgctxt "#37003"
+msgid "The %s requires authorization with the remote server."
+msgstr ""
+
+msgctxt "#37004"
+msgid "Would you like to authorize this device now?"
+msgstr ""
+
+msgctxt "#37005"
+msgid "Device is not authorized for remote services."
+msgstr ""
+
+msgctxt "#37006"
+msgid "Would you like to authorize now?"
+msgstr ""
+
+msgctxt "#37007"
+msgid "Restore from: %s"
+msgstr ""
+
+msgctxt "#37008"
+msgid "Delete list: %s?"
+msgstr ""
+
+msgctxt "#37009"
+msgid "Delete folder: %s?"
+msgstr ""
+
+msgctxt "#37010"
+msgid "This will also delete all lists in this folder."
+msgstr ""
+
+msgctxt "#37011"
+msgid "Remove '%s' from list?"
+msgstr ""
+
+msgctxt "#37012"
+msgid "This will create a new list containing all your Kodi favorites"
+msgstr ""
+
+msgctxt "#37013"
+msgid "that match movies in your library."
+msgstr ""
+
+# Missing strings found in code
+msgctxt "#37014"
+msgid "Select backup to restore"
+msgstr ""
+
+msgctxt "#37015"
+msgid "Replace existing data"
+msgstr ""
+
+msgctxt "#37016"
+msgid "Append to existing data"
+msgstr ""
+
+msgctxt "#37017"
+msgid "Delete"
+msgstr ""
+
+msgctxt "#37018"
+msgid "Create New List"
+msgstr ""
+
+msgctxt "#37019"
+msgid "Enter folder name"
+msgstr ""
+
+msgctxt "#37020"
+msgid "Enter new list name"
+msgstr ""
+
+msgctxt "#37021"
+msgid "Please configure the Remote API Base URL in addon settings before authorizing."
+msgstr ""
+
+msgctxt "#37022"
+msgid "Could not contact server:"
+msgstr ""
+
+msgctxt "#37023"
+msgid "Authorization in progress"
+msgstr ""
+
+msgctxt "#37024"
+msgid "Visit the authorization URL to complete setup"
+msgstr ""
+
+msgctxt "#37025"
+msgid "Waiting for authorization..."
+msgstr ""
+
+msgctxt "#37026"
+msgid "Authorization timeout"
+msgstr ""
+
+msgctxt "#37027"
+msgid "Please try the authorization process again"
+msgstr ""
+
+# Context Menu Actions
+msgctxt "#37028"
+msgid "LibraryGenie"
+msgstr ""
+
+msgctxt "#37029"
+msgid "Search Movies and Lists"
+msgstr ""
+
+# Tools Options Localization Strings
+msgctxt "#36074"
+msgid "Import Lists"
+msgstr ""
+
+msgctxt "#36075"
+msgid "Export All Lists"
+msgstr ""
+
+msgctxt "#36076"
+msgid "Manual Backup"
+msgstr ""
+
+msgctxt "#36077"
+msgid "Backup Manager"
+msgstr ""
+
+msgctxt "#36078"
+msgid "Test Backup Config"
+msgstr ""
+
+msgctxt "#36079"
+msgid "Library Statistics"
+msgstr ""
+
+msgctxt "#36080"
+msgid "Force Library Rescan"
+msgstr ""
+
+msgctxt "#36081"
+msgid "Clear Search History"
+msgstr ""
+
+msgctxt "#36082"
+msgid "Reset Preferences"
+msgstr ""
+
+msgctxt "#36083"
+msgid "Move to New List"
+msgstr ""
+
+msgctxt "#36084"
+msgid "Clear All Search History"
+msgstr ""
+
+msgctxt "#36085"
+msgid "Failed to initialize favorites manager"
+msgstr ""
+
+msgctxt "#36086"
+msgid "List not found"
+msgstr ""
+
+msgctxt "#36087"
+msgid "Folder not found"
+msgstr ""
+
+msgctxt "#36088"
+msgid "Error showing favorites tools"
+msgstr ""
+
+msgctxt "#36089"
+msgid "Error showing list tools"
+msgstr ""
+
+msgctxt "#36090"
+msgid "Error showing folder tools"
+msgstr ""
+
+msgctxt "#36091"
+msgid "Error merging lists"
+msgstr ""
+
+msgctxt "#36092"
+msgid "Error moving folder"
+msgstr ""
+
+msgctxt "#36093"
+msgid "Failed to create folder"
+msgstr ""
+
+msgctxt "#36094"
+msgid "Error exporting list"
+msgstr ""
+
+msgctxt "#36095"
+msgid "Error exporting folder lists"
+msgstr ""
+
 # Additional placeholder entries for future use
 msgctxt "#36999"
 msgid "Reserved for future use"
-msgstr ""

@@ -73,6 +73,10 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     end = time.time() + (timeout_ms / 1000.0)
     mon = xbmc.Monitor()
     check_count = 0
+    
+    # Use adaptive polling - start fast, then slow down
+    current_step_ms = min(step_ms, 30)  # Start with quick polls
+    max_step_ms = max(step_ms, 200)     # Cap at reasonable interval
 
     while time.time() < end and not mon.abortRequested():
         check_count += 1
@@ -80,38 +84,78 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
             t_end = time.perf_counter()
             _log(f"wait_until: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)")
             return True
-        xbmc.sleep(step_ms)
+        
+        xbmc.sleep(current_step_ms)
+        
+        # Gradually increase polling interval to reduce CPU overhead on slower devices
+        if check_count > 5:  # After initial quick checks
+            current_step_ms = min(current_step_ms + 10, max_step_ms)
 
     t_end = time.perf_counter()
     _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
     return False
 
-def _wait_for_info_dialog(timeout=6.0):
+def _wait_for_info_dialog(timeout=10.0):
     """
     Block until the DialogVideoInfo window is active (skin dep. but standard on Kodi 19+).
+    Extended timeout and better handling for subtitle/metadata scanning delays.
     """
     t_start = time.perf_counter()
     end = time.time() + timeout
     check_count = 0
+    scan_detected = False
+    last_dialog_id = None
+    last_busy_state = None
+
+    _log(f"_wait_for_info_dialog: Starting wait for info dialog with {timeout:.1f}s timeout")
 
     while time.time() < end:
         check_count += 1
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-
-        # Log every 20 checks (roughly every second)
-        if check_count % 20 == 0:
+        
+        # Check if Kodi is busy with file operations (subtitle scanning, metadata, etc.)
+        is_busy = (
+            xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)') or
+            xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)') or
+            xbmc.getCondVisibility('Player.HasMedia') or  # Sometimes media loading blocks dialog
+            xbmc.getCondVisibility('System.HasModalDialog')
+        )
+        
+        # Log when dialog ID or busy state changes
+        if current_dialog_id != last_dialog_id or is_busy != last_busy_state:
             elapsed = time.perf_counter() - t_start
-            _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - current_dialog_id={current_dialog_id}")
+            _log(f"_wait_for_info_dialog: STATE CHANGE at {elapsed:.3f}s - dialog_id: {last_dialog_id}→{current_dialog_id}, busy: {last_busy_state}→{is_busy}")
+            last_dialog_id = current_dialog_id
+            last_busy_state = is_busy
+        
+        # Detect if we're in a scanning phase (helps explain delays)
+        if is_busy and not scan_detected:
+            scan_detected = True
+            elapsed = time.perf_counter() - t_start
+            _log(f"_wait_for_info_dialog: SCAN DETECTED at {elapsed:.3f}s - Kodi busy state (likely scanning for subtitles/metadata)")
+
+        # More frequent logging during delays
+        if check_count % 20 == 0 or (is_busy and check_count % 5 == 0):
+            elapsed = time.perf_counter() - t_start
+            _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - dialog_id={current_dialog_id}, busy={is_busy}")
 
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo / Fallback
             t_end = time.perf_counter()
             _log(f"_wait_for_info_dialog: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
+            if scan_detected:
+                _log(f"_wait_for_info_dialog: Dialog opened after file scanning completed")
             return True
-        xbmc.sleep(50)
+            
+        # Use adaptive sleep - shorter during scanning, longer when stable
+        sleep_time = 30 if is_busy else 50
+        xbmc.sleep(sleep_time)
 
     t_end = time.perf_counter()
     final_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}", xbmc.LOGWARNING)
+    final_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
+    _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}, still_busy={final_busy}", xbmc.LOGWARNING)
+    if scan_detected:
+        _log(f"_wait_for_info_dialog: Timeout occurred after file scanning was detected - this may indicate slow network storage", xbmc.LOGWARNING)
     return False
 
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
@@ -189,6 +233,81 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
         return None
     return None
 
+def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
+    """
+    Create XSP file that filters to a specific database item by ID.
+    This creates a native Kodi list containing just the target item.
+    """
+    try:
+        _log(f"Creating XSP for database item {db_type} {db_id}")
+        
+        # Get the actual file path from the database item
+        file_path = _get_file_for_dbitem(db_type, db_id)
+        if not file_path:
+            _log(f"No file path found for {db_type} {db_id}", xbmc.LOGWARNING)
+            return None
+        
+        filename = os.path.basename(file_path)
+        filename_no_ext = os.path.splitext(filename)[0]
+        _log(f"Creating XSP for {db_type} {db_id}: filename='{filename}', no_ext='{filename_no_ext}'")
+        
+        name = f"LG Hijack {db_type} {db_id}"
+        
+        if db_type.lower() == 'movie':
+            # Create XSP that filters movies by filename
+            xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<smartplaylist type="movies">
+  <name>{html.escape(name)}</name>
+  <match>all</match>
+  <rule field="filename" operator="contains">
+    <value>{html.escape(filename_no_ext)}</value>
+  </rule>
+  <order direction="ascending">title</order>
+</smartplaylist>"""
+        elif db_type.lower() == 'episode':
+            # Create XSP that filters episodes by filename
+            xsp = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<smartplaylist type="episodes">
+  <name>{html.escape(name)}</name>
+  <match>all</match>
+  <rule field="filename" operator="contains">
+    <value>{html.escape(filename_no_ext)}</value>
+  </rule>
+  <order direction="ascending">title</order>
+</smartplaylist>"""
+        else:
+            _log(f"Unsupported db_type for XSP creation: {db_type}", xbmc.LOGWARNING)
+            return None
+        
+        # Use dedicated temp directory outside Kodi's playlist scanning
+        hijack_temp_dir = "special://temp/librarygenie_hijack/"
+        xsp_filename = f"lg_hijack_{db_type}_{db_id}.xsp"
+        path = hijack_temp_dir + xsp_filename
+        
+        # Ensure hijack temp directory exists
+        try:
+            if not xbmcvfs.exists(hijack_temp_dir):
+                _log(f"Creating hijack temp directory: {hijack_temp_dir}")
+                xbmcvfs.mkdirs(hijack_temp_dir)
+        except Exception as e:
+            _log(f"Failed to create hijack temp directory: {e}", xbmc.LOGWARNING)
+            # Fallback to direct temp
+            path = f"special://temp/{xsp_filename}"
+        
+        # Log the XSP content for debugging
+        _log(f"XSP content for {db_type} {db_id}:\n{xsp}")
+        
+        if _write_text(path, xsp):
+            _log(f"XSP created successfully: {path}")
+            return path
+        else:
+            _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
+            return None
+            
+    except Exception as e:
+        _log(f"Exception creating XSP for {db_type} {db_id}: {e}", xbmc.LOGERROR)
+        return None
+
 def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     fp = _get_file_for_dbitem(dbtype, dbid)
     if not fp:
@@ -214,19 +333,19 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
   <order direction="ascending">title</order>
 </smartplaylist>"""
 
-    # Use profile playlists path with generic filename (persistent for debugging)
-    playlists_dir = "special://profile/playlists/video/"
+    # Use dedicated temp directory outside Kodi's playlist scanning (persistent for debugging)
+    hijack_temp_dir = "special://temp/librarygenie_hijack/"
     xsp_filename = "lg_hijack_debug.xsp"
-    path = playlists_dir + xsp_filename
+    path = hijack_temp_dir + xsp_filename
 
-    # Ensure playlists directory exists
+    # Ensure hijack temp directory exists
     try:
-        if not xbmcvfs.exists(playlists_dir):
-            _log(f"Creating playlists directory: {playlists_dir}")
-            xbmcvfs.mkdirs(playlists_dir)
+        if not xbmcvfs.exists(hijack_temp_dir):
+            _log(f"Creating hijack temp directory: {hijack_temp_dir}")
+            xbmcvfs.mkdirs(hijack_temp_dir)
     except Exception as e:
-        _log(f"Failed to create playlists directory: {e}", xbmc.LOGWARNING)
-        # Fallback to temp
+        _log(f"Failed to create hijack temp directory: {e}", xbmc.LOGWARNING)
+        # Fallback to direct temp
         path = f"special://temp/{xsp_filename}"
 
     # Log the raw XSP content for debugging
@@ -263,29 +382,76 @@ def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> in
         _log("XSP has no parent item, using index 0 for movie")
         return 0
 
-def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
+def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
     t_start = time.perf_counter()
     t_norm = (path or "").rstrip('/')
+    scan_warning_shown = False
+    condition_met_count = 0
+    last_condition_details = {}
+
+    _log(f"_wait_videos_on: Starting wait for path '{t_norm}' with {timeout_ms}ms timeout")
 
     def check_condition():
+        nonlocal condition_met_count, last_condition_details
+        
         window_active = xbmc.getCondVisibility(f"Window.IsActive({VIDEOS_WINDOW})")
         folder_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
         path_match = folder_path == t_norm
         num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         not_busy = not xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
+        
+        # Additional check for progress dialogs that might appear during scanning
+        not_scanning = not xbmc.getCondVisibility("Window.IsActive(DialogProgress.xml)")
 
-        # Log detailed status every 500ms for debugging
         elapsed = time.perf_counter() - t_start
-        if int(elapsed * 2) % 1 == 0:  # Every 500ms
-            _log(f"_wait_videos_on check ({elapsed:.1f}s): window_active={window_active}, path_match={path_match} ('{folder_path}' vs '{t_norm}'), items={num_items}, not_busy={not_busy}")
+        
+        # Track condition details for debugging
+        current_details = {
+            'window_active': window_active,
+            'path_match': path_match,
+            'folder_path': folder_path,
+            'num_items': num_items,
+            'not_busy': not_busy,
+            'not_scanning': not_scanning
+        }
+        
+        # Log when conditions change
+        if current_details != last_condition_details:
+            _log(f"_wait_videos_on CONDITION CHANGE at {elapsed:.3f}s: {current_details}")
+            last_condition_details = current_details.copy()
+        
+        # Show scan warning after 3 seconds if still busy
+        nonlocal scan_warning_shown
+        if elapsed > 3.0 and (not not_busy or not not_scanning) and not scan_warning_shown:
+            _log(f"_wait_videos_on: Kodi busy for {elapsed:.1f}s - likely scanning for associated files")
+            scan_warning_shown = True
+        
+        # More frequent logging for debugging delays
+        if int(elapsed * 2) % 3 == 0 and elapsed - int(elapsed * 2) / 2 < 0.05:  # Every 1.5 seconds
+            _log(f"_wait_videos_on check ({elapsed:.1f}s): window={window_active}, path_match={path_match} ('{folder_path}' vs '{t_norm}'), items={num_items}, not_busy={not_busy}, not_scanning={not_scanning}")
 
-        return window_active and path_match and num_items > 0 and not_busy
+        final_condition = window_active and path_match and num_items > 0 and not_busy and not_scanning
+        if final_condition:
+            condition_met_count += 1
+            _log(f"_wait_videos_on: ALL CONDITIONS MET at {elapsed:.3f}s (count: {condition_met_count})")
+        else:
+            condition_met_count = 0
 
-    result = wait_until(check_condition, timeout_ms=timeout_ms, step_ms=100)
+        return final_condition
+
+    # Extended timeout for network storage scenarios
+    _log(f"_wait_videos_on: Starting wait_until with {max(timeout_ms, 10000)}ms timeout")
+    wait_start = time.perf_counter()
+    result = wait_until(check_condition, timeout_ms=max(timeout_ms, 10000), step_ms=100)
+    wait_end = time.perf_counter()
     t_end = time.perf_counter()
+
+    _log(f"_wait_videos_on: wait_until completed in {wait_end - wait_start:.3f}s, result={result}")
 
     if result:
         _log(f"_wait_videos_on SUCCESS after {t_end - t_start:.3f}s")
+        if scan_warning_shown:
+            _log(f"_wait_videos_on: XSP loaded successfully after file scanning completed")
     else:
         _log(f"_wait_videos_on TIMEOUT after {t_end - t_start:.3f}s", xbmc.LOGWARNING)
         # Log final state for debugging
@@ -293,26 +459,188 @@ def _wait_videos_on(path: str, timeout_ms=6000) -> bool:
         final_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
         final_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         final_busy = xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
-        _log(f"_wait_videos_on FINAL STATE: window={final_window}, path='{final_path}', items={final_items}, busy={final_busy}", xbmc.LOGWARNING)
+        final_progress = xbmc.getCondVisibility("Window.IsActive(DialogProgress.xml)")
+        _log(f"_wait_videos_on FINAL STATE: window={final_window}, path='{final_path}', items={final_items}, busy={final_busy}, progress={final_progress}", xbmc.LOGWARNING)
 
     return result
 
+def cleanup_old_hijack_files():
+    """Clean up old hijack XSP files to prevent accumulation"""
+    try:
+        hijack_temp_dir = "special://temp/librarygenie_hijack/"
+        if xbmcvfs.exists(hijack_temp_dir):
+            dirs, files = xbmcvfs.listdir(hijack_temp_dir)
+            for file in files:
+                if file.endswith('.xsp') and 'lg_hijack' in file:
+                    file_path = hijack_temp_dir + file
+                    try:
+                        xbmcvfs.delete(file_path)
+                        _log(f"Cleaned up old hijack file: {file}")
+                    except Exception as e:
+                        _log(f"Failed to cleanup hijack file {file}: {e}", xbmc.LOGWARNING)
+    except Exception as e:
+        _log(f"Error during hijack file cleanup: {e}", xbmc.LOGWARNING)
+
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
-    Open native Kodi info dialog without heavy operations.
+    Proper hijack flow: Close current info dialog, navigate to native list, then open info.
+    This ensures the video info gets full Kodi metadata population from native library.
     """
     try:
-        if db_type.lower() == 'movie':
-            xbmc.executebuiltin(f'Action(Info,{db_id})')
-        elif db_type.lower() in ['episode', 'tvshow']:
-            xbmc.executebuiltin(f'Action(Info,{db_id})')
+        overall_start_time = time.perf_counter()
+        logger.debug(f"🎬 HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
+        
+        # Clean up any old hijack files before starting
+        cleanup_old_hijack_files()
+        
+        # 🔒 SUBSTEP 1: Close any open dialog first
+        substep1_start = time.perf_counter()
+        logger.debug(f"🔒 SUBSTEP 1: Checking for open dialogs to close")
+        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
+            logger.debug(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
+            xbmc.executebuiltin('Action(Back)')
+            # Wait for dialog to close
+            xbmc.sleep(200)
+            # Verify dialog closed
+            after_close_id = xbmcgui.getCurrentWindowDialogId()
+            logger.debug(f"✅ SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
         else:
-            logger.warning(L(32200) % db_type)  # "Unsupported db_type for info hijack: %s"
+            logger.debug(f"✅ SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
+        substep1_end = time.perf_counter()
+        logger.debug(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
+        
+        # 📝 SUBSTEP 2: Create XSP file for single item to create a native list
+        substep2_start = time.perf_counter()
+        logger.debug(f"📝 SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
+        start_xsp_time = time.perf_counter()
+        xsp_path = _create_xsp_for_dbitem(db_type, db_id)
+        end_xsp_time = time.perf_counter()
+        
+        if not xsp_path:
+            logger.warning(f"❌ SUBSTEP 2 FAILED: Failed to create XSP for {db_type} {db_id}")
             return False
-
-        return _wait_for_info_dialog()
+        logger.debug(f"✅ SUBSTEP 2 COMPLETE: XSP created at {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
+        substep2_end = time.perf_counter()
+        logger.debug(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
+        
+        # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
+        substep3_start = time.perf_counter()
+        logger.debug(f"🧭 SUBSTEP 3: Navigating to native list: {xsp_path}")
+        current_window_before = xbmcgui.getCurrentWindowId()
+        start_nav_time = time.perf_counter()
+        logger.debug(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
+        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        activate_window_end = time.perf_counter()
+        logger.debug(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
+        
+        # ⏳ SUBSTEP 4: Wait for the Videos window to load with our item
+        substep4_start = time.perf_counter()
+        logger.debug(f"⏳ SUBSTEP 4: Waiting for Videos window to load with XSP content")
+        wait_start = time.perf_counter()
+        if not _wait_videos_on(xsp_path, timeout_ms=4000):
+            wait_end = time.perf_counter()
+            end_nav_time = time.perf_counter()
+            current_window_after = xbmcgui.getCurrentWindowId()
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s")
+            logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
+            logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
+            return False
+        wait_end = time.perf_counter()
+        end_nav_time = time.perf_counter()
+        current_window_after = xbmcgui.getCurrentWindowId()
+        current_path = xbmc.getInfoLabel("Container.FolderPath")
+        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
+        logger.debug(f"✅ SUBSTEP 4 COMPLETE: Videos window loaded in {end_nav_time - start_nav_time:.3f}s")
+        logger.debug(f"SUBSTEP 4 STATUS: Window {current_window_before}→{current_window_after}, path='{current_path}', items={num_items}")
+        substep4_end = time.perf_counter()
+        logger.debug(f"⏱️ SUBSTEP 4 TIMING: {substep4_end - substep4_start:.3f}s (wait: {wait_end - wait_start:.3f}s)")
+        logger.debug(f"⏱️ SUBSTEP 3+4 COMBINED TIMING: {substep4_end - substep3_start:.3f}s")
+        
+        # 🎯 SUBSTEP 5: Focus the list and find our item
+        substep5_start = time.perf_counter()
+        logger.debug(f"🎯 SUBSTEP 5: Focusing list to locate {db_type} {db_id}")
+        start_focus_time = time.perf_counter()
+        if not focus_list():
+            end_focus_time = time.perf_counter()
+            logger.warning(f"❌ SUBSTEP 5 FAILED: Failed to focus list control after {end_focus_time - start_focus_time:.3f}s")
+            return False
+        end_focus_time = time.perf_counter()
+        logger.debug(f"✅ SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
+        substep5_end = time.perf_counter()
+        logger.debug(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
+        
+        # 📍 SUBSTEP 6: Check current item and navigate away from parent if needed
+        substep6_start = time.perf_counter()
+        logger.debug(f"📍 SUBSTEP 6: Checking current item and navigating to movie")
+        current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+        current_item_label = xbmc.getInfoLabel('ListItem.Label')
+        
+        # Check if we're focused on the parent item ".."
+        if current_item_label == ".." or current_item_label.strip() == "..":
+            logger.debug(f"SUBSTEP 6: Currently on parent item '{current_item_label}', navigating to next item")
+            xbmc.executebuiltin('Action(Down)')  # Move to next item
+            xbmc.sleep(150)  # Wait for navigation
+            current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+            new_label = xbmc.getInfoLabel('ListItem.Label')
+            logger.debug(f"SUBSTEP 6: Moved from parent item {current_item_before} to item {current_item_after}, new label: '{new_label}'")
+        else:
+            logger.debug(f"SUBSTEP 6: Already on target item '{current_item_label}' at position {current_item_before}")
+        
+        # Verify we're now on the correct item
+        final_item_label = xbmc.getInfoLabel('ListItem.Label')
+        final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
+        final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+        
+        if final_item_label == ".." or final_item_label.strip() == "..":
+            logger.warning(f"❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt")
+            return False
+        
+        logger.debug(f"✅ SUBSTEP 6 COMPLETE: On target item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
+        substep6_end = time.perf_counter()
+        logger.debug(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
+        
+        # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
+        substep7_start = time.perf_counter()
+        logger.debug(f"🎬 SUBSTEP 7: Opening video info from native list")
+        pre_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        start_info_time = time.perf_counter()
+        logger.debug(f"SUBSTEP 7 DEBUG: About to execute Action(Info) at {start_info_time - overall_start_time:.3f}s")
+        xbmc.executebuiltin('Action(Info)')
+        action_info_end = time.perf_counter()
+        logger.debug(f"SUBSTEP 7 DEBUG: Action(Info) command executed in {action_info_end - start_info_time:.3f}s")
+        
+        # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
+        substep8_start = time.perf_counter()
+        logger.debug(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
+        dialog_wait_start = time.perf_counter()
+        success = _wait_for_info_dialog(timeout=10.0)
+        dialog_wait_end = time.perf_counter()
+        end_info_time = time.perf_counter()
+        post_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        
+        if success:
+            logger.debug(f"✅ SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
+            logger.debug(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
+            logger.debug(f"🎉 HIJACK HELPERS: ✅ Native info hijack completed successfully for {db_type} {db_id}")
+        else:
+            logger.warning(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s")
+            logger.warning(f"SUBSTEP 8 DEBUG: Dialog ID remains {post_info_dialog_id} (was {pre_info_dialog_id})")
+            logger.warning(f"💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for {db_type} {db_id}")
+        
+        substep8_end = time.perf_counter()
+        logger.debug(f"⏱️ SUBSTEP 8 TIMING: {substep8_end - substep8_start:.3f}s (dialog wait: {dialog_wait_end - dialog_wait_start:.3f}s)")
+        
+        overall_end_time = time.perf_counter()
+        logger.debug(f"⏱️ OVERALL HIJACK TIMING: {overall_end_time - overall_start_time:.3f}s")
+        logger.debug(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
+            
+        return success
     except Exception as e:
-        logger.error(L(32201) % str(e))  # "Failed to open native info dialog: %s"
+        logger.error(f"💥 HIJACK HELPERS: Exception in hijack process for {db_type} {db_id}: {e}")
+        import traceback
+        logger.error(f"HIJACK HELPERS: Traceback: {traceback.format_exc()}")
         return False
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
@@ -331,24 +659,24 @@ def restore_container_after_close(orig_path: str, position_str: str, logger) -> 
 
     _log(f"Restoring container to: {orig_path} (position: {position})")
 
-    # Wait a brief moment to ensure dialog is fully closed
-    xbmc.sleep(100)
+    # Reduced delay for faster response, but still safe
+    xbmc.sleep(50)
 
     # Restore the container
     xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
 
-    # Wait for container to update
+    # Extended timeout for slower hardware, but less frequent polling
     t_start = time.perf_counter()
     updated = wait_until(
         lambda: (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/') == orig_path.rstrip('/'),
-        timeout_ms=3000,
-        step_ms=100
+        timeout_ms=6000,  # Extended timeout for slower devices
+        step_ms=150       # Less frequent polling to reduce overhead
     )
 
     if updated and position > 0:
-        # Restore position
+        # Restore position with minimal delay
         _log(f"Restoring list position to: {position}")
-        xbmc.sleep(50)  # Brief delay before position restore
+        xbmc.sleep(25)  # Reduced delay
         xbmc.executebuiltin(f'Action(SelectItem,{position})')
 
     t_end = time.perf_counter()
@@ -393,7 +721,7 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
         _log(f"Opening movie info for dbid={dbid}, url={movie_url}")
 
         if not xsp_path:
-            xsp_path = f"/tmp/temp_movie_{dbid}.xsp"
+            xsp_path = f"special://temp/librarygenie_hijack/temp_movie_{dbid}.xsp"
 
         _log(f"Using XSP path: {xsp_path}")
 
