@@ -234,9 +234,9 @@ class InfoHijackManager:
         try:
             self._logger.info("🔄 HIJACK STEP 5: Native info dialog closed, checking navigation state")
             
-            # Wait longer for dialog close animation to complete (this was the issue)
-            if not self._wait_for_gui_ready_extended("after dialog close", max_wait=5.0):
-                self._logger.warning("HIJACK: GUI not ready after 5s, proceeding anyway")
+            # Wait for window manager to be ready after dialog close (precise detection)
+            if not self._wait_for_window_manager_ready("after dialog close", max_wait=3.0):
+                self._logger.warning("HIJACK: Window manager not ready after 3s, proceeding anyway")
             
             # Check current state after dialog close
             current_path = xbmc.getInfoLabel("Container.FolderPath")
@@ -247,11 +247,12 @@ class InfoHijackManager:
             if self._is_on_librarygenie_hijack_xsp(current_path):
                 self._logger.info(f"HIJACK: ✋ Detected XSP path: '{current_path}', executing back to return to plugin")
                 
-                # Wait additional time to ensure modal dialog animation completes
-                xbmc.sleep(500)  # Extra safety margin for modal dialog animation
+                # Wait for window manager to be ready for navigation commands
+                if self._wait_for_window_manager_ready("XSP navigation", max_wait=3.0):
+                    self._logger.info("HIJACK: Window manager ready, executing back command to exit XSP")
+                else:
+                    self._logger.warning("HIJACK: Window manager timeout, executing back command anyway")
                 
-                # Execute back command to return to original plugin content
-                self._logger.info("HIJACK: Executing back command to exit XSP")
                 xbmc.executebuiltin('Action(Back)')
                 
                 # Wait for navigation to complete
@@ -505,6 +506,50 @@ class InfoHijackManager:
         if current_time - self._last_debug_log >= self._debug_log_interval:
             log_func(message)
             self._last_debug_log = current_time
+
+    def _wait_for_window_manager_ready(self, context: str, max_wait: float = 3.0) -> bool:
+        """
+        Wait for Kodi's window manager to be ready to accept navigation commands.
+        This specifically checks for modal dialog closing animations that cause "action ignored" errors.
+        """
+        start_time = time.time()
+        check_interval = 0.05  # 50ms checks for responsive detection
+        consecutive_ready_checks = 0
+        modal_detected = False
+        
+        while (time.time() - start_time) < max_wait:
+            # Check for specific conditions that block navigation commands
+            has_modal = xbmc.getCondVisibility('System.HasModalDialog')
+            dialog_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
+            dialog_progress = xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)')
+            
+            # Check for window manager busy state (the key issue from the log)
+            window_manager_accepting_actions = not (has_modal or dialog_busy or dialog_progress)
+            
+            # Log modal detection for debugging
+            if has_modal and not modal_detected:
+                modal_detected = True
+                elapsed = time.time() - start_time
+                self._logger.debug(f"HIJACK: Modal dialog animation detected at {elapsed:.3f}s, waiting for completion")
+            
+            if window_manager_accepting_actions:
+                consecutive_ready_checks += 1
+                # Require multiple consecutive checks to ensure stability
+                if consecutive_ready_checks >= 3:
+                    elapsed = time.time() - start_time
+                    if modal_detected:
+                        self._logger.debug(f"HIJACK: Window manager ready {context} after modal animation ({elapsed:.3f}s)")
+                    else:
+                        self._logger.debug(f"HIJACK: Window manager ready {context} immediately ({elapsed:.3f}s)")
+                    return True
+            else:
+                consecutive_ready_checks = 0
+            
+            xbmc.sleep(int(check_interval * 1000))
+        
+        elapsed = time.time() - start_time
+        self._logger.warning(f"HIJACK: Window manager timeout {context} after {elapsed:.1f}s (modal_detected={modal_detected})")
+        return False
 
     def _wait_for_gui_ready(self, context: str, max_wait: float = 2.0) -> bool:
         """Wait for Kodi GUI to be ready to accept actions"""
