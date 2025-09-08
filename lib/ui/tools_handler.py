@@ -1599,10 +1599,16 @@ class ToolsHandler:
     def _handle_search_history(self, context: PluginContext) -> DialogResponse:
         """Navigate to search history"""
         try:
-            import xbmc
-            history_url = context.build_url('show_search_history')
-            xbmc.executebuiltin(f'Container.Update("{history_url}",replace)')
-            return DialogResponse(success=True, message="Opening search history...")
+            from ..data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            search_folder_id = query_manager.get_or_create_search_history_folder()
+            
+            if search_folder_id:
+                result = DialogResponse(success=True, message="Opening search history...")
+                result.navigate_to_folder = search_folder_id
+                return result
+            else:
+                return DialogResponse(success=False, message="Could not access search history")
         except Exception as e:
             context.logger.error(f"Error navigating to search history: {e}")
             return DialogResponse(success=False, message="Failed to open search history")
