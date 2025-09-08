@@ -59,12 +59,14 @@ class InfoHijackManager:
                         self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
                     finally:
                         self._native_info_was_open = False
-                        self._last_dialog_state = (dialog_active, current_dialog_id)
+                    # Update state after processing
+                    self._last_dialog_state = (dialog_active, current_dialog_id)
                     return
         else:
             # Initialize dialog state tracking
             self._last_dialog_state = (False, 9999)
         
+        # Update dialog state for next iteration
         self._last_dialog_state = (dialog_active, current_dialog_id)
         
         # Handle dialog close detection (fallback method)
