@@ -166,13 +166,6 @@ class SettingsManager:
         """Set AI search activated status"""
         self.addon.setSettingBool('ai_search_activated', activated)
 
-    def get_ai_search_activated(self) -> bool:
-        """Get AI search activation status"""
-        return self.addon.getSettingBool('ai_search_activated')
-
-    def set_ai_search_activated(self, activated: bool) -> None:
-        """Set AI search activation status"""
-        self.addon.setSettingBool('ai_search_activated', activated)
 
     def get_ai_search_sync_interval(self) -> int:
         """Get AI search sync interval in seconds"""
