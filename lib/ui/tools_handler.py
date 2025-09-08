@@ -1556,15 +1556,34 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Failed to activate AI search")
 
     def _handle_local_search(self, context: PluginContext) -> DialogResponse:
-        """Navigate to local search"""
+        """Execute local search directly"""
         try:
-            import xbmc
-            search_url = context.build_url('prompt_and_search')
-            xbmc.executebuiltin(f'Container.Update("{search_url}",replace)')
-            return DialogResponse(success=True, message="Opening search...")
+            from .handler_factory import get_handler_factory
+            
+            # Get search handler and execute search
+            factory = get_handler_factory()
+            factory.context = context
+            search_handler = factory.get_search_handler()
+            
+            # Execute the search directly
+            success = search_handler.prompt_and_search(context)
+            
+            if success:
+                return DialogResponse(
+                    success=True, 
+                    message="Search completed",
+                    refresh_needed=False,
+                    navigate_to_main=False
+                )
+            else:
+                return DialogResponse(
+                    success=True, 
+                    message="Search cancelled",
+                    refresh_needed=False
+                )
         except Exception as e:
-            context.logger.error(f"Error navigating to search: {e}")
-            return DialogResponse(success=False, message="Failed to open search")
+            context.logger.error(f"Error executing search: {e}")
+            return DialogResponse(success=False, message="Failed to execute search")
 
     def _handle_ai_search(self, context: PluginContext) -> DialogResponse:
         """Navigate to AI search"""
