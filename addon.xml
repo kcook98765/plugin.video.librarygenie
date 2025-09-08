@@ -20,12 +20,14 @@
   </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
-    <license>GPL-2.0-or-later</license>
-    <summary lang="en_GB">Advanced list and folder management for Kodi with disaster recovery</summary>
-    <description lang="en_GB">LibraryGenie provides comprehensive list and folder management for Kodi with disaster recovery, intelligent media matching, and enhanced search capabilities. Features include hierarchical folder organization, portable NDJSON export/import, rich artwork integration, fast offline search with year filtering, and optional privacy-first remote services. Supports mixed content types including movies, TV episodes, music videos, and external plugin items.</description>
-    <disclaimer lang="en_GB">This addon requires no external accounts to function properly. All features work offline by default. Remote services are optional, privacy-first, and require explicit user opt-in configuration. The addon creates a local SQLite database for efficient list management and search functionality.</disclaimer>
-    <language>en</language>
-    <forum>https://forum.kodi.tv/</forum>
+    <summary lang="en_GB">Smart list management for your Kodi library</summary>
+    <description lang="en_GB">LibraryGenie provides powerful list management capabilities for your Kodi media library. Create custom lists, organize with folders, search your collection, and sync with Kodi favorites. Features include hierarchical folder organization, universal context menus, quick-add functionality, import/export capabilities, and AI-powered search integration. Access via Video Add-ons for lists or Programs for search tools.</description>
+    <disclaimer lang="en_GB">This addon requires network access for optional AI search features and remote synchronization.</disclaimer>
+    <license>MIT</license>
+    <website>https://github.com/your-repo/plugin.video.librarygenie</website>
+    <email>your-email@example.com</email>
+    <source>https://github.com/your-repo/plugin.video.librarygenie</source>
+    <news></news>
     <assets>
       <icon>icon.png</icon>
       <fanart>fanart.png</fanart>
