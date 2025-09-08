@@ -64,7 +64,9 @@ class InfoHijackManager:
                     self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
                 finally:
                     self._native_info_was_open = False
-                    self._last_dialog_state = (dialog_active, current_dialog_id)
+                
+                # Update dialog state and return to prevent further processing
+                self._last_dialog_state = (dialog_active, current_dialog_id)
                 return
         else:
             # Initialize dialog state tracking
@@ -80,7 +82,9 @@ class InfoHijackManager:
                 self._logger.error(f"❌ HIJACK STEP 5 FAILED: Navigation error (fallback): {e}")
             finally:
                 self._native_info_was_open = False
-                self._last_dialog_state = (dialog_active, current_dialog_id)
+            
+            # Update dialog state and return to prevent further processing
+            self._last_dialog_state = (dialog_active, current_dialog_id)
             return
         
         # Update dialog state for next iteration (only if no close detected)
@@ -251,27 +255,27 @@ class InfoHijackManager:
         if not path:
             return False
             
-        self._logger.debug(f"HIJACK: XSP Detection - Path: '{path}', Window: '{window}'")
+        self._logger.info(f"HIJACK: XSP Detection - Path: '{path}', Window: '{window}'")
             
         # Direct XSP indicators - check for our hijack temp directory specifically
         xsp_indicators = ['.xsp', 'smartplaylist', 'lg_hijack', 'playlists/video', 'librarygenie_hijack']
         for indicator in xsp_indicators:
             if indicator in path.lower():
-                self._logger.debug(f"HIJACK: XSP detected via indicator '{indicator}' in path")
+                self._logger.info(f"HIJACK: ✅ XSP DETECTED via indicator '{indicator}' in path")
                 return True
             
         # Check for special://temp paths which are likely XSP
         if 'special://temp' in path.lower():
-            self._logger.debug(f"HIJACK: XSP detected via special://temp path")
+            self._logger.info(f"HIJACK: ✅ XSP DETECTED via special://temp path")
             return True
             
         # Window context check - Videos window but not plugin content
         if window and 'video' in window.lower():
             if 'plugin.video.librarygenie' not in path:
-                self._logger.debug(f"HIJACK: XSP detected via window context - Videos window with non-plugin path")
+                self._logger.info(f"HIJACK: ✅ XSP DETECTED via window context - Videos window with non-plugin path")
                 return True
                 
-        self._logger.debug(f"HIJACK: No XSP detected in path")
+        self._logger.info(f"HIJACK: ❌ No XSP detected in path")
         return False
 
     def _execute_single_back_with_verification(self) -> bool:
