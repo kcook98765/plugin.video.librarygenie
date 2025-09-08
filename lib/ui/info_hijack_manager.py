@@ -255,6 +255,8 @@ class InfoHijackManager:
                 # Wait for window manager to be ready for navigation commands
                 if self._wait_for_window_manager_ready("XSP navigation", max_wait=3.0):
                     self._logger.info("HIJACK: Window manager ready, executing back command to exit XSP")
+                    # Add small safety margin for "topmost modal dialog closing animation"
+                    xbmc.sleep(100)
                 else:
                     self._logger.warning("HIJACK: Window manager timeout, executing back command anyway")
                 
