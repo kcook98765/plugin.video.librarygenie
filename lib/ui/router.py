@@ -200,8 +200,14 @@ class Router:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
                 if not handler:
-                    self.logger.debug(f"No handler found for action '{action}', will show main menu")
-                    return False
+                    self.logger.debug(f"No handler found for action '{action}', will show main menu (redirecting to Lists)")
+                    # Show Lists as main menu instead of traditional main menu
+                    from .handler_factory import get_handler_factory
+                    factory = get_handler_factory()
+                    factory.context = context
+                    lists_handler = factory.get_lists_handler()
+                    response = lists_handler.show_lists_menu(context)
+                    return response.success if hasattr(response, 'success') else True
 
                 # Use the registered handler
                 handler(context)

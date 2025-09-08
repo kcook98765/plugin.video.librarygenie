@@ -127,12 +127,38 @@ class ListsHandler:
                 tools_url = context.build_url('show_list_tools', list_type='lists_main')
 
             menu_items.append({
-                'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
+                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR]",  # "Tools & Options"
                 'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': L(36018)  # "Access lists tools and options"
+                'description': "Search, Favorites, Import/Export & Settings"  # Enhanced description
             })
+
+            # Add Quick Search option for easy access
+            menu_items.append({
+                'label': f"[COLOR lightblue]🔍 Quick Search[/COLOR]",
+                'url': context.build_url('prompt_and_search'),
+                'is_folder': True,
+                'icon': "DefaultAddonsSearch.png",
+                'description': "Search your library"
+            })
+
+            # Add Search History for easy access
+            query_manager = get_query_manager()
+            if query_manager:
+                search_folder_id = query_manager.get_or_create_search_history_folder()
+                if search_folder_id:
+                    # Get search history count
+                    search_lists = query_manager.get_lists_in_folder(search_folder_id)
+                    search_count = len(search_lists)
+                    
+                    menu_items.append({
+                        'label': f"[COLOR cyan]📊 Search History[/COLOR]",
+                        'url': context.build_url('show_search_history'),
+                        'is_folder': True,
+                        'icon': "DefaultRecentlyAdded.png",
+                        'description': f"Recent searches ({search_count} searches)"
+                    })
 
             # Get all existing folders to display as navigable items
             all_folders = query_manager.get_all_folders()
@@ -185,10 +211,10 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Show breadcrumb notification for Lists menu
+            # Show breadcrumb notification for Lists menu (now main interface)
             try:
-                self.breadcrumb_helper.show_breadcrumb_notification("Lists")
-                context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'Lists'")
+                self.breadcrumb_helper.show_breadcrumb_notification("LibraryGenie")
+                context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'LibraryGenie' (main interface)")
             except Exception as e:
                 context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
 
