@@ -96,14 +96,12 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
 def _wait_for_info_dialog(timeout=10.0):
     """
     Block until the DialogVideoInfo window is active (skin dep. but standard on Kodi 19+).
-    Extended timeout and better handling for subtitle/metadata scanning delays.
+    Optimized polling with reduced overhead for faster response.
     """
     t_start = time.perf_counter()
     end = time.time() + timeout
     check_count = 0
-    scan_detected = False
     last_dialog_id = None
-    last_busy_state = None
 
     _log(f"_wait_for_info_dialog: Starting wait for info dialog with {timeout:.1f}s timeout")
 
@@ -111,48 +109,29 @@ def _wait_for_info_dialog(timeout=10.0):
         check_count += 1
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
-        # Check if Kodi is busy with file operations (DialogBusy removed for performance)
-        is_busy = (
-            xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)') or
-            xbmc.getCondVisibility('Player.HasMedia') or  # Sometimes media loading blocks dialog
-            xbmc.getCondVisibility('System.HasModalDialog')
-        )
-        
-        # Log when dialog ID or busy state changes
-        if current_dialog_id != last_dialog_id or is_busy != last_busy_state:
+        # Log only when dialog ID changes (simplified logging)
+        if current_dialog_id != last_dialog_id:
             elapsed = time.perf_counter() - t_start
-            _log(f"_wait_for_info_dialog: STATE CHANGE at {elapsed:.3f}s - dialog_id: {last_dialog_id}→{current_dialog_id}, busy: {last_busy_state}→{is_busy}")
+            _log(f"_wait_for_info_dialog: Dialog ID change at {elapsed:.3f}s: {last_dialog_id}→{current_dialog_id}")
             last_dialog_id = current_dialog_id
-            last_busy_state = is_busy
-        
-        # Detect if we're in a scanning phase (helps explain delays)
-        if is_busy and not scan_detected:
-            scan_detected = True
-            elapsed = time.perf_counter() - t_start
-            _log(f"_wait_for_info_dialog: SCAN DETECTED at {elapsed:.3f}s - Kodi busy state (likely scanning for subtitles/metadata)")
 
-        # More frequent logging during delays
-        if check_count % 20 == 0 or (is_busy and check_count % 5 == 0):
-            elapsed = time.perf_counter() - t_start
-            _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - dialog_id={current_dialog_id}, busy={is_busy}")
-
+        # Check for target dialog (core functionality)
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo / Fallback
             t_end = time.perf_counter()
             _log(f"_wait_for_info_dialog: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
-            if scan_detected:
-                _log(f"_wait_for_info_dialog: Dialog opened after file scanning completed")
             return True
+
+        # Reduced logging frequency for performance
+        if check_count % 50 == 0:  # Log every 50 checks instead of 20/5
+            elapsed = time.perf_counter() - t_start
+            _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - dialog_id={current_dialog_id}")
             
-        # Use adaptive sleep - shorter during scanning, longer when stable
-        sleep_time = 30 if is_busy else 50
-        xbmc.sleep(sleep_time)
+        # Optimized sleep - consistent 100ms polling (was 30-50ms)
+        xbmc.sleep(100)
 
     t_end = time.perf_counter()
     final_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    final_busy = False  # OPTIMIZATION: DialogBusy check removed
-    _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}, still_busy={final_busy}", xbmc.LOGWARNING)
-    if scan_detected:
-        _log(f"_wait_for_info_dialog: Timeout occurred after file scanning was detected - this may indicate slow network storage", xbmc.LOGWARNING)
+    _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}", xbmc.LOGWARNING)
     return False
 
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
