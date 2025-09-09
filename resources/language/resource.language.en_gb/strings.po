@@ -120,6 +120,10 @@ msgid "Background interval (minutes)"
 msgstr ""
 
 # Settings Categories - Additional
+msgctxt "#30449"
+msgid "AI Search Replace Sync"
+msgstr ""
+
 msgctxt "#30450"
 msgid "Background Service"
 msgstr ""
@@ -192,7 +196,7 @@ msgctxt "#30350"
 msgid "Background service starting"
 msgstr ""
 
-msgctxt "#30351"  
+msgctxt "#30351"
 msgid "Background service stopped"
 msgstr ""
 
@@ -722,7 +726,7 @@ msgctxt "#35000"
 msgid "Search"
 msgstr ""
 
-msgctxt "#35001" 
+msgctxt "#35001"
 msgid "Playback Error"
 msgstr ""
 
@@ -735,7 +739,7 @@ msgid "Export Complete"
 msgstr ""
 
 msgctxt "#35004"
-msgid "Import Complete" 
+msgid "Import Complete"
 msgstr ""
 
 msgctxt "#35005"

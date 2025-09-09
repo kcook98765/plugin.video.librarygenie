@@ -74,7 +74,7 @@
     <setting id="ai_search_authorize_action" type="action" label="30435" action="RunPlugin(plugin://plugin.video.librarygenie/?action=authorize_ai_search)" enable="!eq(-1,)"/>
     <setting id="ai_search_activated" type="bool" label="30423" help="30424" default="false" enable="!eq(-2,)" />
     <setting id="ai_search_sync_interval" type="slider" label="30425" help="30426" default="3600" range="1800,1,86400" option="int" enable="eq(-1,true)" />
-    <setting id="ai_search_replace_sync_action" type="action" label="30450" action="RunPlugin(plugin://plugin.video.librarygenie/?action=ai_search_replace_sync)" enable="eq(-1,true)"/>
+    <setting id="ai_search_replace_sync_action" type="action" label="30449" action="RunPlugin(plugin://plugin.video.librarygenie/?action=ai_search_replace_sync)" enable="eq(-1,true)"/>
     <setting label="30420" type="lsep"/>
     <setting id="device_name" type="text" label="30412" default="Kodi"/>
     <setting id="auth_poll_seconds" type="slider" label="30413" default="3" range="1,1,10" option="int"/>
