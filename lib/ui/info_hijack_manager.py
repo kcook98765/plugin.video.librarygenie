@@ -237,7 +237,7 @@ class InfoHijackManager:
             self._logger.info("🔄 HIJACK STEP 5: Native info dialog closed, checking navigation state")
             
             # Wait for dialog closing animation to complete
-            self._wait_for_window_manager_ready("after dialog close")
+            self._wait_for_animations_to_complete("after dialog close")
             
             # Check current state after dialog close
             current_path = xbmc.getInfoLabel("Container.FolderPath")
@@ -248,29 +248,12 @@ class InfoHijackManager:
             if self._is_on_librarygenie_hijack_xsp(current_path):
                 self._logger.info(f"HIJACK: ✋ Detected XSP path: '{current_path}', executing back to return to plugin")
                 
-                # Quick modal check then execute back
-                self._wait_for_window_manager_ready("XSP navigation")
+                # Wait for all animations to complete before executing back
+                self._wait_for_animations_to_complete("XSP navigation")
                 self._logger.info("HIJACK: Executing back command to exit XSP")
                 
-                # Retry loop for back command (up to 5 attempts)
-                max_attempts = 5
-                for attempt in range(max_attempts):
-                    xbmc.executebuiltin('Action(Back)')
-                    
-                    # Wait and check if command was successful
-                    xbmc.sleep(100)
-                    current_path_after_back = xbmc.getInfoLabel("Container.FolderPath")
-                    
-                    # Success if we're no longer on XSP page
-                    if not (current_path_after_back and 'librarygenie_hijack' in current_path_after_back):
-                        self._logger.info(f"HIJACK: Back command successful on attempt {attempt + 1}")
-                        break
-                    
-                    # Log retry if not the last attempt
-                    if attempt < max_attempts - 1:
-                        self._logger.info(f"HIJACK: Back command attempt {attempt + 1} ignored, retrying...")
-                    else:
-                        self._logger.warning(f"HIJACK: All {max_attempts} back command attempts failed, animation may be taking longer than expected")
+                # Single back command when animations are complete
+                xbmc.executebuiltin('Action(Back)')
                 
                 # Brief wait for navigation
                 self._wait_for_navigation_complete("XSP exit")
@@ -545,6 +528,43 @@ class InfoHijackManager:
         elapsed = time.time() - start_time
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         self._logger.warning(f"HIJACK: Dialog close timeout {context} after {elapsed:.1f}s (still {current_dialog_id})")
+        return False
+
+    def _wait_for_animations_to_complete(self, context: str, max_wait: float = 2.0) -> bool:
+        """Wait for Kodi animations to complete before issuing commands"""
+        start_time = time.time()
+        animation_detected = False
+        
+        while (time.time() - start_time) < max_wait:
+            # Check multiple animation indicators
+            has_modal = xbmc.getCondVisibility('System.HasModalDialog')
+            is_animating = xbmc.getCondVisibility('Window.IsAnimating')
+            is_inhibited = xbmc.getCondVisibility('System.IsInhibited')
+            
+            # Check if any animations are running
+            animations_running = has_modal or is_animating or is_inhibited
+            
+            if not animations_running:
+                elapsed = time.time() - start_time
+                if animation_detected:
+                    self._logger.info(f"HIJACK: Animations completed {context} after {elapsed:.3f}s")
+                else:
+                    self._logger.debug(f"HIJACK: No animations detected {context}")
+                return True
+            
+            # Log what we're waiting for (once)
+            if not animation_detected:
+                animation_detected = True
+                reasons = []
+                if has_modal: reasons.append("modal dialog")
+                if is_animating: reasons.append("window animation")
+                if is_inhibited: reasons.append("system inhibited")
+                self._logger.info(f"HIJACK: Waiting for animations to complete {context} - detected: {', '.join(reasons)}")
+            
+            xbmc.sleep(50)  # Check every 50ms
+        
+        elapsed = time.time() - start_time
+        self._logger.warning(f"HIJACK: Animation wait timeout {context} after {elapsed:.1f}s")
         return False
 
     def _wait_for_window_manager_ready(self, context: str, max_wait: float = 0.5) -> bool:
