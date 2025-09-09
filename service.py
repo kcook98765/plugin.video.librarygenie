@@ -117,9 +117,16 @@ class LibraryGenieService:
             # Check if library needs initial scan
             self._check_and_perform_initial_scan()
 
-            # Start AI search sync if enabled
+            # Start AI search sync if enabled  
+            self.logger.info("🔍 Checking AI Search activation status at startup...")
+            ai_activated = self.settings.get_ai_search_activated()
+            self.logger.info(f"🔍 AI Search activated setting: {ai_activated}")
+            
             if self._should_start_ai_sync():
+                self.logger.info("✅ AI Search sync conditions met - starting sync thread")
                 self._start_ai_sync_thread()
+            else:
+                self.logger.info("❌ AI Search sync conditions not met - sync disabled")
 
             # Main service loop
             self.run() # Changed to call run() which contains the hijack manager loop
@@ -194,6 +201,7 @@ class LibraryGenieService:
 
                 # Check for AI sync activation changes periodically
                 if tick_count % ai_sync_check_interval == 0:
+                    self.logger.info(f"🔄 Periodic AI sync check (tick {tick_count})")
                     self._check_ai_sync_activation()
 
                 # Run hijack manager tick only when needed
@@ -258,14 +266,16 @@ class LibraryGenieService:
         """Check if AI search sync should be started"""
         # Verify that AI search is properly configured with valid auth
         if not self.settings.get_ai_search_activated():
+            self.logger.info("🔍 AI Search not activated in settings")
             return False
 
         # Test if AI client is properly configured and authorized
         if not self.ai_client.is_configured():
-            self.logger.debug("AI client not configured, skipping sync")
+            self.logger.info("🔍 AI client not configured, skipping sync")
             return False
 
         # Quick connection test to ensure auth is still valid
+        self.logger.info("🔍 Testing AI Search connection...")
         connection_test = self.ai_client.test_connection()
         if not connection_test.get('success'):
             error = connection_test.get('error', 'Unknown error')
@@ -278,6 +288,7 @@ class LibraryGenieService:
 
             return False
 
+        self.logger.info("✅ AI Search connection test passed")
         return True
 
     def _start_ai_sync_thread(self):
