@@ -236,7 +236,7 @@ class InfoHijackManager:
         try:
             self._logger.info("🔄 HIJACK STEP 5: Native info dialog closed, checking navigation state")
             
-            # Quick modal check after dialog close
+            # Wait for dialog closing animation to complete
             self._wait_for_window_manager_ready("after dialog close")
             
             # Check current state after dialog close
@@ -539,9 +539,10 @@ class InfoHijackManager:
             self._logger.debug(f"HIJACK: Window manager ready {context} immediately")
             return True
         
-        # Brief wait if modal detected, then proceed anyway
-        xbmc.sleep(100)
-        self._logger.debug(f"HIJACK: Modal detected {context}, proceeding after brief wait")
+        # Wait longer for dialog close animation to complete
+        wait_time = 300 if "after dialog close" in context else 100
+        xbmc.sleep(wait_time)
+        self._logger.debug(f"HIJACK: Modal detected {context}, proceeding after {wait_time}ms wait")
         return True
 
     def _wait_for_gui_ready(self, context: str, max_wait: float = 0.1) -> bool:
