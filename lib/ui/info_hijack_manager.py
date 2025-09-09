@@ -252,18 +252,25 @@ class InfoHijackManager:
                 self._wait_for_window_manager_ready("XSP navigation")
                 self._logger.info("HIJACK: Executing back command to exit XSP")
                 
-                xbmc.executebuiltin('Action(Back)')
-                
-                # Check if back command was successful
-                xbmc.sleep(100)  # Brief wait for command processing
-                current_path_after_back = xbmc.getInfoLabel("Container.FolderPath")
-                
-                # Retry if still on XSP page (command was ignored)
-                if current_path_after_back and 'librarygenie_hijack' in current_path_after_back:
-                    self._logger.info("HIJACK: First back command ignored, retrying after animation completes")
-                    xbmc.sleep(100)  # Additional wait for animation
+                # Retry loop for back command (up to 5 attempts)
+                max_attempts = 5
+                for attempt in range(max_attempts):
                     xbmc.executebuiltin('Action(Back)')
-                    self._logger.info("HIJACK: Retry back command executed")
+                    
+                    # Wait and check if command was successful
+                    xbmc.sleep(100)
+                    current_path_after_back = xbmc.getInfoLabel("Container.FolderPath")
+                    
+                    # Success if we're no longer on XSP page
+                    if not (current_path_after_back and 'librarygenie_hijack' in current_path_after_back):
+                        self._logger.info(f"HIJACK: Back command successful on attempt {attempt + 1}")
+                        break
+                    
+                    # Log retry if not the last attempt
+                    if attempt < max_attempts - 1:
+                        self._logger.info(f"HIJACK: Back command attempt {attempt + 1} ignored, retrying...")
+                    else:
+                        self._logger.warning(f"HIJACK: All {max_attempts} back command attempts failed, animation may be taking longer than expected")
                 
                 # Brief wait for navigation
                 self._wait_for_navigation_complete("XSP exit")
