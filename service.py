@@ -275,12 +275,14 @@ class LibraryGenieService:
         api_key = self.settings.get_ai_search_api_key()
         self.logger.info(f"🔍 Remote Server URL: '{remote_server_url}' (exists: {bool(remote_server_url)})")
         self.logger.info(f"🔍 AI Search Server URL: '{ai_search_server_url}' (exists: {bool(ai_search_server_url)})")
-        self.logger.info(f"🔍 API Key: {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
+        self.logger.info(f"🔍 API Key (from settings): {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
         
-        # Check what is_authorized() returns
-        from ..auth.state import is_authorized
+        # Check what is_authorized() returns (checks database)
+        from lib.auth.state import is_authorized, get_api_key
         auth_status = is_authorized()
+        db_api_key = get_api_key()
         self.logger.info(f"🔍 is_authorized() result: {auth_status}")
+        self.logger.info(f"🔍 API Key (from database): {'[PRESENT]' if db_api_key else '[MISSING]'} (length: {len(db_api_key) if db_api_key else 0})")
         
         if not self.ai_client.is_configured():
             self.logger.info("🔍 AI client not configured, skipping sync")
