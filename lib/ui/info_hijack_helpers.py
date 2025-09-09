@@ -29,29 +29,6 @@ def _log(message: str, level: int = xbmc.LOGINFO) -> None:
     else:
         logger.debug(f"[InfoHijack] {message}")
 
-def prewarm_smb(movie_url: Optional[str]):
-    """
-    Cheaply 'touch' the movie's parent SMB folder to wake disks and warm
-    directory metadata so Kodi's associated-items scan doesn't stall later.
-    """
-    try:
-        # Expect smb://host/share/path/file.ext
-        if not movie_url or "://" not in movie_url:
-            return 0.0
-        t0 = time.perf_counter()
-        # Parent directory (ensure trailing slash for some backends)
-        parent = movie_url.rsplit('/', 1)[0] + '/'
-        # Minimal filesystem calls that don't copy data
-        xbmcvfs.listdir(parent)     # enumerate once to warm directory
-        xbmcvfs.exists(movie_url)   # stat the movie file path
-        # A tiny sleep helps some NASes finish spinup without busy-waiting
-        time.sleep(0.10)
-        dt = time.perf_counter() - t0
-        _log(f"⏩ Prewarm SMB: parent='{parent}' took {dt:.3f}s")
-        return dt
-    except Exception as e:
-        _log(f"⏩ Prewarm SMB skipped due to error: {e!r}", xbmc.LOGWARNING)
-        return 0.0
 
 
 
@@ -750,10 +727,9 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
 
         # -------- precise timings --------
         t_total0 = time.perf_counter()
-        dt_prewarm = prewarm_smb(movie_url) if movie_url else 0.0
         t1 = time.perf_counter()
         _log(f"Opening Videos window with path: {xsp_path} "
-             f"(prewarm {dt_prewarm:.3f}s, t+{t1 - t_total0:.3f}s)")
+             f"(t+{t1 - t_total0:.3f}s)")
 
         # Open the Videos window on the XSP and focus the list
         xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
