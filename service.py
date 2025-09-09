@@ -270,6 +270,18 @@ class LibraryGenieService:
             return False
 
         # Test if AI client is properly configured and authorized
+        remote_server_url = self.settings.get_remote_server_url()
+        ai_search_server_url = self.settings.get_ai_search_server_url()  
+        api_key = self.settings.get_ai_search_api_key()
+        self.logger.info(f"🔍 Remote Server URL: '{remote_server_url}' (exists: {bool(remote_server_url)})")
+        self.logger.info(f"🔍 AI Search Server URL: '{ai_search_server_url}' (exists: {bool(ai_search_server_url)})")
+        self.logger.info(f"🔍 API Key: {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
+        
+        # Check what is_authorized() returns
+        from ..auth.state import is_authorized
+        auth_status = is_authorized()
+        self.logger.info(f"🔍 is_authorized() result: {auth_status}")
+        
         if not self.ai_client.is_configured():
             self.logger.info("🔍 AI client not configured, skipping sync")
             return False
