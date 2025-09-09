@@ -233,6 +233,8 @@ class MigrationManager:
                     expires_in INTEGER,
                     interval_seconds INTEGER,
                     api_key TEXT,
+                    token_type TEXT,
+                    scope TEXT,
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
