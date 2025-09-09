@@ -355,17 +355,6 @@ class Router:
                     settings.set_ai_search_server_url(server_url)
                     self.logger.info(f"✅ Copied server URL to AI Search setting: {server_url}")
                     
-                    # Verify the settings were saved correctly
-                    from lib.auth.state import get_api_key, is_authorized
-                    saved_url = settings.get_ai_search_server_url()
-                    saved_api_key = settings.get_ai_search_api_key()
-                    db_api_key = get_api_key()
-                    auth_status = is_authorized()
-                    self.logger.info(f"🔍 VERIFICATION: AI Search URL after save: '{saved_url}'")
-                    self.logger.info(f"🔍 VERIFICATION: API Key from settings: {'[PRESENT]' if saved_api_key else '[MISSING]'}")
-                    self.logger.info(f"🔍 VERIFICATION: API Key from database: {'[PRESENT]' if db_api_key else '[MISSING]'}")
-                    self.logger.info(f"🔍 VERIFICATION: is_authorized() result: {auth_status}")
-                    
                     # Show success dialog
                     xbmcgui.Dialog().ok(
                         "Authorization Complete",
