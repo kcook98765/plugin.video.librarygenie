@@ -214,9 +214,8 @@ class AISearchClient:
                 user_email = result.get('user_email', '')
 
                 if api_key:
-                    from ..auth.state import store_api_key, store_user_info
-                    store_api_key(api_key)
-                    store_user_info(user_email, api_key)
+                    from ..auth.state import save_api_key
+                    save_api_key(api_key)
 
                     # Update internal state
                     self._api_key = api_key
