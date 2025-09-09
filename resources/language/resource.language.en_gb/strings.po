@@ -239,7 +239,7 @@ msgstr ""
 
 
 msgctxt "#30433"
-msgid "API Key (internal)"
+msgid "AI Search API Key"
 msgstr ""
 
 msgctxt "#30434"
