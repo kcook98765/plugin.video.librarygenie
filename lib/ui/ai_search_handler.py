@@ -674,13 +674,11 @@ class AISearchHandler:
 
                 # Show background progress
                 dialog_bg = xbmcgui.DialogProgressBG()
-                dialog_bg.create("AI Search Replace Sync", "Scanning local library...")
+                dialog_bg.create("AI Search Replace Sync", "Preparing sync...")
 
                 movies_result = conn_manager.execute_query(
                     "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
                 )
-
-                dialog_bg.update(30, "AI Search Replace Sync", "Collecting movie data...")
 
                 movies_with_imdb = []
                 for row in movies_result:
@@ -693,8 +691,6 @@ class AISearchHandler:
                             'year': row['year'] if row['year'] else 0
                         })
 
-                dialog_bg.update(50, "AI Search Replace Sync", f"Found {len(movies_with_imdb)} movies...")
-
                 if not movies_with_imdb:
                     dialog_bg.close()
                     xbmcgui.Dialog().ok(
@@ -703,13 +699,12 @@ class AISearchHandler:
                     )
                     return
 
-                # Define progress callback for batch sync (50-95% range)
+                # Define progress callback - pure batch progress (0-100%)
                 def sync_progress_callback(current_chunk, total_chunks, message):
                     if total_chunks > 0:
-                        # Map chunk progress to 50-95% range (45% total range for batch uploading)
-                        chunk_progress = (current_chunk / total_chunks) * 45
-                        total_progress = int(50 + chunk_progress)
-                        dialog_bg.update(total_progress, "AI Search Replace Sync", message)
+                        # Map directly to 0-100% based on batches sent
+                        progress = int((current_chunk / total_chunks) * 100)
+                        dialog_bg.update(progress, "AI Search Replace Sync", message)
 
                 # Perform replace sync with progress callback
                 result = ai_client.sync_media_batch(
