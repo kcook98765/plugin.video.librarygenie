@@ -155,7 +155,8 @@ class AISearchHandler:
                 return False
 
         except Exception as e:
-            if 'progress' in locals():
+            progress = locals().get('progress')
+            if progress:
                 progress.close()
             self.logger.error(f"AI SEARCH: Error performing AI search: {e}")
             import traceback
@@ -170,21 +171,20 @@ class AISearchHandler:
 
     def _match_imdb_ids_to_media_items(self, imdb_ids: List[str]) -> List[Dict[str, Any]]:
         """
-        Match IMDb IDs to existing media items in the database
+        Match IMDb IDs to existing media items in the database and build standard media item format
         
         Args:
             imdb_ids: List of IMDb IDs to match
             
         Returns:
-            List of matched media item dictionaries
+            List of matched media item dictionaries in standard format
         """
         try:
-            # Use query manager's connection manager following standard pattern
+            # Use correct column names from schema
             placeholders = ','.join(['?' for _ in imdb_ids])
             query = f"""
                 SELECT id, title, year, imdbnumber, tmdb_id, plot, rating, 
-                       poster_url, fanart_url, trailer_url, genres, runtime,
-                       kodi_id, kodi_dbtype, date_added
+                       genre, duration, art, kodi_id, media_type, created_at
                 FROM media_items 
                 WHERE imdbnumber IN ({placeholders})
                 ORDER BY title
@@ -192,8 +192,37 @@ class AISearchHandler:
             
             rows = self.query_manager.connection_manager.execute_query(query, imdb_ids)
             
-            # Convert rows to dictionaries  
-            matched_items = [dict(row) for row in rows]
+            # Convert rows to standard media item dictionaries  
+            matched_items = []
+            for row in rows:
+                item_dict = dict(row)
+                # Convert to standard format expected by add_search_results_to_list
+                standard_item = {
+                    'kodi_id': item_dict.get('kodi_id'),
+                    'media_type': item_dict.get('media_type', 'movie'),
+                    'title': item_dict.get('title', ''),
+                    'year': item_dict.get('year', 0),
+                    'imdb_id': item_dict.get('imdbnumber', ''),
+                    'plot': item_dict.get('plot', ''),
+                    'rating': item_dict.get('rating', 0),
+                    'genre': item_dict.get('genre', ''),
+                    'runtime': item_dict.get('duration', 0),
+                    'source': 'ai_search'
+                }
+                
+                # Parse art JSON if available
+                art_data = item_dict.get('art')
+                if art_data:
+                    try:
+                        import json
+                        art = json.loads(art_data) if isinstance(art_data, str) else art_data
+                        standard_item['art'] = art
+                    except:
+                        standard_item['art'] = {}
+                else:
+                    standard_item['art'] = {}
+                    
+                matched_items.append(standard_item)
             
             self.logger.info(f"AI SEARCH MATCH: Found {len(matched_items)} matches out of {len(imdb_ids)} IMDb IDs")
             
@@ -205,7 +234,7 @@ class AISearchHandler:
 
     def _create_ai_search_history_list(self, query: str, matched_items: List[Dict[str, Any]], total_ai_results: int) -> Optional[int]:
         """
-        Create a search history list for AI search results
+        Create a search history list for AI search results using standard pattern
         
         Args:
             query: Original search query
@@ -216,14 +245,13 @@ class AISearchHandler:
             List ID if successful, None if failed
         """
         try:
-            # Create search history list with AI search description
+            # Create search history list with AI search description - follow same pattern as local search
             query_desc = f"AI: {query}"
-            description = f"AI search found {total_ai_results} results, {len(matched_items)} in your library"
             
             list_id = self.query_manager.create_search_history_list(
-                query_desc,
-                "ai_search",
-                len(matched_items)
+                query=query_desc,
+                search_type="ai_search",
+                result_count=len(matched_items)
             )
             
             if not list_id:
@@ -232,28 +260,17 @@ class AISearchHandler:
             
             self.logger.info(f"AI SEARCH HISTORY: Created search history list {list_id}")
             
-            # Add matched items to the list
-            added_count = 0
-            with self.query_manager.connection_manager.transaction() as conn:
-                for position, item in enumerate(matched_items):
-                    try:
-                        # Add item to list using direct database insert
-                        conn.execute("""
-                            INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
-                            VALUES (?, ?, ?)
-                        """, [list_id, item['id'], position])
-                        added_count += 1
-                        
-                    except Exception as e:
-                        self.logger.error(f"AI SEARCH HISTORY: Error adding item {item.get('id', 'unknown')} to list: {e}")
-            
-            self.logger.info(f"AI SEARCH HISTORY: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
+            # Use standard method to add items to list - same as local search
+            search_results = {"items": matched_items}
+            added_count = self.query_manager.add_search_results_to_list(list_id, search_results)
             
             if added_count > 0:
+                self.logger.info(f"AI SEARCH HISTORY: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
                 return list_id
             else:
                 # Clean up empty list
                 self.query_manager.delete_list(list_id)
+                self.logger.warning("AI SEARCH HISTORY: No items were added to list, cleaning up")
                 return None
                 
         except Exception as e:
@@ -262,7 +279,7 @@ class AISearchHandler:
 
     def _redirect_to_search_list(self, list_id: int):
         """
-        Redirect to the created search history list
+        Redirect to the created search history list using same method as local search
         
         Args:
             list_id: ID of the list to show
@@ -272,21 +289,10 @@ class AISearchHandler:
             addon = xbmcaddon.Addon()
             addon_id = addon.getAddonInfo('id')
             
-            # Check current container path to determine navigation approach
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
-            is_in_plugin = current_path and addon_id in current_path
-            
+            # Use same redirect pattern as local search
             list_url = f"plugin://{addon_id}/?action=show_list&list_id={list_id}"
-            
-            if is_in_plugin:
-                # We're already in the plugin, use replace to stay in context
-                xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
-                self.logger.info(f"AI SEARCH: Redirected within plugin to search history list {list_id}")
-            else:
-                # We're outside the plugin (e.g., context menu from library/other addon)
-                # Use ActivateWindow to open the plugin content
-                xbmc.executebuiltin(f'ActivateWindow(Videos,"{list_url}",return)')
-                self.logger.info(f"AI SEARCH: Activated plugin window for search history list {list_id}")
+            xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
+            self.logger.info(f"AI SEARCH: Redirected to search history list {list_id}")
             
         except Exception as e:
             self.logger.error(f"AI SEARCH: Failed to redirect to search list: {e}")
@@ -452,7 +458,8 @@ class AISearchHandler:
                 return False
 
         except Exception as e:
-            if 'progress' in locals():
+            progress = locals().get('progress')
+            if progress:
                 progress.close()
             self.logger.error(f"SIMILAR MOVIES: Error finding similar movies: {e}")
             import traceback
