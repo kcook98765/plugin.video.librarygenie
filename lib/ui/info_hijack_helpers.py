@@ -600,6 +600,9 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep6_end = time.perf_counter()
         logger.debug(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
         
+        # Brief pause between SUBSTEP 6 and 7 for UI stability
+        xbmc.sleep(50)
+        
         # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
         substep7_start = time.perf_counter()
         logger.info(f"🎬 SUBSTEP 7: Opening video info from native list")
