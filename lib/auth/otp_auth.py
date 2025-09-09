@@ -70,7 +70,11 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
         sanitized_otp = otp_code.strip()
         payload = {"pairing_code": sanitized_otp}
 
-        logger.info(f"Attempting OTP exchange at: {exchange_url}")
+        logger.info(f"=== OTP EXCHANGE REQUEST ===")
+        logger.info(f"URL: {exchange_url}")
+        logger.info(f"Method: POST")
+        logger.info(f"Headers: {{'Content-Type': 'application/json'}}")
+        logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
 
         # Prepare request
         json_data = json.dumps(payload).encode('utf-8')
@@ -82,8 +86,15 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
 
         # Make request
         with urllib.request.urlopen(req, timeout=10) as response:
-            if response.getcode() == 200:
-                response_data = response.read().decode('utf-8')
+            response_code = response.getcode()
+            response_data = response.read().decode('utf-8')
+            
+            logger.info(f"=== OTP EXCHANGE RESPONSE ===")
+            logger.info(f"Status Code: {response_code}")
+            logger.info(f"Response Headers: {dict(response.headers)}")
+            logger.info(f"Response Body: {response_data}")
+            
+            if response_code == 200:
                 data = json.loads(response_data)
 
                 if data.get('success'):
@@ -93,7 +104,8 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
 
                     if api_key:
                         save_api_key(api_key)
-                        logger.info("API key obtained and saved successfully")
+                        logger.info(f"API key obtained and saved successfully for user: {user_email}")
+                        logger.info(f"=== OTP EXCHANGE SUCCESS ===")
 
                         return {
                             'success': True,
@@ -102,25 +114,33 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
                             'message': data.get('message', 'Authorization successful')
                         }
                     else:
+                        logger.error("Server response missing API key")
                         return {
                             'success': False,
                             'error': 'No API key in server response'
                         }
                 else:
                     error_msg = data.get('error', 'Unknown error')
+                    logger.error(f"Server rejected OTP: {error_msg}")
                     return {
                         'success': False,
                         'error': f'Server rejected OTP: {error_msg}'
                     }
             else:
+                logger.error(f"HTTP error response: {response_code}")
                 return {
                     'success': False,
-                    'error': f'Server error: HTTP {response.getcode()}'
+                    'error': f'Server error: HTTP {response_code}'
                 }
 
     except urllib.error.HTTPError as e:
         try:
             error_body = e.read().decode('utf-8')
+            logger.info(f"=== OTP EXCHANGE HTTP ERROR ===")
+            logger.info(f"Status Code: {e.code}")
+            logger.info(f"Error Headers: {dict(e.headers) if hasattr(e, 'headers') else 'N/A'}")
+            logger.info(f"Error Body: {error_body}")
+            
             error_data = json.loads(error_body)
             error_msg = error_data.get('error', f'HTTP {e.code} error')
         except Exception:
@@ -182,17 +202,33 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
 
     try:
         test_url = f"{server_url.rstrip('/')}/kodi/test"
+        headers = {'Authorization': f'ApiKey {api_key}'}
+
+        logger.info(f"=== API CONNECTION TEST REQUEST ===")
+        logger.info(f"URL: {test_url}")
+        logger.info(f"Method: GET")
+        logger.info(f"Headers: {headers}")
 
         req = urllib.request.Request(test_url)
         req.add_header('Authorization', f'ApiKey {api_key}')
 
         with urllib.request.urlopen(req, timeout=10) as response:
-            if response.getcode() == 200:
-                response_data = response.read().decode('utf-8')
+            response_code = response.getcode()
+            response_data = response.read().decode('utf-8')
+            
+            logger.info(f"=== API CONNECTION TEST RESPONSE ===")
+            logger.info(f"Status Code: {response_code}")
+            logger.info(f"Response Headers: {dict(response.headers)}")
+            logger.info(f"Response Body: {response_data}")
+            
+            if response_code == 200:
                 data = json.loads(response_data)
 
                 if data.get('status') == 'success':
                     user_info = data.get('user', {})
+                    logger.info(f"=== API CONNECTION TEST SUCCESS ===")
+                    logger.info(f"User: {user_info.get('email', 'Unknown')}")
+                    logger.info(f"Role: {user_info.get('role', 'Unknown')}")
                     return {
                         'success': True,
                         'message': data.get('message', 'Connection successful'),
@@ -200,17 +236,28 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
                         'user_role': user_info.get('role', 'Unknown')
                     }
                 else:
+                    logger.error(f"Server returned unsuccessful status: {data}")
                     return {
                         'success': False,
                         'error': 'Server returned unsuccessful status'
                     }
             else:
+                logger.error(f"HTTP error response: {response_code}")
                 return {
                     'success': False,
-                    'error': f'Server error: HTTP {response.getcode()}'
+                    'error': f'Server error: HTTP {response_code}'
                 }
 
     except urllib.error.HTTPError as e:
+        try:
+            error_body = e.read().decode('utf-8')
+            logger.info(f"=== API CONNECTION TEST HTTP ERROR ===")
+            logger.info(f"Status Code: {e.code}")
+            logger.info(f"Error Headers: {dict(e.headers) if hasattr(e, 'headers') else 'N/A'}")
+            logger.info(f"Error Body: {error_body}")
+        except Exception:
+            error_body = 'Unable to read error body'
+        
         if e.code == 401:
             error_msg = 'Invalid or expired API key'
         else:
