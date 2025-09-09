@@ -253,6 +253,22 @@ msgctxt "#30435"
 msgid "Activate AI Search"
 msgstr ""
 
+msgctxt "#30423"
+msgid "AI Search Activated"
+msgstr ""
+
+msgctxt "#30424"
+msgid "Shows whether AI Search is currently active and authenticated"
+msgstr ""
+
+msgctxt "#30425"
+msgid "AI Search Sync Interval (seconds)"
+msgstr ""
+
+msgctxt "#30426"
+msgid "How often to sync with AI Search server"
+msgstr ""
+
 # Dialog Messages
 msgctxt "#30590"
 msgid "Enter list name"
