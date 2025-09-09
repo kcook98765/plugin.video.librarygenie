@@ -273,8 +273,12 @@ class LibraryGenieService:
         remote_server_url = self.settings.get_remote_server_url()
         ai_search_server_url = self.settings.get_ai_search_server_url()  
         api_key = self.settings.get_ai_search_api_key()
+        
+        # Debug: Check raw setting value to see if there's a caching issue
+        raw_ai_url = self.settings.addon.getSetting('ai_search_server_url')
         self.logger.info(f"🔍 Remote Server URL: '{remote_server_url}' (exists: {bool(remote_server_url)})")
         self.logger.info(f"🔍 AI Search Server URL: '{ai_search_server_url}' (exists: {bool(ai_search_server_url)})")
+        self.logger.info(f"🔍 RAW AI Search Server URL: '{raw_ai_url}' (direct from addon)")
         self.logger.info(f"🔍 API Key (from settings): {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
         
         # Check what is_authorized() returns (checks database)
