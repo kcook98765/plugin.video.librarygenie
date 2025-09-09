@@ -39,7 +39,7 @@ def get_api_key() -> Optional[str]:
             LIMIT 1
         """)
 
-        if result and result.get('api_key'):
+        if result and result['api_key']:
             logger.debug("API key retrieved successfully")
             return result['api_key']
         else:
