@@ -182,11 +182,11 @@ class AISearchHandler:
             # Use query manager's connection manager following standard pattern
             placeholders = ','.join(['?' for _ in imdb_ids])
             query = f"""
-                SELECT id, title, year, imdb_id, tmdb_id, plot, rating, 
+                SELECT id, title, year, imdbnumber, tmdb_id, plot, rating, 
                        poster_url, fanart_url, trailer_url, genres, runtime,
                        kodi_id, kodi_dbtype, date_added
                 FROM media_items 
-                WHERE imdb_id IN ({placeholders})
+                WHERE imdbnumber IN ({placeholders})
                 ORDER BY title
             """
             
