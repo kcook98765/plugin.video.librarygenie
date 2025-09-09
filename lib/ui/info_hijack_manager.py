@@ -164,9 +164,6 @@ class InfoHijackManager:
                                 self._logger.error(f"HIJACK: Invalid DBID '{dbid}' - cannot convert to integer")
                                 return
                             
-                            # Show brief OSD notification to user
-                            xbmc.executebuiltin('Notification(LibraryGenie, Opening native video info..., 500)')
-                            
                             # 🚀 STEP 3: OPEN NATIVE INFO VIA XSP
                             self._logger.info(f"🚀 HIJACK STEP 3: OPENING NATIVE INFO for {dbtype} {dbid_int}")
                             
