@@ -742,7 +742,7 @@ class AISearchHandler:
                     )
 
             except Exception as e:
-                if 'dialog_bg' in locals():
+                if 'dialog_bg' in locals() and dialog_bg:
                     dialog_bg.close()
                 context.logger.error(f"Error during replace sync: {e}")
                 xbmcgui.Dialog().ok(
