@@ -367,7 +367,7 @@ class LibraryGenieService:
             from lib.data.connection_manager import get_connection_manager
             conn_manager = get_connection_manager()
             
-            movies_result = conn_manager.execute_all("SELECT imdb_id, title, year FROM movies WHERE imdb_id IS NOT NULL AND imdb_id != ''")
+            movies_result = conn_manager.execute_query("SELECT imdb_id, title, year FROM movies WHERE imdb_id IS NOT NULL AND imdb_id != ''")
             movies = [{"imdbnumber": row["imdb_id"], "title": row["title"], "year": row["year"]} for row in movies_result]
             for movie in movies:
                 imdb_id = movie.get('imdbnumber', '').strip()

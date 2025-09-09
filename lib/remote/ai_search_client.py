@@ -53,6 +53,9 @@ class AISearchClient:
 
         url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
         
+        # Log the complete URL for endpoint verification  
+        self.logger.info(f"🌐 PUBLIC API REQUEST: {method} {url}")
+        
         # Use minimal headers for public endpoints
         request_headers = {
             'Content-Type': 'application/json',
@@ -110,6 +113,9 @@ class AISearchClient:
 
         url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
         request_headers = self._get_headers(headers)
+        
+        # Log the complete URL for endpoint verification
+        self.logger.info(f"🌐 API REQUEST: {method} {url}")
 
         try:
             # Prepare request data
