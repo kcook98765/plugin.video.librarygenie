@@ -111,9 +111,8 @@ def _wait_for_info_dialog(timeout=10.0):
         check_count += 1
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
-        # Check if Kodi is busy with file operations (subtitle scanning, metadata, etc.)
+        # Check if Kodi is busy with file operations (DialogBusy removed for performance)
         is_busy = (
-            xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)') or
             xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)') or
             xbmc.getCondVisibility('Player.HasMedia') or  # Sometimes media loading blocks dialog
             xbmc.getCondVisibility('System.HasModalDialog')
@@ -150,7 +149,7 @@ def _wait_for_info_dialog(timeout=10.0):
 
     t_end = time.perf_counter()
     final_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    final_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
+    final_busy = False  # OPTIMIZATION: DialogBusy check removed
     _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}, still_busy={final_busy}", xbmc.LOGWARNING)
     if scan_detected:
         _log(f"_wait_for_info_dialog: Timeout occurred after file scanning was detected - this may indicate slow network storage", xbmc.LOGWARNING)
@@ -396,7 +395,7 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
         folder_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
         path_match = folder_path == t_norm
         num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
-        not_busy = not xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
+        not_busy = True  # OPTIMIZATION: Removed DialogBusy check for performance
         
         # Additional check for progress dialogs that might appear during scanning
         not_scanning = not xbmc.getCondVisibility("Window.IsActive(DialogProgress.xml)")
