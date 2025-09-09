@@ -118,7 +118,7 @@ User Setup → Auth0 Login → Generate Pairing Code → Kodi Entry → API Key 
 
 **2. Library Sync (Periodic)**
 ```
-Scan Kodi Library → Extract IMDb IDs → Check Delta with /library/hash → Upload New Movies via Chunked Batch → Monitor Progress
+Scan Kodi Library → Extract IMDb IDs → Check Delta with /library/hash → Upload Movies via Main API Batch → Monitor Progress
 ```
 
 **3. Movie Search (User-Initiated)**
@@ -149,6 +149,33 @@ API Errors → Check Connectivity → Validate API Key → Re-pair if Needed →
 - Search operates on AI-generated embeddings for semantic matching
 
 ## API Endpoints for Kodi Integration
+
+### 🚨 **CRITICAL: API Selection Guide**
+
+**FOR REPLACE-SYNC (Complete Library Replacement):**
+Use **MAIN API ONLY** (endpoints 4-8 below). Do NOT mix with V1 API.
+
+✅ **CORRECT Replace-Sync Flow:**
+```
+1. POST /library/batch/start (mode: "replace")
+2. PUT /library/batch/{upload_id}/chunk (multiple calls)  
+3. POST /library/batch/{upload_id}/commit (REQUIRED!)
+```
+
+❌ **INCORRECT - Will NOT Work:**
+```
+1. POST /library/batch/start (mode: "replace") 
+2. POST /v1/library/add (Wrong API!)
+3. [No commit - replace-sync never happens]
+```
+
+**FOR SIMPLE ADD/REMOVE (Individual Movies):**
+Use **Main API** with batch size of 1 for individual operations.
+
+**Key Rules:**
+- **All operations use Main API consistently**
+- **Individual operations = batch size of 1**  
+- **Collections = larger batches with chunked upload**
 
 ### 1. Exchange Pairing Code (Setup)
 
@@ -328,16 +355,23 @@ This endpoint uses the same advanced search process as MediaVault:
 **Request:**
 ```json
 {
-  "mode": "merge",
+  "mode": "replace",
   "total_count": 1234,
   "source": "kodi"
 }
 ```
 
 **Parameters:**
-- `mode` (optional): "merge" (default) or "replace"
+- `mode` (required): "merge" or "replace"
   - **"merge"**: Adds to existing collection (preserves existing items)
   - **"replace"**: Authoritative replacement (removes items not in this upload)
+
+**🚨 REPLACE MODE REQUIREMENTS:**
+When using `"mode": "replace"`, you MUST:
+1. Use Main API for ALL subsequent operations (never V1 API)
+2. Upload ALL movies you want to keep via chunk endpoints  
+3. Call the commit endpoint to finalize the replacement
+4. **Any movies not uploaded in chunks will be DELETED**
 - `total_count` (required): Total number of movies to upload
 - `source` (optional): Upload source identifier (default: "kodi")
 
@@ -410,6 +444,17 @@ Idempotency-Key: <uuid-per-chunk>
 **Endpoint:** `POST /library/batch/{upload_id}/commit`  
 **Authentication:** Required (API Key)  
 **Purpose:** Finalize the batch upload and apply changes
+
+**🚨 CRITICAL FOR REPLACE MODE:**  
+This endpoint is **MANDATORY** for replace-sync. Without calling commit:
+- Your uploaded movies will remain in limbo
+- Old movies will NOT be deleted  
+- Replace-sync will not occur
+
+**Replace Mode Behavior:**
+- Deletes ALL movies not uploaded in this batch
+- Keeps ONLY movies that were uploaded via chunk endpoints
+- Updates user collection to exactly match batch content
 
 **Success Response (200):**
 ```json
@@ -679,725 +724,144 @@ Idempotency-Key: <uuid-per-chunk>
 }
 ```
 
-## V1 Library Synchronization API
+## Simplified API Architecture
 
-The V1 API provides efficient client-server synchronization for IMDB movie lists, designed specifically for the Kodi addon sync protocol. These endpoints support version tracking, delta sync, and idempotent batch operations.
+**✅ SINGLE API APPROACH**
 
-### V1.1. Exchange OTP for Token
+The search-api now uses **one unified Main API** for all operations:
 
-**Endpoint:** `POST /v1/auth/otp`  
-**Authentication:** None (public endpoint)  
-**Purpose:** Exchange OTP (pairing code) for bearer token using V1 auth flow
-
-**Request:**
-```json
-{
-  "otp": "12345678"
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "access_token": "abc123...xyz789",
-  "token_type": "bearer", 
-  "expires_in": null,
-  "user_email": "user@example.com"
-}
-```
-
-**Error Responses:**
-```json
-// Missing OTP
-{
-  "error": "OTP required"
-}
-
-// Invalid or expired OTP
-{
-  "error": "Invalid or expired OTP"
-}
-```
-
-### V1.2. Validate Token
-
-**Endpoint:** `GET /v1/auth/whoami`  
-**Authentication:** Required (Bearer Token or API Key)  
-**Purpose:** Validate token and return user information
-
-**Headers:**
-```
-Authorization: Bearer YOUR_ACCESS_TOKEN
-# OR
-Authorization: ApiKey YOUR_API_KEY
-```
-
-**Success Response (200):**
-```json
-{
-  "user_id": "auth0|abc123",
-  "email": "user@example.com",
-  "role": "user",
-  "is_active": true,
-  "token_valid": true
-}
-```
-
-### V1.3. Get Library Version
-
-**Endpoint:** `GET /v1/library/version`  
-**Authentication:** Required (Bearer Token or API Key)  
-**Purpose:** Get current library version/etag for efficient delta sync
-
-**Success Response (200):**
-```json
-{
-  "version": 42,
-  "etag": "a1b2c3d4e5f6",
-  "item_count": 1234,
-  "last_modified": "2025-08-25T14:30:00Z"
-}
-```
-
-**Headers:**
-- `ETag: "a1b2c3d4e5f6"` - Version identifier for caching
-- `Cache-Control: private, max-age=0` - Caching policy
-
-**Usage:**
-- Check if client's cached version matches current server version
-- Avoid unnecessary data transfer when library unchanged
-- Essential for efficient sync protocol implementation
-
-### V1.4. Get Library IDs (Paginated)
-
-**Endpoint:** `GET /v1/library/ids`  
-**Authentication:** Required (Bearer Token or API Key)  
-**Purpose:** Get user's IMDB IDs with pagination and ETag support
-
-**Query Parameters:**
-- `page` (optional): Page number (default: 1)
-- `page_size` (optional): Items per page (default: 500, max: 1000)
-
-**Headers (Optional):**
-- `If-None-Match: "a1b2c3d4e5f6"` - Returns 304 if ETag matches
-
-**Success Response (200):**
-```json
-{
-  "version": 42,
-  "etag": "a1b2c3d4e5f6",
-  "imdb_ids": ["tt0111161", "tt0068646", "tt0071562"],
-  "pagination": {
-    "page": 1,
-    "page_size": 500,
-    "total_items": 1234,
-    "total_pages": 3,
-    "has_next": true,
-    "has_prev": false
-  }
-}
-```
-
-**304 Not Modified Response:**
-Returns empty body with 304 status when ETag matches client's version.
-
-### V1.5. Add Movies to Library
-
-**Endpoint:** `POST /v1/library/add`  
-**Authentication:** Required (Bearer Token or API Key)  
-**Purpose:** Add movies to library with idempotent batch processing
-
-**Headers:**
-```
-Idempotency-Key: <unique-uuid-per-batch>
-```
-
-**Request:**
-```json
-{
-  "imdb_ids": ["tt1234567", "tt7654321", "tt9876543"]
-}
-```
-
-**Limits:**
-- Maximum 5,000 movies per batch
-- Valid IMDB IDs only (format: tt + 7-8 digits)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "results": {
-    "added": 2,
-    "already_present": 1,
-    "invalid": 0
-  },
-  "items": [
-    {"imdb_id": "tt1234567", "status": "added"},
-    {"imdb_id": "tt7654321", "status": "already_present"},
-    {"imdb_id": "tt9876543", "status": "added"}
-  ],
-  "version": 43,
-  "etag": "b2c3d4e5f6g7",
-  "item_count": 1236
-}
-```
-
-**Item Status Values:**
-- `added`: Movie successfully added to library
-- `already_present`: Movie was already in library (idempotent)
-- `invalid`: Invalid IMDB ID format
-
-### V1.6. Remove Movies from Library
-
-**Endpoint:** `POST /v1/library/remove`  
-**Authentication:** Required (Bearer Token or API Key)  
-**Purpose:** Remove movies from library with idempotent batch processing
-
-**Headers:**
-```
-Idempotency-Key: <unique-uuid-per-batch>
-```
-
-**Request:**
-```json
-{
-  "imdb_ids": ["tt1234567", "tt7654321"]
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "results": {
-    "removed": 1,
-    "not_found": 1,
-    "invalid": 0
-  },
-  "items": [
-    {"imdb_id": "tt1234567", "status": "removed"},
-    {"imdb_id": "tt7654321", "status": "not_found"}
-  ],
-  "version": 44,
-  "etag": "c3d4e5f6g7h8",
-  "item_count": 1235
-}
-```
-
-**Item Status Values:**
-- `removed`: Movie successfully removed from library
-- `not_found`: Movie was not in library (idempotent)
-- `invalid`: Invalid IMDB ID format
-
-### V1.7. Search Owned Movies
-
-**Endpoint:** `GET /v1/library/search`  
-**Authentication:** Required (Bearer Token or API Key)  
-**Purpose:** Search within user's owned movie collection only
-
-**Query Parameters:**
-- `q` (required): Search query string
-- `limit` (optional): Results limit (default: 20, max: 100)
-- `only_owned` (required): Must be "true" for this endpoint
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "query": "psychological thriller",
-  "results": [
-    {"imdb_id": "tt1375666", "score": 0.924},
-    {"imdb_id": "tt0816692", "score": 0.887}
-  ],
-  "total_results": 15,
-  "library_version": 44,
-  "library_etag": "c3d4e5f6g7h8"
-}
-```
-
-**Features:**
-- Semantic search using AI embeddings
-- Results limited to user's movie collection
-- Includes library version for sync state awareness
-- Returns similarity scores for ranking
-
-## V1 Sync Protocol Example
-
-**Efficient Client Sync Workflow:**
-
-1. **Check for Changes:**
-   ```bash
-   GET /v1/library/version
-   # Compare ETag with cached version
-   ```
-
-2. **Get Current Server State (if changed):**
-   ```bash
-   GET /v1/library/ids?page=1&page_size=1000
-   # With If-None-Match header for 304 responses
-   ```
-
-3. **Compute Differences:**
-   ```javascript
-   const local_ids = getLocalMovieIds();
-   const server_ids = response.imdb_ids;
-   const to_add = local_ids.filter(id => !server_ids.includes(id));
-   const to_remove = server_ids.filter(id => !local_ids.includes(id));
-   ```
-
-4. **Apply Changes:**
-   ```bash
-   # Add new movies
-   POST /v1/library/add
-   Idempotency-Key: add-batch-uuid
-   {"imdb_ids": to_add}
-
-   # Remove deleted movies  
-   POST /v1/library/remove
-   Idempotency-Key: remove-batch-uuid
-   {"imdb_ids": to_remove}
-   ```
+- **Individual movies**: Use Main API with batch size of 1
+- **Collections**: Use Main API with chunked uploads  
+- **Replace-sync**: Use Main API batch operations with commit
 
 **Benefits:**
-- Minimal bandwidth usage with ETag caching
-- Idempotent operations safe for retries
-- Version tracking for conflict detection
-- Batch processing for efficiency
+- No API confusion or mixing
+- Consistent transaction handling
+- Better error recovery and logging
+- Simplified client implementation
 
-### 13. Find Similar Movies
+## Example: Adding Individual Movie
 
-**Endpoint:** `POST /similar_to`  
-**Authentication:** None (public endpoint)  
-**Purpose:** Find movies similar to a reference movie based on selected embedding facets
+**For single movie operations**, use the Main API with batch size of 1:
 
-**Description:**
-This endpoint uses vector similarity search to find movies that match specific aspects of a reference movie:
-1. **Dynamic Facet Selection**: Choose which movie aspects to compare (plot, mood, themes, genre)
-2. **Equal Weight Distribution**: Selected facets receive equal weighting (e.g., 2 facets = 50% each)
-3. **Vector Similarity**: Uses cosine similarity on OpenAI embeddings stored in OpenSearch
-4. **Sorted Results**: Returns up to 50 IMDb IDs ranked by similarity score
-
-**Request:**
-```json
+```javascript
+// 1. Start batch session
+POST /library/batch/start
 {
-  "reference_imdb_id": "tt0111161",
-  "include_plot": true,
-  "include_mood": true,
-  "include_themes": false,
-  "include_genre": false
+  "mode": "merge",
+  "total_count": 1,
+  "source": "kodi"
 }
+// Returns: {"upload_id": "u_abc123", "max_chunk": 1000}
+
+// 2. Upload single movie
+PUT /library/batch/u_abc123/chunk
+{
+  "chunk_index": 0,
+  "items": [{"imdb_id": "tt1234567"}]
+}
+
+// 3. Commit batch
+POST /library/batch/u_abc123/commit
+// Movie is now added to user's collection
 ```
 
-**Parameters:**
-- `reference_imdb_id` (required): IMDb ID of the reference movie (format: "tt" + digits)
-- `include_plot` (optional): Include plot similarity (default: false)
-- `include_mood` (optional): Include mood/tone similarity (default: false)
-- `include_themes` (optional): Include themes/subtext similarity (default: false)
-- `include_genre` (optional): Include genre/tropes similarity (default: false)
+This provides the same functionality as the old individual endpoints, but with consistent error handling and logging.
 
-**Requirements:**
-- At least one facet must be set to `true`
-- Reference movie must exist in the system with embedding data
-- Valid IMDb ID format required
+## Implementation Examples
 
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "results": [
-    "tt0068646",
-    "tt0071562", 
-    "tt0468569",
-    "tt0816692",
-    "tt1375666"
-  ]
-}
-```
+### 1. Replace-Sync Example (Recommended)
 
-**Error Responses:**
-```json
-// Missing reference ID
-{
-  "success": false,
-  "error": "reference_imdb_id is required"
-}
+```javascript
+// Complete library replacement with all user's movies
+function performReplacSync(movies) {
+    // 1. Start batch session
+    const batchResponse = await fetch('/library/batch/start', {
+        method: 'POST',
+        headers: { 'Authorization': `ApiKey ${apiKey}` },
+        body: JSON.stringify({
+            mode: 'replace',
+            total_count: movies.length,
+            source: 'kodi'
+        })
+    });
 
-// No facets selected
-{
-  "success": false,
-  "error": "At least one facet must be included"
-}
+    const batch = await batchResponse.json();
+    const uploadId = batch.upload_id;
 
-// Invalid IMDb ID format
-{
-  "success": false,
-  "error": "Invalid IMDb ID format"
-}
+    // 2. Upload movies in chunks
+    const chunkSize = 1000;
+    for (let i = 0; i < movies.length; i += chunkSize) {
+        const chunk = movies.slice(i, i + chunkSize);
+        const chunkIndex = Math.floor(i / chunkSize);
 
-// Search service unavailable
-{
-  "success": false,
-  "error": "Search service not available"
-}
-```
-
-**Usage Example (Python):**
-```python
-def find_similar_movies(reference_imdb, facets):
-    payload = {
-        "reference_imdb_id": reference_imdb,
-        "include_plot": facets.get("plot", False),
-        "include_mood": facets.get("mood", False), 
-        "include_themes": facets.get("themes", False),
-        "include_genre": facets.get("genre", False)
+        await fetch(`/library/batch/${uploadId}/chunk`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `ApiKey ${apiKey}`,
+                'Idempotency-Key': generateUUID()
+            },
+            body: JSON.stringify({
+                chunk_index: chunkIndex,
+                items: chunk.map(movie => ({imdb_id: movie.imdb_id}))
+            })
+        });
     }
 
-    response = requests.post(f"{BASE_URL}/similar_to", json=payload)
+    // 3. Commit batch (REQUIRED!)
+    const commitResponse = await fetch(`/library/batch/${uploadId}/commit`, {
+        method: 'POST',
+        headers: { 'Authorization': `ApiKey ${apiKey}` }
+    });
 
-    if response.status_code == 200:
-        data = response.json()
-        if data["success"]:
-            return data["results"]  # List of IMDb IDs
-
-    return []
-
-# Example usage
-similar_movies = find_similar_movies("tt0111161", {
-    "plot": True,
-    "mood": True
-})
-```
-
-## Error Handling
-
-### Standard HTTP Status Codes
-
-- **200**: Success
-- **400**: Bad Request (missing/invalid parameters)
-- **401**: Unauthorized (invalid/missing API key)
-- **404**: Not Found (resource doesn't exist)
-- **429**: Too Many Requests (rate limiting)
-- **500**: Internal Server Error
-
-### Error Response Format
-
-All error responses follow this format:
-```json
-{
-  "success": false,
-  "error": "Description of the error",
-  "error_code": "OPTIONAL_ERROR_CODE"
+    const result = await commitResponse.json();
+    console.log(`Replace-sync complete: ${result.user_movie_count} movies`);
+    return result;
 }
 ```
 
-## Rate Limiting
+### 2. Delta Sync Example (Efficient Updates)
 
-- **Search requests**: 60 per minute per API key
-- **Detail requests**: 120 per minute per API key  
-- **Test/health checks**: 10 per minute per API key
+```javascript
+// Only upload movies not already on server
+function performDeltaSync() {
+    // Get server fingerprints
+    const hashResponse = await fetch('/library/hash', {
+        headers: { 'Authorization': `ApiKey ${apiKey}` }
+    });
+    const serverData = await hashResponse.json();
+    const serverFingerprints = new Set(serverData.fingerprints);
 
-## Kodi Addon Implementation Guidelines
+    // Get local movies and calculate fingerprints
+    const localMovies = getUserMovieCollection();
+    const newMovies = localMovies.filter(movie => {
+        const fingerprint = calculateFingerprint(movie.imdb_id);
+        return !serverFingerprints.has(fingerprint);
+    });
 
-### 1. Configuration Storage
-
-Store these settings in Kodi addon settings:
-```python
-# Settings
-server_url = addon.getSetting('server_url')
-api_key = addon.getSetting('api_key')
-pairing_code = addon.getSetting('pairing_code')  # Temporary
-```
-
-### 2. Initial Setup Flow
-
-```python
-def setup_addon():
-    # Check if already configured
-    if addon.getSetting('api_key'):
-        return test_connection()
-
-    # Prompt for pairing code
-    pairing_code = xbmcgui.Dialog().input('Enter pairing code from website:')
-
-    if pairing_code:
-        return exchange_pairing_code(pairing_code)
-
-    return False
-
-def exchange_pairing_code(code):
-    response = requests.post(f'{BASE_URL}/pairing-code/exchange', 
-                           json={'pairing_code': code})
-
-    if response.status_code == 200:
-        data = response.json()
-        addon.setSetting('api_key', data['api_key'])
-        addon.setSetting('server_url', data['server_url'])
-        return True
-
-    return False
-```
-
-### 3. API Request Helper
-
-```python
-def make_api_request(endpoint, method='GET', data=None):
-    headers = {
-        'Authorization': f"ApiKey {addon.getSetting('api_key')}",
-        'Content-Type': 'application/json'
+    if (newMovies.length === 0) {
+        console.log('Collection already up to date');
+        return;
     }
 
-    url = f"{addon.getSetting('server_url')}/{endpoint}"
-
-    if method == 'GET':
-        response = requests.get(url, headers=headers)
-    elif method == 'POST':
-        response = requests.post(url, headers=headers, json=data)
-    elif method == 'DELETE':
-        response = requests.delete(url, headers=headers)
-
-    if response.status_code == 401:
-        # API key invalid - prompt for reconfiguration
-        reconfigure_addon()
-        return None
-
-    return response.json() if response.status_code == 200 else None
+    // Upload only new movies using merge mode
+    return performReplacSync(newMovies, 'merge');
+}
 ```
 
-### 4. Chunked Movie Collection Upload
+## Summary
 
-```python
-import json
-import time
-import urllib.request
-import urllib.error
-from urllib.parse import urljoin
+The search-api now uses a **single, unified Main API** that eliminates confusion and provides:
 
-def chunked_movie_upload(movie_list, mode='merge', chunk_size=500):
-    """Upload user's movie collection using chunked batch upload"""
+✅ **Consistent behavior** across all operations  
+✅ **Proper transaction handling** with commit/rollback  
+✅ **Enhanced error recovery** and detailed logging  
+✅ **Replace-sync functionality** that works correctly  
 
-    # Step 1: Start batch session
-    session = make_kodi_api_request('library/batch/start', 'POST', {
-        'mode': mode,
-        'total_count': len(movie_list),
-        'source': 'kodi'
-    })
+**Key Takeaways for Kodi Developers:**
+- Use Main API for all operations (individual or batch)
+- Always call commit endpoint for replace-sync
+- Use merge mode for adding movies, replace mode for authoritative replacement
+- Implement proper error handling and retry logic
 
-    if not session or not session.get('success'):
-        return {'success': False, 'error': 'Failed to start batch session'}
-
-    upload_id = session['upload_id']
-    max_chunk = session['max_chunk']
-    effective_chunk_size = min(chunk_size, max_chunk)
-
-    # Step 2: Split into chunks and upload
-    chunks = [movie_list[i:i + effective_chunk_size] 
-              for i in range(0, len(movie_list), effective_chunk_size)]
-
-    failed_chunks = []
-
-    for chunk_index, chunk in enumerate(chunks):
-        # Generate unique idempotency key (without uuid dependency)
-        import random
-        import time
-        idempotency_key = f"{int(time.time())}-{random.randint(10000, 99999)}-{chunk_index}"
-
-        # Format items for API - only IMDb IDs accepted
-        items = []
-        for movie in chunk:
-            if isinstance(movie, str):
-                # Just IMDb ID
-                items.append({'imdb_id': movie})
-            elif isinstance(movie, dict) and 'imdb_id' in movie:
-                # Movie object - extract only the IMDb ID  
-                items.append({'imdb_id': movie['imdb_id']})
-            else:
-                # Skip invalid items - only valid IMDb IDs accepted
-                continue
-
-        # Upload chunk with retry logic
-        success = False
-        for attempt in range(3):  # 3 retry attempts
-            try:
-                headers = {'Idempotency-Key': idempotency_key}
-                result = make_kodi_api_request_with_headers(
-                    f'library/batch/{upload_id}/chunk',
-                    'PUT',
-                    {
-                        'chunk_index': chunk_index,
-                        'items': items
-                    },
-                    headers
-                )
-
-                if result and result.get('success'):
-                    success = True
-                    break
-
-            except Exception as e:
-                time.sleep(2 ** attempt)  # Exponential backoff
-
-        if not success:
-            failed_chunks.append(chunk_index)
-
-    # Step 3: Commit the batch
-    if not failed_chunks:
-        commit_result = make_kodi_api_request(
-            f'library/batch/{upload_id}/commit', 'POST'
-        )
-
-        if commit_result and commit_result.get('success'):
-            return {
-                'success': True,
-                'upload_id': upload_id,
-                'final_tallies': commit_result['final_tallies'],
-                'user_movie_count': commit_result['user_movie_count']
-            }
-
-    return {
-        'success': False,
-        'upload_id': upload_id,
-        'failed_chunks': failed_chunks,
-        'error': 'Some chunks failed to upload'
-    }
-
-def make_kodi_api_request_with_headers(endpoint, method, data=None, headers=None):
-    """Kodi 19+ API request helper using Python 3 libraries"""
-    import xbmcaddon
-    import json
-    import xbmc
-
-    addon = xbmcaddon.Addon()
-    api_key = addon.getSetting('api_key')
-    server_url = addon.getSetting('server_url').rstrip('/')
-
-    url = f"{server_url}/{endpoint}"
-
-    # Prepare headers
-    request_headers = {
-        'Authorization': f"ApiKey {api_key}",
-        'Content-Type': 'application/json'
-    }
-    if headers:
-        request_headers.update(headers)
-
-    try:
-        # Create request object
-        if data:
-            json_data = json.dumps(data).encode('utf-8')
-            request = urllib.request.Request(url, data=json_data)
-        else:
-            request = urllib.request.Request(url)
-
-        # Add headers
-        for key, value in request_headers.items():
-            request.add_header(key, value)
-
-        # Set method for non-GET requests
-        if method in ['PUT', 'POST', 'DELETE']:
-            request.get_method = lambda: method
-
-        # Make request
-        response = urllib.request.urlopen(request, timeout=30)
-
-        if response.getcode() == 200:
-            response_data = response.read().decode('utf-8')
-            return json.loads(response_data)
-
-    except Exception as e:
-        xbmc.log(f"API request failed: {str(e)}", xbmc.LOGERROR)
-
-    return None
-
-def make_kodi_api_request(endpoint, method='GET', data=None):
-    """Simplified API request without custom headers"""
-    return make_kodi_api_request_with_headers(endpoint, method, data)
-
-def delta_sync_movies():
-    """Efficient delta sync using library fingerprints"""
-    # Get current server fingerprints
-    server_hash = make_kodi_api_request('library/hash')
-    if not server_hash or not server_hash.get('success'):
-        return full_sync_movies()
-
-    server_fingerprints = set(server_hash['fingerprints'])
-
-    # Get local movie collection
-    local_movies = get_user_movie_collection()
-    local_fingerprints = set()
-
-    # Use Kodi's built-in hash function (simple approach)
-    import hashlib
-    for movie in local_movies:
-        imdb_id = movie['imdb_id'] if isinstance(movie, dict) else movie
-        # Create simple hash using available libraries
-        hash_obj = hashlib.sha1(imdb_id.encode('utf-8'))
-        local_fingerprints.add(hash_obj.hexdigest()[:8])
-
-    # Find movies to upload (not on server)
-    new_fingerprints = local_fingerprints - server_fingerprints
-
-    if not new_fingerprints:
-        return {'success': True, 'message': 'Collection already up to date'}
-
-    # Filter movies to upload
-    movies_to_upload = []
-    for movie in local_movies:
-        imdb_id = movie['imdb_id'] if isinstance(movie, dict) else movie
-        hash_obj = hashlib.sha1(imdb_id.encode('utf-8'))
-        if hash_obj.hexdigest()[:8] in new_fingerprints:
-            movies_to_upload.append(movie)
-
-    # Upload only new movies
-    return chunked_movie_upload(movies_to_upload, mode='merge')
-
-def full_sync_movies():
-    """Full collection sync (authoritative replacement)"""
-    user_collection = get_user_movie_collection()
-    return chunked_movie_upload(user_collection, mode='replace')
-
-def get_upload_status(upload_id):
-    """Check status of an ongoing upload"""
-    return make_kodi_api_request(f'library/batch/{upload_id}/status')
-```
-
-### 4. Connection Testing
-
-```python
-def test_connection():
-    response = make_api_request('kodi/test')
-    return response and response.get('kodi_ready', False)
-```
-
-
-## Support and Debugging
-
-### Debug Mode
-
-Enable debug logging in your Kodi addon to capture API responses:
-
-```python
-import xbmc
-
-def log_debug(message):
-    if addon.getSetting('debug_mode') == 'true':
-        xbmc.log(f"[MovieSearch] {message}", xbmc.LOGDEBUG)
-```
-
-### Common Issues
-
-1. **401 Unauthorized**: API key expired or invalid
-   - Solution: Regenerate API key or re-pair addon
-
-2. **404 Not Found**: Movie not in database
-   - Solution: Check IMDb ID format, request movie addition
-
-3. **429 Rate Limited**: Too many requests
-   - Solution: Implement request throttling in addon
-
-### Contact
-
-For Kodi addon development support, contact your system administrator with:
-- API request/response logs
-- Kodi version and addon version
-- Specific error messages or behavior
+For technical support, contact your system administrator with API logs and specific error messages.  
