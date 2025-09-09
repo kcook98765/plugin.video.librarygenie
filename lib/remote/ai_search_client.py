@@ -358,11 +358,11 @@ class AISearchClient:
 
     def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500, use_replace_mode: bool = False) -> Optional[Dict[str, Any]]:
         """
-        Sync a batch of media items with the AI search server using V1 batch API
+        Sync a batch of media items with the AI search server using Main API
 
         Args:
             media_items: List of media item dictionaries with imdb_id
-            batch_size: Items per batch (max 5000)
+            batch_size: Items per chunk (max 1000)
             use_replace_mode: If True, use "replace" mode for authoritative sync
 
         Returns:
@@ -373,7 +373,7 @@ class AISearchClient:
             return None
 
         if not media_items:
-            return {'success': True, 'results': {'added': 0, 'already_present': 0, 'invalid': 0}}
+            return {'success': True, 'results': {'accepted': 0, 'duplicates': 0, 'invalid': 0}}
 
         try:
             # Extract IMDb IDs from media items
@@ -402,45 +402,58 @@ class AISearchClient:
                 self.logger.error(f"Failed to start batch upload session: {error_msg}")
                 return {'success': False, 'error': error_msg}
 
+            # Get upload_id from start response
+            upload_id = start_response.get('upload_id')
+            if not upload_id:
+                self.logger.error("No upload_id received from batch start")
+                return {'success': False, 'error': 'No upload_id in start response'}
 
-            # Validate and adjust batch size according to API limits
-            chunk_size = min(max(batch_size, 1), 5000)  # Ensure 1-5000 range
+            # Validate and adjust chunk size according to API limits
+            chunk_size = min(max(batch_size, 1), 1000)  # Main API max chunk size is 1000
             results = {
-                'added': 0,
-                'already_present': 0,
+                'accepted': 0,
+                'duplicates': 0,
                 'invalid': 0
             }
 
+            chunk_index = 0
             for i in range(0, len(imdb_ids), chunk_size):
-                chunk = imdb_ids[i:i + chunk_size]
+                chunk_imdb_ids = imdb_ids[i:i + chunk_size]
 
-                # Generate idempotency key
-                import random
-                idempotency_key = f"{int(time.time())}-{random.randint(10000, 99999)}-{i // chunk_size}"
+                # Prepare chunk data
+                chunk_items = [{'imdb_id': imdb_id} for imdb_id in chunk_imdb_ids]
+                chunk_data = {
+                    'chunk_index': chunk_index,
+                    'items': chunk_items
+                }
 
-                # Make add request
+                # Generate idempotency key for this chunk
+                import uuid
+                idempotency_key = str(uuid.uuid4())
+
+                # Upload chunk using Main API
                 response = self._make_request(
-                    'v1/library/add',
-                    'POST',
-                    {'imdb_ids': chunk},
+                    f'library/batch/{upload_id}/chunk',
+                    'PUT',
+                    chunk_data,
                     {'Idempotency-Key': idempotency_key}
                 )
 
                 if response and response.get('success'):
                     chunk_results = response.get('results', {})
-                    results['added'] += chunk_results.get('added', 0)
-                    results['already_present'] += chunk_results.get('already_present', 0)
+                    results['accepted'] += chunk_results.get('accepted', 0)
+                    results['duplicates'] += chunk_results.get('duplicates', 0)
                     results['invalid'] += chunk_results.get('invalid', 0)
 
-                    self.logger.debug(f"Synced chunk {i // chunk_size + 1}: {chunk_results}")
+                    self.logger.debug(f"Uploaded chunk {chunk_index + 1}: {chunk_results}")
 
                     # Rate limiting - wait between chunks
                     if i + chunk_size < len(imdb_ids):
-                        time.sleep(1)  # 1 second wait between batches
+                        time.sleep(1)  # 1 second wait between chunks
 
                 else:
                     error_msg = response.get('error', 'Unknown error') if response else 'No response'
-                    self.logger.warning(f"Chunk sync failed: {error_msg}")
+                    self.logger.warning(f"Chunk upload failed: {error_msg}")
 
                     # For certain errors, continue with next chunk instead of failing completely
                     if 'rate limit' in error_msg.lower() or 'timeout' in error_msg.lower():
@@ -450,11 +463,32 @@ class AISearchClient:
 
                     return {'success': False, 'error': error_msg}
 
-            self.logger.info(f"Media batch sync completed: {results}")
+                chunk_index += 1
+
+            # Commit the batch - REQUIRED for replace-sync operations
+            self.logger.info(f"Committing batch upload for {upload_id}")
+            commit_response = self._make_request(f'library/batch/{upload_id}/commit', 'POST')
+            
+            if not commit_response or not commit_response.get('success'):
+                error_msg = commit_response.get('error', 'Failed to commit batch') if commit_response else 'No response'
+                self.logger.error(f"Failed to commit batch: {error_msg}")
+                return {'success': False, 'error': f'Commit failed: {error_msg}'}
+
+            # Get final results from commit response
+            final_tallies = commit_response.get('final_tallies', results)
+            user_movie_count = commit_response.get('user_movie_count', 0)
+            removed_count = commit_response.get('removed_count', 0)
+
+            self.logger.info(f"Media batch sync completed: {final_tallies}")
+            if use_replace_mode and removed_count > 0:
+                self.logger.info(f"Replace sync removed {removed_count} movies not in current batch")
+
             return {
                 'success': True,
-                'results': results,
-                'total_processed': len(imdb_ids)
+                'results': final_tallies,
+                'total_processed': len(imdb_ids),
+                'user_movie_count': user_movie_count,
+                'removed_count': removed_count if use_replace_mode else 0
             }
 
         except Exception as e:
