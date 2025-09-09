@@ -302,12 +302,15 @@ class Router:
         try:
             self.logger.info("Authorization button clicked from settings")
             
-            # Get settings manager to read OTP code
+            # Create fresh settings manager to avoid Kodi settings cache issues
+            # This ensures we get the latest OTP code the user just entered
             from ..config.settings import SettingsManager
             settings = SettingsManager()
             
-            # Get OTP code and server URL
-            otp_code = settings.get_ai_search_otp_code()
+            # Force fresh read by creating new addon instance for OTP code
+            import xbmcaddon
+            fresh_addon = xbmcaddon.Addon()
+            otp_code = fresh_addon.getSetting('ai_search_otp_code').strip() if fresh_addon.getSetting('ai_search_otp_code') else None
             server_url = settings.get_remote_server_url()
             
             # Debug logging to see what we retrieved
@@ -344,8 +347,8 @@ class Router:
                 progress.close()
                 
                 if result['success']:
-                    # Success - clear OTP code and activate
-                    settings.set_ai_search_otp_code("")
+                    # Success - clear OTP code and activate using fresh addon instance
+                    fresh_addon.setSetting('ai_search_otp_code', "")
                     settings.set_ai_search_activated(True)
                     
                     # Show success dialog
