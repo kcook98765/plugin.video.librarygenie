@@ -613,6 +613,9 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         action_info_end = time.perf_counter()
         logger.debug(f"SUBSTEP 7 DEBUG: Action(Info) command executed in {action_info_end - start_info_time:.3f}s")
         
+        # Brief pause between SUBSTEP 7 and 8 for UI stability
+        xbmc.sleep(50)
+        
         # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
         substep8_start = time.perf_counter()
         logger.info(f"⌛ SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
