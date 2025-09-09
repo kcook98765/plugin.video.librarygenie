@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -33,17 +32,17 @@ class AISearchClient:
             'Content-Type': 'application/json',
             'User-Agent': 'LibraryGenie-Kodi/1.0'
         }
-        
+
         api_key = get_api_key()
         if api_key:
             headers['Authorization'] = f'ApiKey {api_key}'
-        
+
         if additional_headers:
             headers.update(additional_headers)
-            
+
         return headers
 
-    def _make_public_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
+    def _make_public_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None,
                             headers: Optional[Dict[str, str]] = None, timeout: int = 30) -> Optional[Dict[str, Any]]:
         """Make HTTP request to AI search server without authentication (for public endpoints)"""
         server_url = self.settings.get_remote_server_url()
@@ -52,16 +51,16 @@ class AISearchClient:
             return None
 
         url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
-        
-        # Log the complete URL for endpoint verification  
+
+        # Log the complete URL for endpoint verification
         self.logger.info(f"🌐 PUBLIC API REQUEST: {method} {url}")
-        
+
         # Use minimal headers for public endpoints
         request_headers = {
             'Content-Type': 'application/json',
             'User-Agent': 'LibraryGenie-Kodi/1.0'
         }
-        
+
         if headers:
             request_headers.update(headers)
 
@@ -103,7 +102,7 @@ class AISearchClient:
             self.logger.error(f"Request failed: {e}")
             return {'error': f'Request failed: {str(e)}'}
 
-    def _make_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
+    def _make_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None,
                      headers: Optional[Dict[str, str]] = None, timeout: int = 30) -> Optional[Dict[str, Any]]:
         """Make HTTP request to AI search server"""
         server_url = self.settings.get_remote_server_url()
@@ -113,7 +112,7 @@ class AISearchClient:
 
         url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
         request_headers = self._get_headers(headers)
-        
+
         # Log the complete URL for endpoint verification
         self.logger.info(f"🌐 API REQUEST: {method} {url}")
 
@@ -143,14 +142,14 @@ class AISearchClient:
                 error_body = e.read().decode('utf-8')
                 error_data = json.loads(error_body)
                 error_msg = error_data.get('error', 'Unknown')
-                
+
                 # Handle API key expiration/invalidation
                 if e.code == 401:
                     self.logger.warning("API key appears to be invalid/expired")
                     # Clear invalid API key to prevent repeated failed requests
                     from ..auth.state import clear_auth_data
                     clear_auth_data()
-                
+
                 self.logger.error(f"HTTP {e.code} error: {error_msg}")
                 return {'error': error_msg}
             except:
@@ -168,7 +167,7 @@ class AISearchClient:
     def is_configured(self) -> bool:
         """Check if AI search is properly configured"""
         return bool(
-            self.settings.get_remote_server_url() and 
+            self.settings.get_remote_server_url() and
             is_authorized()
         )
 
@@ -282,7 +281,7 @@ class AISearchClient:
                 if not isinstance(results, list):
                     self.logger.error("Invalid response format: results is not a list")
                     return None
-                
+
                 self.logger.info(f"AI search completed: {len(results)} results")
                 return response
             else:
@@ -314,13 +313,14 @@ class AISearchClient:
             self.logger.error(f"Error getting library version: {e}")
             return None
 
-    def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500) -> Optional[Dict[str, Any]]:
+    def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500, use_replace_mode: bool = False) -> Optional[Dict[str, Any]]:
         """
         Sync a batch of media items with the AI search server using V1 batch API
 
         Args:
             media_items: List of media item dictionaries with imdb_id
             batch_size: Items per batch (max 5000)
+            use_replace_mode: If True, use "replace" mode for authoritative sync
 
         Returns:
             Sync result or None if sync fails
@@ -342,7 +342,23 @@ class AISearchClient:
 
             if not imdb_ids:
                 self.logger.warning("No valid IMDb IDs found in media items")
-                return {'success': False, 'error': 'No valid IMDb IDs'}
+                return {'success': False, 'error': 'No valid IMDb IDs found'}
+
+            # Start batch upload session
+            sync_mode = 'replace' if use_replace_mode else 'merge'
+            batch_start_data = {
+                'mode': sync_mode,
+                'total_count': len(imdb_ids),
+                'source': 'kodi'
+            }
+
+            self.logger.info(f"Starting batch sync in '{sync_mode}' mode with {len(imdb_ids)} items")
+            start_response = self._make_request('library/batch/start', 'POST', batch_start_data)
+            if not start_response or not start_response.get('success'):
+                error_msg = start_response.get('error', 'Failed to start batch session') if start_response else 'No response'
+                self.logger.error(f"Failed to start batch upload session: {error_msg}")
+                return {'success': False, 'error': error_msg}
+
 
             # Validate and adjust batch size according to API limits
             chunk_size = min(max(batch_size, 1), 5000)  # Ensure 1-5000 range
@@ -382,13 +398,13 @@ class AISearchClient:
                 else:
                     error_msg = response.get('error', 'Unknown error') if response else 'No response'
                     self.logger.warning(f"Chunk sync failed: {error_msg}")
-                    
+
                     # For certain errors, continue with next chunk instead of failing completely
                     if 'rate limit' in error_msg.lower() or 'timeout' in error_msg.lower():
                         self.logger.info("Recoverable error, continuing with next chunk after delay")
                         time.sleep(30)  # Extended delay for rate limits
                         continue
-                    
+
                     return {'success': False, 'error': error_msg}
 
             self.logger.info(f"Media batch sync completed: {results}")

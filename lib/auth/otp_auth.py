@@ -18,6 +18,7 @@ from typing import Dict, Any, Optional
 from ..config import get_config
 from ..utils.logger import get_logger
 from .state import save_api_key, get_api_key, clear_auth_data
+from ..remote.ai_search_client import get_ai_search_client
 
 logger = get_logger(__name__)
 
@@ -88,12 +89,12 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
         with urllib.request.urlopen(req, timeout=10) as response:
             response_code = response.getcode()
             response_data = response.read().decode('utf-8')
-            
+
             logger.info(f"=== OTP EXCHANGE RESPONSE ===")
             logger.info(f"Status Code: {response_code}")
             logger.info(f"Response Headers: {dict(response.headers)}")
             logger.info(f"Response Body: {response_data}")
-            
+
             if response_code == 200:
                 data = json.loads(response_data)
 
@@ -140,7 +141,7 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
             logger.info(f"Status Code: {e.code}")
             logger.info(f"Error Headers: {dict(e.headers) if hasattr(e, 'headers') else 'N/A'}")
             logger.info(f"Error Body: {error_body}")
-            
+
             error_data = json.loads(error_body)
             error_msg = error_data.get('error', f'HTTP {e.code} error')
         except Exception:
@@ -215,12 +216,12 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
         with urllib.request.urlopen(req, timeout=10) as response:
             response_code = response.getcode()
             response_data = response.read().decode('utf-8')
-            
+
             logger.info(f"=== API CONNECTION TEST RESPONSE ===")
             logger.info(f"Status Code: {response_code}")
             logger.info(f"Response Headers: {dict(response.headers)}")
             logger.info(f"Response Body: {response_data}")
-            
+
             if response_code == 200:
                 data = json.loads(response_data)
 
@@ -257,7 +258,7 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
             logger.info(f"Error Body: {error_body}")
         except Exception:
             error_body = 'Unable to read error body'
-        
+
         if e.code == 401:
             error_msg = 'Invalid or expired API key'
         else:
@@ -310,14 +311,31 @@ def run_otp_authorization_flow(server_url: str) -> bool:
             # Exchange OTP for API key
             result = exchange_otp_for_api_key(otp_code, server_url)
 
-            progress.close()
-
             if result['success']:
                 # Success - show confirmation
                 dialog.ok(
                     "Authorization Complete",
                     f"AI Search activated successfully!\n\nUser: {result.get('user_email', 'Unknown')}"
                 )
+
+                # Trigger authoritative sync after successful OTP authentication
+                try:
+                    from ..data.list_library_manager import get_list_library_manager
+                    library_manager = get_list_library_manager()
+                    media_items = library_manager.get_all_items(limit=10000)
+
+                    if media_items:
+                        ai_client = get_ai_search_client()
+                        sync_result = ai_client.sync_after_otp(media_items)
+                        if sync_result and sync_result.get('success'):
+                            logger.info(f"Post-OTP authoritative sync completed: {sync_result.get('results', {})}")
+                        else:
+                            logger.warning("Post-OTP sync failed, but authentication was successful")
+                    else:
+                        logger.info("No media items found, skipping post-OTP sync")
+
+                except Exception as e:
+                    logger.warning(f"Post-OTP sync failed but authentication succeeded: {e}")
 
                 logger.info("OTP authorization flow completed successfully")
                 return True
