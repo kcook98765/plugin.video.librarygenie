@@ -665,21 +665,21 @@ class AISearchHandler:
             ):
                 return
 
-            # Show progress dialog
-            progress = xbmcgui.DialogProgress()
-            progress.create("AI Search Replace Sync", "Scanning local library...")
-            progress.update(10)
-
+            # Start background sync
             try:
                 # Get movies from local database
                 from ..data.connection_manager import get_connection_manager
                 conn_manager = get_connection_manager()
 
-                progress.update(30, "Collecting movie data...")
+                # Show background progress
+                dialog_bg = xbmcgui.DialogProgressBG()
+                dialog_bg.create("AI Search Replace Sync", "Scanning local library...")
 
                 movies_result = conn_manager.execute_query(
                     "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
                 )
+
+                dialog_bg.update(30, "AI Search Replace Sync", "Collecting movie data...")
 
                 movies_with_imdb = []
                 for row in movies_result:
@@ -692,17 +692,17 @@ class AISearchHandler:
                             'year': row['year'] if row['year'] else 0
                         })
 
-                progress.update(50, f"Found {len(movies_with_imdb)} movies...")
+                dialog_bg.update(50, "AI Search Replace Sync", f"Found {len(movies_with_imdb)} movies...")
 
                 if not movies_with_imdb:
-                    progress.close()
+                    dialog_bg.close()
                     xbmcgui.Dialog().ok(
                         "No Movies Found",
                         "No movies with IMDb IDs found in your library."
                     )
                     return
 
-                progress.update(70, "Syncing with server (replace mode)...")
+                dialog_bg.update(70, "AI Search Replace Sync", "Syncing with server (replace mode)...")
 
                 # Perform replace sync
                 result = ai_client.sync_media_batch(
@@ -711,8 +711,8 @@ class AISearchHandler:
                     use_replace_mode=True
                 )
 
-                progress.update(100)
-                progress.close()
+                dialog_bg.update(100, "AI Search Replace Sync", "Sync completed")
+                dialog_bg.close()
 
                 if result and result.get('success'):
                     sync_results = result.get('results', {})
@@ -735,7 +735,8 @@ class AISearchHandler:
                     )
 
             except Exception as e:
-                progress.close()
+                if 'dialog_bg' in locals():
+                    dialog_bg.close()
                 context.logger.error(f"Error during replace sync: {e}")
                 xbmcgui.Dialog().ok(
                     "Error",
