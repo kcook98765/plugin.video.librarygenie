@@ -183,31 +183,21 @@ class AISearchHandler:
             List of matched media item dictionaries
         """
         try:
-            matched_items = []
+            # Use standard connection manager query method
+            placeholders = ','.join(['?' for _ in imdb_ids])
+            query = f"""
+                SELECT id, title, year, imdb_id, tmdb_id, plot, rating, 
+                       poster_url, fanart_url, trailer_url, genres, runtime,
+                       kodi_id, kodi_dbtype, date_added
+                FROM media_items 
+                WHERE imdb_id IN ({placeholders})
+                ORDER BY title
+            """
             
-            # Use connection manager with proper transaction handling
-            with self.conn_manager.transaction() as conn:
-                cursor = conn.cursor()
-                
-                # Query to find media items by IMDb ID
-                placeholders = ','.join(['?' for _ in imdb_ids])
-                query = f"""
-                    SELECT id, title, year, imdb_id, tmdb_id, plot, rating, 
-                           poster_url, fanart_url, trailer_url, genres, runtime,
-                           kodi_id, kodi_dbtype, date_added
-                    FROM media_items 
-                    WHERE imdb_id IN ({placeholders})
-                    ORDER BY title
-                """
-                
-                cursor.execute(query, imdb_ids)
-                rows = cursor.fetchall()
-                
-                # Convert rows to dictionaries
-                columns = [desc[0] for desc in cursor.description]
-                for row in rows:
-                    item_dict = dict(zip(columns, row))
-                    matched_items.append(item_dict)
+            rows = self.conn_manager.execute_query(query, imdb_ids)
+            
+            # Convert rows to dictionaries  
+            matched_items = [dict(row) for row in rows]
             
             self.logger.info(f"AI SEARCH MATCH: Found {len(matched_items)} matches out of {len(imdb_ids)} IMDb IDs")
             
