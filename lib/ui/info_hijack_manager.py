@@ -46,10 +46,7 @@ class InfoHijackManager:
         if current_time < self._cooldown_until:
             return
             
-        # Check if addon is busy with major operations
-        if xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)'):
-            self._logger.debug("HIJACK: Addon busy, skipping hijack logic")
-            return
+        # OPTIMIZATION: Removed DialogBusy check - XSP navigation works even during scanning
         
         # Debug: Periodically scan container for armed items
         if int(current_time * 4) % 10 == 0:  # Every 2.5 seconds
@@ -551,11 +548,10 @@ class InfoHijackManager:
         while (time.time() - start_time) < max_wait:
             # Check for specific conditions that block navigation commands
             has_modal = xbmc.getCondVisibility('System.HasModalDialog')
-            dialog_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
             dialog_progress = xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)')
             
-            # Check for window manager busy state (the key issue from the log)
-            window_manager_accepting_actions = not (has_modal or dialog_busy or dialog_progress)
+            # Check for window manager busy state (DialogBusy removed for performance)
+            window_manager_accepting_actions = not (has_modal or dialog_progress)
             
             # Log modal detection for debugging
             if has_modal and not modal_detected:
@@ -589,9 +585,8 @@ class InfoHijackManager:
         consecutive_ready_checks = 0
         
         while (time.time() - start_time) < max_wait:
-            # Multiple checks for GUI readiness
+            # Multiple checks for GUI readiness (DialogBusy removed for performance)
             is_ready = (
-                not xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)') and
                 not xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)') and
                 not xbmc.getCondVisibility('System.HasModalDialog')
             )
@@ -618,15 +613,14 @@ class InfoHijackManager:
         animation_detected = False
         
         while (time.time() - start_time) < max_wait:
-            # Check for dialog animation in progress (this is the key issue from the log)
+            # Check for dialog animation in progress (DialogBusy removed for performance)
             has_modal = xbmc.getCondVisibility('System.HasModalDialog')
-            is_busy = xbmc.getCondVisibility('Window.IsActive(DialogBusy.xml)')
             is_progress = xbmc.getCondVisibility('Window.IsActive(DialogProgress.xml)')
             
             # Additional check for window manager busy state
             window_manager_busy = xbmc.getCondVisibility('Window.IsMedia') and has_modal
             
-            is_ready = not (has_modal or is_busy or is_progress or window_manager_busy)
+            is_ready = not (has_modal or is_progress or window_manager_busy)
             
             # Log when we detect animation state
             if (has_modal or window_manager_busy) and not animation_detected:
