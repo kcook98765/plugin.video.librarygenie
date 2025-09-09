@@ -683,12 +683,13 @@ class AISearchHandler:
 
                 movies_with_imdb = []
                 for row in movies_result:
-                    imdb_id = row.get('imdbnumber', '').strip()
+                    imdb_id = row['imdbnumber'] if row['imdbnumber'] else ''
+                    imdb_id = imdb_id.strip()
                     if imdb_id and imdb_id.startswith('tt'):
                         movies_with_imdb.append({
                             'imdb_id': imdb_id,
-                            'title': row.get('title', ''),
-                            'year': row.get('year', 0)
+                            'title': row['title'] if row['title'] else '',
+                            'year': row['year'] if row['year'] else 0
                         })
 
                 progress.update(50, f"Found {len(movies_with_imdb)} movies...")
