@@ -302,22 +302,14 @@ class Router:
         try:
             self.logger.info("Authorization button clicked from settings")
             
-            # Create fresh settings manager to avoid Kodi settings cache issues
-            # This ensures we get the latest OTP code the user just entered
+            # Get settings manager for server URL
             from ..config.settings import SettingsManager
             settings = SettingsManager()
-            
-            # Force fresh read by creating new addon instance for OTP code
-            import xbmcaddon
-            fresh_addon = xbmcaddon.Addon()
-            otp_code = fresh_addon.getSetting('ai_search_otp_code').strip() if fresh_addon.getSetting('ai_search_otp_code') else None
             server_url = settings.get_remote_server_url()
             
-            # Debug logging to see what we retrieved
             self.logger.info(f"Retrieved server URL: '{server_url}' (type: {type(server_url)})")
-            self.logger.info(f"Retrieved OTP code: '{otp_code}' (type: {type(otp_code)})")
             
-            # More robust server URL checking
+            # Check server URL first
             if not server_url or len(server_url.strip()) == 0:
                 self.logger.warning(f"Server URL validation failed - URL: '{server_url}'")
                 xbmcgui.Dialog().ok(
@@ -325,14 +317,24 @@ class Router:
                     "Please configure the AI Search Server URL before authorizing.\n\nMake sure it's not empty and contains a valid URL."
                 )
                 return False
-                
+            
+            # Pop up keyboard for OTP entry
+            otp_code = xbmcgui.Dialog().input(
+                "Enter OTP Code", 
+                "Enter the 8-digit OTP code from your server:",
+                type=xbmcgui.INPUT_NUMERIC
+            )
+            
+            # Check if user cancelled or entered invalid code
             if not otp_code or len(otp_code.strip()) != 8:
-                xbmcgui.Dialog().ok(
-                    "OTP Code Required",
-                    "Please enter a valid 8-digit OTP code before authorizing."
-                )
+                if otp_code:  # User entered something but it's invalid
+                    xbmcgui.Dialog().ok(
+                        "Invalid OTP Code",
+                        "Please enter a valid 8-digit OTP code."
+                    )
                 return False
             
+            self.logger.info(f"User entered OTP code: {otp_code}")
             self.logger.info(f"Starting OTP authorization with code: {otp_code}")
             
             # Show progress dialog
@@ -347,8 +349,7 @@ class Router:
                 progress.close()
                 
                 if result['success']:
-                    # Success - clear OTP code and activate using fresh addon instance
-                    fresh_addon.setSetting('ai_search_otp_code', "")
+                    # Success - activate AI Search
                     settings.set_ai_search_activated(True)
                     
                     # Show success dialog
