@@ -533,7 +533,32 @@ class InfoHijackManager:
     def _wait_for_animations_to_complete(self, context: str, max_wait: float = 2.0) -> bool:
         """Wait for Kodi animations to complete before issuing commands"""
         start_time = time.time()
-        animation_detected = False
+        
+        # Always log what we're checking initially
+        has_modal = xbmc.getCondVisibility('System.HasModalDialog')
+        is_animating = xbmc.getCondVisibility('Window.IsAnimating')
+        is_inhibited = xbmc.getCondVisibility('System.IsInhibited')
+        
+        initial_state = []
+        if has_modal: initial_state.append("modal dialog")
+        if is_animating: initial_state.append("window animation") 
+        if is_inhibited: initial_state.append("system inhibited")
+        
+        self._logger.info(f"HIJACK: Animation check {context} - initial state: {', '.join(initial_state) if initial_state else 'none detected'}")
+        
+        # If no animations detected initially, wait a bit anyway for dialog close animations
+        if not (has_modal or is_animating or is_inhibited):
+            if "after dialog close" in context:
+                self._logger.info(f"HIJACK: No animations detected but waiting 400ms for dialog close animation {context}")
+                xbmc.sleep(400)
+                return True
+            else:
+                self._logger.info(f"HIJACK: No animations detected {context}, proceeding immediately")
+                return True
+        
+        # Animation loop
+        animation_detected = True
+        consecutive_clear = 0
         
         while (time.time() - start_time) < max_wait:
             # Check multiple animation indicators
@@ -541,25 +566,25 @@ class InfoHijackManager:
             is_animating = xbmc.getCondVisibility('Window.IsAnimating')
             is_inhibited = xbmc.getCondVisibility('System.IsInhibited')
             
-            # Check if any animations are running
             animations_running = has_modal or is_animating or is_inhibited
             
             if not animations_running:
-                elapsed = time.time() - start_time
-                if animation_detected:
+                consecutive_clear += 1
+                # Require 3 consecutive clear checks (150ms) for stability
+                if consecutive_clear >= 3:
+                    elapsed = time.time() - start_time
                     self._logger.info(f"HIJACK: Animations completed {context} after {elapsed:.3f}s")
-                else:
-                    self._logger.debug(f"HIJACK: No animations detected {context}")
-                return True
-            
-            # Log what we're waiting for (once)
-            if not animation_detected:
-                animation_detected = True
-                reasons = []
-                if has_modal: reasons.append("modal dialog")
-                if is_animating: reasons.append("window animation")
-                if is_inhibited: reasons.append("system inhibited")
-                self._logger.info(f"HIJACK: Waiting for animations to complete {context} - detected: {', '.join(reasons)}")
+                    return True
+            else:
+                consecutive_clear = 0
+                # Log current animation state every 500ms
+                if int((time.time() - start_time) * 2) % 10 == 0:  # Every 500ms
+                    current_state = []
+                    if has_modal: current_state.append("modal dialog")
+                    if is_animating: current_state.append("window animation")
+                    if is_inhibited: current_state.append("system inhibited")
+                    elapsed = time.time() - start_time
+                    self._logger.info(f"HIJACK: Still waiting {context} after {elapsed:.1f}s - detected: {', '.join(current_state)}")
             
             xbmc.sleep(50)  # Check every 50ms
         
