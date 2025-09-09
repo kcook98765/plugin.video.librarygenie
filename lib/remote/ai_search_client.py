@@ -46,7 +46,7 @@ class AISearchClient:
     def _make_public_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
                             headers: Optional[Dict[str, str]] = None, timeout: int = 30) -> Optional[Dict[str, Any]]:
         """Make HTTP request to AI search server without authentication (for public endpoints)"""
-        server_url = self.settings.get_ai_search_server_url()
+        server_url = self.settings.get_remote_server_url()
         if not server_url:
             self.logger.error("No server URL configured")
             return None
@@ -103,7 +103,7 @@ class AISearchClient:
     def _make_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None, 
                      headers: Optional[Dict[str, str]] = None, timeout: int = 30) -> Optional[Dict[str, Any]]:
         """Make HTTP request to AI search server"""
-        server_url = self.settings.get_ai_search_server_url()
+        server_url = self.settings.get_remote_server_url()
         if not server_url:
             self.logger.error("No server URL configured")
             return None
@@ -162,7 +162,7 @@ class AISearchClient:
     def is_configured(self) -> bool:
         """Check if AI search is properly configured"""
         return bool(
-            self.settings.get_ai_search_server_url() and 
+            self.settings.get_remote_server_url() and 
             is_authorized()
         )
 
@@ -187,7 +187,7 @@ class AISearchClient:
                 'error': 'Invalid OTP code format (must be 8 characters)'
             }
 
-        server_url = self.settings.get_ai_search_server_url()
+        server_url = self.settings.get_remote_server_url()
         if not server_url:
             return {
                 'success': False,
@@ -225,7 +225,7 @@ class AISearchClient:
         Returns:
             dict: Connection test result
         """
-        server_url = self.settings.get_ai_search_server_url()
+        server_url = self.settings.get_remote_server_url()
         if not server_url:
             return {
                 'success': False,
