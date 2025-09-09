@@ -3,12 +3,12 @@ name = "python-template"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
-requires-python = ">=3.11"
+requires-python = ">=3.8"
 dependencies = [
     "requests>=2.32.3",
 ]
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.8"
 stubPath = "Kodistubs"
 exclude = ["**/__pycache__", ".venv", "venv", "build", "dist"]
