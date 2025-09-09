@@ -237,9 +237,6 @@ msgctxt "#30431"
 msgid "AI Search Server URL"
 msgstr ""
 
-msgctxt "#30432"
-msgid "OTP Code (8 digits)"
-msgstr ""
 
 msgctxt "#30433"
 msgid "API Key (internal)"

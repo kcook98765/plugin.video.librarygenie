@@ -200,7 +200,6 @@ class AISearchClient:
             if result['success']:
                 # Update settings to reflect activation
                 self.settings.set_ai_search_activated(True)
-                self.settings.set_ai_search_otp_code("")  # Clear OTP code
 
                 self.logger.info("AI Search activated successfully via OTP")
 

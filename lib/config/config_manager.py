@@ -258,7 +258,7 @@ class ConfigManager:
         string_settings = [
             "default_list_id", "remote_base_url", "device_name",
             "backup_storage_location", "last_backup_time",
-            "ai_search_server_url", "ai_search_otp_code", "ai_search_api_key"
+            "ai_search_server_url", "ai_search_api_key"
         ]
 
         logger.debug(f"CONFIG_DEBUG: Analyzing setting type for '{key}'")

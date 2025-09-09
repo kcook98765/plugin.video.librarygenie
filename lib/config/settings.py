@@ -140,14 +140,6 @@ class SettingsManager:
         value = self.addon.getSetting('ai_search_server_url')
         return value.strip() if value else None
 
-    def get_ai_search_otp_code(self) -> Optional[str]:
-        """Get AI search OTP code"""
-        value = self.addon.getSetting('ai_search_otp_code')
-        return value.strip() if value else None
-
-    def set_ai_search_otp_code(self, otp_code: str) -> None:
-        """Set AI search OTP code"""
-        self.addon.setSetting('ai_search_otp_code', otp_code if otp_code else "")
 
     def get_ai_search_api_key(self) -> Optional[str]:
         """Get AI search API key"""
