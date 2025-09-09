@@ -72,15 +72,46 @@ def save_api_key(api_key: str) -> bool:
             # Clear any existing auth data
             conn.execute("DELETE FROM auth_state")
 
-            # Insert new API key
-            conn.execute("""
-                INSERT INTO auth_state (api_key, created_at, token_type)
-                VALUES (?, ?, ?)
-            """, [
-                api_key.strip(),
-                datetime.now().isoformat(),
-                'ApiKey'
-            ])
+            # Check if token_type column exists (new schema)
+            cursor = conn.execute("PRAGMA table_info(auth_state)")
+            columns = [column[1] for column in cursor.fetchall()]
+            has_token_type = 'token_type' in columns
+            has_scope = 'scope' in columns
+
+            # Insert new API key using appropriate schema
+            if has_token_type and has_scope:
+                # New schema with token_type and scope columns
+                conn.execute("""
+                    INSERT INTO auth_state (api_key, created_at, token_type, scope)
+                    VALUES (?, ?, ?, ?)
+                """, [
+                    api_key.strip(),
+                    datetime.now().isoformat(),
+                    'ApiKey',
+                    'ai_search'
+                ])
+                logger.info("API key saved with new schema (token_type + scope)")
+            elif has_token_type:
+                # Schema with token_type but no scope
+                conn.execute("""
+                    INSERT INTO auth_state (api_key, created_at, token_type)
+                    VALUES (?, ?, ?)
+                """, [
+                    api_key.strip(),
+                    datetime.now().isoformat(),
+                    'ApiKey'
+                ])
+                logger.info("API key saved with partial new schema (token_type only)")
+            else:
+                # Old schema without token_type or scope
+                conn.execute("""
+                    INSERT INTO auth_state (api_key, created_at)
+                    VALUES (?, ?)
+                """, [
+                    api_key.strip(),
+                    datetime.now().isoformat()
+                ])
+                logger.info("API key saved with legacy schema")
 
         logger.info("API key saved successfully")
         return True
