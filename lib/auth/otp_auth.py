@@ -18,7 +18,7 @@ from typing import Dict, Any, Optional
 from ..config import get_config
 from ..utils.logger import get_logger
 from .state import save_api_key, get_api_key, clear_auth_data
-from ..remote.ai_search_client import get_ai_search_client
+# Removed circular import - ai_search_client imports from this module
 
 logger = get_logger(__name__)
 
