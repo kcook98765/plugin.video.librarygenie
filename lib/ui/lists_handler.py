@@ -325,13 +325,21 @@ class ListsHandler:
                 )
             list_name = list_info.get('name', 'Unnamed List')
 
-            # Show confirmation dialog
-            dialog = xbmcgui.Dialog()
-            if not dialog.yesno(
-                L(34600),  # "Confirm Action"
-                L(30501),  # "Are you sure you want to delete this list?"
-                L(30502)   # "This will permanently remove the list and all its items."
-            ):
+            # Show confirmation dialog with proper formatting
+            dialog_lines = [
+                f"Are you sure you want to delete '{list_name}'?",
+                "",
+                "This will permanently remove the list and all its items.",
+                "",
+                "This action cannot be undone."
+            ]
+
+            confirm = xbmcgui.Dialog().yesno(
+                "Delete List",
+                "\n".join(dialog_lines)
+            )
+
+            if not confirm:
                 context.logger.info("User cancelled list deletion")
                 return DialogResponse(success=False, message="")
 
@@ -870,11 +878,11 @@ class ListsHandler:
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
             context.logger.info(f"Folder '{folder_info['name']}' (id={folder_id}) has {len(lists_in_folder)} lists")
-            
+
             # Debug: Log each list found
             for lst in lists_in_folder:
                 context.logger.debug(f"  Found list in folder: {lst['name']} (id={lst['id']}, folder_id={lst.get('folder_id')})")
-            
+
             # Additional debugging: Check if there are any lists with this folder_id in the database
             context.logger.debug(f"DEBUG: Querying for all lists in folder_id={folder_id}")
             debug_lists = query_manager.connection_manager.execute_query("""
@@ -884,7 +892,7 @@ class ListsHandler:
                 WHERE l.folder_id = ?
             """, [int(folder_id)])
             context.logger.debug(f"DEBUG: Raw query returned {len(debug_lists)} lists: {[dict(row) for row in debug_lists]}")
-            
+
             # Also check all lists to see where our list ended up
             all_lists_debug = query_manager.connection_manager.execute_query("""
                 SELECT l.id, l.name, l.folder_id, f.name as folder_name
@@ -893,7 +901,7 @@ class ListsHandler:
                 ORDER BY l.id
             """)
             context.logger.debug(f"DEBUG: All lists in database: {[dict(row) for row in all_lists_debug]}")
-            
+
             # Check for folder ID mismatch
             if len(lists_in_folder) == 0:
                 # Try to find if any lists exist with a similar folder name
@@ -905,13 +913,13 @@ class ListsHandler:
                 """, [folder_info['name']])
                 if orphaned_lists:
                     context.logger.warning(f"Found {len(orphaned_lists)} lists with folder name '{folder_info['name']}' but different ID: {[dict(row) for row in orphaned_lists]}")
-                    
+
                 # Also check for lists that might have the wrong folder_id
                 all_folder_refs = query_manager.connection_manager.execute_query("""
                     SELECT DISTINCT folder_id FROM lists WHERE folder_id IS NOT NULL
                 """)
                 context.logger.debug(f"All folder_id references in lists table: {[row['folder_id'] for row in all_folder_refs]}")
-                
+
                 all_folder_ids = query_manager.connection_manager.execute_query("""
                     SELECT id, name FROM folders ORDER BY id
                 """)

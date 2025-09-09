@@ -636,7 +636,7 @@ class AISearchHandler:
         except Exception as e:
             context.logger.error(f"Error in authorize_ai_search: {e}")
             xbmcgui.Dialog().ok(
-                "Error", 
+                "Error",
                 f"An error occurred: {str(e)}"
             )
 
@@ -655,8 +655,8 @@ class AISearchHandler:
 
             # Confirm replace sync
             if not xbmcgui.Dialog().yesno(
-                "Replace Sync (Authoritative)",
-                "This will replace your server movie collection with your current Kodi library.",
+                "AI Search Replace Sync",
+                "This will replace the entire server movie collection with your current Kodi library.",
                 "Server movies not in Kodi will be removed.",
                 "Continue with replace sync?"
             ):
