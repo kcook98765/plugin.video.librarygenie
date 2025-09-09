@@ -140,6 +140,9 @@ class SettingsManager:
         value = self.addon.getSetting('ai_search_server_url')
         return value.strip() if value else None
 
+    def set_ai_search_server_url(self, url: str) -> None:
+        """Set AI search server URL"""
+        self.addon.setSetting('ai_search_server_url', url if url else "")
 
     def get_ai_search_api_key(self) -> Optional[str]:
         """Get AI search API key"""
