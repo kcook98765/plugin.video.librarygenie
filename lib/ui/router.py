@@ -319,10 +319,10 @@ class Router:
                 return False
             
             # Pop up keyboard for OTP entry
-            otp_code = xbmcgui.Dialog().input(
+            dialog = xbmcgui.Dialog()
+            otp_code = dialog.input(
                 "Enter OTP Code", 
-                "Enter the 8-digit OTP code from your server:",
-                type=xbmcgui.INPUT_NUMERIC
+                "Enter the 8-digit OTP code from your server:"
             )
             
             # Check if user cancelled or entered invalid code
