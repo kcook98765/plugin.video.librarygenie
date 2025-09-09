@@ -14,6 +14,7 @@ from typing import Optional, List, Dict, Any
 from ..remote.ai_search_client import get_ai_search_client
 from ..data.query_manager import get_query_manager
 from ..data.storage_manager import get_storage_manager
+from ..data.connection_manager import get_connection_manager
 from ..utils.logger import get_logger
 from .localization import L
 
@@ -26,6 +27,7 @@ class AISearchHandler:
         self.ai_client = get_ai_search_client()
         self.query_manager = get_query_manager()
         self.storage_manager = get_storage_manager()
+        self.conn_manager = get_connection_manager()
 
     def perform_ai_search(self, query: str) -> bool:
         """
@@ -183,29 +185,29 @@ class AISearchHandler:
         try:
             matched_items = []
             
-            # Get database connection
-            conn = self.storage_manager.get_connection()
-            cursor = conn.cursor()
-            
-            # Query to find media items by IMDb ID
-            placeholders = ','.join(['?' for _ in imdb_ids])
-            query = f"""
-                SELECT id, title, year, imdb_id, tmdb_id, plot, rating, 
-                       poster_url, fanart_url, trailer_url, genres, runtime,
-                       kodi_id, kodi_dbtype, date_added
-                FROM media_items 
-                WHERE imdb_id IN ({placeholders})
-                ORDER BY title
-            """
-            
-            cursor.execute(query, imdb_ids)
-            rows = cursor.fetchall()
-            
-            # Convert rows to dictionaries
-            columns = [desc[0] for desc in cursor.description]
-            for row in rows:
-                item_dict = dict(zip(columns, row))
-                matched_items.append(item_dict)
+            # Use connection manager with proper transaction handling
+            with self.conn_manager.transaction() as conn:
+                cursor = conn.cursor()
+                
+                # Query to find media items by IMDb ID
+                placeholders = ','.join(['?' for _ in imdb_ids])
+                query = f"""
+                    SELECT id, title, year, imdb_id, tmdb_id, plot, rating, 
+                           poster_url, fanart_url, trailer_url, genres, runtime,
+                           kodi_id, kodi_dbtype, date_added
+                    FROM media_items 
+                    WHERE imdb_id IN ({placeholders})
+                    ORDER BY title
+                """
+                
+                cursor.execute(query, imdb_ids)
+                rows = cursor.fetchall()
+                
+                # Convert rows to dictionaries
+                columns = [desc[0] for desc in cursor.description]
+                for row in rows:
+                    item_dict = dict(zip(columns, row))
+                    matched_items.append(item_dict)
             
             self.logger.info(f"AI SEARCH MATCH: Found {len(matched_items)} matches out of {len(imdb_ids)} IMDb IDs")
             
@@ -233,10 +235,9 @@ class AISearchHandler:
             description = f"AI search found {total_ai_results} results, {len(matched_items)} in your library"
             
             list_id = self.query_manager.create_search_history_list(
-                query=query_desc,
-                search_type="ai_search",
-                result_count=len(matched_items),
-                description=description
+                query_desc,
+                "ai_search",
+                len(matched_items)
             )
             
             if not list_id:
@@ -247,17 +248,18 @@ class AISearchHandler:
             
             # Add matched items to the list
             added_count = 0
-            for item in matched_items:
-                try:
-                    # Add item to list using media_item_id
-                    success = self.query_manager.add_media_item_to_list(list_id, item['id'])
-                    if success:
+            with self.conn_manager.transaction() as conn:
+                for position, item in enumerate(matched_items):
+                    try:
+                        # Add item to list using direct database insert
+                        conn.execute("""
+                            INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                            VALUES (?, ?, ?)
+                        """, [list_id, item['id'], position])
                         added_count += 1
-                    else:
-                        self.logger.warning(f"AI SEARCH HISTORY: Failed to add item {item['id']} to list {list_id}")
                         
-                except Exception as e:
-                    self.logger.error(f"AI SEARCH HISTORY: Error adding item {item.get('id', 'unknown')} to list: {e}")
+                    except Exception as e:
+                        self.logger.error(f"AI SEARCH HISTORY: Error adding item {item.get('id', 'unknown')} to list: {e}")
             
             self.logger.info(f"AI SEARCH HISTORY: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
             
@@ -545,10 +547,9 @@ class AISearchHandler:
             description = f"Found {total_results} similar movies ({facet_desc}), {len(matched_items)} in your library"
             
             list_id = self.query_manager.create_search_history_list(
-                query=query_desc,
-                search_type="similar_movies",
-                result_count=len(matched_items),
-                description=description
+                query_desc,
+                "similar_movies",
+                len(matched_items)
             )
             
             if not list_id:
@@ -559,17 +560,18 @@ class AISearchHandler:
             
             # Add matched items to the list
             added_count = 0
-            for item in matched_items:
-                try:
-                    # Add item to list using media_item_id
-                    success = self.query_manager.add_media_item_to_list(list_id, item['id'])
-                    if success:
+            with self.conn_manager.transaction() as conn:
+                for position, item in enumerate(matched_items):
+                    try:
+                        # Add item to list using direct database insert
+                        conn.execute("""
+                            INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                            VALUES (?, ?, ?)
+                        """, [list_id, item['id'], position])
                         added_count += 1
-                    else:
-                        self.logger.warning(f"SIMILAR MOVIES: Failed to add item {item['id']} to list {list_id}")
                         
-                except Exception as e:
-                    self.logger.error(f"SIMILAR MOVIES: Error adding item {item.get('id', 'unknown')} to list: {e}")
+                    except Exception as e:
+                        self.logger.error(f"SIMILAR MOVIES: Error adding item {item.get('id', 'unknown')} to list: {e}")
             
             self.logger.info(f"SIMILAR MOVIES: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
             
