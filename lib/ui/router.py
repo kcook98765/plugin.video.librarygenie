@@ -349,11 +349,9 @@ class Router:
                 progress.close()
                 
                 if result['success']:
-                    # Success - activate AI Search and copy URL to AI search setting
+                    # Success - activate AI Search 
                     settings.set_ai_search_activated(True)
-                    # Copy server URL to AI Search setting so AI client can find it
-                    settings.set_ai_search_server_url(server_url)
-                    self.logger.info(f"✅ Copied server URL to AI Search setting: {server_url}")
+                    self.logger.info(f"✅ AI Search activated with server URL: {server_url}")
                     
                     # Show success dialog
                     xbmcgui.Dialog().ok(
