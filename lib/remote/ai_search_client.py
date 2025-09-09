@@ -436,7 +436,7 @@ class AISearchClient:
 
                     # Rate limiting - wait between chunks
                     if i + chunk_size < len(imdb_ids):
-                        time.sleep(10)  # 10 second wait between batches
+                        time.sleep(1)  # 1 second wait between batches
 
                 else:
                     error_msg = response.get('error', 'Unknown error') if response else 'No response'
