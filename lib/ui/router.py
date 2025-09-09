@@ -189,6 +189,9 @@ class Router:
                 response_handler = get_response_handler()
                 return response_handler.handle_dialog_response(result, context)
 
+            elif action == "authorize_ai_search":
+                return self._handle_authorize_ai_search(context)
+
             elif action == 'test_ai_search_connection':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
