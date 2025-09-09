@@ -210,7 +210,7 @@ msgid "Authentication"
 msgstr ""
 
 msgctxt "#30411"
-msgid "Remote server URL"
+msgid "Remote Server URL (for OTP, AI Search, Similarity)"
 msgstr ""
 
 msgctxt "#30412"

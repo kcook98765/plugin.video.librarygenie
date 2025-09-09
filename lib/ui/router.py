@@ -308,7 +308,7 @@ class Router:
             
             # Get OTP code and server URL
             otp_code = settings.get_ai_search_otp_code()
-            server_url = settings.get_ai_search_server_url()
+            server_url = settings.get_remote_server_url()
             
             # Debug logging to see what we retrieved
             self.logger.info(f"Retrieved server URL: '{server_url}' (type: {type(server_url)})")
