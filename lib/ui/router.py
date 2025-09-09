@@ -310,10 +310,16 @@ class Router:
             otp_code = settings.get_ai_search_otp_code()
             server_url = settings.get_ai_search_server_url()
             
-            if not server_url:
+            # Debug logging to see what we retrieved
+            self.logger.info(f"Retrieved server URL: '{server_url}' (type: {type(server_url)})")
+            self.logger.info(f"Retrieved OTP code: '{otp_code}' (type: {type(otp_code)})")
+            
+            # More robust server URL checking
+            if not server_url or len(server_url.strip()) == 0:
+                self.logger.warning(f"Server URL validation failed - URL: '{server_url}'")
                 xbmcgui.Dialog().ok(
                     "Configuration Required",
-                    "Please configure the AI Search Server URL before authorizing."
+                    "Please configure the AI Search Server URL before authorizing.\n\nMake sure it's not empty and contains a valid URL."
                 )
                 return False
                 
