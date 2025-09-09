@@ -702,13 +702,20 @@ class AISearchHandler:
                     )
                     return
 
-                dialog_bg.update(70, "AI Search Replace Sync", "Syncing with server (replace mode)...")
+                # Define progress callback for batch sync (50-95% range)
+                def sync_progress_callback(current_chunk, total_chunks, message):
+                    if total_chunks > 0:
+                        # Map chunk progress to 50-95% range (45% total range for batch uploading)
+                        chunk_progress = (current_chunk / total_chunks) * 45
+                        total_progress = int(50 + chunk_progress)
+                        dialog_bg.update(total_progress, "AI Search Replace Sync", message)
 
-                # Perform replace sync
+                # Perform replace sync with progress callback
                 result = ai_client.sync_media_batch(
                     movies_with_imdb, 
                     batch_size=500, 
-                    use_replace_mode=True
+                    use_replace_mode=True,
+                    progress_callback=sync_progress_callback
                 )
 
                 dialog_bg.update(100, "AI Search Replace Sync", "Sync completed")
