@@ -296,3 +296,78 @@ class Router:
                 except Exception:
                     pass
                 return False
+
+    def _handle_authorize_ai_search(self, context: PluginContext) -> bool:
+        """Handle AI search authorization action from settings"""
+        try:
+            self.logger.info("Authorization button clicked from settings")
+            
+            # Get settings manager to read OTP code
+            from ..config.settings import SettingsManager
+            settings = SettingsManager()
+            
+            # Get OTP code and server URL
+            otp_code = settings.get_ai_search_otp_code()
+            server_url = settings.get_ai_search_server_url()
+            
+            if not server_url:
+                xbmcgui.Dialog().ok(
+                    "Configuration Required",
+                    "Please configure the AI Search Server URL before authorizing."
+                )
+                return False
+                
+            if not otp_code or len(otp_code.strip()) != 8:
+                xbmcgui.Dialog().ok(
+                    "OTP Code Required",
+                    "Please enter a valid 8-digit OTP code before authorizing."
+                )
+                return False
+            
+            self.logger.info(f"Starting OTP authorization with code: {otp_code}")
+            
+            # Show progress dialog
+            progress = xbmcgui.DialogProgress()
+            progress.create("AI Search Authorization", "Exchanging OTP code for API key...")
+            
+            try:
+                # Exchange OTP for API key
+                from ..auth.otp_auth import exchange_otp_for_api_key
+                result = exchange_otp_for_api_key(otp_code, server_url)
+                
+                progress.close()
+                
+                if result['success']:
+                    # Success - clear OTP code and activate
+                    settings.set_ai_search_otp_code("")
+                    settings.set_ai_search_activated(True)
+                    
+                    # Show success dialog
+                    xbmcgui.Dialog().ok(
+                        "Authorization Complete",
+                        f"AI Search activated successfully!\n\nUser: {result.get('user_email', 'Unknown')}"
+                    )
+                    
+                    self.logger.info("OTP authorization completed successfully from settings")
+                    return True
+                else:
+                    # Failed - show error
+                    xbmcgui.Dialog().ok(
+                        "Authorization Failed",
+                        f"Failed to activate AI Search:\n\n{result['error']}"
+                    )
+                    
+                    self.logger.warning(f"OTP authorization failed from settings: {result['error']}")
+                    return False
+                    
+            finally:
+                if progress:
+                    progress.close()
+                    
+        except Exception as e:
+            self.logger.error(f"Error in authorize_ai_search handler: {e}")
+            xbmcgui.Dialog().ok(
+                "Authorization Error",
+                f"An unexpected error occurred:\n\n{str(e)[:100]}..."
+            )
+            return False
