@@ -312,10 +312,6 @@ class LibraryGenieService:
         self.logger.info("AI search sync worker started")
 
         try:
-            # Initial sync after 60 seconds
-            if not self.sync_stop_event.wait(60):
-                self._perform_ai_sync()
-
             # Periodic sync based on settings
             sync_hours = self.settings.get_ai_search_sync_interval()
             sync_interval = min(sync_hours * 3600, 86400)  # Cap at 24 hours (86400 seconds) to avoid timeout errors
