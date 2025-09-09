@@ -254,6 +254,17 @@ class InfoHijackManager:
                 
                 xbmc.executebuiltin('Action(Back)')
                 
+                # Check if back command was successful
+                xbmc.sleep(100)  # Brief wait for command processing
+                current_path_after_back = xbmc.getInfoLabel("Container.FolderPath")
+                
+                # Retry if still on XSP page (command was ignored)
+                if current_path_after_back and 'librarygenie_hijack' in current_path_after_back:
+                    self._logger.info("HIJACK: First back command ignored, retrying after animation completes")
+                    xbmc.sleep(100)  # Additional wait for animation
+                    xbmc.executebuiltin('Action(Back)')
+                    self._logger.info("HIJACK: Retry back command executed")
+                
                 # Brief wait for navigation
                 self._wait_for_navigation_complete("XSP exit")
                 
