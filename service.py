@@ -330,7 +330,8 @@ class LibraryGenieService:
                 self._perform_ai_sync()
 
             # Periodic sync based on settings
-            sync_interval = self.settings.get_ai_search_sync_interval() * 3600  # Convert hours to seconds
+            sync_hours = self.settings.get_ai_search_sync_interval()
+            sync_interval = min(sync_hours * 3600, 86400)  # Cap at 24 hours (86400 seconds) to avoid timeout errors
 
             while not self.sync_stop_event.is_set():
                 if self.sync_stop_event.wait(sync_interval):
