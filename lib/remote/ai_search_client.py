@@ -338,22 +338,22 @@ class AISearchClient:
 
     def get_library_version(self) -> Optional[Dict[str, Any]]:
         """
-        Get current library version for delta sync using V1 API
+        Get current library hash for delta sync using Main API
 
         Returns:
-            Version info or None if request fails
+            Library hash info or None if request fails
         """
         if not self.is_activated():
             return None
 
         try:
-            response = self._make_request('v1/library/version', 'GET')
-            if response and not response.get('error'):
+            response = self._make_request('library/hash', 'GET')
+            if response and response.get('success'):
                 return response
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting library version: {e}")
+            self.logger.error(f"Error getting library hash: {e}")
             return None
 
     def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500, use_replace_mode: bool = False) -> Optional[Dict[str, Any]]:
