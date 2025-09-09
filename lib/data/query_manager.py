@@ -1591,7 +1591,17 @@ class QueryManager:
 
     def close(self):
         """Close database connections"""
-        self.connection_manager.close()
+        if self._connection:
+            self._connection.close()
+            self._connection = None
+
+    def _row_to_dict(self, row):
+        """Safely convert sqlite3.Row to dict"""
+        if row is None:
+            return None
+        if hasattr(row, 'keys'):
+            return {key: row[key] for key in row.keys()}
+        return row
 
     def get_list_info(self, list_id: int) -> Optional[Dict[str, Any]]:
         """Get information about a specific list"""

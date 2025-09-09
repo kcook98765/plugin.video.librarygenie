@@ -63,7 +63,7 @@ class Router:
 
                 # Use response handler to process the result - ensure we don't return anything that would cause fallthrough
                 response_handler.handle_dialog_response(result, context)
-                
+
                 # End directory properly to prevent Kodi from trying to load this as a directory
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True  # Always return True to prevent fallthrough to main menu
@@ -190,8 +190,13 @@ class Router:
                 return response_handler.handle_dialog_response(result, context)
 
             elif action == "authorize_ai_search":
-                return self._handle_authorize_ai_search(context)
-
+                from .ai_search_handler import AISearchHandler
+                ai_handler = AISearchHandler()
+                ai_handler.authorize_ai_search(context)
+            elif action == "ai_search_replace_sync":
+                from .ai_search_handler import AISearchHandler
+                ai_handler = AISearchHandler()
+                ai_handler.trigger_replace_sync(context)
             elif action == 'test_ai_search_connection':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
@@ -301,14 +306,14 @@ class Router:
         """Handle AI search authorization action from settings"""
         try:
             self.logger.info("Authorization button clicked from settings")
-            
+
             # Get settings manager for server URL
             from ..config.settings import SettingsManager
             settings = SettingsManager()
             server_url = settings.get_remote_server_url()
-            
+
             self.logger.info(f"Retrieved server URL: '{server_url}' (type: {type(server_url)})")
-            
+
             # Check server URL first
             if not server_url or len(server_url.strip()) == 0:
                 self.logger.warning(f"Server URL validation failed - URL: '{server_url}'")
@@ -317,14 +322,14 @@ class Router:
                     "Please configure the AI Search Server URL before authorizing.\n\nMake sure it's not empty and contains a valid URL."
                 )
                 return False
-            
+
             # Pop up keyboard for OTP entry
             dialog = xbmcgui.Dialog()
             otp_code = dialog.input(
                 "Enter OTP Code", 
                 "Enter the 8-digit OTP code from your server:"
             )
-            
+
             # Check if user cancelled or entered invalid code
             if not otp_code or len(otp_code.strip()) != 8:
                 if otp_code:  # User entered something but it's invalid
@@ -333,32 +338,32 @@ class Router:
                         "Please enter a valid 8-digit OTP code."
                     )
                 return False
-            
+
             self.logger.info(f"User entered OTP code: {otp_code}")
             self.logger.info(f"Starting OTP authorization with code: {otp_code}")
-            
+
             # Show progress dialog
             progress = xbmcgui.DialogProgress()
             progress.create("AI Search Authorization", "Exchanging OTP code for API key...")
-            
+
             try:
                 # Exchange OTP for API key
                 from ..auth.otp_auth import exchange_otp_for_api_key
                 result = exchange_otp_for_api_key(otp_code, server_url)
-                
+
                 progress.close()
-                
+
                 if result['success']:
                     # Success - activate AI Search 
                     settings.set_ai_search_activated(True)
                     self.logger.info(f"✅ AI Search activated with server URL: {server_url}")
-                    
+
                     # Show success dialog
                     xbmcgui.Dialog().ok(
                         "Authorization Complete",
                         f"AI Search activated successfully!\n\nUser: {result.get('user_email', 'Unknown')}"
                     )
-                    
+
                     self.logger.info("OTP authorization completed successfully from settings")
                     return True
                 else:
@@ -367,14 +372,14 @@ class Router:
                         "Authorization Failed",
                         f"Failed to activate AI Search:\n\n{result['error']}"
                     )
-                    
+
                     self.logger.warning(f"OTP authorization failed from settings: {result['error']}")
                     return False
-                    
+
             finally:
                 if progress:
                     progress.close()
-                    
+
         except Exception as e:
             self.logger.error(f"Error in authorize_ai_search handler: {e}")
             xbmcgui.Dialog().ok(

@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -16,6 +15,12 @@ from ..data.query_manager import get_query_manager
 from ..utils.logger import get_logger
 from .localization import L
 
+# Import PluginContext if it's defined elsewhere and needed for type hinting
+# For now, assuming it's a placeholder or defined in a broader context
+class PluginContext:
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self.params = {}
 
 class AISearchHandler:
     """Handler for AI search functionality with IMDb list matching"""
@@ -28,10 +33,10 @@ class AISearchHandler:
     def perform_ai_search(self, query: str) -> bool:
         """
         Perform AI search and create search history list with matched media items
-        
+
         Args:
             query: User's search query
-            
+
         Returns:
             bool: True if search was successful and results were saved
         """
@@ -72,7 +77,7 @@ class AISearchHandler:
 
             # Perform AI search to get IMDb IDs
             search_results = self.ai_client.search_movies(query, limit=100)
-            
+
             if not search_results or not search_results.get('success'):
                 progress.close()
                 error_msg = search_results.get('error', 'Unknown error') if search_results else 'No response from server'
@@ -111,17 +116,17 @@ class AISearchHandler:
 
             # Match IMDb IDs with local media items
             matched_items = self._match_imdb_ids_to_media_items(imdb_ids)
-            
+
             progress.update(80, "Creating search history...")
 
             # Create search history list
             if matched_items:
                 list_id = self._create_ai_search_history_list(query, matched_items, len(ai_results))
-                
+
                 if list_id:
                     progress.close()
                     self.logger.info(f"AI SEARCH: Successfully created search history list {list_id} with {len(matched_items)} items")
-                    
+
                     # Show success notification
                     xbmcgui.Dialog().notification(
                         "AI Search",
@@ -129,7 +134,7 @@ class AISearchHandler:
                         xbmcgui.NOTIFICATION_INFO,
                         5000
                     )
-                    
+
                     # Redirect to the created list
                     self._redirect_to_search_list(list_id)
                     return True
@@ -172,10 +177,10 @@ class AISearchHandler:
     def _match_imdb_ids_to_media_items(self, imdb_ids: List[str]) -> List[Dict[str, Any]]:
         """
         Match IMDb IDs to existing media items in the database and build standard media item format
-        
+
         Args:
             imdb_ids: List of IMDb IDs to match
-            
+
         Returns:
             List of matched media item dictionaries in standard format
         """
@@ -189,9 +194,9 @@ class AISearchHandler:
                 WHERE imdbnumber IN ({placeholders})
                 ORDER BY title
             """
-            
+
             rows = self.query_manager.connection_manager.execute_query(query, imdb_ids)
-            
+
             # Convert rows to standard media item dictionaries  
             matched_items = []
             for row in rows:
@@ -209,7 +214,7 @@ class AISearchHandler:
                     'runtime': item_dict.get('duration', 0),
                     'source': 'ai_search'
                 }
-                
+
                 # Parse art JSON if available
                 art_data = item_dict.get('art')
                 if art_data:
@@ -221,13 +226,13 @@ class AISearchHandler:
                         standard_item['art'] = {}
                 else:
                     standard_item['art'] = {}
-                    
+
                 matched_items.append(standard_item)
-            
+
             self.logger.info(f"AI SEARCH MATCH: Found {len(matched_items)} matches out of {len(imdb_ids)} IMDb IDs")
-            
+
             return matched_items
-            
+
         except Exception as e:
             self.logger.error(f"AI SEARCH MATCH: Error matching IMDb IDs: {e}")
             return []
@@ -235,35 +240,35 @@ class AISearchHandler:
     def _create_ai_search_history_list(self, query: str, matched_items: List[Dict[str, Any]], total_ai_results: int) -> Optional[int]:
         """
         Create a search history list for AI search results using standard pattern
-        
+
         Args:
             query: Original search query
             matched_items: List of matched media items
             total_ai_results: Total number of results from AI search
-            
+
         Returns:
             List ID if successful, None if failed
         """
         try:
             # Create search history list with AI search description - follow same pattern as local search
             query_desc = f"AI: {query}"
-            
+
             list_id = self.query_manager.create_search_history_list(
                 query=query_desc,
                 search_type="ai_search",
                 result_count=len(matched_items)
             )
-            
+
             if not list_id:
                 self.logger.error("AI SEARCH HISTORY: Failed to create search history list")
                 return None
-            
+
             self.logger.info(f"AI SEARCH HISTORY: Created search history list {list_id}")
-            
+
             # Use standard method to add items to list - same as local search
             search_results = {"items": matched_items}
             added_count = self.query_manager.add_search_results_to_list(list_id, search_results)
-            
+
             if added_count > 0:
                 self.logger.info(f"AI SEARCH HISTORY: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
                 return list_id
@@ -272,7 +277,7 @@ class AISearchHandler:
                 self.query_manager.delete_list(list_id)
                 self.logger.warning("AI SEARCH HISTORY: No items were added to list, cleaning up")
                 return None
-                
+
         except Exception as e:
             self.logger.error(f"AI SEARCH HISTORY: Error creating search history list: {e}")
             return None
@@ -280,7 +285,7 @@ class AISearchHandler:
     def _redirect_to_search_list(self, list_id: int):
         """
         Redirect to the created search history list using same method as local search
-        
+
         Args:
             list_id: ID of the list to show
         """
@@ -288,19 +293,19 @@ class AISearchHandler:
             import xbmcaddon
             addon = xbmcaddon.Addon()
             addon_id = addon.getAddonInfo('id')
-            
+
             # Use same redirect pattern as local search
             list_url = f"plugin://{addon_id}/?action=show_list&list_id={list_id}"
             xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
             self.logger.info(f"AI SEARCH: Redirected to search history list {list_id}")
-            
+
         except Exception as e:
             self.logger.error(f"AI SEARCH: Failed to redirect to search list: {e}")
 
     def prompt_and_search(self) -> bool:
         """
         Prompt user for AI search query and perform search
-        
+
         Returns:
             bool: True if search was successful
         """
@@ -311,17 +316,17 @@ class AISearchHandler:
                 "Enter AI Search Query", 
                 type=xbmcgui.INPUT_ALPHANUM
             )
-            
+
             if not query or not query.strip():
                 self.logger.info("AI SEARCH PROMPT: User cancelled or entered empty query")
                 return False
-            
+
             query = query.strip()
             self.logger.info(f"AI SEARCH PROMPT: User entered query: '{query}'")
-            
+
             # Perform the search
             return self.perform_ai_search(query)
-            
+
         except Exception as e:
             self.logger.error(f"AI SEARCH PROMPT: Error in prompt and search: {e}")
             return False
@@ -329,10 +334,10 @@ class AISearchHandler:
     def find_similar_movies(self, context) -> bool:
         """
         Find movies similar to the current item using AI search
-        
+
         Args:
             context: Plugin context with parameters
-            
+
         Returns:
             bool: True if successful
         """
@@ -418,11 +423,11 @@ class AISearchHandler:
             # Create search history list for similar movies
             if matched_items:
                 list_id = self._create_similar_movies_list(title, year, matched_items, len(similar_imdb_ids), facets)
-                
+
                 if list_id:
                     progress.close()
                     self.logger.info(f"SIMILAR MOVIES: Successfully created list {list_id} with {len(matched_items)} items")
-                    
+
                     # Show success notification
                     xbmcgui.Dialog().notification(
                         "Similar Movies",
@@ -430,11 +435,11 @@ class AISearchHandler:
                         xbmcgui.NOTIFICATION_INFO,
                         5000
                     )
-                    
+
                     # Always attempt to redirect to the created list
                     # The redirect logic will handle whether navigation is appropriate
                     self._redirect_to_search_list(list_id)
-                    
+
                     return True
                 else:
                     progress.close()
@@ -475,7 +480,7 @@ class AISearchHandler:
     def _show_facet_selection_dialog(self) -> Optional[Dict[str, bool]]:
         """
         Show dialog for user to select similarity facets
-        
+
         Returns:
             Dict with facet selections or None if cancelled
         """
@@ -518,14 +523,14 @@ class AISearchHandler:
                                    total_results: int, facets: Dict[str, bool]) -> Optional[int]:
         """
         Create a search history list for similar movies results
-        
+
         Args:
             title: Original movie title
             year: Original movie year
             matched_items: List of matched media items
             total_results: Total number of similar movies found
             facets: Selected similarity facets
-            
+
         Returns:
             List ID if successful, None if failed
         """
@@ -538,19 +543,19 @@ class AISearchHandler:
             movie_desc = f"{title} ({year})" if year else title
             query_desc = f"Similar to: {movie_desc}"
             description = f"Found {total_results} similar movies ({facet_desc}), {len(matched_items)} in your library"
-            
+
             list_id = self.query_manager.create_search_history_list(
                 query_desc,
                 "similar_movies",
                 len(matched_items)
             )
-            
+
             if not list_id:
                 self.logger.error("SIMILAR MOVIES: Failed to create search history list")
                 return None
-            
+
             self.logger.info(f"SIMILAR MOVIES: Created search history list {list_id}")
-            
+
             # Add matched items to the list
             added_count = 0
             with self.query_manager.connection_manager.transaction() as conn:
@@ -562,22 +567,186 @@ class AISearchHandler:
                             VALUES (?, ?, ?)
                         """, [list_id, item['id'], position])
                         added_count += 1
-                        
+
                     except Exception as e:
                         self.logger.error(f"SIMILAR MOVIES: Error adding item {item.get('id', 'unknown')} to list: {e}")
-            
+
             self.logger.info(f"SIMILAR MOVIES: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
-            
+
             if added_count > 0:
                 return list_id
             else:
                 # Clean up empty list
                 self.query_manager.delete_list(list_id)
                 return None
-                
+
         except Exception as e:
             self.logger.error(f"SIMILAR MOVIES: Error creating search history list: {e}")
             return None
+
+    def authorize_ai_search(self, context: PluginContext) -> None:
+        """Handle AI search authorization"""
+        try:
+            # Check if already authorized
+            ai_client = get_ai_search_client()
+            if ai_client.is_activated():
+                xbmcgui.Dialog().ok(
+                    "Already Authorized", 
+                    "AI Search is already activated and working."
+                )
+                return
+
+            # Show OTP input dialog
+            otp_code = xbmcgui.Dialog().input(
+                "Enter 8-digit pairing code from AI Search website:",
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+
+            if not otp_code:
+                return
+
+            # Show progress dialog
+            progress = xbmcgui.DialogProgress()
+            progress.create("AI Search", "Activating AI Search...")
+            progress.update(50)
+
+            try:
+                result = ai_client.activate_with_otp(otp_code)
+                progress.update(100)
+                progress.close()
+
+                if result['success']:
+                    xbmcgui.Dialog().ok(
+                        "Success!",
+                        f"AI Search activated successfully!\nUser: {result.get('user_email', 'Unknown')}"
+                    )
+                else:
+                    xbmcgui.Dialog().ok(
+                        "Activation Failed",
+                        f"Error: {result.get('error', 'Unknown error')}"
+                    )
+            except Exception as e:
+                progress.close()
+                context.logger.error(f"Error during activation: {e}")
+                xbmcgui.Dialog().ok(
+                    "Error", 
+                    f"Failed to activate AI Search: {str(e)}"
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error in authorize_ai_search: {e}")
+            xbmcgui.Dialog().ok(
+                "Error",
+                f"An error occurred: {str(e)}"
+            )
+
+    def trigger_replace_sync(self, context: PluginContext) -> None:
+        """Trigger an authoritative replace sync with AI Search server"""
+        try:
+            ai_client = get_ai_search_client()
+
+            # Check if AI Search is activated
+            if not ai_client.is_activated():
+                xbmcgui.Dialog().ok(
+                    "Not Activated",
+                    "AI Search must be activated before syncing.\nUse 'Authorize AI Search' first."
+                )
+                return
+
+            # Confirm replace sync
+            dialog = xbmcgui.Dialog()
+            if not dialog.yesno(
+                "AI Search Replace Sync",
+                "This will replace the entire server movie collection with your current Kodi library.\n\n"
+                "Server movies not in Kodi will be removed.\n\n"
+                "Continue with replace sync?",
+                nolabel="Cancel",
+                yeslabel="Continue"
+            ):
+                return
+
+            # Show progress dialog
+            progress = xbmcgui.DialogProgress()
+            progress.create("AI Search Replace Sync", "Scanning local library...")
+            progress.update(10)
+
+            try:
+                # Get movies from local database
+                from ..data.connection_manager import get_connection_manager
+                conn_manager = get_connection_manager()
+
+                progress.update(30, "Collecting movie data...")
+
+                movies_result = conn_manager.execute_query(
+                    "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
+                )
+
+                movies_with_imdb = []
+                for row in movies_result:
+                    imdb_id = row.get('imdbnumber', '').strip()
+                    if imdb_id and imdb_id.startswith('tt'):
+                        movies_with_imdb.append({
+                            'imdb_id': imdb_id,
+                            'title': row.get('title', ''),
+                            'year': row.get('year', 0)
+                        })
+
+                progress.update(50, f"Found {len(movies_with_imdb)} movies...")
+
+                if not movies_with_imdb:
+                    progress.close()
+                    xbmcgui.Dialog().ok(
+                        "No Movies Found",
+                        "No movies with IMDb IDs found in your library."
+                    )
+                    return
+
+                progress.update(70, "Syncing with server (replace mode)...")
+
+                # Perform replace sync
+                result = ai_client.sync_media_batch(
+                    movies_with_imdb, 
+                    batch_size=500, 
+                    use_replace_mode=True
+                )
+
+                progress.update(100)
+                progress.close()
+
+                if result and result.get('success'):
+                    sync_results = result.get('results', {})
+                    total_processed = result.get('total_processed', 0)
+
+                    message = (
+                        f"Replace sync completed successfully!\n\n"
+                        f"Total processed: {total_processed}\n"
+                        f"Added: {sync_results.get('added', 0)}\n"
+                        f"Already present: {sync_results.get('already_present', 0)}\n"
+                        f"Invalid: {sync_results.get('invalid', 0)}"
+                    )
+
+                    xbmcgui.Dialog().ok("Sync Complete", message)
+                else:
+                    error_msg = result.get('error', 'Unknown error') if result else 'No response from server'
+                    xbmcgui.Dialog().ok(
+                        "Sync Failed",
+                        f"Replace sync failed: {error_msg}"
+                    )
+
+            except Exception as e:
+                progress.close()
+                context.logger.error(f"Error during replace sync: {e}")
+                xbmcgui.Dialog().ok(
+                    "Error",
+                    f"Failed to perform replace sync: {str(e)}"
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error in trigger_replace_sync: {e}")
+            xbmcgui.Dialog().ok(
+                "Error",
+                f"An error occurred: {str(e)}"
+            )
 
 
 def get_ai_search_handler():

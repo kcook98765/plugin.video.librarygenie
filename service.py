@@ -312,10 +312,6 @@ class LibraryGenieService:
         self.logger.info("AI search sync worker started")
 
         try:
-            # Initial sync after 60 seconds
-            if not self.sync_stop_event.wait(60):
-                self._perform_ai_sync()
-
             # Periodic sync based on settings
             sync_hours = self.settings.get_ai_search_sync_interval()
             sync_interval = min(sync_hours * 3600, 86400)  # Cap at 24 hours (86400 seconds) to avoid timeout errors
@@ -424,10 +420,10 @@ class LibraryGenieService:
                         xbmcgui.NOTIFICATION_ERROR
                     )
 
-                # Rate limiting: 10 second wait between batches (as per documentation)
+                # Rate limiting: 1 second wait between batches
                 if batch_num < total_batches and not self.sync_stop_event.is_set():
-                    self.logger.debug(f"Waiting 10 seconds before next batch...")
-                    self.sync_stop_event.wait(10)
+                    self.logger.debug(f"Waiting 1 second before next batch...")
+                    self.sync_stop_event.wait(1)
 
             self.logger.info("AI search synchronization completed")
 
