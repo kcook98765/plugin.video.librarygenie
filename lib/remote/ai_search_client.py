@@ -471,10 +471,7 @@ class AISearchClient:
 
                 chunk_index += 1
 
-            # Commit the batch - REQUIRED for replace-sync operations
-            if progress_callback:
-                progress_callback(total_chunks, total_chunks, "Finalizing sync...")
-            
+            # Commit the batch - REQUIRED for replace-sync operations            
             self.logger.info(f"Committing batch upload for {upload_id}")
             commit_response = self._make_request(f'library/batch/{upload_id}/commit', 'POST')
             
