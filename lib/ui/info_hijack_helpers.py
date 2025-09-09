@@ -95,43 +95,28 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
 
 def _wait_for_info_dialog(timeout=10.0):
     """
-    Block until the DialogVideoInfo window is active (skin dep. but standard on Kodi 19+).
-    Optimized polling with reduced overhead for faster response.
+    Block until the DialogVideoInfo window is active.
+    Focus-essential checks only for maximum performance.
     """
     t_start = time.perf_counter()
     end = time.time() + timeout
-    check_count = 0
-    last_dialog_id = None
 
     _log(f"_wait_for_info_dialog: Starting wait for info dialog with {timeout:.1f}s timeout")
 
     while time.time() < end:
-        check_count += 1
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
-        # Log only when dialog ID changes (simplified logging)
-        if current_dialog_id != last_dialog_id:
-            elapsed = time.perf_counter() - t_start
-            _log(f"_wait_for_info_dialog: Dialog ID change at {elapsed:.3f}s: {last_dialog_id}→{current_dialog_id}")
-            last_dialog_id = current_dialog_id
-
-        # Check for target dialog (core functionality)
+        # Only check for target dialog - no other validations
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo / Fallback
             t_end = time.perf_counter()
-            _log(f"_wait_for_info_dialog: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
+            _log(f"_wait_for_info_dialog: SUCCESS ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
             return True
-
-        # Reduced logging frequency for performance
-        if check_count % 50 == 0:  # Log every 50 checks instead of 20/5
-            elapsed = time.perf_counter() - t_start
-            _log(f"_wait_for_info_dialog: check #{check_count} ({elapsed:.1f}s) - dialog_id={current_dialog_id}")
             
-        # Optimized sleep - consistent 100ms polling (was 30-50ms)
-        xbmc.sleep(100)
+        # Simple polling - no complex state tracking
+        xbmc.sleep(200)
 
     t_end = time.perf_counter()
-    final_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    _log(f"_wait_for_info_dialog: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s) - final_dialog_id={final_dialog_id}", xbmc.LOGWARNING)
+    _log(f"_wait_for_info_dialog: TIMEOUT ({t_end - t_start:.3f}s)", xbmc.LOGWARNING)
     return False
 
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
