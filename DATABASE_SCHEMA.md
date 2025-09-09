@@ -231,23 +231,18 @@ Stores UI-related user preferences.
 ---
 
 ### `imdb_exports`
-Lightweight table for export/import/backup matching with enhanced metadata.
+Lightweight table for export/import operations.
 
 | Column     | Type    | Notes |
 |------------|---------|-------|
 | `id`       | INTEGER | PRIMARY KEY AUTOINCREMENT |
 | `imdb_id`  | TEXT    | Primary identifier |
-| `tmdb_id`  | TEXT    | TMDb identifier for fallback |
-| `kodi_id`  | INTEGER | Kodi database ID |
 | `title`    | TEXT    | Media title |
 | `year`     | INTEGER | Release year |
-| `file_path`| TEXT    | Original file path |
-| `created_at` | TEXT  | Creation timestamp |
+| `created_at` | TEXT  | NOT NULL DEFAULT (datetime('now')) |
 
 Indexes:
 - INDEX on `imdb_id`.
-- INDEX on `tmdb_id`.
-- INDEX on `kodi_id`.
 
 ---
 
@@ -313,15 +308,22 @@ Stores differential sync state for efficient client-server synchronization.
 ---
 
 ### `auth_state` (CLIENT-KODI-SERVICE)
-Stores authentication token and expiry information.
+Stores authentication and API key information for external services.
 
-| Column         | Type    | Notes |
-|----------------|---------|-------|
-| `id`           | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `access_token` | TEXT    | Bearer token for API access |
-| `expires_at`   | TEXT    | Token expiry timestamp |
-| `token_type`   | TEXT    | Usually "Bearer" |
-| `scope`        | TEXT    | Token permissions |
+| Column                     | Type    | Notes |
+|----------------------------|---------|-------|
+| `id`                       | INTEGER | PRIMARY KEY AUTOINCREMENT |
+| `device_code`              | TEXT    | OAuth device code |
+| `user_code`                | TEXT    | User verification code |
+| `verification_uri`         | TEXT    | Verification URL |
+| `verification_uri_complete`| TEXT    | Complete verification URL with code |
+| `expires_in`               | INTEGER | Token expiry in seconds |
+| `interval_seconds`         | INTEGER | Polling interval for device flow |
+| `api_key`                  | TEXT    | API key for service access |
+| `token_type`               | TEXT    | Token type (e.g., "ApiKey") |
+| `scope`                    | TEXT    | Token permissions |
+| `created_at`               | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+| `updated_at`               | TEXT    | NOT NULL DEFAULT (datetime('now')) |
 
 ---
 
@@ -342,42 +344,39 @@ Indexes:
 
 ---
 
-### `backup_history`
-Records backup operations and retention management.
+### `backup_history` *(Not Currently Implemented)*
+**Status**: Documented but not created in current schema. Referenced in backup manager code but table creation is missing.
 
-| Column              | Type    | Notes |
-|---------------------|---------|-------|
-| `id`                | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `backup_type`       | TEXT    | 'automatic' or 'manual' |
-| `filename`          | TEXT    | NOT NULL - backup filename |
-| `file_path`         | TEXT    | NOT NULL - full file path |
-| `storage_type`      | TEXT    | NOT NULL - 'local' |
-| `export_types`      | TEXT    | JSON array of included types |
-| `file_size`         | INTEGER | Backup file size in bytes |
-| `items_count`       | INTEGER | Total items in backup |
-| `success`           | INTEGER | DEFAULT 1 - whether backup succeeded |
-| `error_message`     | TEXT    | Error message if backup failed |
-| `created_at`        | TEXT    | NOT NULL DEFAULT (datetime('now')) |
+*Expected structure for future implementation:*
+- Records backup operations and retention management
+- Columns: id, backup_type, filename, file_path, storage_type, export_types, file_size, items_count, success, error_message, created_at
+- Would include indexes on backup_type, created_at, storage_type
+
+### `backup_preferences` *(Not Currently Implemented)*
+**Status**: Documented but not created in current schema. Backup preferences are currently handled through addon settings rather than database storage.
+
+*Expected structure for future implementation:*
+- Stores backup configuration and preferences  
+- Columns: id, auto_backup_enabled, backup_interval_days, max_backups_to_keep, backup_location, last_auto_backup, updated_at
+- Would use fixed ID of 1 for single-row configuration pattern
+
+### `remote_cache`
+Generic cache for external API responses and remote data.
+
+| Column      | Type    | Notes |
+|-------------|---------|-------|
+| `id`        | INTEGER | PRIMARY KEY |
+| `cache_key` | TEXT    | UNIQUE NOT NULL - unique cache identifier |
+| `data`      | TEXT    | NOT NULL - cached data (typically JSON) |
+| `expires_at`| TEXT    | NOT NULL - expiry timestamp |
+| `created_at`| TEXT    | NOT NULL DEFAULT (datetime('now')) |
+| `updated_at`| TEXT    | NOT NULL DEFAULT (datetime('now')) |
 
 Indexes:
-- INDEX on `backup_type`.
-- INDEX on `created_at`.
-- INDEX on `storage_type`.
+- INDEX on `cache_key`.
+- INDEX on `expires_at`.
 
-### `backup_preferences`
-Stores backup configuration and preferences.
-
-| Column                | Type    | Notes |
-|-----------------------|---------|-------|
-| `id`                  | INTEGER | PRIMARY KEY |
-| `auto_backup_enabled` | INTEGER | NOT NULL DEFAULT 0 |
-| `backup_interval_days`| INTEGER | NOT NULL DEFAULT 7 |
-| `max_backups_to_keep` | INTEGER | NOT NULL DEFAULT 5 |
-| `backup_location`     | TEXT    | NOT NULL DEFAULT 'special://userdata/addon_data/script.librarygenie/backups/' |
-| `last_auto_backup`    | TEXT    | Last automatic backup timestamp |
-| `updated_at`          | TEXT    | NOT NULL DEFAULT (datetime('now')) |
-
-**Note**: This table uses a fixed ID of 1 for a single-row configuration pattern.
+---
 
 ### `schema_version`
 Tracks database schema version for migrations.
@@ -406,15 +405,17 @@ The schema includes these default entries on initialization:
 - A "Search History" folder in the `folders` table
 - Default search preferences in `search_preferences`
 - Default UI preferences in `ui_preferences` (single row with ID=1)
-- Default backup preferences with weekly scheduling disabled
+
+**Note**: Backup preferences are currently handled through addon settings, not database storage.
 
 ### Backup System
 The backup system provides:
 - **Unified Format**: Uses the same NDJSON engine as export functionality
 - **Enhanced Metadata**: Includes additional identifiers for robust recovery
 - **Flexible Storage**: Local paths and network shares via Kodi file settings
-- **Automated Scheduling**: Configurable intervals with timestamp-based naming
-- **Retention Management**: Automatic cleanup of old backups based on policies
+- **Settings-Based Configuration**: Backup preferences stored in addon settings rather than database
+
+**Note**: While `backup_history` and `backup_preferences` tables are designed, they are not currently implemented in the schema.
 
 ### Authentication and Sync
 The auth and sync tables support optional external service integration:
