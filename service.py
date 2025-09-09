@@ -286,21 +286,8 @@ class LibraryGenieService:
             self.logger.info("🔍 AI client not configured, skipping sync")
             return False
 
-        # Quick connection test to ensure auth is still valid
-        self.logger.info("🔍 Testing AI Search connection...")
-        connection_test = self.ai_client.test_connection()
-        if not connection_test.get('success'):
-            error = connection_test.get('error', 'Unknown error')
-            self.logger.warning(f"AI search connection invalid: {error}")
-
-            # If it's an auth error, disable AI search to prevent constant retries
-            if 'API key' in error or '401' in error:
-                self.logger.info("Disabling AI search due to authentication failure")
-                self.settings.set_ai_search_activated(False)
-
-            return False
-
-        self.logger.info("✅ AI Search connection test passed")
+        # Configuration looks good - sync worker will test connection when it runs
+        self.logger.info("✅ AI Search configuration verified")
         return True
 
     def _start_ai_sync_thread(self):
@@ -377,7 +364,7 @@ class LibraryGenieService:
             self.logger.info("Scanning local library for movies with IMDb IDs...")
 
             # Get all movies from Kodi library using existing method
-            from ..data.connection_manager import get_connection_manager
+            from lib.data.connection_manager import get_connection_manager
             conn_manager = get_connection_manager()
             
             movies_result = conn_manager.execute_all("SELECT imdb_id, title, year FROM movies WHERE imdb_id IS NOT NULL AND imdb_id != ''")
