@@ -355,7 +355,7 @@ class AISearchClient:
             self.logger.error(f"Error getting library hash: {e}")
             return None
 
-    def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500, use_replace_mode: bool = False) -> Optional[Dict[str, Any]]:
+    def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500, use_replace_mode: bool = False, progress_callback=None) -> Optional[Dict[str, Any]]:
         """
         Sync a batch of media items with the AI search server using Main API
 
@@ -363,6 +363,7 @@ class AISearchClient:
             media_items: List of media item dictionaries with imdb_id
             batch_size: Items per chunk (max 1000)
             use_replace_mode: If True, use "replace" mode for authoritative sync
+            progress_callback: Optional callback function(current, total, message) for progress updates
 
         Returns:
             Sync result or None if sync fails
@@ -416,8 +417,14 @@ class AISearchClient:
             }
 
             chunk_index = 0
+            total_chunks = (len(imdb_ids) + chunk_size - 1) // chunk_size
+            
             for i in range(0, len(imdb_ids), chunk_size):
                 chunk_imdb_ids = imdb_ids[i:i + chunk_size]
+
+                # Update progress if callback provided
+                if progress_callback:
+                    progress_callback(chunk_index, total_chunks, f"Uploading batch {chunk_index + 1}/{total_chunks}")
 
                 # Prepare chunk data
                 chunk_items = [{'imdb_id': imdb_id} for imdb_id in chunk_imdb_ids]
@@ -465,6 +472,9 @@ class AISearchClient:
                 chunk_index += 1
 
             # Commit the batch - REQUIRED for replace-sync operations
+            if progress_callback:
+                progress_callback(total_chunks, total_chunks, "Finalizing sync...")
+            
             self.logger.info(f"Committing batch upload for {upload_id}")
             commit_response = self._make_request(f'library/batch/{upload_id}/commit', 'POST')
             
