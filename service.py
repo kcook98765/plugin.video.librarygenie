@@ -42,6 +42,7 @@ class LibraryGenieService:
         # State tracking to reduce excessive logging
         self._last_ai_sync_state = None
         self._last_ai_sync_check_time = 0
+        self._last_service_log_time = 0
         
         self.logger.info("🚀 LibraryGenie service initialized with InfoHijack manager")
 
@@ -182,23 +183,32 @@ class LibraryGenieService:
                             self.logger.info("🎯 Entering hijack mode - extended monitoring for XSP auto-navigation (120s)")
                         else:
                             self.logger.info("🎯 Entering hijack mode - frequent ticking enabled")
-                        log_interval = 100  # 10 seconds in hijack mode
+                        log_interval = 600  # 60 seconds in hijack mode (reduced from 10 seconds)
                     else:
                         self.logger.info("😴 Exiting hijack mode - entering idle mode")
-                        log_interval = 300  # 30 seconds in normal mode
+                        log_interval = 1800  # 180 seconds (3 minutes) in normal mode (reduced from 30 seconds)
 
-                # Conditional debug logging - only when state changes or at intervals
+                # Conditional debug logging - only when state changes or at very long intervals
+                # Also only log if something interesting is happening (not just idle ticks)
+                state_changed = (dialog_active != last_dialog_active or armed_state != last_armed_state)
+                interval_reached = (tick_count % log_interval == 0)
+                something_interesting = dialog_active or armed_state == '1' or in_extended_monitoring
+                
                 should_log = (
-                    dialog_active != last_dialog_active or 
-                    armed_state != last_armed_state or 
-                    tick_count % log_interval == 0
+                    state_changed or  # Always log state changes
+                    (interval_reached and something_interesting)  # Only log intervals when something is happening
                 )
 
                 if should_log and self.settings.get_debug_logging():
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     mode_str = "HIJACK" if hijack_mode else "IDLE"
-                    self.logger.info(f"🔍 SERVICE [{mode_str}] TICK {tick_count}: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}, path='{container_path[:50]}...' if container_path else 'None'")
+                    
+                    if state_changed:
+                        self.logger.info(f"🔍 SERVICE STATE CHANGE [{mode_str}]: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}")
+                    else:
+                        # Only log periodic ticks when in hijack mode and something is active
+                        self.logger.info(f"🔍 SERVICE [{mode_str}] PERIODIC CHECK {tick_count}: dialog_active={dialog_active}, armed={armed_state}")
 
                 # Store state for next comparison
                 last_dialog_active = dialog_active
@@ -227,7 +237,7 @@ class LibraryGenieService:
                         # Force hijack mode to stay active for next iteration
                         needs_hijack = True
                         if not dialog_active and dialog_active != last_dialog_active:  # Log when dialog closes but still on XSP
-                            self.logger.info(f"🔄 HIJACK: Dialog closed but staying in hijack mode - user on LibraryGenie XSP: '{container_path[:60]}...'")
+                            self.logger.info(f"🔄 HIJACK: Dialog closed but staying in hijack mode - user on LibraryGenie XSP")
                     # Normal hijack mode detection will handle other cases
 
                 # Adaptive sleep timing based on mode
