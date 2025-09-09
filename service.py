@@ -138,9 +138,11 @@ class LibraryGenieService:
         last_dialog_active = False
         last_armed_state = None
         hijack_mode = False
+        last_ai_sync_check = 0
 
         # Reduced logging frequency
         log_interval = 300  # Log every 30 seconds in normal mode, 10 seconds in hijack mode
+        ai_sync_check_interval = 30  # Check AI sync activation every 30 seconds
 
         while not self.monitor.abortRequested():
             try:
@@ -190,6 +192,10 @@ class LibraryGenieService:
                 last_dialog_active = dialog_active
                 last_armed_state = armed_state
 
+                # Check for AI sync activation changes periodically
+                if tick_count % ai_sync_check_interval == 0:
+                    self._check_ai_sync_activation()
+
                 # Run hijack manager tick only when needed
                 if hijack_mode:
                     self.hijack_manager.tick()
@@ -232,11 +238,26 @@ class LibraryGenieService:
 
         self.logger.info("🛑 LibraryGenie service stopped")
 
+    def _check_ai_sync_activation(self):
+        """Check if AI sync should be started (for dynamic activation detection)"""
+        try:
+            # Check if AI sync should start and isn't already running
+            if self._should_start_ai_sync():
+                if not (self.sync_thread and self.sync_thread.is_alive()):
+                    self.logger.info("🚀 AI Search activation detected - starting sync thread dynamically")
+                    self._start_ai_sync_thread()
+            else:
+                # Stop sync thread if AI Search was deactivated
+                if self.sync_thread and self.sync_thread.is_alive():
+                    self.logger.info("🛑 AI Search deactivation detected - stopping sync thread")
+                    self._stop_ai_sync_thread()
+        except Exception as e:
+            self.logger.error(f"Error checking AI sync activation: {e}")
+
     def _should_start_ai_sync(self) -> bool:
         """Check if AI search sync should be started"""
         # Verify that AI search is properly configured with valid auth
-        if not (self.settings.get_ai_search_activated() and 
-                self.settings.get_ai_search_sync_enabled()):
+        if not self.settings.get_ai_search_activated():
             return False
 
         # Test if AI client is properly configured and authorized
