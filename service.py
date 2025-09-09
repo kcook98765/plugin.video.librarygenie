@@ -21,7 +21,6 @@ from lib.data.storage_manager import get_storage_manager
 from lib.data.migrations import initialize_database
 from lib.ui.localization import L
 from lib.ui.info_hijack_manager import InfoHijackManager # Import added
-from lib.config.settings_monitor import start_settings_monitor, stop_settings_monitor
 
 logger = get_logger(__name__)
 addon = xbmcaddon.Addon()
@@ -118,10 +117,6 @@ class LibraryGenieService:
             # Check if library needs initial scan
             self._check_and_perform_initial_scan()
 
-            # Start settings monitor for automatic OTP processing
-            self.logger.info("Starting settings monitor for OTP auto-processing...")
-            start_settings_monitor()
-
             # Start AI search sync if enabled
             if self._should_start_ai_sync():
                 self._start_ai_sync_thread()
@@ -131,17 +126,10 @@ class LibraryGenieService:
 
             # Cleanup
             self._stop_ai_sync_thread()
-            self.logger.info("Stopping settings monitor...")
-            stop_settings_monitor()
             self.logger.info("LibraryGenie background service stopped")
 
         except Exception as e:
             self.logger.error(f"Service error: {e}")
-            # Ensure settings monitor is stopped on error
-            try:
-                stop_settings_monitor()
-            except Exception:
-                pass
 
     def run(self):
         """Main service loop - optimized for minimal resource usage"""
