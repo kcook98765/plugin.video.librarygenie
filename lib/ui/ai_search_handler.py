@@ -13,8 +13,6 @@ from typing import Optional, List, Dict, Any
 
 from ..remote.ai_search_client import get_ai_search_client
 from ..data.query_manager import get_query_manager
-from ..data.storage_manager import get_storage_manager
-from ..data.connection_manager import get_connection_manager
 from ..utils.logger import get_logger
 from .localization import L
 
@@ -26,8 +24,6 @@ class AISearchHandler:
         self.logger = get_logger(__name__)
         self.ai_client = get_ai_search_client()
         self.query_manager = get_query_manager()
-        self.storage_manager = get_storage_manager()
-        self.conn_manager = get_connection_manager()
 
     def perform_ai_search(self, query: str) -> bool:
         """
@@ -183,7 +179,7 @@ class AISearchHandler:
             List of matched media item dictionaries
         """
         try:
-            # Use standard connection manager query method
+            # Use query manager's connection manager following standard pattern
             placeholders = ','.join(['?' for _ in imdb_ids])
             query = f"""
                 SELECT id, title, year, imdb_id, tmdb_id, plot, rating, 
@@ -194,7 +190,7 @@ class AISearchHandler:
                 ORDER BY title
             """
             
-            rows = self.conn_manager.execute_query(query, imdb_ids)
+            rows = self.query_manager.connection_manager.execute_query(query, imdb_ids)
             
             # Convert rows to dictionaries  
             matched_items = [dict(row) for row in rows]
@@ -238,7 +234,7 @@ class AISearchHandler:
             
             # Add matched items to the list
             added_count = 0
-            with self.conn_manager.transaction() as conn:
+            with self.query_manager.connection_manager.transaction() as conn:
                 for position, item in enumerate(matched_items):
                     try:
                         # Add item to list using direct database insert
@@ -550,7 +546,7 @@ class AISearchHandler:
             
             # Add matched items to the list
             added_count = 0
-            with self.conn_manager.transaction() as conn:
+            with self.query_manager.connection_manager.transaction() as conn:
                 for position, item in enumerate(matched_items):
                     try:
                         # Add item to list using direct database insert
