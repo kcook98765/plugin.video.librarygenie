@@ -654,11 +654,14 @@ class AISearchHandler:
                 return
 
             # Confirm replace sync
-            if not xbmcgui.Dialog().yesno(
+            dialog = xbmcgui.Dialog()
+            if not dialog.yesno(
                 "AI Search Replace Sync",
-                "This will replace the entire server movie collection with your current Kodi library.",
-                "Server movies not in Kodi will be removed.",
-                "Continue with replace sync?"
+                "This will replace the entire server movie collection with your current Kodi library.\n\n"
+                "Server movies not in Kodi will be removed.\n\n"
+                "Continue with replace sync?",
+                nolabel="Cancel",
+                yeslabel="Continue"
             ):
                 return
 
