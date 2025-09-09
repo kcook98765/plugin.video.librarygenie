@@ -364,10 +364,10 @@ class LibraryGenieService:
                 self._show_notification(f"{L(34105)}: {error_msg}", xbmcgui.NOTIFICATION_ERROR)  # "Sync failed: ..."
                 return
 
-            # Get current library version for delta sync
+            # Get current library version for delta sync (optional - endpoint may not exist)
             server_version = self.ai_client.get_library_version()
             if not server_version:
-                self.logger.warning("Failed to get server library version")
+                self.logger.info("Server library version not available (proceeding with full sync)")
 
             # Scan library for movies with IMDb IDs
             scanner = LibraryScanner()
@@ -375,8 +375,12 @@ class LibraryGenieService:
 
             self.logger.info("Scanning local library for movies with IMDb IDs...")
 
-            # Get all movies from Kodi library
-            movies = scanner.scan_movies()
+            # Get all movies from Kodi library using existing method
+            from ..data.connection_manager import get_connection_manager
+            conn_manager = get_connection_manager()
+            
+            movies_result = conn_manager.execute_all("SELECT imdb_id, title, year FROM movies WHERE imdb_id IS NOT NULL AND imdb_id != ''")
+            movies = [{"imdbnumber": row["imdb_id"], "title": row["title"], "year": row["year"]} for row in movies_result]
             for movie in movies:
                 imdb_id = movie.get('imdbnumber', '').strip()
                 if imdb_id and imdb_id.startswith('tt'):
