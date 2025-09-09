@@ -666,6 +666,7 @@ class AISearchHandler:
                 return
 
             # Start background sync
+            dialog_bg = None
             try:
                 # Get movies from local database
                 from ..data.connection_manager import get_connection_manager
@@ -742,7 +743,7 @@ class AISearchHandler:
                     )
 
             except Exception as e:
-                if 'dialog_bg' in locals() and dialog_bg:
+                if dialog_bg:
                     dialog_bg.close()
                 context.logger.error(f"Error during replace sync: {e}")
                 xbmcgui.Dialog().ok(
