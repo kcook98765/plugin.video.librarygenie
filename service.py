@@ -38,6 +38,11 @@ class LibraryGenieService:
         self.sync_thread = None
         self.sync_stop_event = threading.Event()
         self.hijack_manager = InfoHijackManager(self.logger) # Hijack manager initialized
+        
+        # State tracking to reduce excessive logging
+        self._last_ai_sync_state = None
+        self._last_ai_sync_check_time = 0
+        
         self.logger.info("🚀 LibraryGenie service initialized with InfoHijack manager")
 
         # Debug: Check initial dialog state
@@ -201,8 +206,7 @@ class LibraryGenieService:
 
                 # Check for AI sync activation changes periodically
                 if tick_count % ai_sync_check_interval == 0:
-                    self.logger.info(f"🔄 Periodic AI sync check (tick {tick_count})")
-                    self._check_ai_sync_activation()
+                    self._check_ai_sync_activation(tick_count)
 
                 # Run hijack manager tick only when needed
                 if hijack_mode:
@@ -246,11 +250,20 @@ class LibraryGenieService:
 
         self.logger.info("🛑 LibraryGenie service stopped")
 
-    def _check_ai_sync_activation(self):
+    def _check_ai_sync_activation(self, tick_count=None):
         """Check if AI sync should be started (for dynamic activation detection)"""
         try:
+            current_time = time.time()
+            # Only log periodic check every 5 minutes instead of 30 seconds
+            should_log_periodic = (tick_count is not None and 
+                                 (current_time - self._last_ai_sync_check_time) > 300)  # 5 minutes
+            
+            if should_log_periodic:
+                self.logger.info(f"🔄 Periodic AI sync check (tick {tick_count})")
+                self._last_ai_sync_check_time = current_time
+                
             # Check if AI sync should start and isn't already running
-            if self._should_start_ai_sync():
+            if self._should_start_ai_sync(force_log=should_log_periodic):
                 if not (self.sync_thread and self.sync_thread.is_alive()):
                     self.logger.info("🚀 AI Search activation detected - starting sync thread dynamically")
                     self._start_ai_sync_thread()
@@ -262,32 +275,50 @@ class LibraryGenieService:
         except Exception as e:
             self.logger.error(f"Error checking AI sync activation: {e}")
 
-    def _should_start_ai_sync(self) -> bool:
+    def _should_start_ai_sync(self, force_log=False) -> bool:
         """Check if AI search sync should be started"""
         # Verify that AI search is properly configured with valid auth
         if not self.settings.get_ai_search_activated():
-            self.logger.info("🔍 AI Search not activated in settings")
+            if force_log:
+                self.logger.info("🔍 AI Search not activated in settings")
             return False
 
         # Test if AI client is properly configured and authorized
         server_url = self.settings.get_remote_server_url()
         api_key = self.settings.get_ai_search_api_key()
-        self.logger.info(f"🔍 Server URL: '{server_url}' (exists: {bool(server_url)})")
-        self.logger.info(f"🔍 API Key (from settings): {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
         
         # Check what is_authorized() returns (checks database)
         from lib.auth.state import is_authorized, get_api_key
         auth_status = is_authorized()
         db_api_key = get_api_key()
-        self.logger.info(f"🔍 is_authorized() result: {auth_status}")
-        self.logger.info(f"🔍 API Key (from database): {'[PRESENT]' if db_api_key else '[MISSING]'} (length: {len(db_api_key) if db_api_key else 0})")
         
-        if not self.ai_client.is_configured():
-            self.logger.info("🔍 AI client not configured, skipping sync")
+        # Create current state summary
+        current_state = {
+            'server_url_exists': bool(server_url),
+            'settings_api_key_exists': bool(api_key),
+            'auth_status': auth_status,
+            'db_api_key_exists': bool(db_api_key),
+            'client_configured': self.ai_client.is_configured()
+        }
+        
+        # Only log detailed info if state changed or forced
+        if force_log or current_state != self._last_ai_sync_state:
+            self.logger.info(f"🔍 Server URL: '{server_url}' (exists: {current_state['server_url_exists']})")
+            self.logger.info(f"🔍 API Key (from settings): {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
+            self.logger.info(f"🔍 is_authorized() result: {auth_status}")
+            self.logger.info(f"🔍 API Key (from database): {'[PRESENT]' if db_api_key else '[MISSING]'} (length: {len(db_api_key) if db_api_key else 0})")
+            
+            if not current_state['client_configured']:
+                self.logger.info("🔍 AI client not configured, skipping sync")
+            else:
+                self.logger.info("✅ AI Search configuration verified")
+            
+            self._last_ai_sync_state = current_state
+        
+        if not current_state['client_configured']:
             return False
 
         # Configuration looks good - sync worker will test connection when it runs
-        self.logger.info("✅ AI Search configuration verified")
         return True
 
     def _start_ai_sync_thread(self):
