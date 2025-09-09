@@ -424,10 +424,10 @@ class LibraryGenieService:
                         xbmcgui.NOTIFICATION_ERROR
                     )
 
-                # Rate limiting: 10 second wait between batches (as per documentation)
+                # Rate limiting: 1 second wait between batches
                 if batch_num < total_batches and not self.sync_stop_event.is_set():
-                    self.logger.debug(f"Waiting 10 seconds before next batch...")
-                    self.sync_stop_event.wait(10)
+                    self.logger.debug(f"Waiting 1 second before next batch...")
+                    self.sync_stop_event.wait(1)
 
             self.logger.info("AI search synchronization completed")
 
