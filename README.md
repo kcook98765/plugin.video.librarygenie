@@ -50,7 +50,7 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 #### Format Structure
 All export/backup files use a versioned JSON envelope containing:
 - **Metadata**: Addon version, schema version, generation timestamp
-- **Export Types**: Lists of included data types (lists, list_items, favorites, folders, library_snapshot)
+- **Export Types**: Lists of included data types (lists, list_items, folders, library_snapshot, non_library_snapshot)
 - **Payload**: Actual data organized by type with consistent field names
 - **Validation**: Required fields and format validation for safe import/restore
 
@@ -64,7 +64,9 @@ All export/backup files use a versioned JSON envelope containing:
 - **Manual Backups**: On-demand backup creation via Tools menu with timestamp-based naming.
 - **Flexible Storage**: Local paths or network shares (SMB/NFS) configured in Kodi settings.
 - **Backup Management**: List, restore, and delete backups through the Tools interface.
-- **Comprehensive Coverage**: Backup lists, folders, favorites, and optionally library snapshots.
+- **Configurable Coverage**: Backup lists and folders by default, with optional external items (plugins).
+- **External Items Setting**: External plugin content excluded by default to reduce backup size, configurable via `backup_include_non_library` setting.
+- **Storage Optimized**: No database logging during backup operations to minimize storage overhead on user devices.
 - **Disaster Recovery**: Full system restore from unified backup files using same format as exports.
 - **Cross-Compatible**: Backup files can be manually imported on other systems or after fresh installs.
 
