@@ -14,7 +14,7 @@ import urllib.parse
 from typing import List, Union
 
 # Import localization module
-from resources.lib.ui.localization import L
+from lib.ui.localization import L
 
 
 def main():
