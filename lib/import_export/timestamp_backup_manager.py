@@ -140,8 +140,16 @@ class TimestampBackupManager:
             from .import_engine import get_import_engine
             import_engine = get_import_engine()
 
-            # Restore the backup
-            result = import_engine.restore_backup(file_path, replace_mode)
+            # Read backup file content
+            content = self.storage_manager.read_file_safe(file_path)
+            if content is None:
+                return {"success": False, "error": "Could not read backup file"}
+
+            # Extract filename from path for import
+            filename = os.path.basename(file_path)
+
+            # Restore the backup using import_from_content
+            result = import_engine.import_from_content(content, filename, replace_mode)
 
             if result["success"]:
                 self.logger.info(f"Backup restored successfully from {file_path}")
