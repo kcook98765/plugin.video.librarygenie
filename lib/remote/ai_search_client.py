@@ -588,7 +588,14 @@ class AISearchClient:
                     'error': 'Missing required library: requests'
                 }
 
-            endpoint = f"{self.base_url}/otp/exchange" # Assuming base_url is set
+            server_url = self.settings.get_remote_server_url()
+            if not server_url:
+                return {
+                    'success': False,
+                    'error': 'Server URL not configured'
+                }
+            
+            endpoint = f"{server_url.rstrip('/')}/otp/exchange"
             payload = {'otp_code': otp_code}
 
             self.logger.info(f"OTP EXCHANGE: Attempting to exchange OTP code: {otp_code} at {endpoint}")
