@@ -344,21 +344,6 @@ Indexes:
 
 ---
 
-### `backup_history` *(Not Currently Implemented)*
-**Status**: Documented but not created in current schema. Referenced in backup manager code but table creation is missing.
-
-*Expected structure for future implementation:*
-- Records backup operations and retention management
-- Columns: id, backup_type, filename, file_path, storage_type, export_types, file_size, items_count, success, error_message, created_at
-- Would include indexes on backup_type, created_at, storage_type
-
-### `backup_preferences` *(Not Currently Implemented)*
-**Status**: Documented but not created in current schema. Backup preferences are currently handled through addon settings rather than database storage.
-
-*Expected structure for future implementation:*
-- Stores backup configuration and preferences  
-- Columns: id, auto_backup_enabled, backup_interval_days, max_backups_to_keep, backup_location, last_auto_backup, updated_at
-- Would use fixed ID of 1 for single-row configuration pattern
 
 ### `remote_cache`
 Generic cache for external API responses and remote data.
@@ -415,7 +400,7 @@ The backup system provides:
 - **Flexible Storage**: Local paths and network shares via Kodi file settings
 - **Settings-Based Configuration**: Backup preferences stored in addon settings rather than database
 
-**Note**: While `backup_history` and `backup_preferences` tables are designed, they are not currently implemented in the schema.
+**Note**: Backup preferences are managed through addon settings for minimal storage overhead on user devices.
 
 ### Authentication and Sync
 The auth and sync tables support optional external service integration:
