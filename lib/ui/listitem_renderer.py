@@ -25,6 +25,58 @@ class ListItemRenderer:
         self.logger = get_logger(__name__)
         self.builder = ListItemBuilder(addon_handle, addon_id, context)
 
+    def _translate_path(self, path: str) -> str:
+        """Translate path based on Kodi version"""
+        kodi_major = get_kodi_major_version()
+        if kodi_major >= 20:
+            try:
+                import xbmcvfs
+                return xbmcvfs.translatePath(path)
+            except (ImportError, AttributeError):
+                # Fallback for older versions
+                import xbmc
+                return xbmc.translatePath(path)
+        else:
+            try:
+                import xbmc
+                return xbmc.translatePath(path)
+            except (ImportError, AttributeError):
+                # Last resort fallback
+                return path
+
+    def _resource_path(self, name: str) -> str:
+        """Get absolute path to addon resource"""
+        import os
+        import xbmcaddon
+        addon = xbmcaddon.Addon(self.addon_id)
+        base = addon.getAddonInfo('path')
+        return self._translate_path(os.path.join(base, 'resources', name))
+
+    def _apply_art(self, list_item: xbmcgui.ListItem, kind: str):
+        """Apply version-aware art based on folder type"""
+        try:
+            if kind == 'list':
+                # For "List" folders (user lists)
+                icon = self._resource_path('list_playlist_icon.png')
+                thumb = self._resource_path('list_playlist.png')
+            else:
+                # For "Folder" folders (organizational folders)
+                icon = self._resource_path('list_folder_icon.png')
+                thumb = self._resource_path('list_folder.png')
+            
+            list_item.setArt({
+                'icon': icon,
+                'thumb': thumb
+            })
+            self.logger.debug(f"Applied {kind} art: icon={icon}, thumb={thumb}")
+        except Exception as e:
+            # Fallback to defaults if resource art cannot be resolved
+            self.logger.warning(f"Failed to set custom art for {kind}: {e}")
+            list_item.setArt({
+                'icon': 'DefaultFolder.png',
+                'thumb': 'DefaultFolder.png'
+            })
+
     def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
         Render lists as directory items
@@ -183,11 +235,8 @@ class ListItemRenderer:
                 })
                 self.logger.debug(f"LIST ITEM v19: Set metadata via setInfo for '{name}'")
 
-            # Set folder icon
-            list_item.setArt({
-                'icon': 'DefaultFolder.png',
-                'thumb': 'DefaultFolder.png'
-            })
+            # Set list playlist icon
+            self._apply_art(list_item, 'list')
 
             # Add context menu
             self._set_list_context_menu(list_item, list_data)
@@ -231,10 +280,7 @@ class ListItemRenderer:
                 self.logger.debug(f"FOLDER ITEM v19: Set metadata via setInfo for '{name}'")
 
             # Set folder icon
-            list_item.setArt({
-                'icon': 'DefaultFolder.png',
-                'thumb': 'DefaultFolder.png'
-            })
+            self._apply_art(list_item, 'folder')
 
             # Add context menu
             self._set_folder_context_menu(list_item, folder_data)
