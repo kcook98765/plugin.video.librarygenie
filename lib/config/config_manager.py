@@ -258,7 +258,7 @@ class ConfigManager:
         string_settings = [
             "default_list_id", "remote_base_url", "device_name",
             "backup_storage_location", "last_backup_time",
-            "ai_search_server_url", "ai_search_api_key"
+            "ai_search_server_url", "ai_search_api_key", "export_location"
         ]
 
         logger.debug(f"CONFIG_DEBUG: Analyzing setting type for '{key}'")
@@ -413,6 +413,14 @@ class ConfigManager:
             'include_settings': self.get_bool('backup_include_settings', True),
             'include_non_library': self.get_bool('backup_include_non_library', False)
         }
+
+    def get_export_location(self) -> str:
+        """Get export location setting"""
+        return str(self.get('export_location', '')).strip()
+
+    def set_export_location(self, path: str) -> None:
+        """Set export location setting"""
+        self.set('export_location', path)
 
     def get_backup_storage_location(self) -> str:
         """Get backup storage location with proper fallback"""

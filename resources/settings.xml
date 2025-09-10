@@ -37,8 +37,10 @@
     <setting id="background_interval_seconds" type="slider" label="30112" help="35521" default="60" range="30,5,3600" option="int" enable="eq(-1,true)"/>
   </category>
 
-  <!-- Backup Settings -->
+  <!-- Export & Backup Settings -->
   <category label="30500">
+    <setting label="30506" type="lsep"/>
+    <setting id="export_location" type="folder" label="30507" help="35524" default=""/>
     <setting label="30510" type="lsep"/>
     <setting id="backup_enabled" type="bool" label="30511" help="35525" default="false"/>
     <setting id="backup_interval" type="select" label="30512" help="35526" default="0" lvalues="30562|30563|30564" enable="eq(-1,true)"/>
