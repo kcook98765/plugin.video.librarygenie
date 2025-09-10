@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.librarygenie"
        name="LibraryGenie"
-       version="0.1.1"
+       version="0.1.2"
        provider-name="LibraryGenie Team">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
@@ -29,8 +29,8 @@
     <source>https://github.com/your-repo/plugin.video.librarygenie</source>
     <news></news>
     <assets>
-      <icon>icon.png</icon>
-      <fanart>fanart.png</fanart>
+      <icon>resources/list_folder_icon.png</icon>
+      <fanart>resources/fanart.jpg</fanart>
     </assets>
   </extension>
 </addon>
