@@ -561,18 +561,13 @@ class ImportEngine:
                     # (existing items were already cleared)
                     try:
                         self.logger.info(f"DEBUG: About to insert movie_id {movie_id} into list_id {list_id}")
-                        success = self.conn_manager.execute_single(
-                            "INSERT INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
-                            [list_id, movie_id]
-                        )
-                        self.logger.info(f"DEBUG: execute_single returned: {success} (type: {type(success)})")
-                        
-                        if success is not None:
-                            added += 1
-                            self.logger.info(f"DEBUG: Successfully added item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
-                        else:
-                            self.logger.error(f"DEBUG: Failed to add item '{item_data.get('title', 'unknown')}' to list_id {list_id} - execute_single returned None")
-                            errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
+                        with self.conn_manager.transaction() as conn:
+                            conn.execute(
+                                "INSERT INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
+                                [list_id, movie_id]
+                            )
+                        added += 1
+                        self.logger.info(f"DEBUG: Successfully added item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
                     except Exception as db_error:
                         self.logger.error(f"DEBUG: Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
@@ -585,18 +580,13 @@ class ImportEngine:
                     # Add to list
                     try:
                         self.logger.info(f"DEBUG: About to insert movie_id {movie_id} into list_id {list_id}")
-                        success = self.conn_manager.execute_single(
-                            "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
-                            [list_id, movie_id]
-                        )
-                        self.logger.info(f"DEBUG: execute_single returned: {success} (type: {type(success)})")
-
-                        if success is not None:
-                            added += 1
-                            self.logger.info(f"DEBUG: Successfully added item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
-                        else:
-                            self.logger.error(f"DEBUG: Failed to add item '{item_data.get('title', 'unknown')}' to list_id {list_id} - execute_single returned None")
-                            errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
+                        with self.conn_manager.transaction() as conn:
+                            conn.execute(
+                                "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
+                                [list_id, movie_id]
+                            )
+                        added += 1
+                        self.logger.info(f"DEBUG: Successfully added item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
                     except Exception as db_error:
                         self.logger.error(f"DEBUG: Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
