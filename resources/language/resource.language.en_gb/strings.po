@@ -1957,3 +1957,17 @@ msgstr ""
 msgctxt "#35545"
 msgid "Replaces the default movie information screen with LibraryGenie's enhanced interface."
 msgstr ""
+
+# Export Settings
+msgctxt "#30550"
+msgid "Export Settings"
+msgstr ""
+
+msgctxt "#30551"
+msgid "Export Location"
+msgstr ""
+
+# Export Settings Help Text
+msgctxt "#35546"
+msgid "Directory where exported files will be saved. If empty, you'll be prompted to select a location on first export."
+msgstr ""
