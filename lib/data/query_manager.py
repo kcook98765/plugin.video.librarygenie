@@ -1347,39 +1347,39 @@ class QueryManager:
 
     def detect_content_type(self, items: List[Dict[str, Any]]) -> str:
         """
-        Detect the primary content type for a list of items
+        Detect the appropriate Kodi content type for a list of items.
+        
+        Supports only movies, TV episodes, and external content.
+        Uses "videos" for mixed content to ensure proper UI handling.
 
         Args:
             items: List of media items
 
         Returns:
-            str: "movies", "tvshows", or "episodes"
+            str: "movies", "episodes", or "videos" 
         """
         if not items:
-            return "movies"
+            return "movies"  # Default fallback
 
-        # Count media types
-        type_counts = {}
+        # Count the three supported media types
+        movie_count = 0
+        episode_count = 0
+
         for item in items:
             media_type = item.get('media_type', 'movie')
-            type_counts[media_type] = type_counts.get(media_type, 0) + 1
+            if media_type in ('movie', 'external'):
+                movie_count += 1
+            elif media_type == 'episode':
+                episode_count += 1
+            # Ignore any other types (shouldn't exist in this addon)
 
-        # Return the most common type, with fallback logic
-        if not type_counts:
-            return "movies"
-
-        most_common = max(type_counts.items(), key=lambda x: x[1])[0]
-
-        # Map to Kodi content types
-        type_mapping = {
-            'movie': 'movies',
-            'episode': 'episodes',
-            'tvshow': 'tvshows',
-            'musicvideo': 'musicvideos',
-            'external': 'movies'  # Default external items to movies
-        }
-
-        return type_mapping.get(most_common, 'movies')
+        # Determine content type based on what's present
+        if episode_count > 0 and movie_count > 0:
+            return "videos"  # Mixed content - use generic video type
+        elif episode_count > 0:
+            return "episodes"  # Only episodes - use TV-specific UI
+        else:
+            return "movies"  # Only movies/external (or empty)
 
     def create_folder(self, name, parent_id=None):
         """Create a new folder"""

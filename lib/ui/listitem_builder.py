@@ -25,19 +25,27 @@ class ListItemBuilder:
         self.logger = get_logger(__name__)
 
     # -------- public API --------
-    def build_directory(self, items: List[Dict[str, Any]], content_type: str = "movies") -> bool:
+    def build_directory(self, items: List[Dict[str, Any]], content_type: Optional[str] = None) -> bool:
         """
         Build a directory with proper content type and ListItems.
 
         Args:
             items: list of (possibly mixed) media item dicts
-            content_type: "movies", "tvshows", or "episodes"
+            content_type: "movies", "episodes", or "videos" - if None, auto-detect from items
 
         Returns:
             bool: success
         """
         try:
             count = len(items)
+            
+            # Auto-detect content type if not provided
+            if content_type is None:
+                from lib.data.query_manager import get_query_manager
+                query_manager = get_query_manager()
+                content_type = query_manager.detect_content_type(items)
+                self.logger.debug(f"DIRECTORY BUILD: Auto-detected content type: {content_type}")
+            
             self.logger.info(f"DIRECTORY BUILD: Starting build with {count} items (content_type='{content_type}')")
             self.logger.debug(f"DIRECTORY BUILD: Setting content type to '{content_type}' for handle {self.addon_handle}")
             xbmcplugin.setContent(self.addon_handle, content_type)
