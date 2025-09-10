@@ -854,6 +854,64 @@ class ToolsHandler:
             self.logger.error(f"Error exporting folder lists: {e}")
             return DialogResponse(success=False, message="Error exporting folder lists")
 
+    def _handle_export_all_lists(self, context: PluginContext) -> DialogResponse:
+        """Export all lists in the system"""
+        try:
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
+
+            # Get count of all lists for user confirmation
+            all_lists = query_manager.get_all_lists()
+            list_count = len(all_lists) if all_lists else 0
+
+            if list_count == 0:
+                return DialogResponse(
+                    success=False,
+                    message="No lists found to export"
+                )
+
+            # Confirm export
+            import xbmcgui
+            dialog = xbmcgui.Dialog()
+            if not dialog.yesno(
+                "Confirm Export",
+                f"Export all {list_count} lists in your library?",
+                "This will include all list items and metadata.",
+                nolabel="Cancel",
+                yeslabel="Export"
+            ):
+                return DialogResponse(success=False)
+
+            # Get export engine
+            from ..import_export.export_engine import get_export_engine
+            export_engine = get_export_engine()
+
+            # Run export for all lists (no context filter = export everything)
+            result = export_engine.export_data(
+                export_types=["lists", "list_items"],
+                file_format="json"
+            )
+
+            if result["success"]:
+                return DialogResponse(
+                    success=True,
+                    message=f"Exported all {list_count} lists:\n"
+                           f"File: {result.get('filename', 'export file')}\n"
+                           f"Items: {result.get('total_items', 0)}\n"
+                           f"Size: {self._format_file_size(result.get('file_size', 0))}",
+                    navigate_to_lists=True  # Navigate back to lists main menu
+                )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message=f"Export failed: {result.get('error', 'Unknown error')}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error exporting all lists: {e}")
+            return DialogResponse(success=False, message="Error exporting all lists")
+
     def handle_action(self, action: str, params: Dict[str, Any]) -> DialogResponse:
         """Handle tools actions"""
         try:
