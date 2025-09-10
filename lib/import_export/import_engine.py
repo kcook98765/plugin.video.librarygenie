@@ -459,22 +459,17 @@ class ImportEngine:
 
                 # Get the original list ID for mapping
                 old_list_id = str(list_data.get("id")) if list_data.get("id") else None
-                self.logger.info(f"DEBUG: Processing list '{name}' with old_list_id: {old_list_id}")
 
                 if replace_mode:
                     # In replace mode, always create new lists
                     result = self.query_manager.create_list(name, description, target_folder_id)
                     if result and not result.get("error"):  # Success = no error key
                         new_list_id = result.get("id")
-                        self.logger.info(f"DEBUG: create_list returned full result: {result}")
-                        self.logger.info(f"DEBUG: Extracted new_list_id: {new_list_id} (type: {type(new_list_id)})")
                         if old_list_id and new_list_id:
                             list_id_mapping[old_list_id] = str(new_list_id)
-                            self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> new_list_id {new_list_id}")
                         created += 1
                     else:
                         error_detail = result.get("error", "Unknown error") if result else "No result returned"
-                        self.logger.error(f"DEBUG: Failed to create list '{name}': {error_detail}")
                         errors.append(f"Failed to create list: {name} ({error_detail})")
                 else:
                     # In append mode, check if list exists in target folder
@@ -492,22 +487,17 @@ class ImportEngine:
                         )
                         if old_list_id and existing_id:
                             list_id_mapping[old_list_id] = str(existing_id)
-                            self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> existing_id {existing_id}")
                         updated += 1
                     else:
                         # Create new list in target folder
                         result = self.query_manager.create_list(name, description, target_folder_id)
                         if result and not result.get("error"):  # Success = no error key
                             new_list_id = result.get("id")
-                            self.logger.info(f"DEBUG: create_list returned full result: {result}")
-                            self.logger.info(f"DEBUG: Extracted new_list_id: {new_list_id} (type: {type(new_list_id)})")
                             if old_list_id and new_list_id:
                                 list_id_mapping[old_list_id] = str(new_list_id)
-                                self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> new_list_id {new_list_id}")
                             created += 1
                         else:
                             error_detail = result.get("error", "Unknown error") if result else "No result returned"
-                            self.logger.error(f"DEBUG: Failed to create list '{name}': {error_detail}")
                             errors.append(f"Failed to create list: {name} ({error_detail})")
 
             except Exception as e:
@@ -534,9 +524,6 @@ class ImportEngine:
                 old_list_id = str(old_list_id)  # Ensure string format
                 list_id = list_id_mapping.get(old_list_id) if list_id_mapping else old_list_id
                 
-                self.logger.info(f"DEBUG: Item '{item_data.get('title', 'unknown')}' old_list_id: {old_list_id}, mapped to: {list_id}")
-                self.logger.info(f"DEBUG: Available mappings: {list_id_mapping}")
-                
                 if not list_id:
                     errors.append(f"Cannot find mapped list for old ID {old_list_id}, skipped item: {item_data.get('title', 'unknown')}")
                     continue
@@ -544,10 +531,7 @@ class ImportEngine:
                 # Match to library movie
                 movie_id = self.matcher.match_movie(item_data)
 
-                self.logger.info(f"DEBUG: Movie '{item_data.get('title', 'unknown')}' matched to library movie_id: {movie_id}")
-
                 if not movie_id:
-                    self.logger.info(f"DEBUG: Movie '{item_data.get('title', 'unknown')}' could not be matched to library")
                     unmatched += 1
                     unmatched_items.append({
                         "title": item_data.get("title", "Unknown"),
@@ -560,16 +544,14 @@ class ImportEngine:
                     # In replace mode, add all items without checking for duplicates
                     # (existing items were already cleared)
                     try:
-                        self.logger.info(f"DEBUG: About to insert movie_id {movie_id} into list_id {list_id}")
                         with self.conn_manager.transaction() as conn:
                             conn.execute(
                                 "INSERT INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
                                 [list_id, movie_id]
                             )
                         added += 1
-                        self.logger.info(f"DEBUG: Successfully added item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
                     except Exception as db_error:
-                        self.logger.error(f"DEBUG: Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
+                        self.logger.error(f"Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
                 else:
                     # In append mode, check if already in list to avoid duplicates
@@ -579,16 +561,14 @@ class ImportEngine:
 
                     # Add to list
                     try:
-                        self.logger.info(f"DEBUG: About to insert movie_id {movie_id} into list_id {list_id}")
                         with self.conn_manager.transaction() as conn:
                             conn.execute(
                                 "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
                                 [list_id, movie_id]
                             )
                         added += 1
-                        self.logger.info(f"DEBUG: Successfully added item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
                     except Exception as db_error:
-                        self.logger.error(f"DEBUG: Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
+                        self.logger.error(f"Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
 
             except Exception as e:
@@ -601,24 +581,18 @@ class ImportEngine:
         start_time = datetime.now()
 
         try:
-            self.logger.info(f"RESTORE_DEBUG: Starting import from content, filename: {filename}, replace_mode: {replace_mode}")
-
             # Parse content
             try:
                 data = json.loads(content)
-                self.logger.debug(f"RESTORE_DEBUG: Successfully parsed JSON, keys: {list(data.keys())}")
             except json.JSONDecodeError as e:
-                self.logger.error(f"RESTORE_DEBUG: JSON decode error: {e}")
                 return {"success": False, "error": f"Invalid JSON in {filename}: {e}"}
 
             # Validate envelope structure
             envelope_errors = ExportSchema.validate_envelope(data)
             if envelope_errors:
-                self.logger.error(f"RESTORE_DEBUG: Envelope validation errors: {envelope_errors}")
                 return {"success": False, "error": f"Invalid backup format: {envelope_errors[0]}"}
 
             payload = data.get("payload", {})
-            self.logger.debug(f"RESTORE_DEBUG: Payload keys: {list(payload.keys())}")
 
             # Initialize counters
             lists_created = 0
