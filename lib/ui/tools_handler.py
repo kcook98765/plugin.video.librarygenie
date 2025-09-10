@@ -1879,6 +1879,84 @@ class ToolsHandler:
             context.logger.error(f"Error navigating to favorites: {e}")
             return DialogResponse(success=False, message="Failed to open favorites")
 
+    def _handle_create_folder(self, context: PluginContext) -> DialogResponse:
+        """Handle creating a new top-level folder from main lists menu"""
+        try:
+            self.logger.debug(f"TOOLS DEBUG: _handle_create_folder called for top-level folder")
+
+            # Get folder name from user
+            folder_name = xbmcgui.Dialog().input(
+                "Enter folder name:",
+                type=xbmcgui.INPUT_ALPHANUM
+            )
+
+            if not folder_name or not folder_name.strip():
+                self.logger.debug(f"TOOLS DEBUG: User cancelled folder creation or entered empty name")
+                return DialogResponse(success=False)
+
+            query_manager = context.query_manager
+            if not query_manager:
+                return DialogResponse(success=False, message=L(34306))  # "Database error"
+
+            self.logger.debug(f"TOOLS DEBUG: Creating top-level folder '{folder_name.strip()}'")
+
+            # Pass None as parent_folder_id to create a top-level folder
+            result = query_manager.create_folder(folder_name.strip(), None)
+
+            self.logger.debug(f"TOOLS DEBUG: create_folder result: {result}")
+
+            if result.get("error"):
+                if result["error"] == "duplicate_name":
+                    message = f"Folder '{folder_name}' already exists"
+                else:
+                    message = "Failed to create folder"
+                return DialogResponse(success=False, message=message)
+            else:
+                self.logger.info(f"TOOLS DEBUG: Successfully created top-level folder '{folder_name}'")
+
+                # Navigate back to the lists main menu after creating the folder
+                return DialogResponse(
+                    success=True,
+                    message=f"Created folder: {folder_name}",
+                    navigate_to_lists=True
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error creating folder: {e}")
+            return DialogResponse(success=False, message="Error creating folder")
+
+    def _handle_create_list(self, context: PluginContext) -> DialogResponse:
+        """Handle creating a new list from main lists menu"""
+        try:
+            from .lists_handler import ListsHandler
+            lists_handler = ListsHandler(context)
+            result = lists_handler.create_list(context)
+            
+            # Navigate back to lists main menu after creation
+            if result.success:
+                result.navigate_to_lists = True
+                
+            return result
+        except Exception as e:
+            self.logger.error(f"Error creating list: {e}")
+            return DialogResponse(success=False, message="Error creating list")
+
+    def _handle_create_backup(self, context: PluginContext) -> DialogResponse:
+        """Handle creating a backup"""
+        try:
+            return self._run_manual_backup()
+        except Exception as e:
+            self.logger.error(f"Error creating backup: {e}")
+            return DialogResponse(success=False, message="Error creating backup")
+
+    def _handle_restore_backup_from_tools(self, context: PluginContext) -> DialogResponse:
+        """Handle restoring from backup via tools menu"""
+        try:
+            return self._show_backup_manager()
+        except Exception as e:
+            self.logger.error(f"Error restoring backup: {e}")
+            return DialogResponse(success=False, message="Error restoring backup")
+
     def _handle_open_settings(self, context: PluginContext) -> DialogResponse:
         """Handle opening addon settings"""
         try:
