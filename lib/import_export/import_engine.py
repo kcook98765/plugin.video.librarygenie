@@ -466,6 +466,8 @@ class ImportEngine:
                     result = self.query_manager.create_list(name, description, target_folder_id)
                     if result and not result.get("error"):  # Success = no error key
                         new_list_id = result.get("id")
+                        self.logger.info(f"DEBUG: create_list returned full result: {result}")
+                        self.logger.info(f"DEBUG: Extracted new_list_id: {new_list_id} (type: {type(new_list_id)})")
                         if old_list_id and new_list_id:
                             list_id_mapping[old_list_id] = str(new_list_id)
                             self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> new_list_id {new_list_id}")
@@ -497,6 +499,8 @@ class ImportEngine:
                         result = self.query_manager.create_list(name, description, target_folder_id)
                         if result and not result.get("error"):  # Success = no error key
                             new_list_id = result.get("id")
+                            self.logger.info(f"DEBUG: create_list returned full result: {result}")
+                            self.logger.info(f"DEBUG: Extracted new_list_id: {new_list_id} (type: {type(new_list_id)})")
                             if old_list_id and new_list_id:
                                 list_id_mapping[old_list_id] = str(new_list_id)
                                 self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> new_list_id {new_list_id}")
