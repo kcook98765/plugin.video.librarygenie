@@ -605,12 +605,15 @@ msgstr ""
 
 msgctxt "#32181"
 msgid "Integrate with Kodi's built-in favorites for seamless list management"
+msgstr ""
 
 msgctxt "#32200"
 msgid "Add to LibraryGenie List..."
+msgstr ""
 
 msgctxt "#32201"
 msgid "Add this item to a LibraryGenie list"
+msgstr ""
 
 # Search UI and Operations
 msgctxt "#33000"
@@ -1281,7 +1284,6 @@ msgctxt "#36070"
 msgid "Export all %d lists and folders?"
 msgstr ""
 
-
 msgctxt "#34302"
 msgid "Please try again"
 msgstr ""
@@ -1435,12 +1437,15 @@ msgstr ""
 
 msgctxt "#30533"
 msgid "Storage Location"
+msgstr ""
 
 msgctxt "#30534"
 msgid "Default (Addon Data)"
+msgstr ""
 
 msgctxt "#30535"
 msgid "Custom Location"
+msgstr ""
 
 msgctxt "#30540"
 msgid "Backup Actions"
@@ -1578,7 +1583,7 @@ msgid "Reset Preferences"
 msgstr ""
 
 msgctxt "#36049"
-msgid "📋 Copy to New List"
+msgid "Copy to New List"
 msgstr ""
 
 msgctxt "#36050"
@@ -1991,5 +1996,3 @@ msgstr ""
 msgctxt "#35545"
 msgid "Replaces the default movie information screen with LibraryGenie's enhanced interface."
 msgstr ""
-msgctxt "#36999"
-msgid "Reserved for future use"
