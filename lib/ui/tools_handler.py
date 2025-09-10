@@ -876,10 +876,10 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             if not dialog.yesno(
                 "Confirm Export",
-                f"Export all {list_count} lists in your library?",
-                "This will include all list items and metadata.",
-                nolabel="Cancel",
-                yeslabel="Export"
+                f"Export all {list_count} lists in your library?\nThis will include all list items and metadata.",
+                "",
+                "Cancel",
+                "Export"
             ):
                 return DialogResponse(success=False)
 
