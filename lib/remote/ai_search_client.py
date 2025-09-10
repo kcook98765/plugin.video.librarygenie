@@ -26,23 +26,9 @@ class AISearchClient:
     def __init__(self):
         self.logger = get_logger(__name__)
         self.settings = SettingsManager()
-        # Initialize attributes that were previously set in activate_with_otp
+        # Initialize attributes
         self._api_key: Optional[str] = get_api_key()
         self._is_activated: bool = is_authorized()
-        # Assume base_url and http_client are initialized elsewhere or will be by a factory/manager
-        # For the purpose of this fix, we'll define placeholders if not already present.
-        # In a real scenario, these would likely be injected or configured.
-        self.base_url = self.settings.get_remote_server_url() # Placeholder, assuming it's available here
-        # A real HTTP client (like requests) would be needed here. For this example, we'll mock it.
-        # If using 'requests', you'd need to import it:
-        # try:
-        #     import requests
-        #     self.http_client = requests
-        # except ImportError:
-        #     self.logger.error("The 'requests' library is required for direct OTP exchange.")
-        #     self.http_client = None
-        # For now, we'll assume a hypothetical http_client with a post method.
-        self.http_client = self # Mocking self to simulate an http client with a post method for demonstration. In a real case, this would be an instance of 'requests' or similar.
 
 
     def _get_headers(self, additional_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
@@ -267,25 +253,20 @@ class AISearchClient:
             }
 
         try:
-            # This call needs to be updated or replaced if test_api_connection is no longer available due to import changes.
-            # For now, we assume it exists and is accessible, or it will be refactored.
-            # If test_api_connection was in otp_auth, it needs to be handled.
-            # For the sake of demonstrating the fix, we'll assume a placeholder or refactor.
-            # If test_api_connection is to be removed, this function should be updated.
-            # For now, let's assume a basic connection test can be done directly.
-            # This part might need further refinement based on how test_api_connection was implemented.
-            # If it was intended to use the http client:
-            # endpoint = f"{server_url}/kodi/test"
-            # response = self.http_client.get(endpoint, timeout=10)
-            # if response.status_code == 200:
-            #     return {'success': True, 'message': 'Connection successful'}
-            # else:
-            #     return {'success': False, 'error': f'Connection failed: HTTP {response.status_code}'}
-
-            # Placeholder for test_api_connection functionality if it was removed from otp_auth
-            # For now, we'll return a dummy success as the primary focus is OTP exchange.
-            self.logger.warning("test_connection: Original dependency removed, returning placeholder.")
-            return {'success': True, 'message': 'Connection test placeholder'}
+            # Test connection by making a request to the kodi/test endpoint
+            response = self._make_request('kodi/test', 'GET', timeout=10)
+            
+            if response and response.get('success'):
+                return {
+                    'success': True,
+                    'message': 'Connection successful'
+                }
+            else:
+                error_msg = response.get('error', 'Unknown error') if response else 'No response'
+                return {
+                    'success': False,
+                    'error': f'Connection test failed: {error_msg}'
+                }
 
         except Exception as e:
             self.logger.error(f"Connection test failed: {e}")
