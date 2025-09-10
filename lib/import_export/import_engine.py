@@ -299,6 +299,27 @@ class ImportEngine:
         start_time = datetime.now()
 
         try:
+            # Create timestamped import folder first
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            import_folder_name = f"Import {timestamp}"
+            
+            import_folder_result = self.query_manager.create_folder(import_folder_name)
+            if not import_folder_result.get("success"):
+                return ImportResult(
+                    success=False,
+                    lists_created=0,
+                    lists_updated=0,
+                    items_added=0,
+                    items_skipped=0,
+                    items_unmatched=0,
+                    unmatched_items=[],
+                    errors=[f"Failed to create import folder: {import_folder_result.get('error', 'Unknown error')}"],
+                    duration_ms=0
+                )
+            
+            import_folder_id = import_folder_result.get("folder_id")
+            self.logger.info(f"Created import folder '{import_folder_name}' with ID {import_folder_id}")
+            
             # Validate file first
             validation = self.validate_import_file(file_path)
             if not validation["valid"]:
@@ -343,16 +364,24 @@ class ImportEngine:
             # Initialize database
             self.query_manager.initialize()
 
-            # Import lists first
+            # Track old->new list ID mapping
+            list_id_mapping = {}
+
+            # Import lists first (into the timestamped folder)
             if "lists" in payload:
-                created, updated, list_errors = self._import_lists(payload["lists"])
+                created, updated, list_errors, id_mapping = self._import_lists(
+                    payload["lists"], target_folder_id=import_folder_id
+                )
                 lists_created += created
                 lists_updated += updated
                 errors.extend(list_errors)
+                list_id_mapping.update(id_mapping)
 
-            # Import list items
+            # Import list items with corrected list IDs
             if "list_items" in payload:
-                added, skipped, unmatched, unmatch_data, item_errors = self._import_list_items(payload["list_items"])
+                added, skipped, unmatched, unmatch_data, item_errors = self._import_list_items(
+                    payload["list_items"], list_id_mapping=list_id_mapping
+                )
                 items_added += added
                 items_skipped += skipped
                 items_unmatched += unmatched
@@ -412,11 +441,12 @@ class ImportEngine:
         except Exception:
             return False
 
-    def _import_lists(self, lists_data: List[Dict], replace_mode: bool = False) -> Tuple[int, int, List[str]]:
-        """Import lists, return (created_count, updated_count, errors)"""
+    def _import_lists(self, lists_data: List[Dict], replace_mode: bool = False, target_folder_id: str = None) -> Tuple[int, int, List[str], Dict[str, str]]:
+        """Import lists, return (created_count, updated_count, errors, list_id_mapping)"""
         created = 0
         updated = 0
         errors = []
+        list_id_mapping = {}  # old_list_id -> new_list_id
 
         for list_data in lists_data:
             try:
@@ -427,32 +457,45 @@ class ImportEngine:
                     errors.append("List missing name, skipped")
                     continue
 
+                # Get the original list ID for mapping
+                old_list_id = list_data.get("id")
+
                 if replace_mode:
                     # In replace mode, always create new lists
-                    result = self.query_manager.create_list(name, description)
-                    if result and result.get("success"):
+                    result = self.query_manager.create_list(name, description, target_folder_id)
+                    if result and not result.get("error"):  # Success = no error key
+                        new_list_id = result.get("id")
+                        if old_list_id:
+                            list_id_mapping[old_list_id] = new_list_id
                         created += 1
                     else:
                         error_detail = result.get("error", "Unknown error") if result else "No result returned"
                         self.logger.error(f"DEBUG: Failed to create list '{name}': {error_detail}")
                         errors.append(f"Failed to create list: {name} ({error_detail})")
                 else:
-                    # In append mode, check if list exists
+                    # In append mode, check if list exists in target folder
+                    where_clause = "name = ? AND folder_id IS ?" if target_folder_id is None else "name = ? AND folder_id = ?"
                     existing = self.conn_manager.execute_single(
-                        "SELECT id FROM lists WHERE name = ?", [name]
+                        f"SELECT id FROM lists WHERE {where_clause}", [name, target_folder_id]
                     )
 
                     if existing:
                         # Update existing list description if different
+                        existing_id = str(existing[0]) if hasattr(existing, '__getitem__') else str(existing.get('id'))
                         self.conn_manager.execute_single(
-                            "UPDATE lists SET description = ?, updated_at = datetime('now') WHERE name = ?",
-                            [description, name]
+                            "UPDATE lists SET description = ?, updated_at = datetime('now') WHERE id = ?",
+                            [description, existing_id]
                         )
+                        if old_list_id:
+                            list_id_mapping[old_list_id] = existing_id
                         updated += 1
                     else:
-                        # Create new list
-                        result = self.query_manager.create_list(name, description)
-                        if result and result.get("success"):
+                        # Create new list in target folder
+                        result = self.query_manager.create_list(name, description, target_folder_id)
+                        if result and not result.get("error"):  # Success = no error key
+                            new_list_id = result.get("id")
+                            if old_list_id:
+                                list_id_mapping[old_list_id] = new_list_id
                             created += 1
                         else:
                             error_detail = result.get("error", "Unknown error") if result else "No result returned"
@@ -462,9 +505,9 @@ class ImportEngine:
             except Exception as e:
                 errors.append(f"Error importing list {list_data.get('name', 'unknown')}: {e}")
 
-        return created, updated, errors
+        return created, updated, errors, list_id_mapping
 
-    def _import_list_items(self, items_data: List[Dict], replace_mode: bool = False) -> Tuple[int, int, int, List[Dict], List[str]]:
+    def _import_list_items(self, items_data: List[Dict], replace_mode: bool = False, list_id_mapping: Dict[str, str] = None) -> Tuple[int, int, int, List[Dict], List[str]]:
         """Import list items, return (added, skipped, unmatched, unmatched_data, errors)"""
         added = 0
         skipped = 0
@@ -474,9 +517,15 @@ class ImportEngine:
 
         for item_data in items_data:
             try:
-                list_id = item_data.get("list_id")
-                if not list_id:
+                old_list_id = item_data.get("list_id")
+                if not old_list_id:
                     errors.append("List item missing list_id, skipped")
+                    continue
+
+                # Map old list ID to new list ID
+                list_id = list_id_mapping.get(old_list_id) if list_id_mapping else old_list_id
+                if not list_id:
+                    errors.append(f"Cannot find mapped list for old ID {old_list_id}, skipped item: {item_data.get('title', 'unknown')}")
                     continue
 
                 # Match to library movie
