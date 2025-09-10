@@ -660,7 +660,7 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Error creating subfolder")
 
     def _export_single_list(self, context: PluginContext, list_id: str) -> DialogResponse:
-        """Export a single list"""
+        """Export a single list with option to export parent folder branch"""
         try:
             query_manager = context.query_manager
             if not query_manager:
@@ -671,34 +671,85 @@ class ToolsHandler:
             if not list_info:
                 return DialogResponse(success=False, message="List not found")
 
+            # Present export scope options
+            import xbmcgui
+            dialog = xbmcgui.Dialog()
+            
+            export_options = [
+                f"Export only '{list_info['name']}' list",
+            ]
+            
+            # Check if list has a parent folder for branch export option
+            parent_folder_name = "Lists"  # Default for root level
+            folder_id = list_info.get('folder_id')
+            
+            if folder_id:
+                folder_info = query_manager.get_folder_by_id(folder_id)
+                if folder_info:
+                    parent_folder_name = folder_info['name']
+                    export_options.append(f"Export '{parent_folder_name}' branch (folder + subfolders)")
+            
+            export_options.append("Cancel")
+            
+            selected_option = dialog.select(
+                f"Export '{list_info['name']}'",
+                export_options
+            )
+            
+            if selected_option == -1 or selected_option == len(export_options) - 1:  # Cancel
+                return DialogResponse(success=False)
+
             # Get export engine
             export_engine = get_export_engine()
-
-            # Run contextual export for single list only
-            context_filter = {"list_id": list_id}
-            result = export_engine.export_data(
-                export_types=["lists", "list_items"],
-                file_format="json",
-                context_filter=context_filter
-            )
-
-            if result["success"]:
-                message = (
-                    f"Export completed for list '{list_info['name']}':\n"
-                    f"File: {result.get('filename', 'unknown')}\n"
-                    f"Items: {result.get('total_items', 0)}\n"
-                    f"Size: {self._format_file_size(result.get('file_size', 0))}"
+            
+            if selected_option == 0:
+                # Export single list only
+                context_filter = {"list_id": list_id}
+                result = export_engine.export_data(
+                    export_types=["lists", "list_items"],
+                    file_format="json",
+                    context_filter=context_filter
                 )
-                return DialogResponse(
-                    success=True,
-                    message=message,
-                    refresh_needed=False
+                
+                if result["success"]:
+                    message = (
+                        f"Export completed for list '{list_info['name']}':\n"
+                        f"File: {result.get('filename', 'unknown')}\n"
+                        f"Items: {result.get('total_items', 0)}\n"
+                        f"Size: {self._format_file_size(result.get('file_size', 0))}"
+                    )
+                else:
+                    message = f"Export failed: {result.get('error', 'Unknown error')}"
+                    
+            elif selected_option == 1 and folder_id:
+                # Export parent folder as branch
+                context_filter = {
+                    "folder_id": folder_id,
+                    "include_subfolders": True
+                }
+                result = export_engine.export_data(
+                    export_types=["lists", "list_items"],
+                    file_format="json",
+                    context_filter=context_filter
                 )
+                
+                if result["success"]:
+                    message = (
+                        f"Export completed for branch '{parent_folder_name}':\n"
+                        f"File: {result.get('filename', 'unknown')}\n"
+                        f"Items: {result.get('total_items', 0)}\n"
+                        f"Size: {self._format_file_size(result.get('file_size', 0))}"
+                    )
+                else:
+                    message = f"Export failed: {result.get('error', 'Unknown error')}"
             else:
-                return DialogResponse(
-                    success=False,
-                    message=f"Export failed: {result.get('error', 'Unknown error')}"
-                )
+                return DialogResponse(success=False)
+
+            return DialogResponse(
+                success=result["success"],
+                message=message,
+                refresh_needed=False
+            )
 
         except Exception as e:
             self.logger.error(f"Error exporting single list: {e}")
