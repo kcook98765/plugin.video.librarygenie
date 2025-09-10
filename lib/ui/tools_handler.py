@@ -745,11 +745,28 @@ class ToolsHandler:
             else:
                 return DialogResponse(success=False)
 
-            return DialogResponse(
-                success=result["success"],
-                message=message,
-                refresh_needed=False
-            )
+            # Navigate back to the original list after export
+            if result["success"]:
+                if selected_option == 0:  # Single list export
+                    # Stay in the current list
+                    return DialogResponse(
+                        success=True,
+                        message=message,
+                        refresh_needed=True  # Refresh current list view
+                    )
+                else:  # Branch export
+                    # Navigate back to the original list
+                    return DialogResponse(
+                        success=True,
+                        message=message,
+                        refresh_needed=True  # Refresh current view
+                    )
+            else:
+                return DialogResponse(
+                    success=False,
+                    message=message,
+                    refresh_needed=False
+                )
 
         except Exception as e:
             self.logger.error(f"Error exporting single list: {e}")
@@ -825,7 +842,7 @@ class ToolsHandler:
                            f"File: {result.get('filename', 'export file')}\n"
                            f"Items: {result.get('total_items', 0)}\n"
                            f"Size: {self._format_file_size(result.get('file_size', 0))}",
-                    refresh_needed=False
+                    navigate_to_folder=folder_id  # Navigate back to the original folder
                 )
             else:
                 return DialogResponse(
