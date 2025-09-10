@@ -212,20 +212,66 @@ class ShortListImporter:
             self.logger.error(f"Error matching movie to library: {e}")
             return None
 
-    def create_shortlist_import_folder(self) -> Optional[int]:
-        """Create or get the 'ShortList Import' folder"""
+    def remove_existing_shortlist_import(self) -> bool:
+        """Remove existing 'ShortList Import' folder and all its contents (replace functionality)"""
         try:
-            # Check if folder already exists
-            existing = self.conn_manager.execute_single(
-                "SELECT id FROM folders WHERE name = ? AND parent_id IS NULL", 
+            self.logger.info("Starting remove of existing ShortList Import folder and contents")
+            
+            # Find the ShortList Import folder
+            folder_info = self.conn_manager.execute_single(
+                "SELECT id, name FROM folders WHERE name = ? AND parent_id IS NULL", 
                 ["ShortList Import"]
             )
+            
+            if not folder_info:
+                self.logger.info("No existing ShortList Import folder found - nothing to remove")
+                return True
+                
+            folder_id = folder_info[0] if hasattr(folder_info, '__getitem__') else folder_info.get('id')
+            self.logger.info(f"Found existing ShortList Import folder (ID: {folder_id}) - removing all contents")
+            
+            with self.conn_manager.transaction() as conn:
+                # Step 1: Delete all list_items for lists in this folder (and subfolders)
+                conn.execute("""
+                    DELETE FROM list_items 
+                    WHERE list_id IN (
+                        SELECT l.id FROM lists l 
+                        JOIN folders f ON l.folder_id = f.id 
+                        WHERE f.id = ? OR f.parent_id = ?
+                    )
+                """, [folder_id, folder_id])
+                
+                # Step 2: Delete all lists in this folder (and subfolders)
+                conn.execute("""
+                    DELETE FROM lists 
+                    WHERE folder_id IN (
+                        SELECT id FROM folders 
+                        WHERE id = ? OR parent_id = ?
+                    )
+                """, [folder_id, folder_id])
+                
+                # Step 3: Delete all subfolders
+                conn.execute(
+                    "DELETE FROM folders WHERE parent_id = ?", 
+                    [folder_id]
+                )
+                
+                # Step 4: Delete the main folder itself
+                conn.execute(
+                    "DELETE FROM folders WHERE id = ?", 
+                    [folder_id]
+                )
+            
+            self.logger.info("Successfully removed existing ShortList Import folder and all contents")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error removing existing ShortList Import folder: {e}")
+            return False
 
-            if existing:
-                folder_id = existing[0] if hasattr(existing, '__getitem__') else existing.get('id')
-                self.logger.info(f"Using existing ShortList Import folder (ID: {folder_id})")
-                return folder_id
-
+    def create_shortlist_import_folder(self) -> Optional[int]:
+        """Create the 'ShortList Import' folder"""
+        try:
             # Create new folder
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
@@ -307,27 +353,20 @@ class ShortListImporter:
                     "error": "No lists found in ShortList addon"
                 }
 
-            # Create or get the import folder
+            # REPLACE functionality: Remove any existing ShortList Import folder and contents
+            if not self.remove_existing_shortlist_import():
+                return {
+                    "success": False,
+                    "error": "Failed to remove existing ShortList Import data"
+                }
+
+            # Create the import folder
             import_folder_id = self.create_shortlist_import_folder()
             if not import_folder_id:
                 return {
                     "success": False,
                     "error": "Failed to create ShortList Import folder"
                 }
-
-            # Check for legacy "ShortList Import" list and handle it
-            legacy_list = self.conn_manager.execute_single(
-                "SELECT id FROM lists WHERE name = ? AND folder_id IS NULL",
-                ["ShortList Import"]
-            )
-            if legacy_list:
-                legacy_list_id = legacy_list[0] if hasattr(legacy_list, '__getitem__') else legacy_list.get('id')
-                self.logger.info(f"Found legacy 'ShortList Import' list (ID: {legacy_list_id}), renaming to avoid confusion")
-                # Rename legacy list
-                self.conn_manager.execute_single(
-                    "UPDATE lists SET name = ? WHERE id = ?",
-                    ["ShortList Import (Legacy)", legacy_list_id]
-                )
 
             # Process each shortlist as a separate list
             total_items = 0
