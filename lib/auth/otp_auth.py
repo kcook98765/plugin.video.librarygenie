@@ -18,8 +18,7 @@ from typing import Dict, Any, Optional
 from ..config import get_config
 from ..utils.logger import get_logger
 from .state import save_api_key, get_api_key, clear_auth_data
-# Import needed for post-OTP sync functionality
-from ..remote.ai_search_client import get_ai_search_client
+# Avoid circular import - get_ai_search_client imported when needed
 
 logger = get_logger(__name__)
 
@@ -326,6 +325,8 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                     media_items = library_manager.get_all_items(limit=10000)
 
                     if media_items:
+                        # Lazy import to avoid circular dependency
+                        from ..remote.ai_search_client import get_ai_search_client
                         ai_client = get_ai_search_client()
                         sync_result = ai_client.sync_after_otp(media_items)
                         if sync_result and sync_result.get('success'):
