@@ -67,7 +67,7 @@ class FavoritesHandler:
                     False
                 )
 
-                # Set content type and finish directory
+                # Set content type and finish directory (use default for empty)
                 xbmcplugin.setContent(context.addon_handle, 'movies')
                 xbmcplugin.endOfDirectory(
                     context.addon_handle,
@@ -85,6 +85,14 @@ class FavoritesHandler:
                 # Use existing list building infrastructure for favorites
                 context.logger.info(f"Using ListItemRenderer to build {len(favorites_items)} favorites")
 
+                # Get query manager for content type detection
+                from lib.data.query_manager import get_query_manager
+                query_manager = get_query_manager()
+                
+                # Detect appropriate content type based on favorites contents
+                detected_content_type = query_manager.detect_content_type(favorites_items)
+                context.logger.debug(f"Detected content type: {detected_content_type} for {len(favorites_items)} favorites")
+
                 # Context menus now handled by global context.py
 
                 # Build favorites items
@@ -93,7 +101,7 @@ class FavoritesHandler:
 
                 success = renderer.render_media_items(
                     favorites_items,
-                    content_type="movies",
+                    content_type=detected_content_type,
                     context_menu_callback=None # Context menus are now handled globally
                 )
 
@@ -101,7 +109,7 @@ class FavoritesHandler:
                 return DirectoryResponse(
                     items=favorites_items,
                     success=success,
-                    content_type="movies"
+                    content_type=detected_content_type
                 )
 
         except Exception as e:

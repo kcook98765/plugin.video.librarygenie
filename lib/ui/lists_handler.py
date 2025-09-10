@@ -916,8 +916,12 @@ class ListsHandler:
                         context.logger.error(f"HANDLER: Traceback: {traceback.format_exc()}")
                         continue
 
+            # Detect appropriate content type based on list contents
+            detected_content_type = query_manager.detect_content_type(list_items)
+            context.logger.debug(f"Detected content type: {detected_content_type} for {len(list_items)} items")
+
             # Set content type and finish directory
-            xbmcplugin.setContent(context.addon_handle, 'movies')
+            xbmcplugin.setContent(context.addon_handle, detected_content_type)
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=True,
@@ -928,7 +932,7 @@ class ListsHandler:
             return DirectoryResponse(
                 items=list_items,
                 success=True,
-                content_type="movies"
+                content_type=detected_content_type
             )
 
         except Exception as e:
