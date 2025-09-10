@@ -93,7 +93,7 @@ class ContextItem:
         # Add Similar Movies option if AI search is available and item has IMDb ID
         if ai_search_available and has_imdb_id:
             menu_items.append({
-                'label': f"🎬 {L(34201)}",  # Similar Movies
+                'label': f"🎬 {L(34106)}",  # Similar Movies
                 'action': 'find_similar_movies',
                 'params': {
                     'imdb_id': imdb_id,
