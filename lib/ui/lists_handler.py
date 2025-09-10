@@ -16,17 +16,6 @@ from ..utils.logger import get_logger
 from ..data.query_manager import get_query_manager
 from .listitem_renderer import get_listitem_renderer
 
-# --- Localization Optimization ---
-from xbmcaddon import Addon
-from functools import lru_cache
-# Imported localization function
-
-_addon = Addon()
-
-@lru_cache(maxsize=None)
-def L(msgid: int) -> str:
-    return _addon.getLocalizedString(msgid)
-# --- End Localization Optimization ---
 
 
 class ListsHandler:

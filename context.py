@@ -14,24 +14,7 @@ import urllib.parse
 from typing import List, Union
 
 # Import localization module
-try:
-    from resources.lib.ui.localization import L as _L
-
-    def L(string_id):
-        """Get localized string with better error handling"""
-        try:
-            result = _L(string_id)
-            # Return empty string if localization failed or returned a malformed string
-            if not result or result.startswith('string_') or result.startswith('String_'):
-                return ""
-            return result
-        except Exception:
-            return ""
-
-except ImportError:
-    # Fallback for simple string retrieval
-    def L(string_id):
-        return ""
+from resources.lib.ui.localization import L
 
 
 def main():
