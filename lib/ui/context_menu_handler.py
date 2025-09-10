@@ -4,7 +4,7 @@ import sys
 import logging
 
 # Import localization function
-from ..lib.ui.localization import L
+from .localization import L
 
 # Set up logging
 log = logging.getLogger(__name__)
