@@ -749,8 +749,99 @@ class AISearchHandler:
         except Exception as e:
             context.logger.error(f"Error in trigger_replace_sync: {e}")
             xbmcgui.Dialog().ok(
-                "Error",
-                f"An error occurred: {str(e)}"
+                "Sync Error",
+                f"An error occurred during sync: {str(e)}"
+            )
+
+    def trigger_regular_sync(self, context: PluginContext) -> None:
+        """Trigger a regular (non-replace) sync with AI Search server"""
+        try:
+            ai_client = get_ai_search_client()
+
+            # Check if AI Search is activated
+            if not ai_client.is_activated():
+                xbmcgui.Dialog().ok(
+                    "Not Activated",
+                    "AI Search must be activated before syncing.\nUse 'Authorize AI Search' first."
+                )
+                return
+
+            # Confirm sync operation
+            if not xbmcgui.Dialog().yesno(
+                "Regular Sync",
+                "Start regular library sync?\n\nThis will add new movies to your AI Search library without removing existing ones.",
+                "Cancel",
+                "Start Sync"
+            ):
+                return
+
+            # Show progress dialog
+            progress = xbmcgui.DialogProgress()
+            progress.create("AI Search Sync", "Preparing sync...")
+            progress.update(0)
+
+            try:
+                # Get movie library for sync
+                from ..library.scanner import get_library_scanner
+                scanner = get_library_scanner()
+
+                progress.update(25, "Scanning library...")
+                movies = scanner.get_movies_with_imdb()
+
+                if not movies:
+                    progress.close()
+                    xbmcgui.Dialog().ok(
+                        "No Movies",
+                        "No movies with IMDb IDs found in library."
+                    )
+                    return
+
+                progress.update(50, f"Syncing {len(movies)} movies...")
+
+                # Perform regular sync (use_replace_mode=False)
+                result = ai_client.sync_media_batch(
+                    movies, 
+                    batch_size=100, 
+                    use_replace_mode=False,
+                    progress_callback=lambda current, total, msg: progress.update(
+                        50 + int((current / total) * 40), 
+                        msg
+                    )
+                )
+
+                progress.update(100, "Sync complete!")
+                progress.close()
+
+                if result and result.get('success'):
+                    results = result.get('results', {})
+                    message = (
+                        f"Regular sync completed successfully!\n\n"
+                        f"Movies processed: {result.get('total_processed', 0)}\n"
+                        f"New additions: {results.get('accepted', 0)}\n"
+                        f"Already existed: {results.get('duplicates', 0)}\n"
+                        f"Total in library: {result.get('user_movie_count', 0)}"
+                    )
+                    xbmcgui.Dialog().ok("Sync Complete", message)
+                else:
+                    error_msg = result.get('error', 'Unknown error') if result else 'No response'
+                    xbmcgui.Dialog().ok(
+                        "Sync Failed",
+                        f"Regular sync failed: {error_msg}"
+                    )
+
+            except Exception as e:
+                progress.close()
+                context.logger.error(f"Error during regular sync: {e}")
+                xbmcgui.Dialog().ok(
+                    "Sync Error", 
+                    f"An error occurred during sync: {str(e)}"
+                )
+
+        except Exception as e:
+            context.logger.error(f"Error in trigger_regular_sync: {e}")
+            xbmcgui.Dialog().ok(
+                "Sync Error",
+                f"An error occurred during sync: {str(e)}"
             )
 
 

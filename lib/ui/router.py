@@ -194,9 +194,24 @@ class Router:
                 ai_handler = AISearchHandler()
                 ai_handler.authorize_ai_search(context)
             elif action == "ai_search_replace_sync":
-                from .ai_search_handler import AISearchHandler
-                ai_handler = AISearchHandler()
-                ai_handler.trigger_replace_sync(context)
+                try:
+                    from .ai_search_handler import get_ai_search_handler
+                    ai_handler = get_ai_search_handler()
+                    ai_handler.trigger_replace_sync(context)
+                    return True
+                except Exception as e:
+                    self.logger.error(f"Error in ai_search_replace_sync handler: {e}")
+                    return False
+
+            elif action == "ai_search_regular_sync":
+                try:
+                    from .ai_search_handler import get_ai_search_handler
+                    ai_handler = get_ai_search_handler()
+                    ai_handler.trigger_regular_sync(context)
+                    return True
+                except Exception as e:
+                    self.logger.error(f"Error in ai_search_regular_sync handler: {e}")
+                    return False
             elif action == 'test_ai_search_connection':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
