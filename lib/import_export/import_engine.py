@@ -458,15 +458,17 @@ class ImportEngine:
                     continue
 
                 # Get the original list ID for mapping
-                old_list_id = list_data.get("id")
+                old_list_id = str(list_data.get("id")) if list_data.get("id") else None
+                self.logger.info(f"DEBUG: Processing list '{name}' with old_list_id: {old_list_id}")
 
                 if replace_mode:
                     # In replace mode, always create new lists
                     result = self.query_manager.create_list(name, description, target_folder_id)
                     if result and not result.get("error"):  # Success = no error key
                         new_list_id = result.get("id")
-                        if old_list_id:
-                            list_id_mapping[old_list_id] = new_list_id
+                        if old_list_id and new_list_id:
+                            list_id_mapping[old_list_id] = str(new_list_id)
+                            self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> new_list_id {new_list_id}")
                         created += 1
                     else:
                         error_detail = result.get("error", "Unknown error") if result else "No result returned"
@@ -486,16 +488,18 @@ class ImportEngine:
                             "UPDATE lists SET description = ?, updated_at = datetime('now') WHERE id = ?",
                             [description, existing_id]
                         )
-                        if old_list_id:
-                            list_id_mapping[old_list_id] = existing_id
+                        if old_list_id and existing_id:
+                            list_id_mapping[old_list_id] = str(existing_id)
+                            self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> existing_id {existing_id}")
                         updated += 1
                     else:
                         # Create new list in target folder
                         result = self.query_manager.create_list(name, description, target_folder_id)
                         if result and not result.get("error"):  # Success = no error key
                             new_list_id = result.get("id")
-                            if old_list_id:
-                                list_id_mapping[old_list_id] = new_list_id
+                            if old_list_id and new_list_id:
+                                list_id_mapping[old_list_id] = str(new_list_id)
+                                self.logger.info(f"DEBUG: Mapped old_list_id {old_list_id} -> new_list_id {new_list_id}")
                             created += 1
                         else:
                             error_detail = result.get("error", "Unknown error") if result else "No result returned"
@@ -523,7 +527,12 @@ class ImportEngine:
                     continue
 
                 # Map old list ID to new list ID
+                old_list_id = str(old_list_id)  # Ensure string format
                 list_id = list_id_mapping.get(old_list_id) if list_id_mapping else old_list_id
+                
+                self.logger.info(f"DEBUG: Item '{item_data.get('title', 'unknown')}' old_list_id: {old_list_id}, mapped to: {list_id}")
+                self.logger.info(f"DEBUG: Available mappings: {list_id_mapping}")
+                
                 if not list_id:
                     errors.append(f"Cannot find mapped list for old ID {old_list_id}, skipped item: {item_data.get('title', 'unknown')}")
                     continue
