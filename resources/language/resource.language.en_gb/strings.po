@@ -1923,136 +1923,134 @@ msgstr ""
 # Settings Help Text
 
 # General Settings Help Text
-msgctxt "#30600"
+msgctxt "#35500"
 msgid "Enables detailed logging for troubleshooting. Only enable when debugging issues as it may impact performance."
 msgstr ""
 
-msgctxt "#30601"
+msgctxt "#35501"
 msgid "Shows confirmation dialogs before deleting lists or items to prevent accidental data loss."
 msgstr ""
 
-msgctxt "#30602"
+msgctxt "#35502"
 msgid "Displays the number of items next to each list name in the interface for quick reference."
 msgstr ""
 
-msgctxt "#30603"
+msgctxt "#35503"
 msgid "Shows visual indicators for movies that are missing from your library but exist in lists."
 msgstr ""
 
-msgctxt "#30604"
+msgctxt "#35504"
 msgid "Choose the default action when selecting items from the library browser."
 msgstr ""
 
-msgctxt "#30605"
+msgctxt "#35505"
 msgid "Automatically detects when movies are added or removed from your Kodi library in the background."
 msgstr ""
 
-msgctxt "#30606"
+msgctxt "#35506"
 msgid "Keeps removed movies in lists but marks them as deleted instead of permanently removing them."
 msgstr ""
 
 # Lists Settings Help Text
-msgctxt "#30750"
+msgctxt "#35510"
 msgid "Allows quickly adding movies to your default list with a single click from the library browser."
 msgstr ""
 
-msgctxt "#30751"
+msgctxt "#35511"
 msgid "Integrates with Kodi's built-in favorites system to sync and manage favorite movies in lists."
 msgstr ""
 
-msgctxt "#30752"
+msgctxt "#35512"
 msgid "Shows favorites that couldn't be matched to movies in your library for manual review."
 msgstr ""
 
-msgctxt "#30753"
+msgctxt "#35513"
 msgid "Processes multiple favorites at once for faster synchronization with your lists."
 msgstr ""
 
-msgctxt "#30754"
+msgctxt "#35514"
 msgid "Removes all existing items from the target list before importing new data from ShortList addon."
 msgstr ""
 
 # Background Settings Help Text
-msgctxt "#30850"
+msgctxt "#35520"
 msgid "Runs automated tasks in the background to keep your library and lists synchronized."
 msgstr ""
 
-msgctxt "#30851"
+msgctxt "#35521"
 msgid "How often the background service checks for changes. Lower values use more system resources."
 msgstr ""
 
 # Backup Settings Help Text
-msgctxt "#30950"
+msgctxt "#35525"
 msgid "Automatically creates backup copies of your lists and settings to prevent data loss."
 msgstr ""
 
-msgctxt "#30951"
+msgctxt "#35526"
 msgid "How frequently automatic backups are created. More frequent backups use more storage space."
 msgstr ""
 
-msgctxt "#30952"
+msgctxt "#35527"
 msgid "Number of backup files to keep. Older backups beyond this limit are automatically deleted."
 msgstr ""
 
-msgctxt "#30953"
+msgctxt "#35528"
 msgid "Includes addon configuration and user preferences in backup files."
 msgstr ""
 
-msgctxt "#30954"
+msgctxt "#35529"
 msgid "Includes lists that contain items not found in your current Kodi library."
 msgstr ""
 
-msgctxt "#30955"
-msgid "Includes folder structure and organization of your lists in backup files."
+msgctxt "#35530"
+msgid "Includes folder structure and organization in backup files."
 msgstr ""
 
-msgctxt "#30956"
-msgid "Storage method for backup files. Local storage saves backups to your device."
+msgctxt "#35531"
+msgid "Choose where backup files are stored. Local storage is recommended for reliability."
 msgstr ""
 
 # Advanced Settings Help Text
-msgctxt "#31050"
-msgid "Number of items retrieved per request from Kodi. Higher values may improve performance but use more memory."
+msgctxt "#35535"
+msgid "Number of items to request at once from Kodi's JSON-RPC API. Higher values may improve performance."
 msgstr ""
 
-msgctxt "#31051"
-msgid "Maximum time to wait for Kodi API responses. Increase if you experience timeout errors."
+msgctxt "#35536"
+msgid "Maximum time to wait for JSON-RPC responses. Increase if you experience timeout errors."
 msgstr ""
 
-msgctxt "#31052"
-msgid "Number of database operations processed together. Higher values improve performance but use more memory."
+msgctxt "#35537"
+msgid "Number of database operations to batch together. Higher values may improve performance."
 msgstr ""
 
-msgctxt "#31053"
+msgctxt "#35538"
 msgid "How long to wait when database is busy. Increase if you experience database lock errors."
 msgstr ""
 
 # Remote Services Settings Help Text
-msgctxt "#31150"
+msgctxt "#35540"
 msgid "URL of the remote server for OTP authentication, AI Search, and similarity features."
 msgstr ""
 
-msgctxt "#31151"
+msgctxt "#35541"
 msgid "Name used to identify this Kodi device when connecting to remote services."
 msgstr ""
 
-msgctxt "#31152"
+msgctxt "#35542"
 msgid "How often to check for authentication updates during the login process."
 msgstr ""
 
-msgctxt "#31153"
+msgctxt "#35543"
 msgid "Interval for background synchronization tasks with remote services."
 msgstr ""
 
-msgctxt "#31154"
+msgctxt "#35544"
 msgid "Automatically refreshes authentication tokens to maintain connection to remote services."
 msgstr ""
 
 # UI Settings Help Text  
-msgctxt "#31250"
+msgctxt "#35545"
 msgid "Replaces the default movie information screen with LibraryGenie's enhanced interface."
 msgstr ""
-
-# Additional placeholder entries for future use
 msgctxt "#36999"
 msgid "Reserved for future use"
