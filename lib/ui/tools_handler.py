@@ -674,15 +674,17 @@ class ToolsHandler:
             # Get export engine
             export_engine = get_export_engine()
 
-            # Run export
+            # Run contextual export for single list only
+            context_filter = {"list_id": list_id}
             result = export_engine.export_data(
                 export_types=["lists", "list_items"],
-                file_format="json"
+                file_format="json",
+                context_filter=context_filter
             )
 
             if result["success"]:
                 message = (
-                    f"Export completed:\n"
+                    f"Export completed for list '{list_info['name']}':\n"
                     f"File: {result.get('filename', 'unknown')}\n"
                     f"Items: {result.get('total_items', 0)}\n"
                     f"Size: {self._format_file_size(result.get('file_size', 0))}"
@@ -703,7 +705,7 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Error exporting list")
 
     def _export_folder_lists(self, context: PluginContext, folder_id: str) -> DialogResponse:
-        """Export all lists in a folder"""
+        """Export lists from a folder with user choice of scope"""
         try:
             query_manager = context.query_manager
             if not query_manager:
@@ -724,30 +726,54 @@ class ToolsHandler:
                     message=f"No lists found in folder '{folder_info['name']}'"
                 )
 
-            # Confirm export
+            # Present export scope options
+            import xbmcgui
             dialog = xbmcgui.Dialog()
-            if not dialog.yesno(
-                L(36037),  # "Confirm Export"
-                L(36038) % (list_count, folder_info['name']),  # "Export all %d lists from '%s'?"
-                L(36039),  # "This will include all list items and metadata."
-                nolabel=L(36003),  # "Cancel"
-                yeslabel=L(36007)   # "Export"
-            ):
+            
+            # Get subfolder count for branch export option
+            subfolders = query_manager.get_subfolders(folder_id) if hasattr(query_manager, 'get_subfolders') else []
+            subfolder_count = len(subfolders) if subfolders else 0
+            
+            export_options = [
+                f"Export only '{folder_info['name']}' folder ({list_count} lists)",
+                f"Export '{folder_info['name']}' branch (folder + {subfolder_count} subfolders)",
+                "Cancel"
+            ]
+            
+            selected_option = dialog.select(
+                f"Export from '{folder_info['name']}'",
+                export_options
+            )
+            
+            if selected_option == -1 or selected_option == 2:  # Cancel
                 return DialogResponse(success=False)
+            
+            # Determine export scope
+            include_subfolders = (selected_option == 1)  # Branch export
 
             # Get export engine
             export_engine = get_export_engine()
 
-            # Run export
+            # Run contextual export with folder filtering
+            context_filter = {
+                "folder_id": folder_id,
+                "include_subfolders": include_subfolders
+            }
+            
             result = export_engine.export_data(
                 export_types=["lists", "list_items"],
-                file_format="json"
+                file_format="json",
+                context_filter=context_filter
             )
 
             if result["success"]:
+                scope_desc = "branch" if include_subfolders else "folder"
                 return DialogResponse(
                     success=True,
-                    message=f"Exported {list_count} lists from '{folder_info['name']}' to {result.get('filename', 'export file')}",
+                    message=f"Exported {scope_desc} '{folder_info['name']}':\n"
+                           f"File: {result.get('filename', 'export file')}\n"
+                           f"Items: {result.get('total_items', 0)}\n"
+                           f"Size: {self._format_file_size(result.get('file_size', 0))}",
                     refresh_needed=False
                 )
             else:
