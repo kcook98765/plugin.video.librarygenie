@@ -48,7 +48,7 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
 def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait: float = 1.0) -> bool:
     """Monitor for dialog actually closing instead of using fixed sleep"""
     start_time = time.time()
-    check_interval = 0.02  # 20ms checks for very responsive detection
+    check_interval = 0.1  # 100ms checks for responsive detection
     
     while (time.time() - start_time) < max_wait:
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
@@ -73,7 +73,7 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     check_count = 0
     
     # Use adaptive polling - start fast, then slow down
-    current_step_ms = min(step_ms, 30)  # Start with quick polls
+    current_step_ms = min(step_ms, 100)  # Start with quick polls
     max_step_ms = max(step_ms, 200)     # Cap at reasonable interval
 
     while time.time() < end and not mon.abortRequested():
