@@ -23,23 +23,50 @@ class DataMatcher:
         self.conn_manager = conn_manager
         self.logger = get_logger(__name__)
 
-    def match_movie(self, item_data: Dict[str, Any]) -> Optional[int]:
-        """Match imported item to library movie, return library_movie_id"""
+    def match_media_item(self, item_data: Dict[str, Any]) -> Optional[int]:
+        """Match imported media item based on its type (movie, episode, external)"""
         try:
-            # Method 1: Match by Kodi ID (most reliable)
+            # Safe media_type handling with fallback detection
+            media_type = str(item_data.get('media_type', '')).lower() if item_data.get('media_type') else ''
+            
+            # Handle mixed lists and fallback detection
+            if media_type in {'videos', '', 'unknown'} or not media_type:
+                # For mixed lists or unknown types, infer from content
+                if item_data.get('tvshowtitle') or item_data.get('season') is not None or item_data.get('episode') is not None:
+                    media_type = 'episode'
+                else:
+                    media_type = 'movie'  # Default fallback
+            
+            if media_type == 'episode':
+                return self.match_episode(item_data)
+            elif media_type == 'external':
+                # External content: match by file path only to avoid wrong associations
+                return self._match_by_file_path(item_data)
+            else:
+                # Use movie matching for movies and other content
+                return self.match_movie(item_data)
+                
+        except Exception as e:
+            self.logger.error(f"Error matching media item: {e}")
+            return None
+
+    def match_movie(self, item_data: Dict[str, Any]) -> Optional[int]:
+        """Match imported item to library movie, return media_item_id"""
+        try:
+            # Method 1: Match by Kodi ID (most reliable) - movie-specific
             if item_data.get("kodi_id"):
-                movie_id = self._match_by_kodi_id(item_data["kodi_id"])
+                movie_id = self._match_by_kodi_id_and_type(item_data["kodi_id"], 'movie')
                 if movie_id:
                     return movie_id
 
-            # Method 2: Match by external IDs (IMDb, TMDb)
+            # Method 2: Match by external IDs (IMDb, TMDb) - movie-specific
             if item_data.get("imdb_id") or item_data.get("tmdb_id"):
-                movie_id = self._match_by_external_ids(item_data)
+                movie_id = self._match_by_external_ids_and_type(item_data, 'movie')
                 if movie_id:
                     return movie_id
 
-            # Method 3: Match by title, year, and path
-            movie_id = self._match_by_title_year_path(item_data)
+            # Method 3: Match by title, year, and path - movie-specific
+            movie_id = self._match_by_title_year_path_and_type(item_data, 'movie')
             if movie_id:
                 return movie_id
 
@@ -49,8 +76,40 @@ class DataMatcher:
             self.logger.error(f"Error matching movie: {e}")
             return None
 
+    def match_episode(self, item_data: Dict[str, Any]) -> Optional[int]:
+        """Match imported episode to library using episode-specific logic"""
+        try:
+            # Method 1: Match by Kodi ID (most reliable) - episode-specific
+            if item_data.get("kodi_id"):
+                episode_id = self._match_by_kodi_id_and_type(item_data["kodi_id"], 'episode')
+                if episode_id:
+                    return episode_id
+
+            # Method 2: Match by external IDs (rare for episodes) - episode-specific
+            if item_data.get("imdb_id") or item_data.get("tmdb_id"):
+                episode_id = self._match_by_external_ids_and_type(item_data, 'episode')
+                if episode_id:
+                    return episode_id
+
+            # Method 3: Match by show title + season + episode (episode-specific)
+            episode_id = self._match_by_show_season_episode(item_data)
+            if episode_id:
+                return episode_id
+
+            # Method 4: Fallback to file path matching
+            if item_data.get("file_path"):
+                episode_id = self._match_by_file_path(item_data)
+                if episode_id:
+                    return episode_id
+
+            return None
+
+        except Exception as e:
+            self.logger.error(f"Error matching episode: {e}")
+            return None
+
     def _match_by_kodi_id(self, kodi_id: int) -> Optional[int]:
-        """Match by Kodi database ID"""
+        """Legacy method - Match by Kodi database ID (no media_type constraint)"""
         result = self.conn_manager.execute_single(
             "SELECT id FROM media_items WHERE kodi_id = ? AND is_removed = 0",
             [kodi_id]
@@ -59,9 +118,20 @@ class DataMatcher:
         if result:
             return result[0] if hasattr(result, '__getitem__') else result.get('id')
         return None
+    
+    def _match_by_kodi_id_and_type(self, kodi_id: int, media_type: str) -> Optional[int]:
+        """Match by Kodi database ID with media_type constraint"""
+        result = self.conn_manager.execute_single(
+            "SELECT id FROM media_items WHERE kodi_id = ? AND media_type = ? AND is_removed = 0",
+            [kodi_id, media_type]
+        )
+
+        if result:
+            return result[0] if hasattr(result, '__getitem__') else result.get('id')
+        return None
 
     def _match_by_external_ids(self, item_data: Dict[str, Any]) -> Optional[int]:
-        """Match by IMDb or TMDb ID"""
+        """Legacy method - Match by IMDb or TMDb ID (no media_type constraint)"""
         conditions = []
         params = []
 
@@ -83,9 +153,45 @@ class DataMatcher:
         if result:
             return result[0] if hasattr(result, '__getitem__') else result.get('id')
         return None
+    
+    def _match_by_external_ids_and_type(self, item_data: Dict[str, Any], media_type: str) -> Optional[int]:
+        """Match by IMDb or TMDb ID with media_type constraint"""
+        imdb_id = item_data.get("imdb_id")
+        tmdb_id = item_data.get("tmdb_id")
+
+        if not imdb_id and not tmdb_id:
+            return None
+
+        # If both IDs present, try AND first for precision
+        if imdb_id and tmdb_id:
+            query = "SELECT id FROM media_items WHERE imdbnumber = ? AND tmdb_id = ? AND media_type = ? AND is_removed = 0"
+            params = [imdb_id, tmdb_id, media_type]
+            result = self.conn_manager.execute_single(query, params)
+            if result:
+                return result[0] if hasattr(result, '__getitem__') else result.get('id')
+
+        # Fallback to OR logic (prefer IMDb when both present)
+        conditions = []
+        params = []
+
+        if imdb_id:
+            conditions.append("imdbnumber = ?")
+            params.append(imdb_id)
+
+        if tmdb_id:
+            conditions.append("tmdb_id = ?")
+            params.append(tmdb_id)
+
+        query = f"SELECT id FROM media_items WHERE ({' OR '.join(conditions)}) AND media_type = ? AND is_removed = 0"
+        params.append(media_type)
+        result = self.conn_manager.execute_single(query, params)
+
+        if result:
+            return result[0] if hasattr(result, '__getitem__') else result.get('id')
+        return None
 
     def _match_by_title_year_path(self, item_data: Dict[str, Any]) -> Optional[int]:
-        """Match by title, year, and file path"""
+        """Legacy method - Match by title, year, and file path (no media_type constraint)"""
         title = item_data.get("title")
         year = item_data.get("year")
         file_path = item_data.get("file_path")
@@ -123,6 +229,95 @@ class DataMatcher:
             if result:
                 return result[0] if hasattr(result, '__getitem__') else result.get('id')
 
+        return None
+    
+    def _match_by_title_year_path_and_type(self, item_data: Dict[str, Any], media_type: str) -> Optional[int]:
+        """Match by title, year, and file path with media_type constraint"""
+        title = item_data.get("title")
+        year = item_data.get("year")
+        file_path = item_data.get("file_path")
+
+        if not title:
+            return None
+
+        # Build query conditions
+        conditions = ["title = ?", "media_type = ?", "is_removed = 0"]
+        params = [title, media_type]
+
+        if year:
+            conditions.append("year = ?")
+            params.append(year)
+
+        if file_path:
+            conditions.append("file_path = ?")
+            params.append(file_path)
+
+        query = f"SELECT id FROM media_items WHERE {' AND '.join(conditions)}"
+        result = self.conn_manager.execute_single(query, params)
+
+        if result:
+            return result[0] if hasattr(result, '__getitem__') else result.get('id')
+
+        # If no exact match, try fuzzy title match without path
+        if file_path:
+            fuzzy_query = "SELECT id FROM media_items WHERE title = ? AND media_type = ? AND is_removed = 0"
+            fuzzy_params = [title, media_type]
+            if year:
+                fuzzy_query += " AND year = ?"
+                fuzzy_params.append(year)
+
+            result = self.conn_manager.execute_single(fuzzy_query, fuzzy_params)
+            if result:
+                return result[0] if hasattr(result, '__getitem__') else result.get('id')
+
+        return None
+
+    def _match_by_show_season_episode(self, item_data: Dict[str, Any]) -> Optional[int]:
+        """Match episode by show title + season + episode combination"""
+        show_title = item_data.get("tvshowtitle")
+        season = item_data.get("season")
+        episode = item_data.get("episode")
+        
+        if not show_title or season is None or episode is None:
+            return None
+        
+        # Safely cast season and episode to integers
+        try:
+            season_int = int(season)
+            episode_int = int(episode)
+        except (ValueError, TypeError):
+            self.logger.warning(f"Invalid season ({season}) or episode ({episode}) values for show '{show_title}'")
+            return None
+        
+        # Use case-insensitive matching for show title with integer season/episode
+        query = """
+            SELECT id FROM media_items 
+            WHERE LOWER(tvshowtitle) = LOWER(?) 
+            AND season = ? 
+            AND episode = ? 
+            AND media_type = 'episode'
+            AND is_removed = 0
+        """
+        params = [show_title, season_int, episode_int]
+        
+        result = self.conn_manager.execute_single(query, params)
+        if result:
+            return result[0] if hasattr(result, '__getitem__') else result.get('id')
+        
+        return None
+    
+    def _match_by_file_path(self, item_data: Dict[str, Any]) -> Optional[int]:
+        """Match by file path as fallback (works for any media type)"""
+        file_path = item_data.get("file_path")
+        if not file_path:
+            return None
+        
+        query = "SELECT id FROM media_items WHERE file_path = ? AND is_removed = 0"
+        result = self.conn_manager.execute_single(query, [file_path])
+        
+        if result:
+            return result[0] if hasattr(result, '__getitem__') else result.get('id')
+        
         return None
 
 
@@ -246,8 +441,8 @@ class ImportEngine:
             # Count items to add/unmatched (no duplicates since new folder)
             if "list_items" in payload:
                 for item_data in payload["list_items"]:
-                    movie_id = self.matcher.match_movie(item_data)
-                    if movie_id:
+                    media_item_id = self.matcher.match_media_item(item_data)
+                    if media_item_id:
                         items_to_add += 1
                     else:
                         items_unmatched += 1
@@ -514,10 +709,10 @@ class ImportEngine:
                     errors.append(f"Cannot find mapped list for old ID {old_list_id}, skipped item: {item_data.get('title', 'unknown')}")
                     continue
 
-                # Match to library movie
-                movie_id = self.matcher.match_movie(item_data)
+                # Match to library media item (movie, episode, or external)
+                media_item_id = self.matcher.match_media_item(item_data)
 
-                if not movie_id:
+                if not media_item_id:
                     unmatched += 1
                     unmatched_items.append({
                         "title": item_data.get("title", "Unknown"),
@@ -533,7 +728,7 @@ class ImportEngine:
                         with self.conn_manager.transaction() as conn:
                             conn.execute(
                                 "INSERT INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
-                                [list_id, movie_id]
+                                [list_id, media_item_id]
                             )
                         added += 1
                     except Exception as db_error:
@@ -541,7 +736,7 @@ class ImportEngine:
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
                 else:
                     # In append mode, check if already in list to avoid duplicates
-                    if self._is_item_in_list(movie_id, list_id):
+                    if self._is_item_in_list(media_item_id, list_id):
                         skipped += 1
                         continue
 
@@ -550,7 +745,7 @@ class ImportEngine:
                         with self.conn_manager.transaction() as conn:
                             conn.execute(
                                 "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
-                                [list_id, movie_id]
+                                [list_id, media_item_id]
                             )
                         added += 1
                     except Exception as db_error:
