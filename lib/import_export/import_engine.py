@@ -433,7 +433,9 @@ class ImportEngine:
                     if result and result.get("success"):
                         created += 1
                     else:
-                        errors.append(f"Failed to create list: {name}")
+                        error_detail = result.get("error", "Unknown error") if result else "No result returned"
+                        self.logger.error(f"DEBUG: Failed to create list '{name}': {error_detail}")
+                        errors.append(f"Failed to create list: {name} ({error_detail})")
                 else:
                     # In append mode, check if list exists
                     existing = self.conn_manager.execute_single(
@@ -453,7 +455,9 @@ class ImportEngine:
                         if result and result.get("success"):
                             created += 1
                         else:
-                            errors.append(f"Failed to create list: {name}")
+                            error_detail = result.get("error", "Unknown error") if result else "No result returned"
+                            self.logger.error(f"DEBUG: Failed to create list '{name}': {error_detail}")
+                            errors.append(f"Failed to create list: {name} ({error_detail})")
 
             except Exception as e:
                 errors.append(f"Error importing list {list_data.get('name', 'unknown')}: {e}")
@@ -490,14 +494,19 @@ class ImportEngine:
                 if replace_mode:
                     # In replace mode, add all items without checking for duplicates
                     # (existing items were already cleared)
-                    success = self.conn_manager.execute_single(
-                        "INSERT INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
-                        [list_id, movie_id]
-                    )
-                    if success is not None:
-                        added += 1
-                    else:
-                        errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
+                    try:
+                        success = self.conn_manager.execute_single(
+                            "INSERT INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
+                            [list_id, movie_id]
+                        )
+                        if success is not None:
+                            added += 1
+                        else:
+                            self.logger.error(f"DEBUG: Failed to add item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
+                            errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
+                    except Exception as db_error:
+                        self.logger.error(f"DEBUG: Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
+                        errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
                 else:
                     # In append mode, check if already in list to avoid duplicates
                     if self._is_item_in_list(movie_id, list_id):
@@ -505,15 +514,20 @@ class ImportEngine:
                         continue
 
                     # Add to list
-                    success = self.conn_manager.execute_single(
-                        "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
-                        [list_id, movie_id]
-                    )
+                    try:
+                        success = self.conn_manager.execute_single(
+                            "INSERT OR IGNORE INTO list_items (list_id, media_item_id, created_at) VALUES (?, ?, datetime('now'))",
+                            [list_id, movie_id]
+                        )
 
-                    if success is not None:
-                        added += 1
-                    else:
-                        errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
+                        if success is not None:
+                            added += 1
+                        else:
+                            self.logger.error(f"DEBUG: Failed to add item '{item_data.get('title', 'unknown')}' to list_id {list_id}")
+                            errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')}")
+                    except Exception as db_error:
+                        self.logger.error(f"DEBUG: Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
+                        errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
 
             except Exception as e:
                 errors.append(f"Error importing item {item_data.get('title', 'unknown')}: {e}")
