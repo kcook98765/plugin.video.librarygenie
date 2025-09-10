@@ -156,7 +156,14 @@ class SettingsManager:
 
     def get_ai_search_sync_interval(self) -> int:
         """Get AI search sync interval in seconds"""
-        return max(1800, min(86400, self.addon.getSettingInt('ai_search_sync_interval')))
+        selector_value = self.addon.getSettingInt('ai_search_sync_interval')
+        # Map selector values to seconds: 0=1hr, 1=12hr, 2=24hr
+        interval_map = {
+            0: 3600,    # 1 Hour
+            1: 43200,   # 12 Hours  
+            2: 86400    # 24 Hours
+        }
+        return interval_map.get(selector_value, 43200)  # Default to 12 hours
 
     # Backup Settings
     def get_enable_automatic_backups(self) -> bool:
