@@ -107,8 +107,7 @@ class TimestampBackupManager:
 
             self.logger.info(f"Backup stored in settings location: {backup_path}")
 
-            # Log to database
-            self._log_backup_to_database("automatic", backup_filename, backup_path, result)
+            # Database logging removed to reduce storage overhead on user devices
 
             # Cleanup old backups
             self._cleanup_old_backups()
@@ -157,29 +156,6 @@ class TimestampBackupManager:
 
         return os.path.join(storage_path, filename)
 
-    def _log_backup_to_database(self, backup_type: str, filename: str, file_path: str, export_result: Dict[str, Any]):
-        """Log backup operation to database"""
-        try:
-            with self.conn_manager.transaction() as conn:
-                conn.execute("""
-                    INSERT INTO backup_history 
-                    (backup_type, filename, file_path, storage_type, export_types, 
-                     file_size, items_count, success, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, [
-                    backup_type,
-                    filename,
-                    file_path,
-                    'local',
-                    '["lists", "list_items", "folders"]',
-                    export_result.get("file_size", 0),
-                    export_result.get("items_exported", 0),
-                    1,
-                    datetime.now().isoformat()
-                ])
-
-        except Exception as e:
-            self.logger.warning(f"Failed to log backup to database: {e}")
 
     def _cleanup_old_backups(self):
         """Clean up old backup files based on retention policy"""
