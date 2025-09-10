@@ -768,7 +768,7 @@ class AISearchHandler:
 
             # Confirm sync operation
             if not xbmcgui.Dialog().yesno(
-                "Regular Sync",
+                "AI Search Regular Sync",
                 "Start regular library sync?\n\nThis will add new movies to your AI Search library without removing existing ones.",
                 "Cancel",
                 "Start Sync"
