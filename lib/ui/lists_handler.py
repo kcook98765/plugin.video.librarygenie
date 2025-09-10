@@ -196,8 +196,28 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Separate standalone lists (not in any folder)
-            standalone_lists = [item for item in user_lists if not item.get('folder_name') or item.get('folder_name') == 'Root']
+            # Separate standalone lists (not in any folder) - always include "Kodi Favorites" at root level
+            standalone_lists = [item for item in user_lists if not item.get('folder_name') or item.get('folder_name') == 'Root' or item.get('name') == 'Kodi Favorites']
+
+            # Check if favorites integration is enabled and ensure "Kodi Favorites" appears
+            favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
+            has_kodi_favorites = any(item.get('name') == 'Kodi Favorites' for item in standalone_lists)
+            
+            if favorites_enabled and not has_kodi_favorites:
+                # Create placeholder "Kodi Favorites" entry even if not in database yet
+                context.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating placeholder")
+                # Try to get or create the list in database
+                try:
+                    from ..config.favorites_helper import on_favorites_integration_enabled
+                    on_favorites_integration_enabled()  # This will create the list if it doesn't exist
+                    
+                    # Refresh the lists to include the newly created "Kodi Favorites"
+                    all_lists = query_manager.get_all_lists_with_folders()
+                    user_lists = all_lists
+                    standalone_lists = [item for item in user_lists if not item.get('folder_name') or item.get('folder_name') == 'Root' or item.get('name') == 'Kodi Favorites']
+                    context.logger.info(f"LISTS HANDLER: Refreshed lists, now have {len(user_lists)} total lists")
+                except Exception as e:
+                    context.logger.error(f"LISTS HANDLER: Error ensuring Kodi Favorites list exists: {e}")
 
             # Add standalone lists (not in any folder)
             for list_item in standalone_lists:
