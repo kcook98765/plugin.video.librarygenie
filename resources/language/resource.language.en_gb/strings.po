@@ -132,6 +132,10 @@ msgctxt "#30456"
 msgid "AI Search Regular Sync"
 msgstr ""
 
+msgctxt "#30464"
+msgid "Regular Sync Now"
+msgstr ""
+
 msgctxt "#30450"
 msgid "Background Service"
 msgstr ""
