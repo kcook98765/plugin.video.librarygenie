@@ -171,16 +171,8 @@ class MockPluginManager:
     def get_custom_actions(self, item_id):
         return self._custom_actions.get(item_id, {})
 
-# Mock localization function
-def L(key):
-    # In a real application, this would look up the translation for the key.
-    # For this example, we'll just return a placeholder.
-    translations = {
-        31000: "View Details",
-        31001: "Quick Add to Default List",
-        34201: "Similar Movies",
-    }
-    return translations.get(key, f"Translation key {key} not found")
+# Import proper localization function
+from lib.ui.localization import L
 
 # Example Usage:
 if __name__ == "__main__":
