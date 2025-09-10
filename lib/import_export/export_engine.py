@@ -55,16 +55,32 @@ class ExportEngine:
             # Generate filename and path
             export_name = "-".join(export_types)
 
-            # Use custom path if provided, otherwise use temporary directory
+            # Use custom path if provided, otherwise check export location setting
             if custom_path:
                 file_path = custom_path
                 filename = os.path.basename(file_path)
             else:
-                # Use temporary directory to avoid conflicts with backup storage
-                import tempfile
-                temp_dir = tempfile.gettempdir()
+                # Check if export location is set in preferences
+                from ..config import get_config
+                config = get_config()
+                export_location = config.get_export_location()
+                
+                if not export_location:
+                    # Prompt user to set export location
+                    export_location = self._prompt_for_export_location(config)
+                    if not export_location:
+                        return {"success": False, "error": "Export location not set"}
+                
+                # Handle special:// paths
+                if export_location.startswith('special://'):
+                    import xbmcvfs
+                    export_location = xbmcvfs.translatePath(export_location)
+                
+                # Create directory if it doesn't exist
+                os.makedirs(export_location, exist_ok=True)
+                
                 filename = self.storage_manager.generate_filename(export_name, file_format)
-                file_path = os.path.join(temp_dir, filename)
+                file_path = os.path.join(export_location, filename)
 
             # Write file
             success = False
@@ -382,6 +398,43 @@ class ExportEngine:
         except Exception as e:
             self.logger.error(f"Error creating export preview: {e}")
             return {"export_types": export_types, "totals": {}, "estimated_size_kb": 0}
+
+    def _prompt_for_export_location(self, config) -> Optional[str]:
+        """Prompt user to set export location and save it to settings"""
+        try:
+            import xbmcgui
+            
+            dialog = xbmcgui.Dialog()
+            
+            # Show information dialog first
+            dialog.ok("Export Location Required", 
+                     "You need to set an export location before exporting files. "
+                     "Please select a folder where exported files will be saved.")
+            
+            # Prompt for folder selection
+            export_path = dialog.browse(0, "Select Export Location", "files", "", False, False, "")
+            
+            if export_path:
+                export_path = str(export_path).strip()
+                
+                # Save the path to settings
+                config.set_export_location(export_path)
+                
+                self.logger.info(f"Export location set to: {export_path}")
+                
+                # Show confirmation
+                dialog.notification("LibraryGenie", 
+                                  f"Export location set successfully", 
+                                  xbmcgui.NOTIFICATION_INFO, 3000)
+                
+                return export_path
+            else:
+                self.logger.info("User cancelled export location selection")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error prompting for export location: {e}")
+            return None
 
 
 # Global export engine instance
