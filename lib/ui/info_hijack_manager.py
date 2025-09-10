@@ -261,8 +261,6 @@ class InfoHijackManager:
                 final_path = xbmc.getInfoLabel("Container.FolderPath")
                 if final_path and 'plugin.video.librarygenie' in final_path:
                     self._logger.info(f"HIJACK: ✅ Successfully returned to plugin: '{final_path}'")
-                else:
-                    self._logger.warning(f"HIJACK: Navigation failed, unexpected path: '{final_path}'")
             else:
                 # Already back in plugin content - Kodi's navigation history worked correctly
                 if current_path and 'plugin.video.librarygenie' in current_path:
