@@ -175,7 +175,7 @@ class QueryManager:
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
 
-            # Use unified lists/list_items structure with comprehensive fields
+            # Use unified lists/list_items structure with comprehensive fields including episode data
             query = """
                 SELECT 
                     li.media_item_id as id,
@@ -200,6 +200,10 @@ class QueryManager:
                     mi.art,
                     mi.play as file_path,
                     mi.source,
+                    mi.tvshowtitle,
+                    mi.season,
+                    mi.episode,
+                    mi.aired,
                     mi.created_at,
                     mi.updated_at
                 FROM list_items li
@@ -286,10 +290,20 @@ class QueryManager:
                 self.logger.error(f"Failed to create list '{name}': {e}")
                 return {"error": "database_error"}
 
-    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None, art_data=None):
-        """Add an item to a list using unified tables structure"""
+    def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None, art_data=None, 
+                        tvshowtitle=None, season=None, episode=None, aired=None):
+        """Add an item (movie or TV episode) to a list using unified tables structure"""
         try:
-            self.logger.debug(f"Adding '{title}' to list {list_id}")
+            # Auto-detect media type - classify as episode if season and episode are provided
+            # This allows for episodes with IMDb ID but missing tvshowtitle
+            media_type = 'episode' if (season is not None and episode is not None) else 'movie'
+            
+            if media_type == 'episode' and season is not None and episode is not None:
+                show_part = f"'{tvshowtitle}' " if tvshowtitle else ""
+                item_desc = f"{show_part}S{int(season):02d}E{int(episode):02d}: '{title}'"
+            else:
+                item_desc = f"'{title}'"
+            self.logger.debug(f"Adding {item_desc} to list {list_id}")
 
             with self.connection_manager.transaction() as conn:
                 # Create media item data with version-aware art storage
@@ -300,7 +314,7 @@ class QueryManager:
                 art_dict = art_data or {}
 
                 media_data = {
-                    'media_type': 'movie',
+                    'media_type': media_type,
                     'title': title,
                     'year': year,
                     'imdbnumber': imdb_id,
@@ -319,7 +333,11 @@ class QueryManager:
                     'country': '',
                     'writer': '',
                     'cast': '',
-                    'art': json.dumps(self._format_art_for_kodi_version(art_dict, kodi_major))
+                    'art': json.dumps(self._format_art_for_kodi_version(art_dict, kodi_major)),
+                    'tvshowtitle': tvshowtitle,
+                    'season': season,
+                    'episode': episode,
+                    'aired': aired
                 }
 
                 # Insert or get media item
@@ -341,13 +359,25 @@ class QueryManager:
                     VALUES (?, ?, ?)
                 """, [int(list_id), media_item_id, next_position])
 
-            return {
+            result = {
                 "id": str(media_item_id),
                 "title": title,
                 "year": year,
                 "imdb_id": imdb_id,
-                "tmdb_id": tmdb_id
+                "tmdb_id": tmdb_id,
+                "media_type": media_type
             }
+            
+            # Add episode-specific fields if it's an episode
+            if media_type == 'episode':
+                result.update({
+                    "tvshowtitle": tvshowtitle,
+                    "season": season,
+                    "episode": episode,
+                    "aired": aired
+                })
+            
+            return result
 
         except Exception as e:
             self.logger.error(f"Failed to add item '{title}' to list {list_id}: {e}")
@@ -687,10 +717,9 @@ class QueryManager:
         return self._normalize_to_canonical(basic_item)
 
     def _insert_or_get_media_item(self, conn, media_data):
-        """Insert or get existing media item"""
+        """Insert or get existing media item with episode-specific matching"""
         try:
-
-            # Try to find existing item by IMDb ID first
+            # Try to find existing item by IMDb ID first (works for both movies and episodes)
             if media_data.get('imdbnumber'):
                 existing = conn.execute("""
                     SELECT id FROM media_items WHERE imdbnumber = ?
@@ -699,23 +728,37 @@ class QueryManager:
                 if existing:
                     return existing['id']
 
-            # Try to find by title and year
-            if media_data.get('title') and media_data.get('year'):
+            # Episode-specific matching by show + season + episode (case-insensitive tvshowtitle)
+            if media_data['media_type'] == 'episode' and media_data.get('tvshowtitle') and \
+               media_data.get('season') is not None and media_data.get('episode') is not None:
                 existing = conn.execute("""
                     SELECT id FROM media_items 
-                    WHERE title = ? AND year = ? AND media_type = ?
-                """, [media_data['title'], media_data['year'], media_data['media_type']]).fetchone()
+                    WHERE media_type = 'episode' 
+                    AND tvshowtitle = ? COLLATE NOCASE 
+                    AND season = ? AND episode = ?
+                """, [media_data['tvshowtitle'], media_data['season'], media_data['episode']]).fetchone()
 
                 if existing:
                     return existing['id']
 
-            # Insert new media item
+            # Movie matching by title and year
+            elif media_data['media_type'] == 'movie' and media_data.get('title') and media_data.get('year'):
+                existing = conn.execute("""
+                    SELECT id FROM media_items 
+                    WHERE title = ? AND year = ? AND media_type = 'movie'
+                """, [media_data['title'], media_data['year']]).fetchone()
+
+                if existing:
+                    return existing['id']
+
+            # Insert new media item with episode fields
             cursor = conn.execute("""
                 INSERT INTO media_items 
                 (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
                  play, plot, rating, votes, duration, mpaa, 
-                 genre, director, studio, country, writer, cast, art)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 genre, director, studio, country, writer, cast, art,
+                 tvshowtitle, season, episode, aired)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
                 media_data['media_type'], media_data['title'], media_data['year'],
                 media_data['imdbnumber'], media_data['tmdb_id'], media_data['kodi_id'],
@@ -723,7 +766,9 @@ class QueryManager:
                 media_data['rating'], media_data['votes'], media_data['duration'], 
                 media_data['mpaa'], media_data['genre'], media_data['director'], 
                 media_data['studio'], media_data['country'], media_data['writer'], 
-                media_data['cast'], media_data['art']
+                media_data['cast'], media_data['art'],
+                media_data.get('tvshowtitle'), media_data.get('season'), 
+                media_data.get('episode'), media_data.get('aired')
             ])
 
             return cursor.lastrowid

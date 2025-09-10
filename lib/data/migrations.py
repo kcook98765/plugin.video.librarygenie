@@ -122,6 +122,10 @@ class MigrationManager:
                     is_removed INTEGER DEFAULT 0,
                     display_title TEXT,
                     duration_seconds INTEGER,
+                    tvshowtitle TEXT,
+                    season INTEGER,
+                    episode INTEGER,
+                    aired TEXT,
                     created_at TEXT NOT NULL DEFAULT (datetime('now')),
                     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
                 )
@@ -132,6 +136,8 @@ class MigrationManager:
             conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
             conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
             conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
+            conn.execute("CREATE INDEX idx_media_items_episode_match ON media_items (tvshowtitle, season, episode)")
+            conn.execute("CREATE INDEX idx_media_items_tvshowtitle ON media_items (tvshowtitle COLLATE NOCASE)")
 
             # List items table - associates media with lists
             conn.execute("""
