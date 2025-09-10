@@ -894,12 +894,22 @@ class ToolsHandler:
             )
 
             if result["success"]:
+                # Ensure file_size is an integer for _format_file_size
+                file_size = result.get('file_size', 0)
+                if isinstance(file_size, str):
+                    try:
+                        file_size = int(file_size)
+                    except (ValueError, TypeError):
+                        file_size = 0
+                elif file_size is None:
+                    file_size = 0
+                
                 return DialogResponse(
                     success=True,
                     message=f"Exported all {list_count} lists:\n"
                            f"File: {result.get('filename', 'export file')}\n"
                            f"Items: {result.get('total_items', 0)}\n"
-                           f"Size: {self._format_file_size(result.get('file_size', 0))}",
+                           f"Size: {self._format_file_size(file_size)}",
                     navigate_to_lists=True  # Navigate back to lists main menu
                 )
             else:
