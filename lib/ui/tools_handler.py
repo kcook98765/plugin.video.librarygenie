@@ -862,7 +862,7 @@ class ToolsHandler:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
             # Get count of all lists for user confirmation
-            all_lists = query_manager.get_all_lists()
+            all_lists = query_manager.get_user_lists()
             list_count = len(all_lists) if all_lists else 0
 
             if list_count == 0:
