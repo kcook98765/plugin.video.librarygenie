@@ -1615,11 +1615,11 @@ msgstr ""
 
 # ShortList Import strings
 msgctxt "#37000"
-msgid "This will import all items from ShortList addon into a 'ShortList Import' list."
+msgid "This will REPLACE all existing ShortList Import data with fresh imports from your ShortList addon."
 msgstr ""
 
 msgctxt "#37001"
-msgid "Only items that match movies in your Kodi library will be imported."
+msgid "Any existing ShortList Import folder and its contents will be permanently deleted first. Only items matching your Kodi library will be imported."
 msgstr ""
 
 msgctxt "#37002"
