@@ -53,11 +53,7 @@ class ListItemRenderer:
         return self._translate_path(os.path.join(base, 'resources', name))
 
     def _apply_art(self, list_item: xbmcgui.ListItem, kind: str):
-        """Apply version-aware art based on folder type"""
-        # Enhanced debugging: Log Kodi version and addon info
-        kodi_major = get_kodi_major_version()
-        self.logger.info(f"ART DEBUG: Applying {kind} art on Kodi v{kodi_major}")
-        
+        """Apply version-aware art based on folder type"""        
         try:
             if kind == 'list':
                 # For "List" folders (user lists)
@@ -68,51 +64,26 @@ class ListItemRenderer:
                 icon_name = 'list_folder_icon.png'
                 thumb_name = 'list_folder.png'
             
-            # Debug addon path resolution
-            import xbmcaddon
-            addon = xbmcaddon.Addon(self.addon_id)
-            addon_path = addon.getAddonInfo('path')
-            self.logger.info(f"ART DEBUG: Addon path: {addon_path}")
-            
             icon = self._resource_path(icon_name)
             thumb = self._resource_path(thumb_name)
             
-            # Debug: Check if files exist
-            import os
-            icon_exists = os.path.exists(icon)
-            thumb_exists = os.path.exists(thumb)
-            
-            self.logger.info(f"ART DEBUG: Setting {kind} art - icon: {icon} (exists: {icon_exists}), thumb: {thumb} (exists: {thumb_exists})")
-            
-            # Apply the art - this is the critical operation
+            # Apply the art
             list_item.setArt({
                 'icon': icon,
                 'thumb': thumb
             })
             
-            self.logger.info(f"ART DEBUG: Successfully set {kind} art via setArt()")
-            
         except Exception as e:
-            # Only fallback if setArt() fails
-            self.logger.error(f"ART ERROR: Failed to set custom art for {kind}: {e}")
-            import traceback
-            self.logger.error(f"ART ERROR: Traceback: {traceback.format_exc()}")
+            # Fallback if setArt() fails
+            self.logger.error(f"Failed to set custom art for {kind}: {e}")
             
             try:
                 list_item.setArt({
                     'icon': 'DefaultFolder.png',
                     'thumb': 'DefaultFolder.png'
                 })
-                self.logger.info(f"ART DEBUG: Applied fallback DefaultFolder.png for {kind}")
             except Exception as fallback_error:
-                self.logger.error(f"ART ERROR: Even fallback art failed: {fallback_error}")
-                
-        # Verification step - separate from art application, non-fatal
-        try:
-            applied_icon = list_item.getArt('icon')
-            self.logger.debug(f"ART DEBUG: Verification - icon currently set to: {applied_icon}")
-        except Exception as verify_error:
-            self.logger.debug(f"ART DEBUG: Could not verify applied art (non-fatal): {verify_error}")
+                self.logger.error(f"Even fallback art failed: {fallback_error}")
 
     def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
