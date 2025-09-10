@@ -3,15 +3,15 @@
   <!-- General Settings -->
   <category label="30000">
     <setting label="30010" type="lsep"/>
-    <setting id="debug_logging" type="bool" label="30011" default="false"/>
+    <setting id="debug_logging" type="bool" label="30011" help="30600" default="false"/>
     <setting label="30020" type="lsep"/>
-    <setting id="confirm_destructive_actions" type="bool" label="30021" default="true"/>
-    <setting id="show_item_counts" type="bool" label="30022" default="true"/>
-    <setting id="show_missing_indicators" type="bool" label="30043" default="true"/>
-    <setting id="select_action" type="select" label="35100" lvalues="35101|35102" default="0"/>
+    <setting id="confirm_destructive_actions" type="bool" label="30021" help="30601" default="true"/>
+    <setting id="show_item_counts" type="bool" label="30022" help="30602" default="true"/>
+    <setting id="show_missing_indicators" type="bool" label="30043" help="30603" default="true"/>
+    <setting id="select_action" type="select" label="35100" help="30604" lvalues="35101|35102" default="0"/>
     <setting label="30030" type="lsep"/>
-    <setting id="track_library_changes" type="bool" label="30031" default="true"/>
-    <setting id="soft_delete_removed_items" type="bool" label="30032" default="true"/>
+    <setting id="track_library_changes" type="bool" label="30031" help="30605" default="true"/>
+    <setting id="soft_delete_removed_items" type="bool" label="30032" help="30606" default="true"/>
 
   </category>
 
@@ -19,36 +19,36 @@
   <category label="30200">
     <setting label="30040" type="lsep"/>
     <setting id="set_default_list_action" type="action" label="30041" action="RunPlugin(plugin://plugin.video.librarygenie/?action=set_default_list)"/>
-    <setting id="quick_add_enabled" type="bool" label="30042" default="false"/>
+    <setting id="quick_add_enabled" type="bool" label="30042" help="30750" default="false"/>
     <setting id="default_list_id" type="text" label="30044" default="" visible="false"/>
     <setting label="30050" type="lsep"/>
-    <setting id="favorites_integration_enabled" type="bool" label="30051" default="false"/>
-    <setting id="show_unmapped_favorites" type="bool" label="30053" default="false" enable="eq(-1,true)"/>
-    <setting id="favorites_batch_processing" type="bool" label="30054" default="true" enable="eq(-2,true)"/>
+    <setting id="favorites_integration_enabled" type="bool" label="30051" help="30751" default="false"/>
+    <setting id="show_unmapped_favorites" type="bool" label="30053" help="30752" default="false" enable="eq(-1,true)"/>
+    <setting id="favorites_batch_processing" type="bool" label="30054" help="30753" default="true" enable="eq(-2,true)"/>
     <setting label="30070" type="lsep"/>
     <setting id="shortlist_import_action" type="action" label="30071" action="RunPlugin(plugin://plugin.video.librarygenie/?action=import_shortlist)"/>
-    <setting id="shortlist_clear_before_import" type="bool" label="30072" default="true"/>
+    <setting id="shortlist_clear_before_import" type="bool" label="30072" help="30754" default="true"/>
   </category>
 
   <!-- Background Settings -->
   <category label="30100">
     <setting label="30110" type="lsep"/>
-    <setting id="background_task_enabled" type="bool" label="30111" default="true"/>
-    <setting id="background_interval_seconds" type="slider" label="30112" default="60" range="30,5,3600" option="int" enable="eq(-1,true)"/>
+    <setting id="background_task_enabled" type="bool" label="30111" help="30850" default="true"/>
+    <setting id="background_interval_seconds" type="slider" label="30112" help="30851" default="60" range="30,5,3600" option="int" enable="eq(-1,true)"/>
   </category>
 
   <!-- Backup Settings -->
   <category label="30500">
     <setting label="30510" type="lsep"/>
-    <setting id="backup_enabled" type="bool" label="30511" default="false"/>
-    <setting id="backup_interval" type="select" label="30512" default="0" lvalues="30562|30563|30564" enable="eq(-1,true)"/>
-    <setting id="backup_retention_count" type="slider" label="30513" default="5" range="1,1,50" option="int"/>
+    <setting id="backup_enabled" type="bool" label="30511" help="30950" default="false"/>
+    <setting id="backup_interval" type="select" label="30512" help="30951" default="0" lvalues="30562|30563|30564" enable="eq(-1,true)"/>
+    <setting id="backup_retention_count" type="slider" label="30513" help="30952" default="5" range="1,1,50" option="int"/>
     <setting label="30520" type="lsep"/>
-    <setting id="backup_include_settings" type="bool" label="30521" default="true"/>
-    <setting id="backup_include_non_library" type="bool" label="30522" default="false"/>
-    <setting id="backup_include_folders" type="bool" label="30523" default="true"/>
+    <setting id="backup_include_settings" type="bool" label="30521" help="30953" default="true"/>
+    <setting id="backup_include_non_library" type="bool" label="30522" help="30954" default="false"/>
+    <setting id="backup_include_folders" type="bool" label="30523" help="30955" default="true"/>
     <setting label="30530" type="lsep"/>
-    <setting id="backup_storage_type" type="select" label="30531" default="0" lvalues="30565"/>
+    <setting id="backup_storage_type" type="select" label="30531" help="30956" default="0" lvalues="30565"/>
     <setting id="backup_storage_location" type="folder" label="30532" default="special://userdata/addon_data/plugin.video.librarygenie/backups/"/>
     <setting label="30540" type="lsep"/>
     <setting id="last_backup_time" type="text" label="" default="" visible="false"/>
@@ -60,32 +60,32 @@
   <!-- Advanced Settings -->
   <category label="30300">
     <setting label="30310" type="lsep"/>
-    <setting id="jsonrpc_page_size" type="slider" label="30311" default="200" range="50,10,500" option="int"/>
-    <setting id="jsonrpc_timeout_seconds" type="slider" label="30312" default="10" range="5,1,30" option="int"/>
+    <setting id="jsonrpc_page_size" type="slider" label="30311" help="31050" default="200" range="50,10,500" option="int"/>
+    <setting id="jsonrpc_timeout_seconds" type="slider" label="30312" help="31051" default="10" range="5,1,30" option="int"/>
     <setting label="30320" type="lsep"/>
-    <setting id="db_batch_size" type="slider" label="30321" default="200" range="50,10,500" option="int"/>
-    <setting id="db_busy_timeout_ms" type="slider" label="30322" default="3000" range="1000,500,10000" option="int"/>
+    <setting id="db_batch_size" type="slider" label="30321" help="31052" default="200" range="50,10,500" option="int"/>
+    <setting id="db_busy_timeout_ms" type="slider" label="30322" help="31053" default="3000" range="1000,500,10000" option="int"/>
   </category>
 
   <!-- Remote Services Settings -->
   <category label="30400">
     <setting label="30410" type="lsep"/>
-    <setting id="remote_server_url" type="text" label="30411" default=""/>
+    <setting id="remote_server_url" type="text" label="30411" help="31150" default=""/>
     <setting id="ai_search_authorize_action" type="action" label="30435" action="RunPlugin(plugin://plugin.video.librarygenie/?action=authorize_ai_search)" enable="!eq(-1,)"/>
     <setting id="ai_search_activated" type="bool" label="30423" help="30424" default="false" enable="!eq(-2,)" />
     <setting id="ai_search_sync_interval" type="select" label="30425" help="30426" default="1" lvalues="30461|30462|30463" enable="eq(-1,true)" />
     <setting id="ai_search_replace_sync_action" type="action" label="30449" action="RunPlugin(plugin://plugin.video.librarygenie/?action=ai_search_replace_sync)" enable="eq(-2,true)"/>
     <setting id="ai_search_regular_sync_action" type="action" label="30464" action="RunPlugin(plugin://plugin.video.librarygenie/?action=ai_search_regular_sync)" enable="eq(-3,true)"/>
     <setting label="30420" type="lsep"/>
-    <setting id="device_name" type="text" label="30412" default="Kodi"/>
-    <setting id="auth_poll_seconds" type="slider" label="30413" default="3" range="1,1,10" option="int"/>
-    <setting id="background_interval_minutes" type="number" label="30451" default="5" option="int" range="1,1440"/>
-    <setting id="background_token_refresh" type="bool" label="32086" default="true"/>
+    <setting id="device_name" type="text" label="30412" help="31151" default="Kodi"/>
+    <setting id="auth_poll_seconds" type="slider" label="30413" help="31152" default="3" range="1,1,10" option="int"/>
+    <setting id="background_interval_minutes" type="number" label="30451" help="31153" default="5" option="int" range="1,1440"/>
+    <setting id="background_token_refresh" type="bool" label="32086" help="31154" default="true"/>
     <setting id="ai_search_api_key" type="text" label="30433" default="" visible="false"/>
     </category>
 
   <!-- UI Settings -->
   <category label="30020">
-    <setting id="info_hijack_enabled" type="bool" label="32087" default="true"/>
+    <setting id="info_hijack_enabled" type="bool" label="32087" help="31250" default="true"/>
   </category>
 </settings>
