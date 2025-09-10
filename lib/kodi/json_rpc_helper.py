@@ -202,40 +202,6 @@ class JsonRpcHelper:
         """Clamp timeout to safe range (5-30 seconds)"""
         return max(5, min(30, timeout))
 
-    def _mock_response(self, method: str, params: Optional[Dict[str, Any]]) -> JsonRpcResponse:
-        """Return mock response for testing outside Kodi"""
-
-        if method == "VideoLibrary.GetMovies":
-            # Mock multi-page response for testing
-            limits = params.get("limits", {}) if params else {}
-            start = limits.get("start", 0)
-            end = limits.get("end", 100)
-
-            # Simulate pages
-            total_movies = 250  # Mock total
-
-            movies = []
-            for i in range(start, min(end, total_movies)):
-                movies.append({
-                    "movieid": i + 1,
-                    "title": f"Mock Movie {i + 1}",
-                    "year": 2000 + (i % 24),
-                    "file": f"/movies/mock_movie_{i + 1}.mkv",
-                    "dateadded": "2023-01-15 10:30:00"
-                })
-
-            return JsonRpcResponse(
-                success=True,
-                data={
-                    "movies": movies,
-                    "limits": {"total": total_movies}
-                }
-            )
-
-        # Default mock response
-        return JsonRpcResponse(success=True, data={})
-
-
 # Global helper instance
 _helper_instance = None
 

@@ -1,11 +1,11 @@
 # Kodi Media Center language file
 # Addon Name: LibraryGenie
-# Addon id: plugin.video.library.genie
+# Addon id: plugin.video.librarygenie
 
 msgid ""
 msgstr ""
 "Project-Id-Version: LibraryGenie\n"
-"Report-Id-Bugs-To: support@movielist.com\n"
+"Report-Msgid-Bugs-To: support@noemail.com\n"
 "POT-Creation-Date: 2025-08-01 12:00+0000\n"
 "PO-Revision-Date: 2025-08-01 12:00+0000\n"
 "Last-Translator: LibraryGenie Team\n"
@@ -122,10 +122,6 @@ msgstr ""
 # Settings Categories - Additional
 msgctxt "#30449"
 msgid "AI Search Replace Sync"
-msgstr ""
-
-msgctxt "#30455"
-msgid "Regular Sync Now"
 msgstr ""
 
 msgctxt "#30456"
@@ -251,10 +247,6 @@ msgstr ""
 
 msgctxt "#30433"
 msgid "AI Search API Key"
-msgstr ""
-
-msgctxt "#30434"
-msgid "AI Search Activated"
 msgstr ""
 
 msgctxt "#30435"
@@ -906,10 +898,6 @@ msgctxt "#36029"
 msgid "Select destination folder:"
 msgstr ""
 
-msgctxt "#36030"
-msgid "Select destination folder:"
-msgstr ""
-
 msgctxt "#36031"
 msgid "[Root Level]"
 msgstr ""
@@ -1027,10 +1015,6 @@ msgstr ""
 
 msgctxt "#35026"
 msgid "Remote search failed"
-msgstr ""
-
-msgctxt "#35027"
-msgid "Sign out"
 msgstr ""
 
 msgctxt "#35028"
@@ -1175,7 +1159,7 @@ msgctxt "#34105"
 msgid "Sync failed"
 msgstr ""
 
-msgctxt "#34201"
+msgctxt "#34106"
 msgid "Similar Movies"
 msgstr ""
 
@@ -1232,17 +1216,7 @@ msgctxt "#34301"
 msgid "Operation failed"
 msgstr ""
 
-# Dialog Messages - Delete Operations
-msgctxt "#30501"
-msgid "Are you sure you want to delete this list?"
-msgstr ""
-
-msgctxt "#30509"
-msgid "Failed to delete list"
-msgstr ""
-
 # Additional Dialog Messages
-
 msgctxt "#36063"
 msgid "LibraryGenie Restore"
 msgstr ""
@@ -1563,10 +1537,6 @@ msgstr ""
 
 msgctxt "#36046"
 msgid "Force Library Rescan"
-msgstr ""
-
-msgctxt "#36047"
-msgid "Clear Search History"
 msgstr ""
 
 msgctxt "#36048"
