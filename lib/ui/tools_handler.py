@@ -921,6 +921,88 @@ class ToolsHandler:
             self.logger.error(f"Error exporting all lists: {e}")
             return DialogResponse(success=False, message="Error exporting all lists")
 
+    def _handle_import_lists(self, context: PluginContext) -> DialogResponse:
+        """Import lists from file"""
+        try:
+            from ..import_export.import_engine import get_import_engine
+            
+            # Show file browser for selection
+            import xbmcgui
+            dialog = xbmcgui.Dialog()
+            file_path = dialog.browse(
+                1,  # Type: ShowAndGetFile
+                "Select import file",
+                "files",
+                ".json",
+                False,  # Use thumbs
+                False,  # Treat as folder
+                ""      # Default path
+            )
+            
+            if not file_path:
+                return DialogResponse(success=False)  # User cancelled
+
+            # Get import engine
+            import_engine = get_import_engine()
+
+            # Validate file first
+            validation = import_engine.validate_import_file(file_path)
+            if not validation["valid"]:
+                errors = "\n".join(validation.get("errors", ["Unknown validation error"]))
+                return DialogResponse(
+                    success=False,
+                    message=f"Invalid import file:\n{errors}"
+                )
+
+            # Preview import to show user what will happen
+            preview = import_engine.preview_import(file_path)
+            
+            # Show confirmation with preview details
+            preview_text = (
+                f"Import Preview:\n"
+                f"• {len(preview.lists_to_create)} new lists to create\n"
+                f"• {len(preview.lists_to_update)} existing lists to update\n"
+                f"• {preview.items_to_add} items to add\n"
+                f"• {preview.items_already_present} items already present (will skip)\n"
+                f"• {preview.items_unmatched} items that cannot be matched"
+            )
+            
+            if preview.warnings:
+                preview_text += "\n\nWarnings:\n" + "\n".join(f"• {w}" for w in preview.warnings)
+
+            if not dialog.yesno(
+                "Confirm Import",
+                preview_text + "\n\nProceed with import?",
+                "Cancel",     # nolabel (No button)
+                "Import"      # yeslabel (Yes button)
+            ):
+                return DialogResponse(success=False)
+
+            # Perform the import
+            result = import_engine.import_data(file_path)
+
+            if result.success:
+                return DialogResponse(
+                    success=True,
+                    message=f"Import completed successfully:\n"
+                           f"• Created: {result.lists_created} lists\n"
+                           f"• Updated: {result.lists_updated} lists\n"
+                           f"• Added: {result.items_added} items\n"
+                           f"• Skipped: {result.items_skipped} items\n"
+                           f"• Unmatched: {result.items_unmatched} items",
+                    navigate_to_lists=True  # Navigate back to lists main menu
+                )
+            else:
+                errors = "\n".join(result.errors) if result.errors else "Unknown error"
+                return DialogResponse(
+                    success=False,
+                    message=f"Import failed:\n{errors}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error importing lists: {e}")
+            return DialogResponse(success=False, message="Error importing lists")
+
     def handle_action(self, action: str, params: Dict[str, Any]) -> DialogResponse:
         """Handle tools actions"""
         try:
