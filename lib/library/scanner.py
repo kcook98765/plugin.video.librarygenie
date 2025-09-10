@@ -312,7 +312,10 @@ class LibraryScanner:
                 LIMIT ? OFFSET ?
             """, [limit, offset])
 
-            return movies or []
+            # Convert sqlite3.Row objects to dictionaries for compatibility
+            if movies:
+                return [dict(movie) for movie in movies]
+            return []
 
         except Exception as e:
             self.logger.error(f"Failed to get indexed movies: {e}")
