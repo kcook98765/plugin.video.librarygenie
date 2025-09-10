@@ -333,8 +333,22 @@ class ListItemBuilder:
             media_type = item.get('media_type', 'movie')
             kodi_id = item.get('kodi_id')
 
-            # Label: include year if present
-            display_label = f"{title} ({item['year']})" if item.get('year') else title
+            # Label: format based on media type
+            if media_type == 'episode':
+                # Format episode label: "Show Name - S01E01: Episode Title"
+                tvshowtitle = item.get('tvshowtitle', '')
+                season = item.get('season')
+                episode = item.get('episode')
+                
+                if tvshowtitle and season is not None and episode is not None:
+                    display_label = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d}: {title}"
+                elif tvshowtitle:
+                    display_label = f"{tvshowtitle}: {title}"
+                else:
+                    display_label = title
+            else:
+                # Movies and other media types - include year if present
+                display_label = f"{title} ({item['year']})" if item.get('year') else title
 
             li = xbmcgui.ListItem(label=display_label)
 
@@ -880,6 +894,9 @@ class ListItemBuilder:
                 if item.get('tvshowtitle'):
                     video_info_tag.setTvShowTitle(item['tvshowtitle'])
 
+                if item.get('aired'):
+                    video_info_tag.setFirstAired(item['aired'])
+
         except Exception as e:
             self.logger.warning(f"LIB ITEM v20+: InfoTagVideo metadata setup failed for '{title}': {e}")
 
@@ -904,11 +921,26 @@ class ListItemBuilder:
             title = media_item.get('title', 'Unknown Title')
             year = media_item.get('year')
 
-            # Format display title with year if available
-            if year:
-                display_title = f"{title} ({year})"
+            # Format display title based on media type
+            media_type = media_item.get('media_type', 'movie')
+            if media_type == 'episode':
+                # Format episode title: "Show Name - S01E01: Episode Title"
+                tvshowtitle = media_item.get('tvshowtitle', '')
+                season = media_item.get('season')
+                episode = media_item.get('episode')
+                
+                if tvshowtitle and season is not None and episode is not None:
+                    display_title = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d}: {title}"
+                elif tvshowtitle:
+                    display_title = f"{tvshowtitle}: {title}"
+                else:
+                    display_title = title
             else:
-                display_title = title
+                # Movies and other media types - format with year if available
+                if year:
+                    display_title = f"{title} ({year})"
+                else:
+                    display_title = title
 
             listitem = xbmcgui.ListItem(label=display_title)
 
@@ -936,6 +968,17 @@ class ListItemBuilder:
             # Add TMDb ID if available
             if media_item.get('tmdb_id'):
                 info_labels['tmdb'] = media_item['tmdb_id']
+
+            # Add episode-specific fields for TV episodes
+            if media_item.get('media_type') == 'episode':
+                if media_item.get('tvshowtitle'):
+                    info_labels['tvshowtitle'] = media_item['tvshowtitle']
+                if media_item.get('season') is not None:
+                    info_labels['season'] = media_item['season']
+                if media_item.get('episode') is not None:
+                    info_labels['episode'] = media_item['episode']
+                if media_item.get('aired'):
+                    info_labels['aired'] = media_item['aired']
 
             # Call the version-specific metadata setting function
             from ..utils.kodi_version import get_kodi_major_version
