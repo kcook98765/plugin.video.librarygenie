@@ -231,36 +231,82 @@ class ShortListImporter:
             self.logger.info(f"Found existing ShortList Import folder (ID: {folder_id}) - removing all contents")
             
             with self.conn_manager.transaction() as conn:
-                # Step 1: Delete all list_items for lists in this folder (and subfolders)
+                # Use recursive CTE to find all descendant folders (including the root folder)
+                # Step 1: Delete all list_items for lists in the entire folder hierarchy
                 conn.execute("""
+                    WITH RECURSIVE folder_tree(id) AS (
+                        SELECT id FROM folders WHERE id = ?
+                        UNION ALL
+                        SELECT f.id FROM folders f 
+                        JOIN folder_tree ft ON f.parent_id = ft.id
+                    )
                     DELETE FROM list_items 
                     WHERE list_id IN (
                         SELECT l.id FROM lists l 
-                        JOIN folders f ON l.folder_id = f.id 
-                        WHERE f.id = ? OR f.parent_id = ?
+                        WHERE l.folder_id IN (SELECT id FROM folder_tree)
                     )
-                """, [folder_id, folder_id])
+                """, [folder_id])
                 
-                # Step 2: Delete all lists in this folder (and subfolders)
+                # Step 2: Delete all lists in the entire folder hierarchy
                 conn.execute("""
-                    DELETE FROM lists 
-                    WHERE folder_id IN (
-                        SELECT id FROM folders 
-                        WHERE id = ? OR parent_id = ?
+                    WITH RECURSIVE folder_tree(id) AS (
+                        SELECT id FROM folders WHERE id = ?
+                        UNION ALL
+                        SELECT f.id FROM folders f 
+                        JOIN folder_tree ft ON f.parent_id = ft.id
                     )
-                """, [folder_id, folder_id])
+                    DELETE FROM lists 
+                    WHERE folder_id IN (SELECT id FROM folder_tree)
+                """, [folder_id])
                 
-                # Step 3: Delete all subfolders
-                conn.execute(
-                    "DELETE FROM folders WHERE parent_id = ?", 
-                    [folder_id]
-                )
+                # Step 3: Delete all folders in the hierarchy using bottom-up approach
+                # First, count the total number of folders in the subtree for dynamic iteration limit
+                subtree_count = conn.execute("""
+                    WITH RECURSIVE folder_tree(id) AS (
+                        SELECT id FROM folders WHERE id = ?
+                        UNION ALL
+                        SELECT f.id FROM folders f 
+                        JOIN folder_tree ft ON f.parent_id = ft.id
+                    )
+                    SELECT COUNT(*) as count FROM folder_tree
+                """, [folder_id]).fetchone()
                 
-                # Step 4: Delete the main folder itself
-                conn.execute(
-                    "DELETE FROM folders WHERE id = ?", 
-                    [folder_id]
-                )
+                max_iterations = (subtree_count['count'] if subtree_count else 1) + 10  # Add buffer for safety
+                
+                # Iteratively delete leaf folders (folders with no children) until only root remains
+                folders_deleted = True
+                iteration = 0
+                
+                while folders_deleted and iteration < max_iterations:
+                    # Delete folders that have no children and are not the root folder
+                    result = conn.execute("""
+                        WITH RECURSIVE folder_tree(id) AS (
+                            SELECT id FROM folders WHERE id = ?
+                            UNION ALL
+                            SELECT f.id FROM folders f 
+                            JOIN folder_tree ft ON f.parent_id = ft.id
+                        )
+                        DELETE FROM folders 
+                        WHERE id IN (SELECT id FROM folder_tree)
+                        AND id != ?
+                        AND id NOT IN (
+                            SELECT DISTINCT parent_id FROM folders 
+                            WHERE parent_id IS NOT NULL
+                            AND parent_id IN (SELECT id FROM folder_tree)
+                        )
+                    """, [folder_id, folder_id])
+                    
+                    folders_deleted = result.rowcount > 0
+                    iteration += 1
+                    
+                    if folders_deleted:
+                        self.logger.debug(f"Deleted {result.rowcount} leaf folders in iteration {iteration}")
+                
+                if iteration >= max_iterations:
+                    self.logger.warning("Reached maximum iterations for folder deletion - continuing with root deletion")
+                
+                # Finally delete the root folder
+                conn.execute("DELETE FROM folders WHERE id = ?", [folder_id])
             
             self.logger.info("Successfully removed existing ShortList Import folder and all contents")
             return True
