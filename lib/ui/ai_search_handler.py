@@ -786,7 +786,7 @@ class AISearchHandler:
                 scanner = get_library_scanner()
 
                 progress.update(25, "Scanning library...")
-                movies = scanner.get_movies_with_imdb()
+                movies = scanner.get_indexed_movies()
 
                 if not movies:
                     progress.close()
