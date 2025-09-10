@@ -127,6 +127,11 @@ class Router:
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
                 list_id = context.get_param('list_id')
+                
+                # Special handling for Kodi Favorites - trigger scan-if-needed before showing
+                if self._is_kodi_favorites_list(context, list_id):
+                    self._handle_kodi_favorites_scan_if_needed(context)
+                
                 response = lists_handler.view_list(context, list_id)
                 return response
             elif action == 'show_folder':
@@ -402,3 +407,47 @@ class Router:
                 f"An unexpected error occurred:\n\n{str(e)[:100]}..."
             )
             return False
+
+    def _is_kodi_favorites_list(self, context, list_id):
+        """Check if the list being viewed is the Kodi Favorites list"""
+        try:
+            if not list_id:
+                return False
+                
+            query_manager = context.query_manager
+            if not query_manager:
+                return False
+                
+            list_info = query_manager.get_list_by_id(list_id)
+            if list_info and list_info.get('name') == 'Kodi Favorites':
+                self.logger.debug(f"ROUTER: Detected Kodi Favorites list (id: {list_id})")
+                return True
+                
+            return False
+        except Exception as e:
+            self.logger.error(f"ROUTER: Error checking if list is Kodi Favorites: {e}")
+            return False
+
+    def _handle_kodi_favorites_scan_if_needed(self, context):
+        """Trigger scan-if-needed for Kodi Favorites before showing the list"""
+        try:
+            self.logger.info("ROUTER: Triggering scan-if-needed for Kodi Favorites")
+            
+            # Initialize favorites manager
+            favorites_manager = context.favorites_manager
+            if not favorites_manager:
+                self.logger.warning("ROUTER: Favorites manager not available")
+                return
+                
+            # Check if scan is needed and perform if so
+            result = favorites_manager.scan_favorites(force_refresh=False)
+            if result.get('success'):
+                scan_type = result.get('scan_type', 'unknown')
+                items_found = result.get('items_found', 0)
+                items_mapped = result.get('items_mapped', 0)
+                self.logger.info(f"ROUTER: Kodi Favorites scan completed - type: {scan_type}, found: {items_found}, mapped: {items_mapped}")
+            else:
+                self.logger.warning(f"ROUTER: Kodi Favorites scan failed: {result.get('message', 'Unknown error')}")
+                
+        except Exception as e:
+            self.logger.error(f"ROUTER: Error during Kodi Favorites scan: {e}")
