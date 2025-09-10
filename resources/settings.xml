@@ -15,7 +15,7 @@
 
   </category>
 
-  <!-- Lists Settings -->
+  <!-- Lists  Settings -->
   <category label="30200">
     <setting label="30040" type="lsep"/>
     <setting id="set_default_list_action" type="action" label="30041" action="RunPlugin(plugin://plugin.video.librarygenie/?action=set_default_list)"/>
