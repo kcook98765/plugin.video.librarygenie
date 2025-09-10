@@ -256,10 +256,13 @@ class AISearchClient:
             # Test connection by making a request to the kodi/test endpoint
             response = self._make_request('kodi/test', 'GET', timeout=10)
             
-            if response and response.get('success'):
+            if response and response.get('status') == 'success':
+                user_info = response.get('user', {})
                 return {
                     'success': True,
-                    'message': 'Connection successful'
+                    'message': response.get('message', 'Connection successful'),
+                    'user_email': user_info.get('email', 'Unknown'),
+                    'service': response.get('service', 'Unknown')
                 }
             else:
                 error_msg = response.get('error', 'Unknown error') if response else 'No response'
