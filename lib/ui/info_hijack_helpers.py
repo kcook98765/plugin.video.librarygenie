@@ -432,41 +432,8 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
     return result
 
 def cleanup_old_hijack_files():
-    """Clean up hijack XSP files - simplified since we use consistent filename that overwrites"""
-    try:
-        import xbmcaddon
-        addon = xbmcaddon.Addon()
-        profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
-        hijack_dir = os.path.join(profile_dir, 'hijack')
-        
-        if xbmcvfs.exists(hijack_dir):
-            # Clean up any old files that might exist from previous versions
-            dirs, files = xbmcvfs.listdir(hijack_dir)
-            for file in files:
-                if file.endswith('.xsp') and ('lg_hijack' in file or 'temp_movie' in file):
-                    file_path = os.path.join(hijack_dir, file)
-                    try:
-                        xbmcvfs.delete(file_path)
-                        _log(f"Cleaned up old hijack file: {file}")
-                    except Exception as e:
-                        _log(f"Failed to cleanup hijack file {file}: {e}", xbmc.LOGWARNING)
-                        
-        # Also clean up old temp directory if it exists
-        old_temp_dir = "special://temp/librarygenie_hijack/"
-        if xbmcvfs.exists(old_temp_dir):
-            try:
-                dirs, files = xbmcvfs.listdir(old_temp_dir)
-                for file in files:
-                    file_path = old_temp_dir + file
-                    xbmcvfs.delete(file_path)
-                # Try to remove the directory itself
-                xbmcvfs.rmdir(old_temp_dir)
-                _log(f"Cleaned up old temp hijack directory: {old_temp_dir}")
-            except Exception as e:
-                _log(f"Failed to cleanup old temp directory: {e}", xbmc.LOGWARNING)
-                
-    except Exception as e:
-        _log(f"Error during hijack file cleanup: {e}", xbmc.LOGWARNING)
+    """No cleanup needed - we use consistent filename that overwrites"""
+    pass
 
 def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
