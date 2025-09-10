@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: LibraryGenie\n"
 "Report-Id-Bugs-To: support@movielist.com\n"
-"POT-Creation-Date: 2025-01-01 12:00+0000\n"
-"PO-Revision-Date: 2025-01-01 12:00+0000\n"
+"POT-Creation-Date: 2025-08-01 12:00+0000\n"
+"PO-Revision-Date: 2025-08-01 12:00+0000\n"
 "Last-Translator: LibraryGenie Team\n"
 "Language-Team: English\n"
 "Language: en_GB\n"
@@ -198,11 +198,6 @@ msgctxt "#30202"
 msgid "Sample List"
 msgstr ""
 
-# Menu Items
-msgctxt "#31200"
-msgid "My Lists"
-msgstr ""
-
 # Service and Background Messages  
 msgctxt "#30350"
 msgid "Background service starting"
@@ -226,7 +221,7 @@ msgid "Authentication"
 msgstr ""
 
 msgctxt "#30411"
-msgid "Remote Server URL (for OTP, AI Search, Similarity)"
+msgid "Remote Server URL (Invite Only)"
 msgstr ""
 
 msgctxt "#30412"
@@ -498,10 +493,6 @@ msgid "Are you sure you want to remove this movie from the list?"
 msgstr ""
 
 # Missing/Removed Item Indicators
-msgctxt "#31200"
-msgid "Missing"
-msgstr ""
-
 msgctxt "#31201"
 msgid "Removed from library"
 msgstr ""
