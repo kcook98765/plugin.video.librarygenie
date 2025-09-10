@@ -27,7 +27,7 @@ class ExportEngine:
         self.chunk_size = 1000  # Process in chunks to maintain UI responsiveness
 
     def export_data(self, export_types: List[str], file_format: str = "json", 
-                   custom_path: Optional[str] = None) -> Dict[str, Any]:
+                   custom_path: Optional[str] = None, context_filter: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Export selected data types to file"""
         try:
             start_time = datetime.now()
@@ -43,7 +43,7 @@ class ExportEngine:
             total_items = 0
 
             for export_type in export_types:
-                data, count = self._collect_export_data(export_type)
+                data, count = self._collect_export_data(export_type, context_filter)
                 payload[export_type] = data
                 total_items += count
 
@@ -109,19 +109,19 @@ class ExportEngine:
             self.logger.error(f"Export error: {e}")
             return {"success": False, "error": str(e)}
 
-    def _collect_export_data(self, export_type: str) -> Tuple[List[Dict], int]:
-        """Collect data for specific export type"""
+    def _collect_export_data(self, export_type: str, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
+        """Collect data for specific export type with optional context filtering"""
         try:
             if export_type == "lists":
-                return self._collect_lists_data()
+                return self._collect_lists_data(context_filter)
             elif export_type == "list_items":
-                return self._collect_list_items_data()
+                return self._collect_list_items_data(context_filter)
             elif export_type == "library_snapshot":
-                return self._collect_library_snapshot_data()
+                return self._collect_library_snapshot_data(context_filter)
             elif export_type == "non_library_snapshot":
-                return self._collect_non_library_snapshot_data()
+                return self._collect_non_library_snapshot_data(context_filter)
             elif export_type == "folders":
-                return self._collect_folders_data()
+                return self._collect_folders_data(context_filter)
             else:
                 return [], 0
 
@@ -129,19 +129,48 @@ class ExportEngine:
             self.logger.error(f"Error collecting {export_type} data: {e}")
             return [], 0
 
-    def _collect_lists_data(self) -> Tuple[List[Dict], int]:
-        """Collect lists data"""
+    def _collect_lists_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
+        """Collect lists data with optional context filtering"""
         lists_data = []
 
+        # Base query
         query = """
                 SELECT l.id, l.name, l.created_at, '' as description,
-                       COUNT(li.id) as item_count
+                       COUNT(li.id) as item_count, l.folder_id
                 FROM lists l
                 LEFT JOIN list_items li ON l.id = li.list_id
-                GROUP BY l.id, l.name, l.created_at
-                ORDER BY l.created_at
             """
-        params = () # Placeholder for potential future parameters
+        params = []
+        
+        # Apply context filtering
+        where_conditions = []
+        if context_filter:
+            if context_filter.get('list_id'):
+                where_conditions.append("l.id = ?")
+                params.append(context_filter['list_id'])
+            elif context_filter.get('folder_id'):
+                if context_filter.get('include_subfolders', False):
+                    # Branch export: include current folder and ALL descendant subfolders recursively
+                    where_conditions.append("""
+                        l.folder_id IN (
+                            WITH RECURSIVE descendant_folders(id) AS (
+                                SELECT ? UNION ALL 
+                                SELECT f.id FROM folders f 
+                                JOIN descendant_folders df ON f.parent_id = df.id
+                            )
+                            SELECT id FROM descendant_folders
+                        )
+                    """)
+                    params.append(context_filter['folder_id'])
+                else:
+                    # Single folder only
+                    where_conditions.append("l.folder_id = ?")
+                    params.append(context_filter['folder_id'])
+        
+        if where_conditions:
+            query += " WHERE " + " AND ".join(where_conditions)
+            
+        query += " GROUP BY l.id, l.name, l.created_at, l.folder_id ORDER BY l.created_at"
 
         lists = self.conn_manager.execute_query(query, params)
 
@@ -155,26 +184,60 @@ class ExportEngine:
                     'name': list_row[1],
                     'created_at': list_row[2],
                     'description': list_row[3] or "",
-                    'item_count': list_row[4]
+                    'item_count': list_row[4],
+                    'folder_id': list_row[5]
                 }
 
             lists_data.append(list_dict)
 
         return lists_data, len(lists_data)
 
-    def _collect_list_items_data(self) -> Tuple[List[Dict], int]:
-        """Collect list items (membership) data"""
+    def _collect_list_items_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
+        """Collect list items (membership) data with optional context filtering"""
         items_data = []
 
+        # Base query
         query = """
                 SELECT li.list_id, mi.kodi_id, mi.title, mi.year, mi.file_path,
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.media_type
                 FROM list_items li
                 INNER JOIN media_items mi ON li.media_item_id = mi.id
                 WHERE mi.is_removed = 0
-                ORDER BY li.list_id, mi.title
             """
-        params = () # Placeholder for potential future parameters
+        params = []
+        
+        # Apply context filtering
+        additional_conditions = []
+        if context_filter:
+            if context_filter.get('list_id'):
+                additional_conditions.append("li.list_id = ?")
+                params.append(context_filter['list_id'])
+            elif context_filter.get('folder_id'):
+                if context_filter.get('include_subfolders', False):
+                    # Branch export: include items from current folder and ALL descendant subfolders recursively
+                    additional_conditions.append("""
+                        li.list_id IN (
+                            SELECT l.id FROM lists l 
+                            WHERE l.folder_id IN (
+                                WITH RECURSIVE descendant_folders(id) AS (
+                                    SELECT ? UNION ALL 
+                                    SELECT f.id FROM folders f 
+                                    JOIN descendant_folders df ON f.parent_id = df.id
+                                )
+                                SELECT id FROM descendant_folders
+                            )
+                        )
+                    """)
+                    params.append(context_filter['folder_id'])
+                else:
+                    # Single folder only
+                    additional_conditions.append("li.list_id IN (SELECT l.id FROM lists l WHERE l.folder_id = ?)")
+                    params.append(context_filter['folder_id'])
+        
+        if additional_conditions:
+            query += " AND " + " AND ".join(additional_conditions)
+            
+        query += " ORDER BY li.list_id, mi.title"
 
         items = self.conn_manager.execute_query(query, params)
 
@@ -208,7 +271,7 @@ class ExportEngine:
 
 
 
-    def _collect_library_snapshot_data(self) -> Tuple[List[Dict], int]:
+    def _collect_library_snapshot_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
         """Collect library snapshot data"""
         library_data = []
 
@@ -252,7 +315,7 @@ class ExportEngine:
 
         return library_data, len(library_data)
 
-    def _collect_non_library_snapshot_data(self) -> Tuple[List[Dict], int]:
+    def _collect_non_library_snapshot_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
         """Collect non-library media items data (items not currently in Kodi library)"""
         non_library_data = []
 
@@ -297,7 +360,7 @@ class ExportEngine:
 
         return non_library_data, len(non_library_data)
 
-    def _collect_folders_data(self) -> Tuple[List[Dict], int]:
+    def _collect_folders_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
         """Collect folders data"""
         folders_data = []
 
