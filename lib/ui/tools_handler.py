@@ -160,6 +160,9 @@ class ToolsHandler:
 
             # Check if this is a search history list
             is_search_history = list_info.get('folder_name') == 'Search History'
+            
+            # Check if this is the Kodi Favorites list
+            is_kodi_favorites = list_info.get('name') == 'Kodi Favorites'
 
             # Helper function to shorten names for context menus
             def shorten_name_for_menu(name: str, max_length: int = 30) -> str:
@@ -192,6 +195,17 @@ class ToolsHandler:
                 self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for search history list '{list_info['name']}':")
                 for i, option in enumerate(options):
                     self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+            elif is_kodi_favorites:
+                # Special options for Kodi Favorites - limited to copy only, no modifications
+                options = [
+                    f"[COLOR lightgreen]{L(36002)}[/COLOR]",  # "Save As New List"
+                    f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                ]
+
+                # Debug logging for Kodi Favorites list tools options
+                self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for Kodi Favorites list (read-only):")
+                for i, option in enumerate(options):
+                    self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
             else:
                 # Standard list options
                 options = [
@@ -217,7 +231,7 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36014), list(options))  # "List Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from user list tools dialog (is_search_history: {is_search_history})")
+            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from user list tools dialog (is_search_history: {is_search_history}, is_kodi_favorites: {is_kodi_favorites})")
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
                 self.logger.debug(f"TOOLS DEBUG: User list tools cancelled (selected_index: {selected_index})")
@@ -248,6 +262,12 @@ class ToolsHandler:
                             result.navigate_to_main = True
 
                     return result
+            elif is_kodi_favorites:
+                # Kodi Favorites list: Save As New List(0), Cancel(1)
+                if selected_index == 0:  # Save As New List
+                    from .favorites_handler import FavoritesHandler
+                    favorites_handler = FavoritesHandler()
+                    return favorites_handler.save_favorites_as(context)
             else:
                 # Standard list: Merge(0), Rename(1), Move(2), Export(3), Delete(4), Cancel(5)
                 if selected_index == 0:  # Merge lists

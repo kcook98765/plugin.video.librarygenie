@@ -51,38 +51,15 @@ class FavoritesHandler:
 
             menu_items = []
 
-            # Add "Tools & Options" at the top like other lists
-            menu_items.append({
-                'label': "[COLOR yellow]Tools & Options[/COLOR]",
-                'url': context.build_url('show_list_tools', list_type='favorites'),
-                'is_folder': True,
-                'icon': "DefaultAddonProgram.png",
-                'description': "Access favorites tools and options"
-            })
+            # Tools & Options removed - Kodi Favorites now accessed as regular list
 
             favorites_items = favorites  # No conversion needed - data is already in standard list format
 
             if not favorites_items:
-                # No favorites found - show Tools & Options and empty message
-                for item in menu_items:
-                    list_item = xbmcgui.ListItem(label=item['label'])
-
-                    if 'description' in item:
-                        list_item.setInfo('video', {'plot': item['description']})
-
-                    if 'icon' in item:
-                        list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-
-                    xbmcplugin.addDirectoryItem(
-                        context.addon_handle,
-                        item['url'],
-                        list_item,
-                        item['is_folder']
-                    )
-
+                # No favorites found - show empty message
                 # Add empty state message
                 empty_item = xbmcgui.ListItem(label="[COLOR gray]No favorites found[/COLOR]")
-                empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library. Use "Tools & Options" to scan favorites.xml'})
+                empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library.'})
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     context.build_url('noop'),
@@ -105,24 +82,7 @@ class FavoritesHandler:
                     content_type="movies"
                 )
             else:
-                # First add the Tools & Options menu at the top
-                for item in menu_items:
-                    list_item = xbmcgui.ListItem(label=item['label'])
-
-                    if 'description' in item:
-                        list_item.setInfo('video', {'plot': item['description']})
-
-                    if 'icon' in item:
-                        list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
-
-                    xbmcplugin.addDirectoryItem(
-                        context.addon_handle,
-                        item['url'],
-                        list_item,
-                        item['is_folder']
-                    )
-
-                # Then use existing list building infrastructure for favorites
+                # Use existing list building infrastructure for favorites
                 context.logger.info(f"Using ListItemRenderer to build {len(favorites_items)} favorites")
 
                 # Context menus now handled by global context.py

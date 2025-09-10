@@ -92,9 +92,9 @@ class ListsHandler:
             all_lists = query_manager.get_all_lists_with_folders()
             context.logger.info(f"Found {len(all_lists)} total lists")
 
-            # Filter out the special "Kodi Favorites" list from the main Lists menu
-            user_lists = [item for item in all_lists if item.get('name') != 'Kodi Favorites']
-            context.logger.info(f"Found {len(user_lists)} user lists (excluding Kodi Favorites)")
+            # Include all lists including "Kodi Favorites" in the main Lists menu
+            user_lists = all_lists
+            context.logger.info(f"Found {len(user_lists)} user lists (including Kodi Favorites)")
 
             if not user_lists:
                 # No lists exist - show empty state instead of dialog
@@ -206,12 +206,18 @@ class ListsHandler:
                 description = list_item.get('description', '')
                 item_count = list_item.get('item_count', 0)
 
-                context_menu = [
-                    (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
-                    (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
-                    (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
-                ]
+                # Special handling for Kodi Favorites - limited context menu
+                if name == 'Kodi Favorites':
+                    context_menu = [
+                        (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})")
+                    ]
+                else:
+                    context_menu = [
+                        (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
+                        (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
+                        (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
+                        (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
+                    ]
 
                 menu_items.append({
                     'label': f"[COLOR yellow]{name}[/COLOR]",
