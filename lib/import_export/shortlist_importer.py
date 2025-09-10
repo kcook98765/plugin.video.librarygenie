@@ -7,7 +7,7 @@ Imports lists from the ShortList addon into LibraryGenie
 """
 
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from ..data.connection_manager import get_connection_manager
 from ..data import QueryManager
 from ..data.list_library_manager import get_list_library_manager
@@ -212,34 +212,75 @@ class ShortListImporter:
             self.logger.error(f"Error matching movie to library: {e}")
             return None
 
-    def create_shortlist_import_list(self) -> Optional[int]:
-        """Create or get the 'ShortList Import' list"""
+    def create_shortlist_import_folder(self) -> Optional[int]:
+        """Create or get the 'ShortList Import' folder"""
         try:
-            # Check if list already exists
+            # Check if folder already exists
             existing = self.conn_manager.execute_single(
-                "SELECT id FROM lists WHERE name = ?", 
+                "SELECT id FROM folders WHERE name = ? AND parent_id IS NULL", 
                 ["ShortList Import"]
             )
 
             if existing:
-                list_id = existing[0] if hasattr(existing, '__getitem__') else existing.get('id')
-                self.logger.info(f"Using existing ShortList Import list (ID: {list_id})")
-                return list_id
+                folder_id = existing[0] if hasattr(existing, '__getitem__') else existing.get('id')
+                self.logger.info(f"Using existing ShortList Import folder (ID: {folder_id})")
+                return folder_id
 
-            # Create new list using query_manager
+            # Create new folder
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO lists (name, folder_id)
+                    INSERT INTO folders (name, parent_id)
                     VALUES (?, NULL)
                 """, ["ShortList Import"])
-                list_id = cursor.lastrowid
+                folder_id = cursor.lastrowid
 
-            self.logger.info(f"Created ShortList Import list (ID: {list_id})")
-            return list_id
+            self.logger.info(f"Created ShortList Import folder (ID: {folder_id})")
+            return folder_id
 
         except Exception as e:
-            self.logger.error(f"Error creating ShortList Import list: {e}")
+            self.logger.error(f"Error creating ShortList Import folder: {e}")
             return None
+
+    def create_or_get_shortlist_sublist(self, list_name: str, folder_id: int, conn=None) -> Tuple[Optional[int], bool]:
+        """Create or get a list for a specific shortlist under the ShortList Import folder
+        
+        Returns:
+            tuple: (list_id, was_created) where was_created is True if a new list was created
+        """
+        try:
+            # Use provided connection or create a new transaction
+            if conn is None:
+                with self.conn_manager.transaction() as transaction_conn:
+                    return self._create_or_get_list_internal(list_name, folder_id, transaction_conn)
+            else:
+                return self._create_or_get_list_internal(list_name, folder_id, conn)
+
+        except Exception as e:
+            self.logger.error(f"Error creating list '{list_name}': {e}")
+            return None, False
+
+    def _create_or_get_list_internal(self, list_name: str, folder_id: int, conn) -> Tuple[int, bool]:
+        """Internal method to create or get list using provided connection"""
+        # Check if list already exists in this folder
+        existing = conn.execute(
+            "SELECT id FROM lists WHERE name = ? AND folder_id = ?", 
+            [list_name, folder_id]
+        ).fetchone()
+
+        if existing:
+            list_id = existing['id']
+            self.logger.info(f"Using existing list '{list_name}' (ID: {list_id})")
+            return list_id, False
+
+        # Create new list in the folder
+        cursor = conn.execute("""
+            INSERT INTO lists (name, folder_id)
+            VALUES (?, ?)
+        """, [list_name, folder_id])
+        list_id = cursor.lastrowid
+
+        self.logger.info(f"Created list '{list_name}' (ID: {list_id}) in ShortList Import folder")
+        return list_id, True
 
     def import_shortlist_items(self) -> Dict[str, Any]:
         """Import all ShortList items into LibraryGenie"""
@@ -266,24 +307,33 @@ class ShortListImporter:
                     "error": "No lists found in ShortList addon"
                 }
 
-            # Create or get the import list
-            import_list_id = self.create_shortlist_import_list()
-            if not import_list_id:
+            # Create or get the import folder
+            import_folder_id = self.create_shortlist_import_folder()
+            if not import_folder_id:
                 return {
                     "success": False,
-                    "error": "Failed to create ShortList Import list"
+                    "error": "Failed to create ShortList Import folder"
                 }
 
-            # Clear existing items in the import list
-            self.conn_manager.execute_single(
-                "DELETE FROM list_items WHERE list_id = ?",
-                [import_list_id]
+            # Check for legacy "ShortList Import" list and handle it
+            legacy_list = self.conn_manager.execute_single(
+                "SELECT id FROM lists WHERE name = ? AND folder_id IS NULL",
+                ["ShortList Import"]
             )
+            if legacy_list:
+                legacy_list_id = legacy_list[0] if hasattr(legacy_list, '__getitem__') else legacy_list.get('id')
+                self.logger.info(f"Found legacy 'ShortList Import' list (ID: {legacy_list_id}), renaming to avoid confusion")
+                # Rename legacy list
+                self.conn_manager.execute_single(
+                    "UPDATE lists SET name = ? WHERE id = ?",
+                    ["ShortList Import (Legacy)", legacy_list_id]
+                )
 
-            # Process all items from all lists
+            # Process each shortlist as a separate list
             total_items = 0
             items_added = 0
             items_matched = 0
+            lists_created = 0
 
             with self.conn_manager.transaction() as conn:
                 for shortlist in shortlist_data:
@@ -291,23 +341,45 @@ class ShortListImporter:
                     items = shortlist["items"]
                     total_items += len(items)
 
+                    if not items:
+                        self.logger.info(f"Skipping empty shortlist: '{list_name}'")
+                        continue
+
                     self.logger.info(f"Processing {len(items)} items from '{list_name}'")
 
+                    # Create or get list for this shortlist
+                    list_id, was_created = self.create_or_get_shortlist_sublist(list_name, import_folder_id, conn)
+                    if not list_id:
+                        self.logger.error(f"Failed to create list for '{list_name}', skipping")
+                        continue
+
+                    if was_created:
+                        lists_created += 1
+
+                    # Clear existing items in this list
+                    conn.execute(
+                        "DELETE FROM list_items WHERE list_id = ?",
+                        [list_id]
+                    )
+
+                    # Process items for this specific list
+                    position = 0
                     for item in items:
                         try:
                             # Try to match to library movie
                             library_movie_id = self.match_movie_to_library(item)
 
                             if library_movie_id:
-                                # Add mapped item to list
+                                # Add mapped item to this specific list
                                 conn.execute("""
                                     INSERT OR IGNORE INTO list_items 
                                     (list_id, media_item_id, position)
                                     VALUES (?, ?, ?)
-                                """, [import_list_id, library_movie_id, len(items)])
+                                """, [list_id, library_movie_id, position])
 
                                 items_matched += 1
                                 items_added += 1
+                                position += 1
                             else:
                                 # For unmapped items, we could optionally store them
                                 # as metadata only entries, but for now we skip them
@@ -316,6 +388,8 @@ class ShortListImporter:
 
                         except Exception as e:
                             self.logger.error(f"Error processing item {item.get('title')}: {e}")
+
+                    self.logger.info(f"Completed list '{list_name}' with {position} items added")
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -326,6 +400,7 @@ class ShortListImporter:
                 "items_matched": items_matched,
                 "items_unmapped": total_items - items_matched,
                 "lists_processed": len(shortlist_data),
+                "lists_created": lists_created,
                 "duration_ms": duration_ms
             }
 
