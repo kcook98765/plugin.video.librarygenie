@@ -952,53 +952,6 @@ msgctxt "#36039"
 msgid "This will include all list items and metadata."
 msgstr ""
 
-msgctxt "#36040"
-msgid "Exported %d lists from '%s' to %s"
-msgstr ""
-
-msgctxt "#36041"
-msgid "No lists found in folder '%s'"
-msgstr ""
-
-msgctxt "#36042"
-msgid "Exported '%s' to %s"
-msgstr ""
-
-msgctxt "#36043"
-msgid "Export failed: %s"
-msgstr ""
-
-msgctxt "#36044"
-msgid "Unknown error"
-msgstr ""
-
-msgctxt "#36045"
-msgid "Created list: %s"
-msgstr ""
-
-msgctxt "#36046"
-msgid "Created subfolder: %s"
-msgstr ""
-
-msgctxt "#36047"
-msgid "List '%s' already exists in this folder"
-msgstr ""
-
-msgctxt "#36048"
-msgid "Folder '%s' already exists in this location"
-msgstr ""
-
-msgctxt "#36049"
-msgid "Error creating list"
-msgstr ""
-
-msgctxt "#36050"
-msgid "Error creating subfolder"
-msgstr ""
-
-msgctxt "#36051"
-msgid "%s items"
-msgstr ""
 
 # Enum Setting Options
 msgctxt "#35100"
@@ -1295,17 +1248,6 @@ msgid "Failed to delete list"
 msgstr ""
 
 # Additional Dialog Messages
-msgctxt "#36060"
-msgid "Are you sure you want to delete the folder '%s' and all its contents?"
-msgstr ""
-
-msgctxt "#36061"
-msgid "Are you sure you want to delete the empty folder '%s'?"
-msgstr ""
-
-msgctxt "#36062"
-msgid "Remove '%s' from list '%s'?"
-msgstr ""
 
 msgctxt "#36063"
 msgid "LibraryGenie Restore"
@@ -1339,9 +1281,6 @@ msgctxt "#36070"
 msgid "Export all %d lists and folders?"
 msgstr ""
 
-msgctxt "#36071"
-msgid "No lists found. Create a new list first?"
-msgstr ""
 
 msgctxt "#34302"
 msgid "Please try again"
