@@ -85,8 +85,17 @@ class TimestampBackupManager:
                 self.logger.info(f"Skipping backup: {worthiness['reason']}")
                 return {"success": False, "reason": "not_worthy", "message": worthiness["reason"]}
 
-            # Run export
-            export_types = ["lists", "list_items", "folders"]
+            # Determine what to backup based on settings
+            export_types = ["lists", "list_items"]
+            
+            # Check if external items should be included
+            if self.config.get_bool("backup_include_non_library", False):
+                export_types.append("non_library_snapshot")
+            
+            # Check if folders should be included  
+            if self.config.get_bool("backup_include_folders", True):
+                export_types.append("folders")
+                
             result = self.export_engine.export_data(export_types, file_format="json")
 
             if not result["success"]:
@@ -328,14 +337,14 @@ class TimestampBackupManager:
             timestamp = datetime.now().strftime(timestamp_format)
 
             # Determine what to backup based on settings
-            export_types = ["lists", "list_items"]  # Don't backup media_items - those are maintained by the addon
+            export_types = ["lists", "list_items"]
 
-            # Only add optional types if they're explicitly enabled or if config is unavailable
+            # Only add optional types if they're explicitly enabled
             try:
-                if self.config.get("backup_include_non_library", False):
+                if self.config.get_bool("backup_include_non_library", False):
                     export_types.append("non_library_snapshot")
 
-                if self.config.get("backup_include_folders", True):  # Default to True for complete backups
+                if self.config.get_bool("backup_include_folders", True):
                     export_types.append("folders")
             except Exception as e:
                 self.logger.warning(f"Error reading backup config, using defaults: {e}")
