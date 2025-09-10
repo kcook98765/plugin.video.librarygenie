@@ -544,7 +544,10 @@ class ImportEngine:
                 # Match to library movie
                 movie_id = self.matcher.match_movie(item_data)
 
+                self.logger.info(f"DEBUG: Movie '{item_data.get('title', 'unknown')}' matched to library movie_id: {movie_id}")
+
                 if not movie_id:
+                    self.logger.info(f"DEBUG: Movie '{item_data.get('title', 'unknown')}' could not be matched to library")
                     unmatched += 1
                     unmatched_items.append({
                         "title": item_data.get("title", "Unknown"),
