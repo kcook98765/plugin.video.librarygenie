@@ -281,13 +281,12 @@ class InfoHijackManager:
         if not path:
             return False
         
-        # Only target our specific temp directory and file patterns
+        # Only target our specific hijack XSP file
         lg_hijack_indicators = [
-            'special://temp/librarygenie_hijack/',
-            'lg_hijack_movie_',
-            'lg_hijack_episode_',
-            'lg_hijack_musicvideo_',
-            'lg_hijack_tvshow_'
+            'lg_hijack_temp.xsp',
+            '/hijack/lg_hijack_temp.xsp',
+            'lg_hijack_debug.xsp',
+            '/hijack/lg_hijack_debug.xsp'
         ]
         
         for indicator in lg_hijack_indicators:
