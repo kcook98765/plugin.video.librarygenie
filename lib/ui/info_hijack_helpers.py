@@ -240,20 +240,23 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
             _log(f"Unsupported db_type for XSP creation: {db_type}", xbmc.LOGWARNING)
             return None
         
-        # Use dedicated temp directory outside Kodi's playlist scanning
-        hijack_temp_dir = "special://temp/librarygenie_hijack/"
-        xsp_filename = f"lg_hijack_{db_type}_{db_id}.xsp"
-        path = hijack_temp_dir + xsp_filename
+        # Use addon userdata directory for stable XSP file location
+        import xbmcaddon
+        addon = xbmcaddon.Addon()
+        profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+        hijack_dir = os.path.join(profile_dir, 'hijack')
+        xsp_filename = "lg_hijack_temp.xsp"  # Consistent filename that overwrites
+        path = os.path.join(hijack_dir, xsp_filename)
         
-        # Ensure hijack temp directory exists
+        # Ensure hijack directory exists
         try:
-            if not xbmcvfs.exists(hijack_temp_dir):
-                _log(f"Creating hijack temp directory: {hijack_temp_dir}")
-                xbmcvfs.mkdirs(hijack_temp_dir)
+            if not xbmcvfs.exists(hijack_dir):
+                _log(f"Creating hijack directory: {hijack_dir}")
+                xbmcvfs.mkdirs(hijack_dir)
         except Exception as e:
-            _log(f"Failed to create hijack temp directory: {e}", xbmc.LOGWARNING)
-            # Fallback to direct temp
-            path = f"special://temp/{xsp_filename}"
+            _log(f"Failed to create hijack directory: {e}", xbmc.LOGWARNING)
+            # Fallback to profile root
+            path = os.path.join(profile_dir, xsp_filename)
         
         # Log the XSP content for debugging
         _log(f"XSP content for {db_type} {db_id}:\n{xsp}")
@@ -294,10 +297,13 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
   <order direction="ascending">title</order>
 </smartplaylist>"""
 
-    # Use dedicated temp directory outside Kodi's playlist scanning (persistent for debugging)
-    hijack_temp_dir = "special://temp/librarygenie_hijack/"
+    # Use addon userdata directory for stable XSP file location (persistent for debugging)
+    import xbmcaddon
+    addon = xbmcaddon.Addon()
+    profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+    hijack_dir = os.path.join(profile_dir, 'hijack')
     xsp_filename = "lg_hijack_debug.xsp"
-    path = hijack_temp_dir + xsp_filename
+    path = os.path.join(hijack_dir, xsp_filename)
 
     # Ensure hijack temp directory exists
     try:
@@ -426,19 +432,39 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
     return result
 
 def cleanup_old_hijack_files():
-    """Clean up old hijack XSP files to prevent accumulation"""
+    """Clean up hijack XSP files - simplified since we use consistent filename that overwrites"""
     try:
-        hijack_temp_dir = "special://temp/librarygenie_hijack/"
-        if xbmcvfs.exists(hijack_temp_dir):
-            dirs, files = xbmcvfs.listdir(hijack_temp_dir)
+        import xbmcaddon
+        addon = xbmcaddon.Addon()
+        profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+        hijack_dir = os.path.join(profile_dir, 'hijack')
+        
+        if xbmcvfs.exists(hijack_dir):
+            # Clean up any old files that might exist from previous versions
+            dirs, files = xbmcvfs.listdir(hijack_dir)
             for file in files:
-                if file.endswith('.xsp') and 'lg_hijack' in file:
-                    file_path = hijack_temp_dir + file
+                if file.endswith('.xsp') and ('lg_hijack' in file or 'temp_movie' in file):
+                    file_path = os.path.join(hijack_dir, file)
                     try:
                         xbmcvfs.delete(file_path)
                         _log(f"Cleaned up old hijack file: {file}")
                     except Exception as e:
                         _log(f"Failed to cleanup hijack file {file}: {e}", xbmc.LOGWARNING)
+                        
+        # Also clean up old temp directory if it exists
+        old_temp_dir = "special://temp/librarygenie_hijack/"
+        if xbmcvfs.exists(old_temp_dir):
+            try:
+                dirs, files = xbmcvfs.listdir(old_temp_dir)
+                for file in files:
+                    file_path = old_temp_dir + file
+                    xbmcvfs.delete(file_path)
+                # Try to remove the directory itself
+                xbmcvfs.rmdir(old_temp_dir)
+                _log(f"Cleaned up old temp hijack directory: {old_temp_dir}")
+            except Exception as e:
+                _log(f"Failed to cleanup old temp directory: {e}", xbmc.LOGWARNING)
+                
     except Exception as e:
         _log(f"Error during hijack file cleanup: {e}", xbmc.LOGWARNING)
 
@@ -690,7 +716,12 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
         _log(f"Opening movie info for dbid={dbid}, url={movie_url}")
 
         if not xsp_path:
-            xsp_path = f"special://temp/librarygenie_hijack/temp_movie_{dbid}.xsp"
+            # Use consistent hijack file in addon userdata directory
+            import xbmcaddon
+            addon = xbmcaddon.Addon()
+            profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+            hijack_dir = os.path.join(profile_dir, 'hijack')
+            xsp_path = os.path.join(hijack_dir, "lg_hijack_temp.xsp")
 
         _log(f"Using XSP path: {xsp_path}")
 

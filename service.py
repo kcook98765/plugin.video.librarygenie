@@ -226,10 +226,8 @@ class LibraryGenieService:
                     # Stay in hijack mode if user is still on LibraryGenie XSP pages
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     on_lg_hijack_xsp = container_path and (
-                        'special://temp/librarygenie_hijack/' in container_path or
-                        'lg_hijack_movie_' in container_path or
-                        'lg_hijack_episode_' in container_path or
-                        'lg_hijack_musicvideo_' in container_path
+                        'lg_hijack_temp.xsp' in container_path or
+                        'lg_hijack_debug.xsp' in container_path
                     )
                     
                     # Only allow hijack mode exit if NOT on our XSP pages
