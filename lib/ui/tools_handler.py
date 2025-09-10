@@ -877,9 +877,8 @@ class ToolsHandler:
             if not dialog.yesno(
                 "Confirm Export",
                 f"Export all {list_count} lists in your library?\nThis will include all list items and metadata.",
-                "",
-                "Cancel",
-                "Export"
+                "Cancel",    # nolabel (No button)
+                "Export"     # yeslabel (Yes button)
             ):
                 return DialogResponse(success=False)
 
