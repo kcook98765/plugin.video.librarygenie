@@ -200,7 +200,7 @@ class ImportEngine:
             return {"valid": False, "errors": [str(e)]}
 
     def preview_import(self, file_path: str) -> ImportPreview:
-        """Generate preview of import operations"""
+        """Generate preview of import operations (simplified for timestamped import folders)"""
         try:
             # First validate the file
             validation = self.validate_import_file(file_path)
@@ -230,53 +230,39 @@ class ImportEngine:
             data = json.loads(content)
             payload = data.get("payload", {})
 
-            # Initialize preview
+            # Initialize preview - simplified for timestamped import folders
             lists_to_create = []
-            lists_to_update = []
             items_to_add = 0
-            items_already_present = 0
             items_unmatched = 0
             warnings = []
 
-            # Check lists
+            # Count lists to create (all lists will be new since importing to timestamped folder)
             if "lists" in payload:
-                existing_lists = self._get_existing_list_names()
-
                 for list_data in payload["lists"]:
                     list_name = list_data.get("name", "")
-                    if list_name in existing_lists:
-                        lists_to_update.append(list_name)
-                    else:
+                    if list_name:
                         lists_to_create.append(list_name)
 
-            # Check list items
+            # Count items to add/unmatched (no duplicates since new folder)
             if "list_items" in payload:
                 for item_data in payload["list_items"]:
                     movie_id = self.matcher.match_movie(item_data)
                     if movie_id:
-                        # Check if already in list
-                        list_id = item_data.get("list_id")
-                        if self._is_item_in_list(movie_id, list_id):
-                            items_already_present += 1
-                        else:
-                            items_to_add += 1
+                        items_to_add += 1
                     else:
                         items_unmatched += 1
 
-            total_operations = len(lists_to_create) + len(lists_to_update) + items_to_add
+            total_operations = len(lists_to_create) + items_to_add
 
             # Add warnings
             if items_unmatched > 0:
                 warnings.append(f"{items_unmatched} items could not be matched to library movies")
 
-            if items_already_present > 0:
-                warnings.append(f"{items_already_present} items are already in lists (will be skipped)")
-
             return ImportPreview(
                 lists_to_create=lists_to_create,
-                lists_to_update=lists_to_update,
+                lists_to_update=[],  # No updates since importing to new folder
                 items_to_add=items_to_add,
-                items_already_present=items_already_present,
+                items_already_present=0,  # No duplicates since new folder
                 items_unmatched=items_unmatched,
                 total_operations=total_operations,
                 warnings=warnings

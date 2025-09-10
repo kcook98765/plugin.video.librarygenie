@@ -957,13 +957,11 @@ class ToolsHandler:
             # Preview import to show user what will happen
             preview = import_engine.preview_import(file_path)
             
-            # Show confirmation with preview details
+            # Show confirmation with preview details (simplified for timestamped import folders)
             preview_text = (
-                f"Import Preview:\n"
-                f"• {len(preview.lists_to_create)} new lists to create\n"
-                f"• {len(preview.lists_to_update)} existing lists to update\n"
+                f"Import Preview (into timestamped import folder):\n"
+                f"• {len(preview.lists_to_create)} lists to create\n"
                 f"• {preview.items_to_add} items to add\n"
-                f"• {preview.items_already_present} items already present (will skip)\n"
                 f"• {preview.items_unmatched} items that cannot be matched"
             )
             
@@ -986,9 +984,7 @@ class ToolsHandler:
                     success=True,
                     message=f"Import completed successfully:\n"
                            f"• Created: {result.lists_created} lists\n"
-                           f"• Updated: {result.lists_updated} lists\n"
                            f"• Added: {result.items_added} items\n"
-                           f"• Skipped: {result.items_skipped} items\n"
                            f"• Unmatched: {result.items_unmatched} items",
                     navigate_to_lists=True  # Navigate back to lists main menu
                 )
