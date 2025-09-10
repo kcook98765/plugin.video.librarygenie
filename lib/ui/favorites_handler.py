@@ -176,8 +176,8 @@ class FavoritesHandler:
 
             all_lists = query_manager.get_all_lists_with_folders()
 
-            # Filter out special lists like "Kodi Favorites"
-            user_lists = [lst for lst in all_lists if lst.get('name') != 'Kodi Favorites']
+            # Include all lists including "Kodi Favorites" for user selection
+            user_lists = all_lists
 
             if not user_lists:
                 # No lists available, offer to create one

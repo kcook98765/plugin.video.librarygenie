@@ -1341,11 +1341,10 @@ class ToolsHandler:
                     self.logger.warning(f"TOOLS DEBUG: Query manager not available for folder resolution")
                     current_folder_id = None
 
-            # Main lists menu tools - enhanced with search and favorites
+            # Main lists menu tools - enhanced with search (Kodi Favorites removed as it's now a regular list)
             tools_options = [
                 "🔍 Local Search",
                 "📊 Search History",
-                "⭐ Kodi Favorites",
                 "---",  # Separator
                 "Create New List",
                 "Create New Folder",
@@ -1386,8 +1385,6 @@ class ToolsHandler:
                 return self._handle_ai_search(context)
             elif selected_option == "📊 Search History":
                 return self._handle_search_history(context)
-            elif selected_option == "⭐ Kodi Favorites":
-                return self._handle_kodi_favorites(context)
             elif selected_option == "Create New List":
                 return self._handle_create_list(context)
             elif selected_option == "Create New Folder":
@@ -1877,27 +1874,6 @@ class ToolsHandler:
         except Exception as e:
             context.logger.error(f"Error navigating to search history: {e}")
             return DialogResponse(success=False, message="Failed to open search history")
-
-    def _handle_kodi_favorites(self, context: PluginContext) -> DialogResponse:
-        """Navigate to Kodi favorites"""
-        try:
-            # Check if favorites integration is enabled
-            addon = context.addon
-            favorites_enabled = addon.getSettingBool('favorites_integration_enabled')
-
-            if not favorites_enabled:
-                return DialogResponse(
-                    success=False,
-                    message="Kodi Favorites integration is disabled in settings"
-                )
-
-            import xbmc
-            favorites_url = context.build_url('kodi_favorites')
-            xbmc.executebuiltin(f'Container.Update("{favorites_url}",replace)')
-            return DialogResponse(success=True, message="Opening Kodi favorites...")
-        except Exception as e:
-            context.logger.error(f"Error navigating to favorites: {e}")
-            return DialogResponse(success=False, message="Failed to open favorites")
 
     def _handle_create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new top-level folder from main lists menu"""
