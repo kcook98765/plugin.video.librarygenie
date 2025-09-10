@@ -38,44 +38,37 @@ class ListsHandler:
             try:
                 video_info_tag = list_item.getVideoInfoTag()
                 video_info_tag.setPlot(plot)
-                self.logger.debug(f"LISTS HANDLER v21+: Set plot via InfoTagVideo: {plot[:50]}...")
             except Exception as e:
-                self.logger.error(f"LISTS HANDLER v21+: InfoTagVideo failed for plot: {e}")
+                self.logger.error(f"InfoTagVideo failed for plot: {e}")
         else:
             # v19/v20: Use setInfo() as fallback
             list_item.setInfo('video', {'plot': plot})
-            self.logger.debug(f"LISTS HANDLER v{kodi_major}: Set plot via setInfo: {plot[:50]}...")
 
     def _set_custom_art_for_item(self, list_item: xbmcgui.ListItem, item_data: Dict[str, Any]):
-        """Apply custom art based on item type with debugging"""
+        """Apply custom art based on item type"""
         try:
             # Get the renderer instance to use its art methods
             renderer = get_listitem_renderer()
             
             # Determine if this is a list or folder based on the URL action
             url = item_data.get('url', '')
-            self.logger.info(f"LISTS HANDLER ART: Processing item with URL: {url}")
             
             if 'action=show_list' in url:
                 # This is a user list - use list/playlist art
-                self.logger.info("LISTS HANDLER ART: Applying list/playlist art")
                 renderer._apply_art(list_item, 'list')
             elif 'action=show_folder' in url:
                 # This is a folder - use folder art
-                self.logger.info("LISTS HANDLER ART: Applying folder art") 
                 renderer._apply_art(list_item, 'folder')
             else:
                 # Default/other items - use original icon if specified
                 if 'icon' in item_data:
-                    self.logger.info(f"LISTS HANDLER ART: Using default icon: {item_data['icon']}")
                     list_item.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
                 else:
-                    self.logger.info("LISTS HANDLER ART: No icon specified, using DefaultFolder.png")
                     list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
                     
         except Exception as e:
             # Fallback to original behavior
-            self.logger.error(f"LISTS HANDLER ART: Custom art failed: {e}")
+            self.logger.error(f"Custom art failed: {e}")
             if 'icon' in item_data:
                 list_item.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
             else:
