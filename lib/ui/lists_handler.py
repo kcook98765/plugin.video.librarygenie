@@ -171,6 +171,57 @@ class ListsHandler:
 
             # Search and other tools are now accessible via Tools & Options menu
 
+            # Check if favorites integration is enabled and ensure "Kodi Favorites" appears FIRST
+            favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
+            kodi_favorites_item = None
+            
+            # Find existing Kodi Favorites or create if needed
+            for item in user_lists:
+                if item.get('name') == 'Kodi Favorites':
+                    kodi_favorites_item = item
+                    break
+            
+            if favorites_enabled and not kodi_favorites_item:
+                # Create "Kodi Favorites" list if it doesn't exist but setting is enabled
+                context.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating it")
+                try:
+                    from ..config.favorites_helper import on_favorites_integration_enabled
+                    on_favorites_integration_enabled()  # This will create the list if it doesn't exist
+                    
+                    # Refresh the lists to include the newly created "Kodi Favorites"
+                    all_lists = query_manager.get_all_lists_with_folders()
+                    user_lists = all_lists
+                    
+                    # Find the newly created Kodi Favorites
+                    for item in user_lists:
+                        if item.get('name') == 'Kodi Favorites':
+                            kodi_favorites_item = item
+                            break
+                    
+                    context.logger.info(f"LISTS HANDLER: Refreshed lists, now have {len(user_lists)} total lists")
+                except Exception as e:
+                    context.logger.error(f"LISTS HANDLER: Error ensuring Kodi Favorites list exists: {e}")
+
+            # ADD KODI FAVORITES FIRST (before any folders or other lists)
+            if favorites_enabled and kodi_favorites_item:
+                list_id = kodi_favorites_item.get('id')
+                name = kodi_favorites_item.get('name', 'Kodi Favorites')
+                description = kodi_favorites_item.get('description', '')
+                item_count = kodi_favorites_item.get('item_count', 0)
+
+                context_menu = [
+                    (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})")
+                ]
+
+                menu_items.append({
+                    'label': f"[COLOR yellow]{name}[/COLOR]",
+                    'url': context.build_url('show_list', list_id=list_id),
+                    'is_folder': True,
+                    'description': f"{item_count} items - {description}" if description else f"{item_count} items",
+                    'icon': "DefaultPlaylist.png",
+                    'context_menu': context_menu
+                })
+
             # Get all existing folders to display as navigable items
             all_folders = query_manager.get_all_folders()
 
@@ -196,30 +247,10 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Separate standalone lists (not in any folder) - always include "Kodi Favorites" at root level
-            standalone_lists = [item for item in user_lists if not item.get('folder_name') or item.get('folder_name') == 'Root' or item.get('name') == 'Kodi Favorites']
+            # Separate standalone lists (not in any folder) - EXCLUDE "Kodi Favorites" since it's already added first
+            standalone_lists = [item for item in user_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
 
-            # Check if favorites integration is enabled and ensure "Kodi Favorites" appears
-            favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
-            has_kodi_favorites = any(item.get('name') == 'Kodi Favorites' for item in standalone_lists)
-            
-            if favorites_enabled and not has_kodi_favorites:
-                # Create placeholder "Kodi Favorites" entry even if not in database yet
-                context.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating placeholder")
-                # Try to get or create the list in database
-                try:
-                    from ..config.favorites_helper import on_favorites_integration_enabled
-                    on_favorites_integration_enabled()  # This will create the list if it doesn't exist
-                    
-                    # Refresh the lists to include the newly created "Kodi Favorites"
-                    all_lists = query_manager.get_all_lists_with_folders()
-                    user_lists = all_lists
-                    standalone_lists = [item for item in user_lists if not item.get('folder_name') or item.get('folder_name') == 'Root' or item.get('name') == 'Kodi Favorites']
-                    context.logger.info(f"LISTS HANDLER: Refreshed lists, now have {len(user_lists)} total lists")
-                except Exception as e:
-                    context.logger.error(f"LISTS HANDLER: Error ensuring Kodi Favorites list exists: {e}")
-
-            # Add standalone lists (not in any folder)
+            # Add standalone lists (not in any folder) - Kodi Favorites already added above
             for list_item in standalone_lists:
                 list_id = list_item.get('id')
                 name = list_item.get('name', 'Unnamed List')
