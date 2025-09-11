@@ -404,6 +404,28 @@ class ConfigManager:
         except Exception:
             return False
 
+    def enable_tv_episode_sync(self) -> bool:
+        """Enable TV episode sync and trigger immediate library scan"""
+        try:
+            # Set the setting
+            success = self.set("sync_tv_episodes", True)
+
+            if success:
+                # Trigger immediate library scan with TV episodes
+                try:
+                    from .tv_sync_helper import on_tv_episode_sync_enabled
+                    on_tv_episode_sync_enabled()
+                except Exception as e:
+                    # Log but don't fail the setting change
+                    from ..utils.logger import get_logger
+                    logger = get_logger(__name__)
+                    logger.warning(f"Failed to trigger immediate TV episode sync: {e}")
+
+            return success
+
+        except Exception:
+            return False
+
     def get_backup_preferences(self) -> Dict[str, Any]:
         """Get backup-related preferences with defaults"""
         return {
