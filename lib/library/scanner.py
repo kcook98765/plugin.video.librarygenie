@@ -64,7 +64,7 @@ class LibraryScanner:
             current_version = None
 
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("full", scan_start, current_version)
+        scan_id = self._log_scan_start("full", scan_start, current_version or 0)
 
         try:
             # Reset abort flag
@@ -505,8 +505,8 @@ class LibraryScanner:
                 conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
                 self.logger.debug("Cleared existing movies for resync")
 
-            if progress_dialog:
-                progress_dialog.update(10, "LibraryGenie", "Starting movie sync...")
+            # Service already shows "Starting movie sync..." when creating dialog
+            # Skip redundant startup message to avoid 0% flash
 
             # Get total count for progress tracking
             total_movies = self.kodi_client.get_movie_count()
@@ -590,8 +590,8 @@ class LibraryScanner:
                 conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
                 self.logger.debug("Cleared existing TV episodes for resync")
 
-            if progress_dialog:
-                progress_dialog.update(10, "LibraryGenie", "Starting TV episodes sync...")
+            # Service already shows "Starting TV episodes sync..." when creating dialog  
+            # Skip redundant startup message to avoid 0% flash
 
             # Sync TV episodes
             total_episodes_added = self._sync_tv_episodes(progress_dialog=progress_dialog, progress_callback=progress_callback)
@@ -870,14 +870,14 @@ class LibraryScanner:
             self.logger.error("Failed to update last_seen: %s", e)
             return 0
 
-    def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: int = None) -> Optional[int]:
+    def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: Optional[int] = None) -> Optional[int]:
         """Log the start of a scan"""
         try:
             with self.conn_manager.transaction() as conn:
                 cursor = conn.execute("""
                     INSERT INTO library_scan_log (scan_type, kodi_version, start_time)
                     VALUES (?, ?, ?)
-                """, [scan_type, kodi_version, started_at])
+                """, [scan_type, kodi_version or 0, started_at])
                 return cursor.lastrowid
         except Exception as e:
             self.logger.error("Failed to log scan start: %s", e)
