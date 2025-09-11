@@ -53,6 +53,30 @@ class ConnectionManager:
         except Exception as e:
             self.logger.warning(f"Could not resolve absolute path: {e}")
 
+        # Calculate optimal mmap_size based on actual database size
+        try:
+            if os.path.exists(db_path):
+                db_size_bytes = os.path.getsize(db_path)
+                db_size_mb = db_size_bytes / (1024 * 1024)
+                
+                # Dynamic mmap_size calculation
+                if db_size_mb < 16:
+                    mmap_size = 33554432  # 32MB minimum for small DBs
+                elif db_size_mb < 64:
+                    mmap_size = int(db_size_bytes * 2)  # 2x size for medium DBs
+                else:
+                    mmap_size = min(int(db_size_bytes * 1.5), 134217728)  # 1.5x size, max 128MB for large DBs
+                    
+                self.logger.debug(f"Database size: {db_size_mb:.1f}MB, setting mmap_size to {mmap_size/1048576:.0f}MB")
+            else:
+                # New database - use conservative 32MB
+                mmap_size = 33554432  # 32MB
+                self.logger.debug("New database detected, using 32MB mmap_size")
+        except Exception as e:
+            # Fallback to conservative size on error
+            mmap_size = 33554432  # 32MB
+            self.logger.warning(f"Could not determine database size, using 32MB mmap_size: {e}")
+
         try:
             # Phase 3: Use configurable busy timeout
             busy_timeout_ms = self.config.get_db_busy_timeout_ms()
@@ -82,7 +106,7 @@ class ConnectionManager:
 
             # Phase 3: Additional optimizations for large libraries
             conn.execute("PRAGMA page_size=4096")      # Standard page size
-            conn.execute("PRAGMA mmap_size=268435456") # 256MB memory-mapped I/O
+            conn.execute(f"PRAGMA mmap_size={mmap_size}") # Dynamic memory-mapped I/O
 
             # Set row factory for easier data access
             conn.row_factory = sqlite3.Row  # Enable dict-like access
