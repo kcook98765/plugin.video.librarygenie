@@ -89,11 +89,10 @@ class ConnectionManager:
 
             self.logger.debug(f"Database connection established: {db_path} (busy_timeout: {busy_timeout_ms}ms)")
             
-            # Initialize database schema if needed (for fresh installs)
-            # Import here to avoid circular imports
-            from .migrations import get_migration_manager
+            # Initialize database schema if needed (avoid circular import by creating MigrationManager with this instance)
             try:
-                migration_manager = get_migration_manager()
+                from .migrations import MigrationManager
+                migration_manager = MigrationManager(self)  # Pass self to avoid circular dependency
                 migration_manager.ensure_initialized()
                 self.logger.debug("Database schema initialization completed")
             except Exception as e:

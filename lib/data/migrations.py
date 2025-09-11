@@ -13,9 +13,9 @@ from ..utils.logger import get_logger
 class MigrationManager:
     """Manages database schema initialization"""
 
-    def __init__(self):
+    def __init__(self, conn_manager=None):
         self.logger = get_logger(__name__)
-        self.conn_manager = get_connection_manager()
+        self.conn_manager = conn_manager or get_connection_manager()
         # Migration framework for future use - currently empty as all schema is in _create_complete_schema
         self.migrations = []
 
@@ -47,22 +47,26 @@ class MigrationManager:
     def _create_complete_schema(self):
         """Create complete database schema matching DATABASE_SCHEMA.md"""
         with self.conn_manager.transaction() as conn:
-            # Schema version tracking
-            conn.execute("""
+            self._create_tables(conn)
+
+    def _create_tables(self, conn):
+        """Create all database tables"""
+        # Schema version tracking
+        conn.execute("""
                 CREATE TABLE schema_version (
                     version INTEGER PRIMARY KEY,
                     applied_at TEXT NOT NULL
                 )
             """)
 
-            # Set current schema version to 1 (representing the complete initial schema)
-            conn.execute(
-                "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
-                [1]
-            )
+        # Set current schema version to 1 (representing the complete initial schema)
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?, datetime('now'))",
+            [1]
+        )
 
-            # Folders table (must come before lists)
-            conn.execute("""
+        # Folders table (must come before lists)
+        conn.execute("""
                 CREATE TABLE folders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
@@ -72,13 +76,13 @@ class MigrationManager:
                 )
             """)
 
-            conn.execute("""
-                CREATE UNIQUE INDEX idx_folders_name_parent 
-                ON folders (name, parent_id)
-            """)
+        conn.execute("""
+            CREATE UNIQUE INDEX idx_folders_name_parent 
+            ON folders (name, parent_id)
+        """)
 
-            # Lists table - unified structure for all lists
-            conn.execute("""
+        # Lists table - unified structure for all lists
+        conn.execute("""
                 CREATE TABLE lists (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
@@ -88,13 +92,13 @@ class MigrationManager:
                 )
             """)
 
-            conn.execute("""
-                CREATE UNIQUE INDEX idx_lists_name_folder 
-                ON lists (name, folder_id)
-            """)
+        conn.execute("""
+            CREATE UNIQUE INDEX idx_lists_name_folder 
+            ON lists (name, folder_id)
+        """)
 
-            # Media items table - core metadata for all media types
-            conn.execute("""
+        # Media items table - core metadata for all media types
+        conn.execute("""
                 CREATE TABLE media_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     media_type TEXT NOT NULL,
@@ -131,16 +135,16 @@ class MigrationManager:
                 )
             """)
 
-            # Media items indexes
-            conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
-            conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
-            conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
-            conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
-            conn.execute("CREATE INDEX idx_media_items_episode_match ON media_items (tvshowtitle, season, episode)")
-            conn.execute("CREATE INDEX idx_media_items_tvshowtitle ON media_items (tvshowtitle COLLATE NOCASE)")
+        # Media items indexes
+        conn.execute("CREATE INDEX idx_media_items_imdbnumber ON media_items (imdbnumber)")
+        conn.execute("CREATE INDEX idx_media_items_media_type_kodi_id ON media_items (media_type, kodi_id)")
+        conn.execute("CREATE INDEX idx_media_items_title ON media_items (title COLLATE NOCASE)")
+        conn.execute("CREATE INDEX idx_media_items_year ON media_items (year)")
+        conn.execute("CREATE INDEX idx_media_items_episode_match ON media_items (tvshowtitle, season, episode)")
+        conn.execute("CREATE INDEX idx_media_items_tvshowtitle ON media_items (tvshowtitle COLLATE NOCASE)")
 
-            # List items table - associates media with lists
-            conn.execute("""
+        # List items table - associates media with lists
+        conn.execute("""
                 CREATE TABLE list_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     list_id INTEGER NOT NULL,
@@ -191,10 +195,10 @@ class MigrationManager:
                 )
             """)
 
-            conn.execute("CREATE INDEX idx_imdb_exports_imdb_id ON imdb_exports (imdb_id)")
+        conn.execute("CREATE INDEX idx_imdb_exports_imdb_id ON imdb_exports (imdb_id)")
 
-            # IMDB to Kodi mapping
-            conn.execute("""
+        # IMDB to Kodi mapping
+        conn.execute("""
                 CREATE TABLE imdb_to_kodi (
                     imdb_id TEXT,
                     kodi_id INTEGER,
@@ -202,13 +206,13 @@ class MigrationManager:
                 )
             """)
 
-            conn.execute("""
-                CREATE UNIQUE INDEX idx_imdb_to_kodi_unique 
-                ON imdb_to_kodi (imdb_id, kodi_id, media_type)
-            """)
+        conn.execute("""
+            CREATE UNIQUE INDEX idx_imdb_to_kodi_unique 
+            ON imdb_to_kodi (imdb_id, kodi_id, media_type)
+        """)
 
-            # Key-value cache
-            conn.execute("""
+        # Key-value cache
+        conn.execute("""
                 CREATE TABLE kv_cache (
                     key TEXT PRIMARY KEY,
                     value TEXT,
