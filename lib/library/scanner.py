@@ -484,6 +484,43 @@ class LibraryScanner:
             self.logger.error("Batch insert failed: %s", e)
             return 0
 
+    def perform_tv_episodes_only_scan(self) -> Dict[str, Any]:
+        """Perform TV episodes-only scan (no movies)"""
+        self.logger.info("Starting TV episodes-only scan")
+        
+        if not self.settings.get_sync_tv_episodes():
+            self.logger.warning("TV episode sync is disabled - cannot perform episodes-only scan")
+            return {"success": False, "error": "TV episode sync is disabled"}
+
+        # Initialize query manager
+        if not self.query_manager.initialize():
+            self.logger.error("Failed to initialize database for TV episodes scan")
+            return {"success": False, "error": "Database initialization failed"}
+
+        try:
+            # Reset abort flag
+            self._abort_requested = False
+
+            # Clear existing TV episodes only
+            with self.conn_manager.transaction() as conn:
+                conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
+                self.logger.debug("Cleared existing TV episodes for resync")
+
+            # Sync TV episodes
+            total_episodes_added = self._sync_tv_episodes()
+            
+            self.logger.info("TV episodes-only scan complete: %s episodes indexed", total_episodes_added)
+            
+            return {
+                "success": True,
+                "episodes_added": total_episodes_added,
+                "items_added": 0  # No movies in episodes-only scan
+            }
+            
+        except Exception as e:
+            self.logger.error("TV episodes-only scan failed: %s", e)
+            return {"success": False, "error": str(e)}
+
     def _sync_tv_episodes(self, dialog_bg=None, progress_dialog=None, progress_callback=None) -> int:
         """Sync all TV episodes from Kodi library"""
         self.logger.info("Starting TV episode sync")
