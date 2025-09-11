@@ -123,7 +123,7 @@ class QueryManager:
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize data layer: {e}")
+            self.logger.error("Failed to initialize data layer: %s", e)
             return False
 
     def get_user_lists(self):
@@ -160,17 +160,17 @@ class QueryManager:
                     "folder_name": row['folder_name']
                 })
 
-            self.logger.debug(f"Retrieved {len(result)} lists")
+            self.logger.debug("Retrieved %s lists", len(result))
             return result
 
         except Exception as e:
-            self.logger.error(f"Failed to get user lists: {e}")
+            self.logger.error("Failed to get user lists: %s", e)
             return []
 
     def get_list_items(self, list_id, limit=100, offset=0):
         """Get items from a specific list with paging, normalized to canonical format"""
         try:
-            self.logger.debug(f"Getting list items for list_id={list_id}, limit={limit}, offset={offset}")
+            self.logger.debug("Getting list items for list_id=%s, limit=%s, offset=%s", list_id, limit, offset)
 
             connection = self.connection_manager.get_connection()
             cursor = connection.cursor()
@@ -213,13 +213,13 @@ class QueryManager:
                 LIMIT ? OFFSET ?
             """
 
-            self.logger.debug(f"Executing query: {query}")
-            self.logger.debug(f"Query parameters: list_id={list_id}, limit={limit}, offset={offset}")
+            self.logger.debug("Executing query: %s", query)
+            self.logger.debug("Query parameters: list_id=%s, limit=%s, offset=%s", list_id, limit, offset)
 
             cursor.execute(query, (list_id, limit, offset))
             rows = cursor.fetchall()
 
-            self.logger.debug(f"Query returned {len(rows)} rows")
+            self.logger.debug("Query returned %s rows", len(rows))
 
             items = []
 
@@ -231,10 +231,10 @@ class QueryManager:
                 if item.get('data_json'):
                     try:
                         json_data = json.loads(item['data_json'])
-                        self.logger.debug(f"Parsed JSON data: {json_data}")
+                        self.logger.debug("Parsed JSON data: %s", json_data)
                         item.update(json_data)
                     except json.JSONDecodeError as e:
-                        self.logger.warning(f"Failed to parse JSON data: {e}")
+                        self.logger.warning("Failed to parse JSON data: %s", e)
 
                 # Use stored data from media_items - no more JSON-RPC enrichment needed
                 # Parse additional data from stored fields
@@ -252,7 +252,7 @@ class QueryManager:
             return items
 
         except Exception as e:
-            self.logger.error(f"Error getting list items: {e}")
+            self.logger.error("Error getting list items: %s", e)
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return []
