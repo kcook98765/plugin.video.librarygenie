@@ -636,7 +636,7 @@ def _show_setup_progress(message: str):
         L(35520),   # "LibraryGenie Setup"
         message,
         xbmcgui.NOTIFICATION_INFO,
-        3000
+        1000
     )
 
 
@@ -647,7 +647,7 @@ def _show_setup_complete(message: str):
         L(35520),   # "LibraryGenie Setup"
         message,
         xbmcgui.NOTIFICATION_INFO,
-        6000
+        1000
     )
 
 
