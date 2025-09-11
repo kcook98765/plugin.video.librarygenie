@@ -475,11 +475,11 @@ class Phase3LibraryScanner:
                     if result.rowcount > 0:
                         updated_count += 1
 
-            self.logger.debug(f"Updated last_seen for {updated_count} movies")
+            self.logger.debug("Updated last_seen for %s movies", updated_count)
             return updated_count
 
         except Exception as e:
-            self.logger.error(f"Failed to update last_seen: {e}")
+            self.logger.error("Failed to update last_seen: %s", e)
             return 0
 
     def _log_scan_start(self, scan_type: str, started_at: str) -> Optional[int]:
@@ -492,7 +492,7 @@ class Phase3LibraryScanner:
                 """, [scan_type, started_at])
                 return cursor.lastrowid
         except Exception as e:
-            self.logger.error(f"Failed to log scan start: {e}")
+            self.logger.error("Failed to log scan start: %s", e)
             return None
 
     def _log_scan_complete(self, scan_id: Optional[int], started_at: str,
@@ -513,7 +513,7 @@ class Phase3LibraryScanner:
                     WHERE id = ?
                 """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
         except Exception as e:
-            self.logger.error(f"Failed to log scan completion: {e}")
+            self.logger.error("Failed to log scan completion: %s", e)
 
 
 # Global enhanced scanner instance

@@ -316,7 +316,7 @@ class ToolsHandler:
                 ])
 
                 # Debug logging for reserved folder
-                self.logger.debug(f"TOOLS DEBUG: Added special options for reserved folder '{folder_info['name']}'")
+                self.logger.debug("TOOLS DEBUG: Added special options for reserved folder '%s'", folder_info['name'])
             else:
                 # Standard folder options
                 # Additive operations
@@ -338,13 +338,13 @@ class ToolsHandler:
                 options.append(f"[COLOR red]{L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
 
                 # Debug logging for standard folder
-                self.logger.debug(f"TOOLS DEBUG: Added standard options for folder '{folder_info['name']}'")
+                self.logger.debug("TOOLS DEBUG: Added standard options for folder '%s'", folder_info['name'])
 
             # Cancel
             options.append(f"[COLOR gray]{L(36003)}[/COLOR]")  # "Cancel"
 
             # Debug logging for final folder tools options
-            self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for folder '{folder_info['name']}' (reserved: {is_reserved}):")
+            self.logger.debug("TOOLS DEBUG: Built %s options for folder '%s' (reserved: %s):", len(options), folder_info['name'], is_reserved)
             for i, option in enumerate(options):
                 self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
 
@@ -352,10 +352,10 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36015), list(options))  # "Folder Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from folder tools dialog (is_reserved: {is_reserved})")
+            self.logger.debug("TOOLS DEBUG: User selected option %s from folder tools dialog (is_reserved: %s)", selected_index, is_reserved)
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: Folder tools cancelled (selected_index: {selected_index})")
+                self.logger.debug("TOOLS DEBUG: Folder tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 
             # Handle selected option - calculate indices based on reserved status
@@ -403,7 +403,7 @@ class ToolsHandler:
             return DialogResponse(success=False)
 
         except Exception as e:
-            self.logger.error(f"Error showing folder tools: {e}")
+            self.logger.error("Error showing folder tools: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error showing folder tools"
@@ -430,7 +430,7 @@ class ToolsHandler:
             # Move list
             target_folder_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
 
-            self.logger.debug(f"Moving list {list_id} to folder {target_folder_id} (selected_index: {selected_index})")
+            self.logger.debug("Moving list %s to folder %s (selected_index: %s)", list_id, target_folder_id, selected_index)
 
             result = query_manager.move_list_to_folder(list_id, target_folder_id)
 
@@ -451,15 +451,15 @@ class ToolsHandler:
                     response.navigate_to_main = False
                     response.refresh_needed = False
 
-                self.logger.debug(f"Set navigation to folder {target_folder_id}")
+                self.logger.debug("Set navigation to folder %s", target_folder_id)
                 return response
             else:
                 error_msg = result.get("error", "unknown")
-                self.logger.error(f"Failed to move list: {error_msg}")
+                self.logger.error("Failed to move list: %s", error_msg)
                 return DialogResponse(success=False, message=f"Failed to move list: {error_msg}")
 
         except Exception as e:
-            self.logger.error(f"Error moving list to folder: {e}")
+            self.logger.error("Error moving list to folder: %s", e)
             return DialogResponse(success=False, message="Error moving list")
 
     def _merge_lists(self, context: PluginContext, target_list_id: str) -> DialogResponse:

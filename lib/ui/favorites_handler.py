@@ -47,7 +47,7 @@ class FavoritesHandler:
                 menu_builder._add_breadcrumb_notification("Kodi Favorites")
                 context.logger.debug("FAVORITES HANDLER: Showed breadcrumb notification: 'Kodi Favorites'")
             except Exception as e:
-                context.logger.error(f"FAVORITES HANDLER: Failed to show breadcrumb notification: {e}")
+                context.logger.error("FAVORITES HANDLER: Failed to show breadcrumb notification: %s", e)
 
             menu_items = []
 
@@ -83,7 +83,7 @@ class FavoritesHandler:
                 )
             else:
                 # Use existing list building infrastructure for favorites
-                context.logger.info(f"Using ListItemRenderer to build {len(favorites_items)} favorites")
+                context.logger.info("Using ListItemRenderer to build %s favorites", len(favorites_items))
 
                 # Get query manager for content type detection
                 from lib.data.query_manager import get_query_manager
@@ -91,7 +91,7 @@ class FavoritesHandler:
                 
                 # Detect appropriate content type based on favorites contents
                 detected_content_type = query_manager.detect_content_type(favorites_items)
-                context.logger.debug(f"Detected content type: {detected_content_type} for {len(favorites_items)} favorites")
+                context.logger.debug("Detected content type: %s for %s favorites", detected_content_type, len(favorites_items))
 
                 # Context menus now handled by global context.py
 

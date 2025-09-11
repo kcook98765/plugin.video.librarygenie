@@ -254,7 +254,7 @@ class QueryManager:
         except Exception as e:
             self.logger.error("Error getting list items: %s", e)
             import traceback
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            self.logger.error("Traceback: %s", traceback.format_exc())
             return []
 
     def create_list(self, name, description="", folder_id=None):
@@ -266,7 +266,7 @@ class QueryManager:
         name = name.strip()
 
         try:
-            self.logger.debug(f"Creating list '{name}' in folder {folder_id}")
+            self.logger.debug("Creating list '%s' in folder %s", name, folder_id)
 
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
@@ -284,10 +284,10 @@ class QueryManager:
         except Exception as e:
             error_msg = str(e).lower()
             if "unique constraint" in error_msg:
-                self.logger.warning(f"List name '{name}' already exists")
+                self.logger.warning("List name '%s' already exists", name)
                 return {"error": "duplicate_name"}
             else:
-                self.logger.error(f"Failed to create list '{name}': {e}")
+                self.logger.error("Failed to create list '%s': %s", name, e)
                 return {"error": "database_error"}
 
     def add_item_to_list(self, list_id, title, year=None, imdb_id=None, tmdb_id=None, kodi_id=None, art_data=None, 
@@ -303,7 +303,7 @@ class QueryManager:
                 item_desc = f"{show_part}S{int(season):02d}E{int(episode):02d}: '{title}'"
             else:
                 item_desc = f"'{title}'"
-            self.logger.debug(f"Adding {item_desc} to list {list_id}")
+            self.logger.debug("Adding %s to list %s", item_desc, list_id)
 
             with self.connection_manager.transaction() as conn:
                 # Create media item data with version-aware art storage
@@ -380,7 +380,7 @@ class QueryManager:
             return result
 
         except Exception as e:
-            self.logger.error(f"Failed to add item '{title}' to list {list_id}: {e}")
+            self.logger.error("Failed to add item '%s' to list %s: %s", title, list_id, e)
             return None
 
     def count_list_items(self, list_id):
@@ -393,13 +393,13 @@ class QueryManager:
             return result['count'] if result else 0
 
         except Exception as e:
-            self.logger.error(f"Failed to count items in list {list_id}: {e}")
+            self.logger.error("Failed to count items in list %s: %s", list_id, e)
             return 0
 
     def delete_item_from_list(self, list_id, item_id):
         """Delete an item from a list using unified tables"""
         try:
-            self.logger.debug(f"Deleting item {item_id} from list {list_id}")
+            self.logger.debug("Deleting item %s from list %s", item_id, list_id)
 
             with self.connection_manager.transaction() as conn:
                 # Delete from list_items (item_id is media_item_id in unified structure)
