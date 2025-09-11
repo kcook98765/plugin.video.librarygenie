@@ -464,10 +464,42 @@ class LibraryGenieService:
                     # Initialize sync controller
                     sync_controller = SyncController()
                     
-                    # Perform the sync with progress updates  
-                    success, message = sync_controller.perform_manual_sync(
-                        progress_dialog=progress_dialog
-                    )
+                    # Manually perform sync since we already hold the lock
+                    # Don't call perform_manual_sync which tries to acquire another lock
+                    
+                    results = {'movies': 0, 'episodes': 0, 'errors': []}
+                    start_time = time.time()
+                    
+                    # Sync movies if enabled
+                    if sync_movies:
+                        try:
+                            if progress_dialog:
+                                progress_dialog.update(30, "LibraryGenie", "Syncing movies...")
+                            movie_count = sync_controller._sync_movies(progress_dialog=progress_dialog)
+                            results['movies'] = movie_count
+                            self.logger.info("Synced %d movies", movie_count)
+                        except Exception as e:
+                            error_msg = f"Movie sync failed: {str(e)}"
+                            results['errors'].append(error_msg)
+                            self.logger.error(error_msg)
+
+                    # Sync TV episodes if enabled
+                    if sync_tv_episodes:
+                        try:
+                            if progress_dialog:
+                                progress_dialog.update(60, "LibraryGenie", "Syncing TV episodes...")
+                            episode_count = sync_controller._sync_tv_episodes(progress_dialog=progress_dialog)
+                            results['episodes'] = episode_count
+                            self.logger.info("Synced %d TV episodes", episode_count)
+                        except Exception as e:
+                            error_msg = f"TV episode sync failed: {str(e)}"
+                            results['errors'].append(error_msg)
+                            self.logger.error(error_msg)
+
+                    # Calculate duration and format results
+                    duration = time.time() - start_time
+                    message = sync_controller._format_sync_results(results, duration)
+                    success = len(results['errors']) == 0 or (results['movies'] > 0 or results['episodes'] > 0)
                     
                     # Show final notification
                     if success:
