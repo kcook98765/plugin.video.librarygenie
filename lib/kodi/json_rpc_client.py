@@ -175,7 +175,7 @@ class KodiJsonRpcClient:
             response = json.loads(response_str)
 
             if "error" in response:
-                self.logger.error(f"JSON-RPC error getting movie {movie_id}: {response['error']}")
+                self.logger.error("JSON-RPC error getting movie %s: %s", movie_id, response['error'])
                 return None
 
             movie_details = response.get("result", {}).get("moviedetails")
@@ -185,7 +185,7 @@ class KodiJsonRpcClient:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting movie details for ID {movie_id}: {e}")
+            self.logger.error("Error getting movie details for ID %s: %s", movie_id, e)
             return None
 
     def get_episode_details(self, episode_id: int) -> Optional[Dict[str, Any]]:
@@ -208,7 +208,7 @@ class KodiJsonRpcClient:
             response = json.loads(response_str)
 
             if "error" in response:
-                self.logger.error(f"JSON-RPC error getting episode {episode_id}: {response['error']}")
+                self.logger.error("JSON-RPC error getting episode %s: %s", episode_id, response['error'])
                 return None
 
             episode_details = response.get("result", {}).get("episodedetails")
@@ -218,7 +218,7 @@ class KodiJsonRpcClient:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting episode details for ID {episode_id}: {e}")
+            self.logger.error("Error getting episode details for ID %s: %s", episode_id, e)
             return None
 
     def _normalize_movie_data(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -316,7 +316,7 @@ class KodiJsonRpcClient:
             }
 
         except Exception as e:
-            self.logger.warning(f"Failed to normalize movie data: {e}")
+            self.logger.warning("Failed to normalize movie data: %s", e)
             return None
 
     def _normalize_episode_data(self, episode: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -346,7 +346,7 @@ class KodiJsonRpcClient:
             }
 
         except Exception as e:
-            self.logger.warning(f"Failed to normalize episode data: {e}")
+            self.logger.warning("Failed to normalize episode data: %s", e)
             return None
 
 

@@ -343,7 +343,7 @@ class FavoritesHandler:
             )
 
         except Exception as e:
-            self.logger.error(f"Error saving favorites as list: {e}")
+            self.logger.error("Error saving favorites as list: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error saving favorites as list"
@@ -360,7 +360,7 @@ class FavoritesHandler:
             return tools_handler.show_list_tools(context, "favorites")
 
         except Exception as e:
-            self.logger.error(f"Error showing favorites tools: {e}")
+            self.logger.error("Error showing favorites tools: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error showing tools & options"
@@ -405,7 +405,7 @@ class FavoritesHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error in scan favorites handler: {e}")
+            self.logger.error("Error in scan favorites handler: %s", e)
             import xbmcgui
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
@@ -444,7 +444,7 @@ class FavoritesHandler:
                     )
 
         except Exception as e:
-            self.logger.error(f"Error in save favorites as handler: {e}")
+            self.logger.error("Error in save favorites as handler: %s", e)
             import xbmcgui
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
@@ -527,7 +527,7 @@ class FavoritesHandler:
                 )
                 return
 
-            self.logger.debug(f"Rendering {len(favorites)} favorites using enhanced data")
+            self.logger.debug("Rendering %s favorites using enhanced data", len(favorites))
 
             # Group favorites by mapping status
             mapped_favorites = []
@@ -559,7 +559,7 @@ class FavoritesHandler:
                     )
 
                 except Exception as e:
-                    self.logger.error(f"Failed to render mapped favorite: {e}")
+                    self.logger.error("Failed to render mapped favorite: %s", e)
                     continue
 
             # Render unmapped favorites
@@ -572,13 +572,13 @@ class FavoritesHandler:
                         isFolder=False
                     )
                 except Exception as e:
-                    self.logger.error(f"Failed to render unmapped favorite: {e}")
+                    self.logger.error("Failed to render unmapped favorite: %s", e)
                     continue
 
             # Set content type
             self.plugin_context.set_content_type('files')
 
-            self.logger.debug(f"Successfully rendered {len(favorites)} favorites")
+            self.logger.debug("Successfully rendered %s favorites", len(favorites))
 
         except Exception as e:
-            self.logger.error(f"Failed to render favorites list: {e}")
+            self.logger.error("Failed to render favorites list: %s", e)
