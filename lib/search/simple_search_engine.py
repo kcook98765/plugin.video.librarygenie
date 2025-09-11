@@ -110,7 +110,7 @@ class SimpleSearchEngine:
             where_clauses = [
                 "li.list_id = ?",
                 "mi.media_type = 'movie'",
-                "mi.source = 'library'", 
+                "mi.source = 'lib'", 
                 "mi.is_removed = 0"
             ]
             params.append(query.scope_id)
@@ -125,7 +125,7 @@ class SimpleSearchEngine:
             """
             where_clauses = [
                 "mi.media_type = 'movie'",
-                "mi.source = 'library'",
+                "mi.source = 'lib'",
                 "mi.is_removed = 0"
             ]
 
