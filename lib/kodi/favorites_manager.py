@@ -29,10 +29,9 @@ class Phase4FavoritesManager:
         self.parser = Phase4FavoritesParser()
         self.library_manager = get_list_library_manager()
 
-    def scan_favorites(self, file_path: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
-        """Scan and import favorites with mtime checking and batch processing"""
+    def scan_favorites(self, file_path: Optional[str] = None) -> Dict[str, Any]:
+        """Scan and import favorites and batch processing"""
         start_time = datetime.now()
-        file_modified = None
 
         try:
             # Find favorites file if not provided
@@ -47,9 +46,6 @@ class Phase4FavoritesManager:
                         "items_mapped": 0,
                         "message": "No favorites file found"
                     }
-
-            # Get file modification time
-            file_modified = self.parser.get_file_modified_time(file_path)
 
             # Parse favorites file with enhanced parser
 
