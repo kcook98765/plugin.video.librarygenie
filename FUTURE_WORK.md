@@ -71,14 +71,7 @@ This document outlines potential future enhancements and features for LibraryGen
 
 ## Low Priority / Cleanup Items
 
-### 9. Database Optimization
-**Status**: Some unused tables and duplicate functionality  
-**Files**: `movie_heavy_meta` table, multiple storage managers  
-**Description**: Remove unused tables, consolidate storage management  
-**Benefits**: Cleaner codebase, better performance  
-**Effort**: Low - Removal and consolidation work  
-
-### 10. Service Integration Simplification
+### 9. Service Integration Simplification
 **Status**: Background service exists but integration incomplete  
 **Files**: `service.py`, background task integration  
 **Description**: Streamline background tasks or simplify to essential operations  
@@ -89,14 +82,14 @@ This document outlines potential future enhancements and features for LibraryGen
 
 ## Experimental / Research Items
 
-### 11. Enhanced Plugin Ecosystem
+### 10. Enhanced Plugin Ecosystem
 **Status**: Full context menu integration implemented with quick save functionality  
 **Files**: `context.py`, `lib/ui/router.py`, `lib/config/settings.py`, external item support in database schema  
 **Description**: Deep integration with popular Kodi addons beyond basic context menu support  
 **Benefits**: Enhanced metadata extraction and plugin-specific features, streamlined workflow with quick save  
 **Effort**: Low - Core integration and quick save complete, optional plugin-specific enhancements remain  
 
-### 12. AI-Powered Features
+### 11. AI-Powered Features
 **Status**: Not implemented  
 **Files**: None  
 **Description**: Smart list suggestions, duplicate detection, metadata correction  
