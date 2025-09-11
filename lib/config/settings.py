@@ -44,6 +44,10 @@ class SettingsManager:
         """Get soft delete removed items setting"""
         return self.addon.getSettingBool('soft_delete_removed')
 
+    def get_sync_tv_episodes(self) -> bool:
+        """Get sync TV episodes during library scan setting"""
+        return self.addon.getSettingBool('sync_tv_episodes')
+
     # Lists Settings
     def get_default_list_id(self) -> Optional[str]:
         """Get default list ID for quick-add"""
