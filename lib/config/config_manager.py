@@ -36,6 +36,7 @@ class ConfigManager:
             "favorites_integration_enabled": False,
             "favorites_scan_interval_minutes": 30,
             "show_unmapped_favorites": False,
+            "sync_tv_episodes": False,  # Sync TV episodes during library scan
 
             # Remote service settings
             "remote_base_url": "",  # Blank by default for repo safety
@@ -222,6 +223,7 @@ class ConfigManager:
             "show_missing_indicators",
             "favorites_integration_enabled",
             "show_unmapped_favorites",
+            "sync_tv_episodes",
             # Backup boolean settings
             "backup_enabled",
             "backup_include_settings",
