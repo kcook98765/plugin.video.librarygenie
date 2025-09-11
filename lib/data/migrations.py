@@ -318,8 +318,14 @@ class MigrationManager:
     def _get_current_version(self):
         """Get the current schema version"""
         try:
-            result = self.conn_manager.execute_single("SELECT version FROM schema_version")
-            return result if result is not None else 0
+            with self.conn_manager.transaction() as conn:
+                cursor = conn.execute("SELECT version FROM schema_version")
+                result = cursor.fetchone()
+                if result:
+                    # Ensure we return an integer, not a Row object
+                    version = result[0]
+                    return int(version) if version is not None else 0
+                return 0
         except Exception:
             # If schema_version table doesn't exist, assume version 0
             return 0
@@ -329,7 +335,11 @@ class MigrationManager:
         try:
             cursor = conn.execute("SELECT version FROM schema_version")
             result = cursor.fetchone()
-            return result[0] if result else 0
+            if result:
+                # Ensure we return an integer, not a Row object
+                version = result[0]
+                return int(version) if version is not None else 0
+            return 0
         except Exception:
             # If schema_version table doesn't exist, assume version 0
             return 0
