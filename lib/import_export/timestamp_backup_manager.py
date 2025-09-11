@@ -61,8 +61,8 @@ class TimestampBackupManager:
                             'age_days': age_days
                         })
                     except (OSError, ValueError) as e:
-                self.logger.warning("Error getting stats for backup file %s: %s", filename, e)
-                        continue
+                        self.logger.warning("Error getting stats for backup file %s: %s", filename, e)
+                continue
 
             # Sort by modification time, newest first
             backups.sort(key=lambda x: x['modified_time'], reverse=True)
