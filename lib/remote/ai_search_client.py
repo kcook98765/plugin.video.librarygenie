@@ -58,7 +58,7 @@ class AISearchClient:
         url = f"{server_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
         # Log the complete URL for endpoint verification
-        self.logger.info(f"🌐 PUBLIC API REQUEST: {method} {url}")
+        self.logger.info("🌐 PUBLIC API REQUEST: %s %s", method, url)
 
         # Use minimal headers for public endpoints
         request_headers = {
@@ -85,7 +85,7 @@ class AISearchClient:
                     response_data = response.read().decode('utf-8')
                     return json.loads(response_data)
                 else:
-                    self.logger.error(f"HTTP {response.getcode()} from {endpoint}")
+                    self.logger.error("HTTP %s from %s", response.getcode(), endpoint)
                     return None
 
         except urllib.error.HTTPError as e:
@@ -93,18 +93,18 @@ class AISearchClient:
                 error_body = e.read().decode('utf-8')
                 error_data = json.loads(error_body)
                 error_msg = error_data.get('error', 'Unknown')
-                self.logger.error(f"HTTP {e.code} error: {error_msg}")
+                self.logger.error("HTTP %s error: %s", e.code, error_msg)
                 return {'error': error_msg}
             except:
-                self.logger.error(f"HTTP {e.code} error from {endpoint}")
+                self.logger.error("HTTP %s error from %s", e.code, endpoint)
                 return {'error': f'HTTP {e.code} error'}
 
         except urllib.error.URLError as e:
-            self.logger.error(f"Network error: {e}")
+            self.logger.error("Network error: %s", e)
             return {'error': f'Network error: {str(e)}'}
 
         except Exception as e:
-            self.logger.error(f"Request failed: {e}")
+            self.logger.error("Request failed: %s", e)
             return {'error': f'Request failed: {str(e)}'}
 
     def _make_request(self, endpoint: str, method: str = 'GET', data: Optional[Dict] = None,
@@ -119,7 +119,7 @@ class AISearchClient:
         request_headers = self._get_headers(headers)
 
         # Log the complete URL for endpoint verification
-        self.logger.info(f"🌐 API REQUEST: {method} {url}")
+        self.logger.info("🌐 API REQUEST: %s %s", method, url)
 
         try:
             # Prepare request data
@@ -139,7 +139,7 @@ class AISearchClient:
                 elif response.getcode() == 304:
                     return {'_not_modified': True}
                 else:
-                    self.logger.error(f"HTTP {response.getcode()} from {endpoint}")
+                    self.logger.error("HTTP %s from %s", response.getcode(), endpoint)
                     return None
 
         except urllib.error.HTTPError as e:
@@ -155,18 +155,18 @@ class AISearchClient:
                     from ..auth.state import clear_auth_data
                     clear_auth_data()
 
-                self.logger.error(f"HTTP {e.code} error: {error_msg}")
+                self.logger.error("HTTP %s error: %s", e.code, error_msg)
                 return {'error': error_msg}
             except:
-                self.logger.error(f"HTTP {e.code} error from {endpoint}")
+                self.logger.error("HTTP %s error from %s", e.code, endpoint)
                 return {'error': f'HTTP {e.code} error'}
 
         except urllib.error.URLError as e:
-            self.logger.error(f"Network error: {e}")
+            self.logger.error("Network error: %s", e)
             return {'error': f'Network error: {str(e)}'}
 
         except Exception as e:
-            self.logger.error(f"Request failed: {e}")
+            self.logger.error("Request failed: %s", e)
             return {'error': f'Request failed: {str(e)}'}
 
     def is_configured(self) -> bool:

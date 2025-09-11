@@ -37,7 +37,7 @@ class ToolsHandler:
     def show_list_tools(self, context: PluginContext, list_type: str, list_id: Optional[str] = None) -> DialogResponse:
         """Show tools & options modal for different list types"""
         try:
-            self.logger.info(f"Showing tools & options for list_type: {list_type}, list_id: {list_id}")
+            self.logger.info("Showing tools & options for list_type: %s, list_id: %s", list_type, list_id)
 
             if list_type == "favorites":
                 return self._show_favorites_tools(context)
@@ -54,7 +54,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error showing list tools: {e}")
+            self.logger.error("Error showing list tools: %s", e)
             return DialogResponse(
                 success=False,
                 message=context.addon.getLocalizedString(30504)  # "Operation failed"
@@ -84,18 +84,18 @@ class ToolsHandler:
             ]
 
             # Debug logging for favorites tools options
-            self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for favorites tools:")
+            self.logger.debug("TOOLS DEBUG: Built %s options for favorites tools:", len(options))
             for i, option in enumerate(options):
-                self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36013), list(options))  # "Favorites Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from favorites tools dialog")
+            self.logger.debug("TOOLS DEBUG: User selected option %s from favorites tools dialog", selected_index)
 
             if selected_index < 0 or selected_index == 2:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: Favorites tools cancelled (selected_index: {selected_index})")
+                self.logger.debug("TOOLS DEBUG: Favorites tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 
             # Handle selected option
@@ -111,7 +111,7 @@ class ToolsHandler:
             return DialogResponse(success=False)
 
         except Exception as e:
-            self.logger.error(f"Error showing favorites tools: {e}")
+            self.logger.error("Error showing favorites tools: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error showing favorites tools"
@@ -169,9 +169,9 @@ class ToolsHandler:
                 ]
 
                 # Debug logging for search history list tools options
-                self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for search history list '{list_info['name']}':")
+                self.logger.debug("TOOLS DEBUG: Built %s options for search history list '%s':", len(options), list_info['name'])
                 for i, option in enumerate(options):
-                    self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                    self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
             elif is_kodi_favorites:
                 # Special options for Kodi Favorites - limited to copy only, no modifications
                 options = [
@@ -180,9 +180,9 @@ class ToolsHandler:
                 ]
 
                 # Debug logging for Kodi Favorites list tools options
-                self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for Kodi Favorites list (read-only):")
+                self.logger.debug("TOOLS DEBUG: Built %s options for Kodi Favorites list (read-only):", len(options))
                 for i, option in enumerate(options):
-                    self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                    self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
             else:
                 # Standard list options
                 options = [
@@ -200,18 +200,18 @@ class ToolsHandler:
                 ]
 
                 # Debug logging for standard list tools options
-                self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for user list '{list_info['name']}':")
+                self.logger.debug("TOOLS DEBUG: Built %s options for user list '%s':", len(options), list_info['name'])
                 for i, option in enumerate(options):
-                    self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                    self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36014), list(options))  # "List Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from user list tools dialog (is_search_history: {is_search_history}, is_kodi_favorites: {is_kodi_favorites})")
+            self.logger.debug("TOOLS DEBUG: User selected option %s from user list tools dialog (is_search_history: %s, is_kodi_favorites: %s)", selected_index, is_search_history, is_kodi_favorites)
 
             if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: User list tools cancelled (selected_index: {selected_index})")
+                self.logger.debug("TOOLS DEBUG: User list tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 
             # Handle selected option
@@ -278,7 +278,7 @@ class ToolsHandler:
             return DialogResponse(success=False)
 
         except Exception as e:
-            self.logger.error(f"Error showing user list tools: {e}")
+            self.logger.error("Error showing user list tools: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error showing list tools"
@@ -346,7 +346,7 @@ class ToolsHandler:
             # Debug logging for final folder tools options
             self.logger.debug(f"TOOLS DEBUG: Built {len(options)} options for folder '{folder_info['name']}' (reserved: {is_reserved}):")
             for i, option in enumerate(options):
-                self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
@@ -1342,7 +1342,7 @@ class ToolsHandler:
             # Debug logging for lists main tools options
             self.logger.debug(f"TOOLS DEBUG: Built {len(tools_options)} options for lists main tools (folder: '{current_folder_name}', folder_id: {current_folder_id}):")
             for i, option in enumerate(tools_options):
-                self.logger.debug(f"TOOLS DEBUG: [{i}] {option}")
+                self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
 
             # Show selection dialog
             dialog = xbmcgui.Dialog()
