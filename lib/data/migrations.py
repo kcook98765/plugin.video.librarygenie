@@ -34,12 +34,38 @@ class MigrationManager:
             self.logger.error(f"Database initialization failed: {e}")
             raise
 
+    def ensure_initialized_with_connection(self, conn):
+        """Ensure database is initialized with complete schema using provided connection"""
+        try:
+            if self._is_database_empty_with_connection(conn):
+                self.logger.info("Initializing complete database schema")
+                self._create_tables(conn)  # Use connection directly
+                self.logger.info("Database initialized successfully")
+            else:
+                self.logger.debug("Database already initialized")
+                # No migrations to run in this version
+
+        except Exception as e:
+            self.logger.error(f"Database initialization failed: {e}")
+            raise
+
     def _is_database_empty(self):
         """Check if database is empty (no tables exist)"""
         try:
             result = self.conn_manager.execute_single(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             )
+            return result is None
+        except Exception:
+            return True
+
+    def _is_database_empty_with_connection(self, conn):
+        """Check if database is empty using provided connection (no tables exist)"""
+        try:
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+            result = cursor.fetchone()
             return result is None
         except Exception:
             return True
