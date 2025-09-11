@@ -581,19 +581,19 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
         elif selected == 0:  # Both movies and TV episodes
             logger.info("User selected: Movies and TV Episodes")
             _show_setup_progress(L(35525))  # "Setting up Movies and TV Episodes sync..."
-            _start_background_fresh_install_sync(sync_controller, sync_movies=True, sync_tv_episodes=True)
+            sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=True)
             _show_setup_complete(L(35528))  # "Setup complete! Both movies and TV episodes will be synced."
             
         elif selected == 1:  # Movies only
             logger.info("User selected: Movies Only")
             _show_setup_progress(L(35526))  # "Setting up Movies sync..."
-            _start_background_fresh_install_sync(sync_controller, sync_movies=True, sync_tv_episodes=False)
+            sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
             _show_setup_complete(L(35529))  # "Setup complete! Movies will be synced."
             
         elif selected == 2:  # TV Episodes only
             logger.info("User selected: TV Episodes Only")
             _show_setup_progress(L(35527))  # "Setting up TV Episodes sync..."
-            _start_background_fresh_install_sync(sync_controller, sync_movies=False, sync_tv_episodes=True)
+            sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=True)
             _show_setup_complete(L(35530))  # "Setup complete! TV episodes will be synced."
             
         elif selected == 3:  # Skip setup
@@ -651,58 +651,6 @@ def _show_setup_complete(message: str):
     )
 
 
-def _start_background_fresh_install_sync(sync_controller, sync_movies: bool, sync_tv_episodes: bool):
-    """Start fresh install sync in background thread to avoid UI blocking"""
-    import threading
-    
-    def background_sync():
-        try:
-            logger.info("Starting background fresh install sync")
-            
-            # Set user preferences and mark first run complete (fast operations)
-            sync_controller.settings.set_sync_movies(sync_movies)
-            sync_controller.settings.set_sync_tv_episodes(sync_tv_episodes)
-            sync_controller.settings.set_first_run_completed(True)
-            
-            # Perform sync in background if any option is enabled
-            if sync_movies or sync_tv_episodes:
-                logger.info("Starting background library sync")
-                success, message = sync_controller.perform_manual_sync()
-                
-                # Show completion notification
-                if success:
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        f"Initial sync complete: {message}",
-                        xbmcgui.NOTIFICATION_INFO,
-                        8000
-                    )
-                    logger.info("Background fresh install sync completed: %s", message)
-                else:
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie", 
-                        f"Initial sync failed: {message}",
-                        xbmcgui.NOTIFICATION_ERROR,
-                        8000
-                    )
-                    logger.warning("Background fresh install sync failed: %s", message)
-            else:
-                logger.info("No sync options enabled, skipping background sync")
-                
-        except Exception as e:
-            logger.error("Error in background fresh install sync: %s", e)
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                f"Setup sync failed: {str(e)[:40]}...",
-                xbmcgui.NOTIFICATION_ERROR,
-                6000
-            )
-    
-    # Start background thread
-    sync_thread = threading.Thread(target=background_sync, name="FreshInstallSync")
-    sync_thread.daemon = True  # Daemon thread won't block Kodi shutdown
-    sync_thread.start()
-    logger.info("Fresh install sync started in background thread")
 
 
 def _handle_manual_library_sync(context: PluginContext):

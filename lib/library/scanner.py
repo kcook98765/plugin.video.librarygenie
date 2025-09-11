@@ -484,7 +484,7 @@ class LibraryScanner:
             self.logger.error("Batch insert failed: %s", e)
             return 0
 
-    def perform_tv_episodes_only_scan(self) -> Dict[str, Any]:
+    def perform_tv_episodes_only_scan(self, progress_dialog=None, progress_callback=None) -> Dict[str, Any]:
         """Perform TV episodes-only scan (no movies)"""
         self.logger.info("Starting TV episodes-only scan")
         
@@ -501,13 +501,22 @@ class LibraryScanner:
             # Reset abort flag
             self._abort_requested = False
 
+            if progress_dialog:
+                progress_dialog.update(10, "LibraryGenie", "Preparing TV episodes scan...")
+
             # Clear existing TV episodes only
             with self.conn_manager.transaction() as conn:
                 conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
                 self.logger.debug("Cleared existing TV episodes for resync")
 
+            if progress_dialog:
+                progress_dialog.update(30, "LibraryGenie", "Syncing TV episodes...")
+
             # Sync TV episodes
-            total_episodes_added = self._sync_tv_episodes()
+            total_episodes_added = self._sync_tv_episodes(progress_dialog=progress_dialog, progress_callback=progress_callback)
+            
+            if progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", f"TV episodes scan complete: {total_episodes_added} episodes")
             
             self.logger.info("TV episodes-only scan complete: %s episodes indexed", total_episodes_added)
             
@@ -519,6 +528,8 @@ class LibraryScanner:
             
         except Exception as e:
             self.logger.error("TV episodes-only scan failed: %s", e)
+            if progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", f"TV episodes scan failed: {e}")
             return {"success": False, "error": str(e)}
 
     def _sync_tv_episodes(self, dialog_bg=None, progress_dialog=None, progress_callback=None) -> int:

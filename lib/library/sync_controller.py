@@ -44,28 +44,37 @@ class SyncController:
             # Mark first run as completed
             self.settings.set_first_run_completed(True)
             
-            # Start initial sync if any option is enabled
+            # Set initial sync request flag for service to pick up (non-blocking)
             if sync_movies or sync_tv_episodes:
-                self.perform_manual_sync()
+                self.settings.set_setting('initial_sync_requested', 'true')
+                self.settings.set_setting('initial_sync_movies', str(sync_movies).lower())
+                self.settings.set_setting('initial_sync_tv_episodes', str(sync_tv_episodes).lower())
+                self.logger.info("Initial sync requested - service will process in background")
+            else:
+                self.logger.info("No sync options enabled in first run setup")
                 
         except Exception as e:
             self.logger.error("Error during first run setup: %s", e)
             raise
 
-    def perform_manual_sync(self) -> Tuple[bool, str]:
+    def perform_manual_sync(self, progress_dialog=None, progress_callback=None) -> Tuple[bool, str]:
         """
         Perform manual library sync based on current toggle states
         Returns: (success, status_message)
         """
-        # Check if sync is already in progress
-        if SyncController._sync_in_progress:
-            message = "Sync already in progress - skipping duplicate sync"
+        # Import global lock
+        from lib.utils.sync_lock import GlobalSyncLock
+        
+        # Try to acquire global cross-process lock
+        lock = GlobalSyncLock("sync-controller")
+        if not lock.acquire():
+            lock_info = lock.get_lock_info()
+            owner = lock_info.get('owner', 'unknown') if lock_info else 'unknown'
+            message = f"Sync already in progress by {owner} - skipping duplicate sync"
             self.logger.info(message)
             return False, message
             
         try:
-            # Set sync flag to prevent duplicates
-            SyncController._sync_in_progress = True
             
             sync_movies = self.settings.get_sync_movies()
             sync_tv_episodes = self.settings.get_sync_tv_episodes()
@@ -83,7 +92,9 @@ class SyncController:
             # Sync movies if enabled
             if sync_movies:
                 try:
-                    movie_count = self._sync_movies()
+                    if progress_dialog:
+                        progress_dialog.update(30, "LibraryGenie", "Syncing movies...")
+                    movie_count = self._sync_movies(progress_dialog=progress_dialog)
                     results['movies'] = movie_count
                     self.logger.info("Synced %d movies", movie_count)
                 except Exception as e:
@@ -94,7 +105,9 @@ class SyncController:
             # Sync TV episodes if enabled
             if sync_tv_episodes:
                 try:
-                    episode_count = self._sync_tv_episodes()
+                    if progress_dialog:
+                        progress_dialog.update(60, "LibraryGenie", "Syncing TV episodes...")
+                    episode_count = self._sync_tv_episodes(progress_dialog=progress_dialog)
                     results['episodes'] = episode_count
                     self.logger.info("Synced %d TV episodes", episode_count)
                 except Exception as e:
@@ -114,8 +127,8 @@ class SyncController:
             self.logger.error(error_msg)
             return False, error_msg
         finally:
-            # Always clear sync flag when done
-            SyncController._sync_in_progress = False
+            # Always release global lock when done
+            lock.release()
 
     def perform_periodic_sync(self) -> bool:
         """
@@ -170,11 +183,11 @@ class SyncController:
             'track_library_changes': self.settings.get_track_library_changes(),
         }
 
-    def _sync_movies(self) -> int:
+    def _sync_movies(self, progress_dialog=None) -> int:
         """Sync movies and return count"""
         try:
             # Use existing scanner logic for movies
-            result = self.scanner.perform_full_scan()
+            result = self.scanner.perform_full_scan(progress_dialog=progress_dialog)
             if result.get("success", False):
                 return result.get("items_added", 0)
             else:
@@ -183,11 +196,11 @@ class SyncController:
             self.logger.error("Error syncing movies: %s", e)
             raise
 
-    def _sync_tv_episodes(self) -> int:
+    def _sync_tv_episodes(self, progress_dialog=None) -> int:
         """Sync TV episodes and return count"""
         try:
             # Use scanner's TV episodes scan method
-            result = self.scanner.perform_tv_episodes_only_scan()
+            result = self.scanner.perform_tv_episodes_only_scan(progress_dialog=progress_dialog)
             if result.get("success", False):
                 return result.get("episodes_added", 0)
             else:

@@ -227,6 +227,9 @@ class LibraryGenieService:
                 if tick_count % ai_sync_check_interval == 0:
                     self._check_ai_sync_activation(tick_count)
                     
+                # Check for initial sync requests first (higher priority)
+                self._check_initial_sync_request()
+                
                 # Check for periodic library sync based on user settings
                 if tick_count % tv_sync_check_interval == 0:
                     self._check_periodic_library_sync(tick_count)
@@ -387,21 +390,105 @@ class LibraryGenieService:
     def _check_periodic_library_sync(self, tick_count=None):
         """Check if periodic library sync should be performed based on user settings"""
         try:
+            # Import here to avoid circular imports
+            from lib.utils.sync_lock import GlobalSyncLock
             from lib.library.sync_controller import SyncController
             
-            # Initialize sync controller
-            sync_controller = SyncController()
-            
-            # Perform periodic sync (returns True if sync was performed)
-            if sync_controller.perform_periodic_sync():
-                self.logger.info("📚 Periodic library sync completed")
-                self._show_notification(
-                    "Library sync completed - content updated",
-                    time_ms=6000
-                )
+            # Check if sync is already in progress using global lock
+            lock = GlobalSyncLock("service-periodic-sync")
+            if not lock.acquire():
+                # Another process is already syncing
+                self.logger.debug("Skipping periodic sync - sync already in progress")
+                return
+                
+            try:
+                # Initialize sync controller
+                sync_controller = SyncController()
+                
+                # Perform periodic sync (returns True if sync was performed)
+                if sync_controller.perform_periodic_sync():
+                    self.logger.info("📚 Periodic library sync completed")
+                    self._show_notification(
+                        "Library sync completed - content updated",
+                        time_ms=6000
+                    )
+            finally:
+                lock.release()
                 
         except Exception as e:
             self.logger.error("Error during periodic library sync: %s", e)
+
+    def _check_initial_sync_request(self):
+        """Check for initial sync requests from fresh install setup"""
+        try:
+            # Check if initial sync is requested
+            initial_sync_requested = self.settings.get_setting('initial_sync_requested')
+            if initial_sync_requested != 'true':
+                return
+                
+            # Import here to avoid circular imports
+            from lib.utils.sync_lock import GlobalSyncLock
+            from lib.library.sync_controller import SyncController
+            
+            # Try to acquire global sync lock
+            lock = GlobalSyncLock("service-initial-sync")
+            if not lock.acquire():
+                # Another process is already syncing
+                lock_info = lock.get_lock_info()
+                owner = lock_info.get('owner', 'unknown') if lock_info else 'unknown'
+                self.logger.debug("Initial sync skipped - lock held by: %s", owner)
+                return
+                
+            try:
+                # Clear the request flag immediately to prevent retriggering
+                self.settings.set_setting('initial_sync_requested', 'false')
+                
+                # Get sync preferences
+                sync_movies_str = self.settings.get_setting('initial_sync_movies')
+                sync_tv_str = self.settings.get_setting('initial_sync_tv_episodes')
+                sync_movies = sync_movies_str == 'true'
+                sync_tv_episodes = sync_tv_str == 'true'
+                
+                self.logger.info("Starting initial sync - Movies: %s, TV: %s", sync_movies, sync_tv_episodes)
+                
+                # Create progress dialog
+                progress_dialog = xbmcgui.DialogProgressBG()
+                progress_dialog.create("LibraryGenie", "Starting library sync...")
+                
+                try:
+                    # Initialize sync controller
+                    sync_controller = SyncController()
+                    
+                    # Perform the sync with progress updates  
+                    success, message = sync_controller.perform_manual_sync(
+                        progress_dialog=progress_dialog
+                    )
+                    
+                    # Show final notification
+                    if success:
+                        self.logger.info("Initial sync completed: %s", message)
+                        self._show_notification(
+                            f"Initial sync complete: {message}",
+                            xbmcgui.NOTIFICATION_INFO,
+                            8000
+                        )
+                    else:
+                        self.logger.warning("Initial sync failed: %s", message)
+                        self._show_notification(
+                            f"Initial sync failed: {message[:50]}...",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            8000
+                        )
+                        
+                finally:
+                    progress_dialog.close()
+                    
+            finally:
+                lock.release()
+                
+        except Exception as e:
+            self.logger.error("Error during initial sync request handling: %s", e)
+            
 
     def _perform_ai_sync(self):
         """Perform AI search synchronization"""
