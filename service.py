@@ -470,10 +470,30 @@ class LibraryGenieService:
                     results = {'movies': 0, 'episodes': 0, 'errors': []}
                     start_time = time.time()
                     
-                    # Sync movies if enabled
-                    if sync_movies:
+                    # Sync based on what's enabled - avoid double TV episode sync
+                    if sync_movies and sync_tv_episodes:
+                        # Both enabled - use full scan (includes both movies and TV episodes)
                         try:
-                            # Create separate progress dialog for movies
+                            full_dialog = xbmcgui.DialogProgressBG()
+                            full_dialog.create("LibraryGenie", "Starting full library sync...")
+                            
+                            result = sync_controller.scanner.perform_full_scan(progress_dialog=full_dialog)
+                            if result.get("success", False):
+                                results['movies'] = result.get("items_added", 0) 
+                                results['episodes'] = result.get("episodes_added", 0)
+                                self.logger.info("Full sync: %d movies, %d episodes", results['movies'], results['episodes'])
+                            else:
+                                raise Exception(f"Full scan failed: {result.get('error', 'Unknown error')}")
+                            
+                            full_dialog.close()
+                        except Exception as e:
+                            error_msg = f"Full library sync failed: {str(e)}"
+                            results['errors'].append(error_msg)
+                            self.logger.error(error_msg)
+                    
+                    elif sync_movies:
+                        # Movies only
+                        try:
                             movies_dialog = xbmcgui.DialogProgressBG()
                             movies_dialog.create("LibraryGenie", "Starting movie sync...")
                             
@@ -487,10 +507,9 @@ class LibraryGenieService:
                             results['errors'].append(error_msg)
                             self.logger.error(error_msg)
 
-                    # Sync TV episodes if enabled
-                    if sync_tv_episodes:
+                    elif sync_tv_episodes:
+                        # TV episodes only
                         try:
-                            # Create separate progress dialog for TV episodes
                             tv_dialog = xbmcgui.DialogProgressBG()
                             tv_dialog.create("LibraryGenie", "Starting TV episodes sync...")
                             

@@ -484,6 +484,87 @@ class LibraryScanner:
             self.logger.error("Batch insert failed: %s", e)
             return 0
 
+    def perform_movies_only_scan(self, progress_dialog=None, progress_callback=None) -> Dict[str, Any]:
+        """Perform movies-only scan (no TV episodes)"""
+        self.logger.info("Starting movies-only scan")
+
+        # Initialize query manager
+        if not self.query_manager.initialize():
+            self.logger.error("Failed to initialize database for movies scan")
+            return {"success": False, "error": "Database initialization failed"}
+
+        try:
+            # Reset abort flag
+            self._abort_requested = False
+
+            if progress_dialog:
+                progress_dialog.update(0, "LibraryGenie", "Preparing movie scan...")
+
+            # Clear existing movies only
+            with self.conn_manager.transaction() as conn:
+                conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
+                self.logger.debug("Cleared existing movies for resync")
+
+            if progress_dialog:
+                progress_dialog.update(10, "LibraryGenie", "Starting movie sync...")
+
+            # Get total count for progress tracking
+            total_movies = self.kodi_client.get_movie_count()
+            self.logger.info("Movies-only scan: %s movies to process", total_movies)
+
+            if total_movies == 0:
+                self.logger.info("No movies found in library")
+                if progress_dialog:
+                    progress_dialog.update(100, "LibraryGenie", "No movies found")
+                return {"success": True, "items_added": 0, "episodes_added": 0}
+
+            # Process movies in pages
+            page_size = self.kodi_client.page_size
+            total_pages = (total_movies + page_size - 1) // page_size
+            self.logger.info("Processing %s pages of %s items each", total_pages, page_size)
+
+            total_movies_added = 0
+            for page in range(total_pages):
+                if self._should_abort():
+                    self.logger.info("Movies scan aborted by user")
+                    break
+
+                offset = page * page_size
+                movies_response = self.kodi_client.get_movies(offset, page_size)
+                movies = movies_response.get("movies", [])
+
+                if not movies:
+                    break
+
+                # Insert this batch of movies
+                movies_added = self._batch_insert_movies(movies)
+                total_movies_added += movies_added
+
+                # Update progress
+                progress_percentage = int(20 + ((page + 1) / total_pages) * 70)  # 20% to 90%
+                if progress_dialog:
+                    progress_message = f"Processed {min(offset + len(movies), total_movies)}/{total_movies} movies"
+                    progress_dialog.update(progress_percentage, "LibraryGenie", progress_message)
+
+                self.logger.debug("Page %s/%s: %s movies processed", page + 1, total_pages, len(movies))
+
+            if progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", f"Movies scan complete: {total_movies_added} movies")
+
+            self.logger.info("Movies-only scan complete: %s movies indexed", total_movies_added)
+            
+            return {
+                "success": True,
+                "items_added": total_movies_added,
+                "episodes_added": 0  # No episodes in movies-only scan
+            }
+            
+        except Exception as e:
+            self.logger.error("Movies-only scan failed: %s", e)
+            if progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", f"Movies scan failed: {e}")
+            return {"success": False, "error": str(e)}
+
     def perform_tv_episodes_only_scan(self, progress_dialog=None, progress_callback=None) -> Dict[str, Any]:
         """Perform TV episodes-only scan (no movies)"""
         self.logger.info("Starting TV episodes-only scan")
