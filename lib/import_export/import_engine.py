@@ -47,7 +47,7 @@ class DataMatcher:
                 return self.match_movie(item_data)
                 
         except Exception as e:
-            self.logger.error(f"Error matching media item: {e}")
+            self.logger.error("Error matching media item: %s", e)
             return None
 
     def match_movie(self, item_data: Dict[str, Any]) -> Optional[int]:
@@ -73,7 +73,7 @@ class DataMatcher:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error matching movie: {e}")
+            self.logger.error("Error matching movie: %s", e)
             return None
 
     def match_episode(self, item_data: Dict[str, Any]) -> Optional[int]:
@@ -105,7 +105,7 @@ class DataMatcher:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error matching episode: {e}")
+            self.logger.error("Error matching episode: %s", e)
             return None
 
     def _match_by_kodi_id(self, kodi_id: int) -> Optional[int]:
@@ -286,7 +286,7 @@ class DataMatcher:
             season_int = int(season)
             episode_int = int(episode)
         except (ValueError, TypeError):
-            self.logger.warning(f"Invalid season ({season}) or episode ({episode}) values for show '{show_title}'")
+            self.logger.warning("Invalid season (%s) or episode (%s) values for show '%s'", season, episode, show_title)
             return None
         
         # Use case-insensitive matching for show title with integer season/episode
@@ -391,7 +391,7 @@ class ImportEngine:
             }
 
         except Exception as e:
-            self.logger.error(f"Error validating import file: {e}")
+            self.logger.error("Error validating import file: %s", e)
             return {"valid": False, "errors": [str(e)]}
 
     def preview_import(self, file_path: str) -> ImportPreview:
@@ -464,7 +464,7 @@ class ImportEngine:
             )
 
         except Exception as e:
-            self.logger.error(f"Error creating import preview: {e}")
+            self.logger.error("Error creating import preview: %s", e)
             return ImportPreview(
                 lists_to_create=[],
                 lists_to_update=[],
@@ -499,7 +499,7 @@ class ImportEngine:
                 )
             
             import_folder_id = import_folder_result.get("folder_id")
-            self.logger.info(f"Created import folder '{import_folder_name}' with ID {import_folder_id}")
+            self.logger.info("Created import folder '%s' with ID %s", import_folder_name, import_folder_id)
             
             # Validate file first
             validation = self.validate_import_file(file_path)
@@ -573,7 +573,7 @@ class ImportEngine:
 
             success = len(errors) == 0 or (lists_created + items_added > 0)
 
-            self.logger.info(f"Import completed: {lists_created} lists created, {items_added} items added")
+            self.logger.info("Import completed: %s lists created, %s items added", lists_created, items_added)
 
             return ImportResult(
                 success=success,
@@ -588,7 +588,7 @@ class ImportEngine:
             )
 
         except Exception as e:
-            self.logger.error(f"Import error: {e}")
+            self.logger.error("Import error: %s", e)
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             return ImportResult(
@@ -732,7 +732,7 @@ class ImportEngine:
                             )
                         added += 1
                     except Exception as db_error:
-                        self.logger.error(f"Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
+                        self.logger.error("Database error adding item '%s' to list_id %s: %s", item_data.get('title', 'unknown'), list_id, db_error)
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
                 else:
                     # In append mode, check if already in list to avoid duplicates
@@ -749,7 +749,7 @@ class ImportEngine:
                             )
                         added += 1
                     except Exception as db_error:
-                        self.logger.error(f"Database error adding item '{item_data.get('title', 'unknown')}' to list_id {list_id}: {db_error}")
+                        self.logger.error("Database error adding item '%s' to list_id %s: %s", item_data.get('title', 'unknown'), list_id, db_error)
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
 
             except Exception as e:

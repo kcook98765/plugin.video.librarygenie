@@ -27,8 +27,8 @@ class MenuBuilder:
 
     def build_menu(self, items, addon_handle, base_url, breadcrumb_path=None):
         """Build a directory menu from items with optional breadcrumb"""
-        self.logger.debug(f"MENU BUILD: Starting build_menu with {len(items)} items")
-        self.logger.debug(f"MENU BUILD: addon_handle={addon_handle}, base_url='{base_url}', breadcrumb='{breadcrumb_path}'")
+        self.logger.debug("MENU BUILD: Starting build_menu with %s items", len(items))
+        self.logger.debug("MENU BUILD: addon_handle=%s, base_url='%s', breadcrumb='%s'", addon_handle, base_url, breadcrumb_path)
 
         successful_items = 0
         failed_items = 0
@@ -39,18 +39,18 @@ class MenuBuilder:
         for idx, item in enumerate(items):
             try:
                 item_title = item.get('title', 'Unknown')
-                self.logger.debug(f"MENU BUILD: Processing menu item {idx+1}/{len(items)}: '{item_title}'")
-                self.logger.debug(f"MENU BUILD: Item {idx+1} data: {item}")
+                self.logger.debug("MENU BUILD: Processing menu item %s/%s: '%s'", idx+1, len(items), item_title)
+                self.logger.debug("MENU BUILD: Item %s data: %s", idx+1, item)
 
                 self._add_directory_item(item, addon_handle, base_url)
                 successful_items += 1
-                self.logger.debug(f"MENU BUILD: Successfully added menu item {idx+1}: '{item_title}'")
+                self.logger.debug("MENU BUILD: Successfully added menu item %s: '%s'", idx+1, item_title)
             except Exception as e:
                 failed_items += 1
-                self.logger.error(f"MENU BUILD: Failed to add menu item {idx+1}: {e}")
+                self.logger.error("MENU BUILD: Failed to add menu item %s: %s", idx+1, e)
 
-        self.logger.debug(f"MENU BUILD: Added {successful_items} menu items successfully, {failed_items} failed")
-        self.logger.debug(f"MENU BUILD: Calling endOfDirectory(handle={addon_handle}, cacheToDisc=True)")
+        self.logger.debug("MENU BUILD: Added %s menu items successfully, %s failed", successful_items, failed_items)
+        self.logger.debug("MENU BUILD: Calling endOfDirectory(handle=%s, cacheToDisc=True)", addon_handle)
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
         self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching enabled")
 
