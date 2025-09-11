@@ -253,7 +253,7 @@ class LibraryScanner:
             }
 
         except Exception as e:
-            self.logger.error(f"Delta scan failed: {e}")
+            self.logger.error("Delta scan failed: %s", e)
             self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
@@ -292,7 +292,7 @@ class LibraryScanner:
             return stats
 
         except Exception as e:
-            self.logger.error(f"Failed to get library stats: {e}")
+            self.logger.error("Failed to get library stats: %s", e)
             return {"total_movies": 0, "removed_movies": 0}
 
     def get_indexed_movies(self, include_removed: bool = False, limit: int = 1000, offset: int = 0) -> List[Dict[str, Any]]:
@@ -318,7 +318,7 @@ class LibraryScanner:
             return []
 
         except Exception as e:
-            self.logger.error(f"Failed to get indexed movies: {e}")
+            self.logger.error("Failed to get indexed movies: %s", e)
             return []
 
     def is_library_indexed(self) -> bool:
@@ -338,7 +338,7 @@ class LibraryScanner:
                 return count > 0
             return False
         except Exception as e:
-            self.logger.warning(f"Failed to check if library is indexed: {e}")
+            self.logger.warning("Failed to check if library is indexed: %s", e)
             return False
 
     def _clear_library_index(self):
@@ -348,7 +348,7 @@ class LibraryScanner:
                 conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
             self.logger.debug("Library index cleared for full scan")
         except Exception as e:
-            self.logger.error(f"Failed to clear library index: {e}")
+            self.logger.error("Failed to clear library index: %s", e)
             raise
 
     def _batch_insert_movies(self, movies: List[Dict[str, Any]]) -> int:
@@ -448,13 +448,13 @@ class LibraryScanner:
                         ])
                         inserted_count += 1
                     except Exception as e:
-                        self.logger.warning(f"Failed to insert movie '{movie.get('title', 'Unknown')}': {e}")
+                        self.logger.warning("Failed to insert movie '%s': %s", movie.get('title', 'Unknown'), e)
 
-            self.logger.debug(f"Batch inserted {inserted_count}/{len(movies)} movies")
+            self.logger.debug("Batch inserted %s/%s movies", inserted_count, len(movies))
             return inserted_count
 
         except Exception as e:
-            self.logger.error(f"Batch insert failed: {e}")
+            self.logger.error("Batch insert failed: %s", e)
             return 0
 
     def _get_indexed_movies(self) -> List[Dict[str, Any]]:
@@ -467,7 +467,7 @@ class LibraryScanner:
             """)
             return movies or []
         except Exception as e:
-            self.logger.error(f"Failed to get indexed movies: {e}")
+            self.logger.error("Failed to get indexed movies: %s", e)
             return []
 
     def _fetch_movies_by_ids(self, kodi_ids: Set[int]) -> List[Dict[str, Any]]:
@@ -501,11 +501,11 @@ class LibraryScanner:
                     if result.rowcount > 0:
                         removed_count += 1
 
-            self.logger.debug(f"Marked {removed_count} movies as removed")
+            self.logger.debug("Marked %s movies as removed", removed_count)
             return removed_count
 
         except Exception as e:
-            self.logger.error(f"Failed to mark movies as removed: {e}")
+            self.logger.error("Failed to mark movies as removed: %s", e)
             return 0
 
     def _update_last_seen(self, kodi_ids: Set[int]) -> int:
@@ -527,11 +527,11 @@ class LibraryScanner:
                     if result.rowcount > 0:
                         updated_count += 1
 
-            self.logger.debug(f"Updated last_seen for {updated_count} movies")
+            self.logger.debug("Updated last_seen for %s movies", updated_count)
             return updated_count
 
         except Exception as e:
-            self.logger.error(f"Failed to update last_seen: {e}")
+            self.logger.error("Failed to update last_seen: %s", e)
             return 0
 
     def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: int = None) -> Optional[int]:
@@ -544,7 +544,7 @@ class LibraryScanner:
                 """, [scan_type, kodi_version, started_at])
                 return cursor.lastrowid
         except Exception as e:
-            self.logger.error(f"Failed to log scan start: {e}")
+            self.logger.error("Failed to log scan start: %s", e)
             return None
 
     def _log_scan_complete(self, scan_id: Optional[int], started_at: str,
@@ -565,7 +565,7 @@ class LibraryScanner:
                     WHERE id = ?
                 """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
         except Exception as e:
-            self.logger.error(f"Failed to log scan completion: {e}")
+            self.logger.error("Failed to log scan completion: %s", e)
 
     def _has_kodi_version_changed(self, current_version: int) -> bool:
         """Check if Kodi version has changed since last scan"""
@@ -583,13 +583,13 @@ class LibraryScanner:
 
             last_version = last_scan['kodi_version']
             if last_version != current_version:
-                self.logger.info(f"Kodi version changed from {last_version} to {current_version}")
+                self.logger.info("Kodi version changed from %s to %s", last_version, current_version)
                 return True
 
             return False
 
         except Exception as e:
-            self.logger.warning(f"Failed to check Kodi version change: {e}")
+            self.logger.warning("Failed to check Kodi version change: %s", e)
             # Assume no change on error to avoid unnecessary full scans
             return False
 

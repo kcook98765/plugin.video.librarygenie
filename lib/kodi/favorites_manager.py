@@ -170,7 +170,7 @@ class Phase4FavoritesManager:
 
                 # Note: lists table doesn't have updated_at column in current schema
 
-            self.logger.info(f"Batch import complete: {items_mapped}/{len(favorites)} mapped, {items_added} added")
+            self.logger.info("Batch import complete: %s/%s mapped, %s added", items_mapped, len(favorites), items_added)
 
             return {
                 "items_added": items_added,
@@ -179,7 +179,7 @@ class Phase4FavoritesManager:
             }
 
         except Exception as e:
-            self.logger.error(f"Error in batch import: {e}")
+            self.logger.error("Error in batch import: %s", e)
             return {
                 "items_added": 0,
                 "items_updated": 0,
@@ -188,7 +188,7 @@ class Phase4FavoritesManager:
 
     def _find_library_match_enhanced(self, target_raw: str, classification: str, normalized_key: str) -> Optional[int]:
         """Phase 4: Enhanced library matching with multiple strategies"""
-        self.logger.info(f"    Starting library match for classification '{classification}'")
+        self.logger.info("    Starting library match for classification '%s'", classification)
 
         try:
             # Strategy 1: videodb dbid matching
@@ -199,7 +199,7 @@ class Phase4FavoritesManager:
                 movie_match = re.search(r'videodb://movies/titles/(\d+)', target_raw.lower())
                 if movie_match:
                     kodi_dbid = int(movie_match.group(1))
-                    self.logger.info(f"    Extracted movie Kodi dbid: {kodi_dbid}")
+                    self.logger.info("    Extracted movie Kodi dbid: %s", kodi_dbid)
                     return self._find_or_create_movie_by_kodi_id(kodi_dbid)
                 
                 # Check for TV show/episode videodb URLs: videodb://tvshows/titles/123/ or videodb://tvshows/titles/123/1/5/
@@ -210,19 +210,19 @@ class Phase4FavoritesManager:
                     episode = int(tvshow_match.group(3)) if tvshow_match.group(3) else None
                     
                     if season is not None and episode is not None:
-                        self.logger.info(f"    Extracted episode: show_id={show_kodi_id}, season={season}, episode={episode}")
+                        self.logger.info("    Extracted episode: show_id=%s, season=%s, episode=%s", show_kodi_id, season, episode)
                         return self._find_or_create_episode_by_show_season_episode(show_kodi_id, season, episode)
                     else:
-                        self.logger.info(f"    TV show favorite detected but no specific episode: show_id={show_kodi_id}")
+                        self.logger.info("    TV show favorite detected but no specific episode: show_id=%s", show_kodi_id)
                         # TV show favorites (not specific episodes) are not supported for now
                         return None
                 
-                self.logger.info(f"    Could not extract dbid from videodb URL: {target_raw}")
+                self.logger.info("    Could not extract dbid from videodb URL: %s", target_raw)
 
             # Strategy 2: Normalized path matching
             elif classification == 'mappable_file':
                 self.logger.info("    Using file path matching strategy")
-                self.logger.info(f"    Looking for normalized_path: '{normalized_key}'")
+                self.logger.info("    Looking for normalized_path: '%s'", normalized_key)
 
                 # Try exact normalized path match
                 result = self.conn_manager.execute_single("""
@@ -232,8 +232,8 @@ class Phase4FavoritesManager:
 
                 if result:
                     media_type = result['media_type'] or 'unknown'
-                    self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}' (type: {media_type})")
-                    self.logger.info(f"    Matched file_path: {result['file_path']}")
+                    self.logger.info("    Found exact normalized path match: ID %s - '%s' (type: %s)", result['id'], result['title'], media_type)
+                    self.logger.info("    Matched file_path: %s", result['file_path'])
                     return result["id"]
                 else:
                     self.logger.info("    No exact normalized path match found")

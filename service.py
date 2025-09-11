@@ -312,9 +312,9 @@ class LibraryGenieService:
         # Only log detailed info if state changed or forced
         if force_log or current_state != self._last_ai_sync_state:
             self.logger.info("🔍 Server URL: '%s' (exists: %s)", server_url, current_state['server_url_exists'])
-            self.logger.info(f"🔍 API Key (from settings): {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
-            self.logger.info(f"🔍 is_authorized() result: {auth_status}")
-            self.logger.info(f"🔍 API Key (from database): {'[PRESENT]' if db_api_key else '[MISSING]'} (length: {len(db_api_key) if db_api_key else 0})")
+            self.logger.info("🔍 API Key (from settings): %s (length: %s)", '[PRESENT]' if api_key else '[MISSING]', len(api_key) if api_key else 0)
+            self.logger.info("🔍 is_authorized() result: %s", auth_status)
+            self.logger.info("🔍 API Key (from database): %s (length: %s)", '[PRESENT]' if db_api_key else '[MISSING]', len(db_api_key) if db_api_key else 0)
             
             if not current_state['client_configured']:
                 self.logger.info("🔍 AI client not configured, skipping sync")
@@ -367,7 +367,7 @@ class LibraryGenieService:
                     break
 
         except Exception as e:
-            self.logger.error(f"AI sync worker error: {e}")
+            self.logger.error("AI sync worker error: %s", e)
         finally:
             self.logger.info("AI search sync worker stopped")
 
@@ -383,7 +383,7 @@ class LibraryGenieService:
             connection_test = self.ai_client.test_connection()
             if not connection_test.get('success'):
                 error_msg = connection_test.get('error', 'Unknown error')
-                self.logger.warning(f"AI search connection failed: {error_msg}")
+                self.logger.warning("AI search connection failed: %s", error_msg)
                 self._show_notification(f"{L(34105)}: {error_msg}", xbmcgui.NOTIFICATION_ERROR)  # "Sync failed: ..."
                 return
 
@@ -413,7 +413,7 @@ class LibraryGenieService:
                         'year': movie.get('year', 0)
                     })
 
-            self.logger.info(f"Found {len(movies_with_imdb)} movies with IMDb IDs")
+            self.logger.info("Found %s movies with IMDb IDs", len(movies_with_imdb))
 
             if not movies_with_imdb:
                 self.logger.info("No movies with IMDb IDs found, skipping sync")
@@ -432,7 +432,7 @@ class LibraryGenieService:
                 batch = movies_with_imdb[i:i + batch_size]
                 batch_num = (i // batch_size) + 1
 
-                self.logger.info(f"Syncing batch {batch_num}/{total_batches} ({len(batch)} movies)")
+                self.logger.info("Syncing batch %s/%s (%s movies)", batch_num, total_batches, len(batch))
 
                 result = self.ai_client.sync_media_batch(batch, batch_size)
 
@@ -453,7 +453,7 @@ class LibraryGenieService:
                         )
                 else:
                     error_msg = result.get('error', 'Unknown error') if result else 'No response'
-                    self.logger.error(f"Batch {batch_num} sync failed: {error_msg}")
+                    self.logger.error("Batch %s sync failed: %s", batch_num, error_msg)
                     self._show_notification(
                         f"{L(34105)}: {error_msg}",  # "Sync failed: ..."
                         xbmcgui.NOTIFICATION_ERROR
@@ -473,7 +473,7 @@ class LibraryGenieService:
             )
 
         except Exception as e:
-            self.logger.error(f"AI sync failed: {e}")
+            self.logger.error("AI sync failed: %s", e)
             self._show_notification(
                 f"{L(34105)}: {str(e)}",  # "Sync failed: ..."
                 xbmcgui.NOTIFICATION_ERROR,

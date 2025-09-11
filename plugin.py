@@ -462,7 +462,7 @@ def _ensure_startup_initialization(context: PluginContext):
     except Exception as e:
         logger.error("STARTUP: Error during startup initialization: %s", e)
         import traceback
-        logger.error(f"STARTUP: Initialization error traceback: {traceback.format_exc()}")
+        logger.error("STARTUP: Initialization error traceback: %s", traceback.format_exc())
         # Don't fail the plugin startup for initialization issues
         pass
 
@@ -471,7 +471,7 @@ def main():
     """Main plugin entry point using new modular architecture"""
 
     logger.debug(f"=== PLUGIN INVOCATION (REFACTORED) ===")
-    logger.debug(f"Full sys.argv: {sys.argv}")
+    logger.debug("Full sys.argv: %s", sys.argv)
     logger.debug(f"Using modular handler architecture")
 
     try:
@@ -496,9 +496,9 @@ def main():
             main_menu_handler.show_main_menu(context)
 
     except Exception as e:
-        logger.error(f"Fatal error in plugin main: {e}")
+        logger.error("Fatal error in plugin main: %s", e)
         import traceback
-        logger.error(f"Main error traceback: {traceback.format_exc()}")
+        logger.error("Main error traceback: %s", traceback.format_exc())
 
         # Try to show error to user if possible
         try:
@@ -521,10 +521,10 @@ def _log_window_state(context: PluginContext):
         container_label = xbmc.getInfoLabel("Container.FolderName")
 
         context.logger.debug(f"Window state at plugin entry:")
-        context.logger.debug(f"  Current window: {current_window}")
-        context.logger.debug(f"  Current control: {current_control}")
-        context.logger.debug(f"  Container path: {container_path}")
-        context.logger.debug(f"  Container label: {container_label}")
+        context.logger.debug("  Current window: %s", current_window)
+        context.logger.debug("  Current control: %s", current_control)
+        context.logger.debug("  Container path: %s", container_path)
+        context.logger.debug("  Container label: %s", container_label)
 
         # Check specific window visibility states
         myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
@@ -532,8 +532,8 @@ def _log_window_state(context: PluginContext):
         dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
         keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
 
-        context.logger.debug(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
-        context.logger.debug(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
+        context.logger.debug("  MyVideoNav.xml visible: %s", myvideo_nav_visible)
+        context.logger.debug("  DialogVideoInfo.xml visible: %s", dialog_video_info_visible)
         context.logger.debug(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
         context.logger.debug(f"  DialogKeyboard.xml visible: {keyboard_visible}")
 

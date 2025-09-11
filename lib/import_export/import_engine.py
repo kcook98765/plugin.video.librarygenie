@@ -799,7 +799,7 @@ class ImportEngine:
                     # NOTE: media_items are preserved - they contain the addon's library index
                     self.logger.info("Existing lists and folders cleared for replace mode (media_items preserved)")
                 except Exception as e:
-                    self.logger.error(f"Error clearing data for replace mode: {e}")
+                    self.logger.error("Error clearing data for replace mode: %s", e)
                     errors.append(f"Failed to clear existing data: {e}")
 
             # Import lists first
@@ -826,7 +826,7 @@ class ImportEngine:
 
             success = len(errors) == 0 or (lists_created + items_added > 0)
 
-            self.logger.info(f"Backup restore completed: {lists_created} lists created, {items_added} items added")
+            self.logger.info("Backup restore completed: %s lists created, %s items added", lists_created, items_added)
 
             return {
                 "success": success,
@@ -840,7 +840,7 @@ class ImportEngine:
             }
 
         except Exception as e:
-            self.logger.error(f"Error importing from content: {e}")
+            self.logger.error("Error importing from content: %s", e)
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             return {
