@@ -44,8 +44,8 @@ class LibraryGenieService:
         self._last_ai_sync_check_time = 0
         self._last_service_log_time = 0
         
-        # TV episode sync state tracking
-        self._last_tv_sync_state = None
+        # TV episode sync state tracking - initialize to current setting value
+        self._last_tv_sync_state = self.settings.get_sync_tv_episodes()
         self._last_tv_sync_check_time = 0
         
         self.logger.info("🚀 LibraryGenie service initialized with InfoHijack manager")
@@ -138,9 +138,10 @@ class LibraryGenieService:
             else:
                 self.logger.info("❌ AI Search sync conditions not met - sync disabled")
 
-            # Check TV episode sync status at startup
-            self.logger.info("📺 Checking TV episode sync activation status at startup...")
-            self._check_tv_episode_sync_activation()
+            # Initialize TV episode sync state at startup (without triggering sync)
+            self.logger.info("📺 Initializing TV episode sync state at startup...")
+            self._last_tv_sync_state = self.settings.get_sync_tv_episodes()
+            self.logger.info("📺 Initial TV episode sync state: %s", self._last_tv_sync_state)
 
             # Main service loop
             self.run() # Changed to call run() which contains the hijack manager loop
