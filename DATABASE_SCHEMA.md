@@ -140,26 +140,6 @@ Kodi Favorites are also integrated into the unified lists system. A special list
 
 ---
 
----
-
-### `movie_heavy_meta`
-Extended metadata for movies/episodes.
-
-| Column         | Type    | Notes |
-|----------------|---------|-------|
-| `id`           | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `kodi_movieid` | INTEGER | Kodi DBID |
-| `imdbnumber`   | TEXT    | |
-| `cast_json`    | TEXT    | JSON |
-| `ratings_json` | TEXT    | JSON |
-| `showlink_json`| TEXT    | JSON |
-| `stream_json`  | TEXT    | JSON |
-| `uniqueid_json`| TEXT    | JSON |
-| `tags_json`    | TEXT    | JSON |
-| `updated_at`   | TEXT    | |
-
----
-
 ### `search_history`
 Stores search query history and performance metrics.
 
@@ -208,36 +188,6 @@ Stores UI-related user preferences.
 
 ---
 
-### `imdb_exports`
-Lightweight table for export/import operations.
-
-| Column     | Type    | Notes |
-|------------|---------|-------|
-| `id`       | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `imdb_id`  | TEXT    | Primary identifier |
-| `title`    | TEXT    | Media title |
-| `year`     | INTEGER | Release year |
-| `created_at` | TEXT  | NOT NULL DEFAULT (datetime('now')) |
-
-Indexes:
-- INDEX on `imdb_id`.
-
----
-
-### `imdb_to_kodi`
-Mapping table for fast lookups.
-
-| Column     | Type    | Notes |
-|------------|---------|-------|
-| `imdb_id`  | TEXT    | |
-| `kodi_id`  | INTEGER | |
-| `media_type` | TEXT  | |
-
-Constraints:
-- UNIQUE(imdb_id, kodi_id, media_type).
-
----
-
 ### `library_scan_log`
 Records library scan operations and their results.
 
@@ -257,17 +207,6 @@ Records library scan operations and their results.
 
 Indexes:
 - INDEX on `(scan_type, start_time)`.
-
----
-
-### `kv_cache`
-Generic key-value cache.
-
-| Column     | Type    | Notes |
-|------------|---------|-------|
-| `key`      | TEXT    | PRIMARY KEY |
-| `value`    | TEXT    | |
-| `updated_at`| TEXT   | |
 
 ---
 
@@ -393,9 +332,7 @@ The auth and sync tables support optional external service integration:
 
 - One-to-many: folders → lists.  
 - One-to-many: lists → list_items → media_items.  
-- One-to-one/many: media_items ↔ movie_heavy_meta.  
 - One-to-many: media_items ← kodi_favorite (via media_item_id).
-- Many-to-many mapping: imdb_to_kodi.  
 - Special relationship: kodi_favorite entries can also appear as list_items in the "Kodi Favorites" list.
 
 ---
