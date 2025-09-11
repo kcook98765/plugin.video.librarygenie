@@ -97,7 +97,12 @@ class SimpleSearchEngine:
                 FROM media_items mi
                 INNER JOIN list_items li ON li.media_item_id = mi.id
             """
-            where_clauses = ["li.list_id = ?"]
+            where_clauses = [
+                "li.list_id = ?",
+                "mi.media_type = 'movie'",
+                "mi.source = 'library'", 
+                "mi.is_removed = 0"
+            ]
             params.append(query.scope_id)
         else:
             select_clause = """
@@ -108,7 +113,11 @@ class SimpleSearchEngine:
                        {ranking_expression} as search_rank
                 FROM media_items mi
             """
-            where_clauses = ["1=1"]
+            where_clauses = [
+                "mi.media_type = 'movie'",
+                "mi.source = 'library'",
+                "mi.is_removed = 0"
+            ]
 
         # Build search conditions and ranking expression
         search_conditions, ranking_expr, search_params = self._build_search_conditions(query)
