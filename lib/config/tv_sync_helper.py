@@ -23,10 +23,10 @@ def on_tv_episode_sync_enabled():
             logger.error("Failed to get library scanner instance")
             return False
             
-        logger.info("Starting full library scan with TV episodes...")
+        logger.info("Starting TV episodes-only scan...")
         
-        # Perform full scan which will include TV episodes since sync is now enabled
-        scan_result = scanner.perform_full_scan()
+        # Perform episodes-only scan to avoid duplicate movie scanning
+        scan_result = scanner.perform_tv_episodes_only_scan()
         
         if scan_result and scan_result.get("success", False):
             movies_added = scan_result.get("items_added", 0)
