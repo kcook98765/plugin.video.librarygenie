@@ -540,8 +540,8 @@ class LibraryScanner:
                 movies_added = self._batch_insert_movies(movies)
                 total_movies_added += movies_added
 
-                # Update progress
-                progress_percentage = int(20 + ((page + 1) / total_pages) * 70)  # 20% to 90%
+                # Update progress for movies: 0% to 100%
+                progress_percentage = min(int(((page + 1) / total_pages) * 100), 99)  # 0% to 99%
                 if progress_dialog:
                     progress_message = f"Processed {min(offset + len(movies), total_movies)}/{total_movies} movies"
                     progress_dialog.update(progress_percentage, "LibraryGenie", progress_message)
@@ -650,17 +650,22 @@ class LibraryScanner:
                     tvshow_id = tvshow.get("kodi_id")
                     tvshow_title = tvshow.get("title", "Unknown Show")
                     
-                    # Calculate progress based on TV series processed: 20% to 90%
+                    # Calculate cumulative progress across all TV series: 0% to 100%
+                    shows_processed = show_offset + idx + 1  # Current show being processed (1-based)
+                    overall_progress = shows_processed / total_tvshows
+                    progress_percentage = min(int(overall_progress * 100), 99)  # Cap at 99% until completion
+                    
+                    progress_msg = f"Processing: {tvshow_title} ({shows_processed}/{total_tvshows} series)"
+                    
                     if dialog_bg:
-                        overall_show_progress = (show_offset + idx) / total_tvshows
-                        progress_percentage = int(20 + (overall_show_progress * 70))  # 20% to 90%
-                        progress_msg = f"Processing: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows} series)"
                         dialog_bg.update(progress_percentage, "LibraryGenie", progress_msg)
                     elif progress_dialog:
-                        overall_show_progress = (show_offset + idx) / total_tvshows
-                        progress_percentage = int(20 + (overall_show_progress * 70))  # 20% to 90%
-                        progress_msg = f"Processing: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows} series)"
                         progress_dialog.update(progress_percentage, "LibraryGenie", progress_msg)
+                    
+                    # Debug logging for first few shows to verify smooth progress
+                    if shows_processed <= 5:
+                        self.logger.debug("TV Progress Debug: show_offset=%d, idx=%d, shows_processed=%d, total=%d, percent=%d", 
+                                        show_offset, idx, shows_processed, total_tvshows, progress_percentage)
                     
                     # Get all episodes for this TV show
                     episodes = self.kodi_client.get_episodes_for_tvshow(tvshow_id)
@@ -677,6 +682,12 @@ class LibraryScanner:
                 # Brief pause to allow UI updates
                 import time
                 time.sleep(0.1)
+            
+            # Final progress update to 100%
+            if dialog_bg:
+                dialog_bg.update(100, "LibraryGenie", f"TV episodes sync complete: {total_episodes_added} episodes")
+            elif progress_dialog:
+                progress_dialog.update(100, "LibraryGenie", f"TV episodes sync complete: {total_episodes_added} episodes")
             
             self.logger.info("TV episode sync completed: %s episodes added", total_episodes_added)
             return total_episodes_added
