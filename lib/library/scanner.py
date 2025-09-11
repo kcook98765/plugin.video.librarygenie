@@ -15,6 +15,7 @@ from ..data.connection_manager import get_connection_manager
 from ..kodi.json_rpc_client import get_kodi_client
 from ..utils.logger import get_logger
 from ..utils.kodi_version import get_kodi_major_version
+from ..config.settings import SettingsManager
 
 from ..ui.localization import L
 
@@ -26,6 +27,7 @@ class LibraryScanner:
         self.query_manager = QueryManager()
         self.kodi_client = get_kodi_client()
         self.conn_manager = get_connection_manager()
+        self.settings = SettingsManager()
         self.batch_size = 200  # Batch size for database operations
         self._abort_requested = False
 
@@ -148,13 +150,31 @@ class LibraryScanner:
                 import time
                 time.sleep(0.05)  # Reduced from 0.1 to 0.05 seconds
 
-            scan_end = datetime.now().isoformat()
-            self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
+            self.logger.info("Movie scan complete: %s movies indexed", total_added)
 
-            self.logger.info("Full scan complete: %s movies indexed", total_added)
+            # TV Episode sync (if enabled)
+            total_episodes_added = 0
+            if self.settings.get_sync_tv_episodes():
+                self.logger.info("TV episode sync enabled - starting episode scan")
+                try:
+                    total_episodes_added = self._sync_tv_episodes(dialog_bg, progress_dialog, progress_callback)
+                    self.logger.info("TV episode sync complete: %s episodes indexed", total_episodes_added)
+                except Exception as e:
+                    self.logger.error("TV episode sync failed: %s", e)
+                    # Continue with scan completion even if TV sync fails
+            else:
+                self.logger.debug("TV episode sync disabled - skipping")
+
+            scan_end = datetime.now().isoformat()
+            self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, total_episodes_added, scan_end)
+
+            self.logger.info("Full scan complete: %s movies, %s episodes indexed", total_added, total_episodes_added)
 
             if dialog_bg:
-                dialog_bg.update(100, "LibraryGenie", f"Scan complete: {total_added} movies indexed")
+                if total_episodes_added > 0:
+                    dialog_bg.update(100, "LibraryGenie", f"Scan complete: {total_added} movies, {total_episodes_added} episodes indexed")
+                else:
+                    dialog_bg.update(100, "LibraryGenie", f"Scan complete: {total_added} movies indexed")
                 dialog_bg.close()
             elif progress_dialog:
                 progress_dialog.update(100, "LibraryGenie", "Full scan complete.")
@@ -163,6 +183,7 @@ class LibraryScanner:
                 "success": True,
                 "items_found": total_movies,
                 "items_added": total_added,
+                "episodes_added": total_episodes_added,
                 "scan_time": scan_end
             }
 
@@ -346,7 +367,13 @@ class LibraryScanner:
         try:
             with self.conn_manager.transaction() as conn:
                 conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
-            self.logger.debug("Library index cleared for full scan")
+                
+                # Also clear TV episodes if sync is enabled
+                if self.settings.get_sync_tv_episodes():
+                    conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
+                    self.logger.debug("Library index cleared for full scan (movies and episodes)")
+                else:
+                    self.logger.debug("Library index cleared for full scan (movies only)")
         except Exception as e:
             self.logger.error("Failed to clear library index: %s", e)
             raise
@@ -455,6 +482,169 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error("Batch insert failed: %s", e)
+            return 0
+
+    def _sync_tv_episodes(self, dialog_bg=None, progress_dialog=None, progress_callback=None) -> int:
+        """Sync all TV episodes from Kodi library"""
+        self.logger.info("Starting TV episode sync")
+        
+        try:
+            # Get all TV shows first
+            total_tvshows = self.kodi_client.get_tvshow_count()
+            self.logger.info("Found %s TV shows to process for episodes", total_tvshows)
+            
+            if total_tvshows == 0:
+                self.logger.info("No TV shows found, skipping episode sync")
+                return 0
+            
+            total_episodes_added = 0
+            show_offset = 0
+            show_page_size = 50  # Process TV shows in smaller batches
+            
+            while show_offset < total_tvshows:
+                if self._should_abort():
+                    self.logger.info("TV episode sync aborted by user")
+                    break
+                
+                # Get batch of TV shows
+                tvshow_response = self.kodi_client.get_tvshows(show_offset, show_page_size)
+                tvshows = tvshow_response.get("tvshows", [])
+                
+                if not tvshows:
+                    break
+                
+                # Process episodes for each TV show
+                for idx, tvshow in enumerate(tvshows):
+                    if self._should_abort():
+                        break
+                    
+                    tvshow_id = tvshow.get("kodi_id")
+                    tvshow_title = tvshow.get("title", "Unknown Show")
+                    
+                    if dialog_bg:
+                        progress_msg = f"Processing episodes for: {tvshow_title}"
+                        dialog_bg.update(80, "LibraryGenie", progress_msg)
+                    elif progress_dialog:
+                        progress_msg = f"Processing episodes for: {tvshow_title}"
+                        progress_dialog.update(80, "LibraryGenie", progress_msg)
+                    
+                    # Get all episodes for this TV show
+                    episodes = self.kodi_client.get_episodes_for_tvshow(tvshow_id)
+                    
+                    if episodes:
+                        # Insert episodes for this show
+                        episodes_added = self._batch_insert_episodes(episodes, tvshow)
+                        total_episodes_added += episodes_added
+                        self.logger.debug("Added %s episodes for show '%s'", episodes_added, tvshow_title)
+                
+                show_offset += len(tvshows)
+                self.logger.debug("Processed %s/%s TV shows", min(show_offset, total_tvshows), total_tvshows)
+                
+                # Brief pause to allow UI updates
+                import time
+                time.sleep(0.1)
+            
+            self.logger.info("TV episode sync completed: %s episodes added", total_episodes_added)
+            return total_episodes_added
+            
+        except Exception as e:
+            self.logger.error("TV episode sync failed: %s", e)
+            return 0
+
+    def _batch_insert_episodes(self, episodes: List[Dict[str, Any]], tvshow_data: Dict[str, Any]) -> int:
+        """Insert TV episodes in batches with full metadata"""
+        if not episodes:
+            return 0
+
+        try:
+            inserted_count = 0
+
+            with self.conn_manager.transaction() as conn:
+                for episode in episodes:
+                    try:
+                        # Store comprehensive episode data from JSON-RPC
+                        art_json = json.dumps(episode.get("art", {})) if episode.get("art") else ""
+
+                        # Extract unique IDs from episode and show
+                        episode_uniqueid = episode.get("uniqueid", {})
+                        episode_tmdb_id = episode_uniqueid.get("tmdb", "") if episode_uniqueid else ""
+                        episode_imdb_id = episode_uniqueid.get("imdb", "") if episode_uniqueid else ""
+                        
+                        # Use show's IMDb ID if episode doesn't have one
+                        show_imdb_id = tvshow_data.get("imdb_id", "")
+                        final_imdb_id = episode_imdb_id or show_imdb_id
+
+                        # Create normalized path for episode file
+                        file_path = episode.get("file_path", "")
+                        normalized_path = file_path.lower() if file_path else ""
+
+                        # Create display title
+                        season = episode.get("season", 0)
+                        episode_num = episode.get("episode", 0)
+                        episode_title = episode.get("title", f"Episode {episode_num}")
+                        tvshowtitle = episode.get("tvshowtitle", tvshow_data.get("title", "Unknown Show"))
+                        display_title = f"{tvshowtitle} - S{season:02d}E{episode_num:02d} - {episode_title}"
+
+                        # Store genre from show data
+                        show_genre = tvshow_data.get("genre", "")
+                        show_studio = tvshow_data.get("studio", "")
+
+                        # Duration handling
+                        duration_seconds = episode.get("runtime", 0)
+                        duration_minutes = duration_seconds // 60 if duration_seconds else 0
+
+                        conn.execute("""
+                            INSERT OR REPLACE INTO media_items
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
+                             plot, rating, votes, duration, mpaa, genre, director, studio, country, 
+                             writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds,
+                             tvshowtitle, season, episode, aired)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?,
+                                    ?, ?, ?, ?)
+                        """, [
+                            'episode',
+                            episode["kodi_id"],
+                            episode_title,
+                            tvshow_data.get("year"),  # Use show's year
+                            final_imdb_id,
+                            episode_tmdb_id,
+                            file_path,
+                            'lib',  # Mark as Kodi library item
+                            # Metadata
+                            episode.get("plot", ""),
+                            episode.get("rating", 0.0),
+                            episode.get("votes", 0),
+                            duration_minutes,
+                            tvshow_data.get("mpaa", ""),  # Use show's rating
+                            show_genre,  # Use show's genre
+                            "",  # Episodes don't typically have directors
+                            show_studio,  # Use show's studio
+                            "",  # Country from show if needed
+                            "",  # Writer from episode if available
+                            # JSON fields
+                            art_json,
+                            # File paths
+                            file_path,
+                            normalized_path,
+                            # Pre-computed fields
+                            display_title,
+                            duration_seconds,
+                            # TV-specific fields
+                            tvshowtitle,
+                            season,
+                            episode_num,
+                            episode.get("firstaired", "")
+                        ])
+                        inserted_count += 1
+                    except Exception as e:
+                        self.logger.warning("Failed to insert episode '%s': %s", episode.get('title', 'Unknown'), e)
+
+            self.logger.debug("Batch inserted %s/%s episodes", inserted_count, len(episodes))
+            return inserted_count
+
+        except Exception as e:
+            self.logger.error("Episode batch insert failed: %s", e)
             return 0
 
     def _get_indexed_movies(self) -> List[Dict[str, Any]]:
