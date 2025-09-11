@@ -1749,7 +1749,7 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Restore cancelled")
 
         except Exception as e:
-            context.logger.error(f"Error in restore backup handler: {e}")
+            context.logger.error("Error in restore backup handler: %s", e)
             return DialogResponse(success=False, message="Failed to restore backup")
 
 
@@ -1785,7 +1785,7 @@ class ToolsHandler:
             return DialogResponse(success=False, message="AI Search activation failed")
 
         except Exception as e:
-            context.logger.error(f"Error in AI search activation handler: {e}")
+            context.logger.error("Error in AI search activation handler: %s", e)
             return DialogResponse(success=False, message="Failed to activate AI search")
 
     def _handle_local_search(self, context: PluginContext) -> DialogResponse:
@@ -1815,7 +1815,7 @@ class ToolsHandler:
                     refresh_needed=False
                 )
         except Exception as e:
-            context.logger.error(f"Error executing search: {e}")
+            context.logger.error("Error executing search: %s", e)
             return DialogResponse(success=False, message="Failed to execute search")
 
     def _handle_ai_search(self, context: PluginContext) -> DialogResponse:
@@ -1826,7 +1826,7 @@ class ToolsHandler:
             xbmc.executebuiltin(f'Container.Update("{ai_search_url}",replace)')
             return DialogResponse(success=True, message="Opening AI search...")
         except Exception as e:
-            context.logger.error(f"Error navigating to AI search: {e}")
+            context.logger.error("Error navigating to AI search: %s", e)
             return DialogResponse(success=False, message="Failed to open AI search")
 
     def _handle_search_history(self, context: PluginContext) -> DialogResponse:
@@ -1842,14 +1842,14 @@ class ToolsHandler:
                 # Navigate directly using xbmc.executebuiltin instead of relying on DialogResponse navigation
                 import xbmc
                 folder_url = context.build_url("show_folder", folder_id=search_folder_id)
-                context.logger.debug(f"TOOLS: Navigating directly to search history folder {search_folder_id} with URL: {folder_url}")
+                context.logger.debug("TOOLS: Navigating directly to search history folder %s with URL: %s", search_folder_id, folder_url)
                 xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
                 # Return a simple success response without any navigation flags to avoid conflicts
                 return DialogResponse(success=True, message="")
             else:
                 return DialogResponse(success=False, message="Could not access search history")
         except Exception as e:
-            context.logger.error(f"Error navigating to search history: {e}")
+            context.logger.error("Error navigating to search history: %s", e)
             return DialogResponse(success=False, message="Failed to open search history")
 
     def _handle_create_folder(self, context: PluginContext) -> DialogResponse:
@@ -1941,7 +1941,7 @@ class ToolsHandler:
                 message="Settings opened"
             )
         except Exception as e:
-            context.logger.error(f"Error opening settings: {e}")
+            context.logger.error("Error opening settings: %s", e)
             return DialogResponse(
                 success=False,
                 message="Failed to open settings"

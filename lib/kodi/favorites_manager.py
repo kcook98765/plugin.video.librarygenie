@@ -401,18 +401,18 @@ class Phase4FavoritesManager:
                 """, [kodi_dbid]).fetchone()
 
                 if result:
-                    self.logger.info(f"    Found existing movie: ID {result['id']} - '{result['title']}'")
+                    self.logger.info("    Found existing movie: ID %s - '%s'", result['id'], result['title'])
                     return result["id"]
                 else:
-                    self.logger.info(f"    No existing movie found for Kodi dbid {kodi_dbid}")
+                    self.logger.info("    No existing movie found for Kodi dbid %s", kodi_dbid)
                     
                     # TODO: Implement on-demand movie creation from Kodi JSON-RPC
                     # For now, return None - movies should exist from library scan
-                    self.logger.info(f"    Movie creation not implemented - skipping")
+                    self.logger.info("    Movie creation not implemented - skipping")
                     return None
 
         except Exception as e:
-            self.logger.error(f"Error finding/creating movie by Kodi ID {kodi_dbid}: {e}")
+            self.logger.error("Error finding/creating movie by Kodi ID %s: %s", kodi_dbid, e)
             return None
 
     def _find_or_create_episode_by_show_season_episode(self, show_kodi_id: int, season: int, episode: int) -> Optional[int]:
@@ -421,14 +421,14 @@ class Phase4FavoritesManager:
             # Get episode info from Kodi first to get episode kodi_id and file path
             episode_data = self._get_episode_data_from_kodi(show_kodi_id, season, episode)
             if not episode_data:
-                self.logger.info(f"    Could not retrieve episode data for show {show_kodi_id} S{season}E{episode}")
+                self.logger.info("    Could not retrieve episode data for show %s S%sE%s", show_kodi_id, season, episode)
                 return None
             
             episode_kodi_id = episode_data.get('episodeid')
             episode_file = episode_data.get('file', '')
             show_title = episode_data.get('show_title', '')
             
-            self.logger.info(f"    Looking for episode: '{show_title}' S{season:02d}E{episode:02d} (kodi_id: {episode_kodi_id})")
+            self.logger.info("    Looking for episode: '%s' S%02dE%02d (kodi_id: %s)", show_title, season, episode, episode_kodi_id)
             
             with self.conn_manager.transaction() as conn:
                 # Strategy 1: Try to find by episode kodi_id (most reliable)
@@ -439,7 +439,7 @@ class Phase4FavoritesManager:
                     """, [episode_kodi_id]).fetchone()
                     
                     if result:
-                        self.logger.info(f"    Found existing episode by kodi_id: ID {result['id']} - '{result['title']}'")
+                        self.logger.info("    Found existing episode by kodi_id: ID %s - '%s'", result['id'], result['title'])
                         return result["id"]
                 
                 # Strategy 2: Try to find by file path
@@ -452,7 +452,7 @@ class Phase4FavoritesManager:
                     """, [episode_file, normalized_path]).fetchone()
                     
                     if result:
-                        self.logger.info(f"    Found existing episode by file path: ID {result['id']} - '{result['title']}'")
+                        self.logger.info("    Found existing episode by file path: ID %s - '%s'", result['id'], result['title'])
                         return result["id"]
                 
                 # Strategy 3: Try to find by show title + season + episode (fallback)
@@ -467,21 +467,21 @@ class Phase4FavoritesManager:
                     """, [show_title, season, episode]).fetchone()
 
                     if result:
-                        self.logger.info(f"    Found existing episode by show+season+episode: ID {result['id']} - '{result['title']}'")
+                        self.logger.info("    Found existing episode by show+season+episode: ID %s - '%s'", result['id'], result['title'])
                         return result["id"]
                 
                 # No existing episode found - create on-demand
                 self.logger.info(f"    No existing episode found - creating on-demand")
                 episode_id = self._create_episode_from_episode_data(episode_data)
                 if episode_id:
-                    self.logger.info(f"    Successfully created episode: ID {episode_id}")
+                    self.logger.info("    Successfully created episode: ID %s", episode_id)
                     return episode_id
                 else:
                     self.logger.info(f"    Failed to create episode from Kodi")
                     return None
 
         except Exception as e:
-            self.logger.error(f"Error finding/creating episode for show {show_kodi_id} S{season}E{episode}: {e}")
+            self.logger.error("Error finding/creating episode for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
             return None
 
     def _get_show_info_from_kodi(self, show_kodi_id: int) -> Optional[Dict]:
