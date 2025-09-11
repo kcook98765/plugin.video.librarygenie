@@ -1502,7 +1502,7 @@ class QueryManager:
             return {"success": True}
 
         except Exception as e:
-            self.logger.error(f"Failed to delete folder: {e}")
+            self.logger.error("Failed to delete folder: %s", e)
             return {"success": False, "error": "database_error", "message": str(e)}
 
     def is_reserved_folder(self, folder_id):
@@ -1516,13 +1516,13 @@ class QueryManager:
                 return True
             return False
         except Exception as e:
-            self.logger.error(f"Failed to check if folder {folder_id} is reserved: {e}")
+            self.logger.error("Failed to check if folder %s is reserved: %s", folder_id, e)
             return False
 
     def get_lists_in_folder(self, folder_id: Optional[str]) -> List[Dict[str, Any]]:
         """Get all lists in a specific folder"""
         try:
-            self.logger.debug(f"Getting lists in folder {folder_id}")
+            self.logger.debug("Getting lists in folder %s", folder_id)
 
             if folder_id is None:
                 # Get lists in root (no folder)
@@ -1537,7 +1537,7 @@ class QueryManager:
                 """)
             else:
                 # Get lists in specific folder
-                self.logger.debug(f"Querying for lists in folder_id {folder_id}")
+                self.logger.debug("Querying for lists in folder_id %s", folder_id)
                 results = self.connection_manager.execute_query("""
                     SELECT l.*, COUNT(li.id) as item_count
                     FROM lists l
@@ -1548,16 +1548,16 @@ class QueryManager:
                 """, [int(folder_id)])
 
             lists = [dict(row) for row in results]
-            self.logger.debug(f"Found {len(lists)} lists in folder {folder_id}")
+            self.logger.debug("Found %s lists in folder %s", len(lists), folder_id)
 
             # Log each list found for debugging
             for lst in lists:
-                self.logger.debug(f"  - List: {lst['name']} (id={lst['id']}, folder_id={lst.get('folder_id')})")
+                self.logger.debug("  - List: %s (id=%s, folder_id=%s)", lst['name'], lst['id'], lst.get('folder_id'))
 
             return lists
 
         except Exception as e:
-            self.logger.error(f"Error getting lists in folder {folder_id}: {e}")
+            self.logger.error("Error getting lists in folder %s: %s", folder_id, e)
             return []
 
     def get_folder_by_id(self, folder_id):
@@ -1582,7 +1582,7 @@ class QueryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Failed to get folder {folder_id}: {e}")
+            self.logger.error("Failed to get folder %s: %s", folder_id, e)
             return None
 
     def get_all_folders(self, parent_id=None):
@@ -1625,13 +1625,13 @@ class QueryManager:
                 })
 
             if parent_id is None:
-                self.logger.debug(f"Retrieved {len(result)} top-level folders")
+                self.logger.debug("Retrieved %s top-level folders", len(result))
             else:
-                self.logger.debug(f"Retrieved {len(result)} subfolders for folder {parent_id}")
+                self.logger.debug("Retrieved %s subfolders for folder %s", len(result), parent_id)
             return result
 
         except Exception as e:
-            self.logger.error(f"Failed to get all folders: {e}")
+            self.logger.error("Failed to get all folders: %s", e)
             return []
 
     def close(self):
@@ -1671,7 +1671,7 @@ class QueryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting list info for {list_id}: {e}")
+            self.logger.error("Error getting list info for %s: %s", list_id, e)
             return None
 
     def get_folder_info(self, folder_id: int) -> Optional[Dict[str, Any]]:
@@ -1700,13 +1700,13 @@ class QueryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting folder info for {folder_id}: {e}")
+            self.logger.error("Error getting folder info for %s: %s", folder_id, e)
             return None
 
     def move_list_to_folder(self, list_id: str, target_folder_id: Optional[str]) -> Dict[str, Any]:
         """Move a list to a different folder"""
         try:
-            self.logger.debug(f"Moving list {list_id} to folder {target_folder_id}")
+            self.logger.debug("Moving list %s to folder %s", list_id, target_folder_id)
 
             with self.connection_manager.transaction() as conn:
                 # Verify the list exists
@@ -1715,7 +1715,7 @@ class QueryManager:
                 """, [int(list_id)]).fetchone()
 
                 if not list_exists:
-                    self.logger.error(f"List {list_id} not found")
+                    self.logger.error("List %s not found", list_id)
                     return {"error": "list_not_found"}
 
                 # Verify the target folder exists if not None
@@ -1725,12 +1725,12 @@ class QueryManager:
                     """, [int(target_folder_id)]).fetchone()
 
                     if not folder_exists:
-                        self.logger.error(f"Target folder {target_folder_id} not found")
+                        self.logger.error("Target folder %s not found", target_folder_id)
                         return {"error": "folder_not_found"}
 
-                    self.logger.debug(f"Moving list '{list_exists['name']}' to folder '{folder_exists['name']}'")
+                    self.logger.debug("Moving list '%s' to folder '%s'", list_exists['name'], folder_exists['name'])
                 else:
-                    self.logger.debug(f"Moving list '{list_exists['name']}' to root level")
+                    self.logger.debug("Moving list '%s' to root level", list_exists['name'])
 
                 # Update the folder_id for the list
                 cursor = conn.execute("""
@@ -1740,21 +1740,21 @@ class QueryManager:
                 """, [target_folder_id, int(list_id)])
 
                 if cursor.rowcount == 0:
-                    self.logger.error(f"No rows updated when moving list {list_id}")
+                    self.logger.error("No rows updated when moving list %s", list_id)
                     return {"error": "update_failed"}
 
-                self.logger.info(f"Successfully moved list {list_id} to folder {target_folder_id}")
+                self.logger.info("Successfully moved list %s to folder %s", list_id, target_folder_id)
 
             return {"success": True}
 
         except Exception as e:
-            self.logger.error(f"Failed to move list {list_id} to folder {target_folder_id}: {e}")
+            self.logger.error("Failed to move list %s to folder %s: %s", list_id, target_folder_id, e)
             return {"error": "database_error"}
 
     def merge_lists(self, source_list_id: str, target_list_id: str) -> Dict[str, Any]:
         """Merge items from source list into target list"""
         try:
-            self.logger.debug(f"Merging list {source_list_id} into list {target_list_id}")
+            self.logger.debug("Merging list %s into list %s", source_list_id, target_list_id)
 
             # Check if both lists exist
             source_list = self.connection_manager.execute_single("""
@@ -1793,17 +1793,17 @@ class QueryManager:
                           item['year'], item['imdb_id'], item['tmdb_id']])
                     items_added += 1
 
-            self.logger.debug(f"Successfully merged {items_added} items from list {source_list_id} to list {target_list_id}")
+            self.logger.debug("Successfully merged %s items from list %s to list %s", items_added, source_list_id, target_list_id)
             return {"success": True, "items_added": items_added}
 
         except Exception as e:
-            self.logger.error(f"Failed to merge list {source_list_id} into list {target_list_id}: {e}")
+            self.logger.error("Failed to merge list %s into list %s: %s", source_list_id, target_list_id, e)
             return {"success": False, "error": "database_error"}
 
     def move_folder(self, folder_id: str, target_folder_id: Optional[str]) -> Dict[str, Any]:
         """Move a folder to a different destination folder (or root level if None)"""
         try:
-            self.logger.debug(f"Moving folder {folder_id} to destination {target_folder_id}")
+            self.logger.debug("Moving folder %s to destination %s", folder_id, target_folder_id)
 
             # Check if folder exists
             existing_folder = self.connection_manager.execute_single("""
@@ -1832,11 +1832,11 @@ class QueryManager:
                     UPDATE folders SET parent_id = ? WHERE id = ?
                 """, [int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
 
-            self.logger.debug(f"Successfully moved folder {folder_id} to destination {target_folder_id}")
+            self.logger.debug("Successfully moved folder %s to destination %s", folder_id, target_folder_id)
             return {"success": True}
 
         except Exception as e:
-            self.logger.error(f"Failed to move folder {folder_id} to destination {target_folder_id}: {e}")
+            self.logger.error("Failed to move folder %s to destination %s: %s", folder_id, target_folder_id, e)
             return {"success": False, "error": "database_error"}
 
 
