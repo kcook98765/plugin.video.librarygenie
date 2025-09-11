@@ -12,7 +12,9 @@
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" help="35505" default="true"/>
     <setting id="soft_delete_removed_items" type="bool" label="30032" help="35506" default="true"/>
+    <setting id="sync_movies" type="bool" label="30034" help="35508" default="true"/>
     <setting id="sync_tv_episodes" type="bool" label="30033" help="35507" default="false"/>
+    <setting id="manual_library_sync" type="action" label="30035" help="35509" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_library_sync)"/>
 
   </category>
 
