@@ -89,30 +89,6 @@ CREATE INDEX idx_kodi_favorite_is_mapped ON kodi_favorite(is_mapped)
 CREATE INDEX idx_kodi_favorite_present ON kodi_favorite(present)
 ```
 
-### Audit Table: `favorites_scan_log`
-
-Records scan operations and their results:
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | INTEGER PK | Unique identifier |
-| `scan_type` | TEXT | Type of scan performed |
-| `file_path` | TEXT | Path to favorites file |
-| `file_modified` | TEXT | File modification timestamp |
-| `items_found` | INTEGER | Favorites found in file |
-| `items_mapped` | INTEGER | Favorites mapped to library |
-| `items_added` | INTEGER | New favorites added |
-| `items_updated` | INTEGER | Existing favorites updated |
-| `scan_duration_ms` | INTEGER | Scan duration in milliseconds |
-| `success` | INTEGER | Whether scan succeeded |
-| `error_message` | TEXT | Error message if scan failed |
-| `created_at` | TEXT | Timestamp |
-
-**Indexes:**
-```sql
-CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log(file_path)
-CREATE INDEX idx_favorites_scan_log_created_at ON favorites_scan_log(created_at)
-```
 
 ### Integration with Lists System
 
@@ -138,23 +114,15 @@ Favorites scanning is triggered by:
 ### 2. Scan Process Logic
 
 ```python
-def scan_favorites(self, force_refresh: bool = False) -> Dict:
+def scan_favorites(self, file_path: Optional[str] = None) -> Dict:
     # 1. Locate favorites file
     file_path = self.parser.find_favorites_file()
     
-    # 2. Check if scan needed (mtime comparison)
-    if not force_refresh:
-        last_scan = self._get_last_scan_info(file_path)
-        if unchanged: return cached_result
-    
-    # 3. Parse XML file
+    # 2. Parse XML file
     favorites = self.parser.parse_favorites_file(file_path)
     
-    # 4. Process in batches
+    # 3. Process in batches
     result = self._import_favorites_batch(favorites)
-    
-    # 5. Log results
-    self._log_scan_result(...)
 ```
 
 ### 3. Path Normalization and Matching
@@ -249,14 +217,7 @@ with conn_manager.transaction() as conn:
 ### 2. Differential Updates
 
 **Change Detection:**
-```python
-# Check file modification time
-current_mtime = self.parser.get_file_modified_time(file_path)
-last_scan = self._get_last_scan_info(file_path)
-
-if last_scan.get("file_modified") == current_mtime:
-    return {"success": True, "message": "No changes detected"}
-```
+All favorites are scanned fresh on each scan operation - no caching or change detection is performed.
 
 **State Tracking:**
 - `present`: Updated each scan to track active favorites
