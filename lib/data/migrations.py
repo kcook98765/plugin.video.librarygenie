@@ -44,7 +44,8 @@ class MigrationManager:
                 self.logger.info("Database initialized successfully")
             else:
                 self.logger.debug("Database already initialized")
-                # No migrations to run in this version
+                # Run any pending migrations for existing databases
+                self._run_migrations_with_connection(conn)
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
@@ -322,6 +323,16 @@ class MigrationManager:
         except Exception:
             # If schema_version table doesn't exist, assume version 0
             return 0
+            
+    def _get_current_version_with_connection(self, conn):
+        """Get the current schema version using provided connection"""
+        try:
+            cursor = conn.execute("SELECT version FROM schema_version")
+            result = cursor.fetchone()
+            return result[0] if result else 0
+        except Exception:
+            # If schema_version table doesn't exist, assume version 0
+            return 0
 
     def _run_migrations(self):
         """Run all pending migrations for existing databases"""
@@ -331,6 +342,15 @@ class MigrationManager:
         # Migration 1: Add tvshow_kodi_id field for TV episode sync feature
         if current_version < 2:
             self._migrate_to_version_2()
+            
+    def _run_migrations_with_connection(self, conn):
+        """Run all pending migrations using provided connection"""
+        current_version = self._get_current_version_with_connection(conn)
+        self.logger.debug("Current database version: %s", current_version)
+        
+        # Migration 1: Add tvshow_kodi_id field for TV episode sync feature
+        if current_version < 2:
+            self._migrate_to_version_2_with_connection(conn)
             
     def _migrate_to_version_2(self):
         """Migration to add tvshow_kodi_id field and index for TV episode sync"""
@@ -385,6 +405,71 @@ class MigrationManager:
                 
         except Exception as e:
             self.logger.error("Migration to version 2 failed: %s", e)
+            raise
+
+    def _migrate_to_version_2_with_connection(self, conn):
+        """Migration to add tvshow_kodi_id field and index using provided connection"""
+        try:
+            self.logger.info("Running migration to version 2 (with connection): Adding tvshow_kodi_id field")
+            
+            # Ensure schema_version table exists before checking version
+            try:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS schema_version (
+                        version INTEGER PRIMARY KEY,
+                        applied_at TEXT NOT NULL
+                    )
+                """)
+            except Exception as e:
+                self.logger.debug("Schema version table already exists or creation failed: %s", e)
+            
+            # Check if column already exists (safe migration)
+            try:
+                cursor = conn.execute("PRAGMA table_info(media_items)")
+                columns = [row[1] for row in cursor.fetchall()]  # row[1] is column name
+                
+                if 'tvshow_kodi_id' not in columns:
+                    # Add the tvshow_kodi_id column
+                    conn.execute("ALTER TABLE media_items ADD COLUMN tvshow_kodi_id INTEGER")
+                    self.logger.info("Added tvshow_kodi_id column to media_items table")
+                else:
+                    self.logger.debug("tvshow_kodi_id column already exists")
+                    
+            except Exception as e:
+                self.logger.warning("Could not check existing columns: %s", e)
+                # Try to add column anyway - SQLite will ignore if it exists
+                try:
+                    conn.execute("ALTER TABLE media_items ADD COLUMN tvshow_kodi_id INTEGER")
+                    self.logger.info("Added tvshow_kodi_id column to media_items table")
+                except Exception as add_error:
+                    if "duplicate column name" in str(add_error).lower():
+                        self.logger.debug("tvshow_kodi_id column already exists")
+                    else:
+                        raise add_error
+            
+            # Check if index exists before creating
+            try:
+                cursor = conn.execute("""
+                    SELECT name FROM sqlite_master 
+                    WHERE type='index' AND name='idx_media_items_tvshow_episode'
+                """)
+                index_exists = cursor.fetchone() is not None
+                
+                if not index_exists:
+                    conn.execute("CREATE INDEX idx_media_items_tvshow_episode ON media_items (tvshow_kodi_id, season, episode)")
+                    self.logger.info("Created index idx_media_items_tvshow_episode")
+                else:
+                    self.logger.debug("Index idx_media_items_tvshow_episode already exists")
+                    
+            except Exception as e:
+                self.logger.warning("Could not create index: %s", e)
+            
+            # Update schema version
+            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (2, datetime('now'))")
+            self.logger.info("Migration to version 2 completed successfully (with connection)")
+            
+        except Exception as e:
+            self.logger.error("Migration to version 2 failed (with connection): %s", e)
             raise
 
     def run_migrations(self):

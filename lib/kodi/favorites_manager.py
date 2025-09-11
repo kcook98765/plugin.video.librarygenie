@@ -471,16 +471,190 @@ class Phase4FavoritesManager:
                         self.logger.warning("    Multiple S%02dE%02d episodes found - using first: ID %s from '%s'", ep['id'], ep.get('tvshowtitle', 'Unknown'))
                         return ep["id"]
                 
-                # No existing episode found - provide informative message about sync settings
+                # No existing episode found - try minimal on-demand creation for favorites compatibility
                 self.logger.info("    No existing episode found for show_id=%s S%02dE%02d", show_kodi_id, season, episode)
-                self.logger.info("    Note: TV episode sync may be disabled (default) or episodes not yet synced")
-                self.logger.info("    Enable 'Sync TV Episodes' in settings and run a full library scan to sync episodes")
-                return None
+                
+                # Check if TV sync is enabled - if so, episode should exist from sync
+                from ..config.settings import SettingsManager
+                settings = SettingsManager()
+                if settings.get_sync_tv_episodes():
+                    self.logger.info("    TV episode sync is enabled but episode not found - may need full library scan")
+                    return None
+                else:
+                    # TV sync disabled - try minimal on-demand creation for favorites compatibility
+                    self.logger.info("    TV episode sync disabled - attempting minimal on-demand episode creation for favorites")
+                    episode_id = self._create_single_episode_on_demand(show_kodi_id, season, episode)
+                    if episode_id:
+                        self.logger.info("    Created episode on-demand: ID %s", episode_id)
+                        return episode_id
+                    else:
+                        self.logger.info("    Failed to create episode on-demand")
+                        return None
 
         except Exception as e:
             self.logger.error("Error finding episode for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
             return None
 
+
+    def _create_single_episode_on_demand(self, show_kodi_id: int, season: int, episode: int) -> Optional[int]:
+        """Create a single episode on-demand for favorites compatibility when sync is disabled"""
+        try:
+            # Import here to avoid circular imports
+            from ..kodi.json_rpc_client import get_kodi_client
+            
+            kodi_client = get_kodi_client()
+            
+            # Get show information first
+            show_response = kodi_client.get_tvshows(0, 1000)  # Get all shows to find the right one
+            target_show = None
+            
+            for show in show_response.get("tvshows", []):
+                if show.get("kodi_id") == show_kodi_id:
+                    target_show = show
+                    break
+            
+            if not target_show:
+                self.logger.warning("    Could not find show with kodi_id %s for on-demand episode creation", show_kodi_id)
+                return None
+            
+            # Get episodes for this show
+            episodes = kodi_client.get_episodes_for_tvshow(show_kodi_id)
+            
+            # Find the specific episode
+            target_episode = None
+            for ep in episodes:
+                if ep.get("season") == season and ep.get("episode") == episode:
+                    target_episode = ep
+                    break
+            
+            if not target_episode:
+                self.logger.warning("    Could not find S%02dE%02d in show %s for on-demand creation", season, episode, target_show.get("title", "Unknown"))
+                return None
+            
+            # Create episode record using the same logic as the scanner but for a single episode
+            from datetime import datetime
+            import json
+            
+            with self.conn_manager.transaction() as conn:
+                # Prepare episode data
+                episode_title = target_episode.get("title", f"Episode {episode}")
+                tvshowtitle = target_show.get("title", "Unknown Show")
+                display_title = f"{tvshowtitle} - S{season:02d}E{episode:02d} - {episode_title}"
+                
+                # Extract metadata
+                art_json = json.dumps(target_episode.get("art", {})) if target_episode.get("art") else ""
+                file_path = target_episode.get("file_path", "")
+                normalized_path = file_path.lower() if file_path else ""
+                
+                # Duration handling
+                duration_seconds = target_episode.get("runtime", 0)
+                duration_minutes = duration_seconds // 60 if duration_seconds else 0
+                
+                # Store episode with tvshow_kodi_id for reliable lookup (if column exists)
+                try:
+                    # Try new schema with tvshow_kodi_id
+                    cursor = conn.execute("""
+                        INSERT OR REPLACE INTO media_items
+                        (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
+                         plot, rating, votes, duration, mpaa, genre, director, studio, country, 
+                         writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds,
+                         tvshowtitle, season, episode, aired, tvshow_kodi_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
+                                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?,
+                                ?, ?, ?, ?, ?)
+                    """, [
+                        'episode',
+                        target_episode.get("kodi_id"),
+                        episode_title,
+                        target_show.get("year"),
+                        target_show.get("imdb_id", ""),
+                        target_episode.get("tmdb_id", ""),
+                        file_path,
+                        'lib',  # Mark as Kodi library item
+                        # Metadata
+                        target_episode.get("plot", ""),
+                        target_episode.get("rating", 0.0),
+                        target_episode.get("votes", 0),
+                        duration_minutes,
+                        target_show.get("mpaa", ""),
+                        target_show.get("genre", ""),
+                        "",  # Episodes don't typically have directors
+                        target_show.get("studio", ""),
+                        "",  # Country from show if needed
+                        "",  # Writer from episode if available
+                        # JSON fields
+                        art_json,
+                        # File paths
+                        file_path,
+                        normalized_path,
+                        # Pre-computed fields
+                        display_title,
+                        duration_seconds,
+                        # TV-specific fields
+                        tvshowtitle,
+                        season,
+                        episode,
+                        target_episode.get("firstaired", ""),
+                        show_kodi_id  # Store show's Kodi ID for reliable lookup
+                    ])
+                    
+                except Exception as new_schema_error:
+                    if "no such column: tvshow_kodi_id" in str(new_schema_error).lower():
+                        # Fall back to legacy schema without tvshow_kodi_id
+                        self.logger.debug("    Using legacy schema for on-demand episode creation")
+                        cursor = conn.execute("""
+                            INSERT OR REPLACE INTO media_items
+                            (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
+                             plot, rating, votes, duration, mpaa, genre, director, studio, country, 
+                             writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds,
+                             tvshowtitle, season, episode, aired)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
+                                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?,
+                                    ?, ?, ?, ?)
+                        """, [
+                            'episode',
+                            target_episode.get("kodi_id"),
+                            episode_title,
+                            target_show.get("year"),
+                            target_show.get("imdb_id", ""),
+                            target_episode.get("tmdb_id", ""),
+                            file_path,
+                            'lib',  # Mark as Kodi library item
+                            # Metadata
+                            target_episode.get("plot", ""),
+                            target_episode.get("rating", 0.0),
+                            target_episode.get("votes", 0),
+                            duration_minutes,
+                            target_show.get("mpaa", ""),
+                            target_show.get("genre", ""),
+                            "",  # Episodes don't typically have directors
+                            target_show.get("studio", ""),
+                            "",  # Country from show if needed
+                            "",  # Writer from episode if available
+                            # JSON fields
+                            art_json,
+                            # File paths
+                            file_path,
+                            normalized_path,
+                            # Pre-computed fields
+                            display_title,
+                            duration_seconds,
+                            # TV-specific fields
+                            tvshowtitle,
+                            season,
+                            episode,
+                            target_episode.get("firstaired", "")
+                        ])
+                    else:
+                        raise new_schema_error
+                
+                episode_media_id = cursor.lastrowid
+                self.logger.info("    Created episode on-demand: ID %s - '%s'", episode_media_id, display_title)
+                return episode_media_id
+                
+        except Exception as e:
+            self.logger.error("Error creating episode on-demand for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
+            return None
 
     def _normalize_episode_path(self, file_path: str) -> str:
         """Normalize episode file path for matching"""
