@@ -71,7 +71,7 @@ class JsonRpcHelper:
         # Retry loop with exponential backoff
         for attempt in range(self._retry_count + 1):
             try:
-                self.logger.debug(f"JSON-RPC request (attempt {attempt + 1}): {method}")
+                self.logger.debug("JSON-RPC request (attempt %s): %s", attempt + 1, method)
 
                 # Execute request with timeout handling
                 response_str = xbmc.executeJSONRPC(json.dumps(request))
@@ -97,12 +97,12 @@ class JsonRpcHelper:
                         retryable=False,  # Method errors are not retryable
                         original_error=None
                     )
-                    self.logger.error(f"JSON-RPC method error for {method}: {error_data}")
+                    self.logger.error("JSON-RPC method error for %s: %s", method, error_data)
                     return JsonRpcResponse(success=False, error=error)
 
                 # Success - return result
                 result = response.get("result", {})
-                self.logger.debug(f"JSON-RPC request successful: {method}")
+                self.logger.debug("JSON-RPC request successful: %s", method)
                 return JsonRpcResponse(success=True, data=result)
 
             except Exception as e:
@@ -120,12 +120,12 @@ class JsonRpcHelper:
                         retryable=is_retryable,
                         original_error=e
                     )
-                    self.logger.error(f"JSON-RPC request failed for {method}: {str(e)}")
+                    self.logger.error("JSON-RPC request failed for %s: %s", method, str(e))
                     return JsonRpcResponse(success=False, error=error)
 
                 # Retryable error - apply backoff
                 backoff_delay = self._base_backoff * (2 ** attempt)  # Exponential backoff
-                self.logger.warning(f"JSON-RPC request failed (attempt {attempt + 1}), retrying in {backoff_delay}s: {str(e)}")
+                self.logger.warning("JSON-RPC request failed (attempt %s), retrying in %ss: %s", attempt + 1, backoff_delay, str(e))
                 time.sleep(backoff_delay)
 
         # Should not reach here, but handle it gracefully
