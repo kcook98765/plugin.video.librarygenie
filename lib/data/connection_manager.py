@@ -67,15 +67,25 @@ class ConnectionManager:
                 else:
                     mmap_size = min(int(db_size_bytes * 1.5), 134217728)  # 1.5x size, max 128MB for large DBs
                     
-                self.logger.debug(f"Database size: {db_size_mb:.1f}MB, setting mmap_size to {mmap_size/1048576:.0f}MB")
+                # Calculate adaptive cache size (pages, not bytes)
+                if db_size_mb < 16:
+                    cache_pages = 500  # 2MB cache for small DBs
+                elif db_size_mb < 64:
+                    cache_pages = min(1500, int(db_size_mb * 75))  # Proportional, max 6MB
+                else:
+                    cache_pages = 2000  # 8MB cache for large DBs (original size)
+                
+                self.logger.debug(f"Database size: {db_size_mb:.1f}MB, setting mmap_size to {mmap_size/1048576:.0f}MB, cache_size to {cache_pages} pages ({cache_pages*4/1024:.1f}MB)")
             else:
-                # New database - use conservative 32MB
+                # New database - use conservative values
                 mmap_size = 33554432  # 32MB
-                self.logger.debug("New database detected, using 32MB mmap_size")
+                cache_pages = 500  # 2MB cache
+                self.logger.debug("New database detected, using 32MB mmap_size and 2MB cache")
         except Exception as e:
-            # Fallback to conservative size on error
+            # Fallback to conservative sizes on error
             mmap_size = 33554432  # 32MB
-            self.logger.warning(f"Could not determine database size, using 32MB mmap_size: {e}")
+            cache_pages = 500  # 2MB cache
+            self.logger.warning(f"Could not determine database size, using 32MB mmap_size and 2MB cache: {e}")
 
         try:
             # Phase 3: Use configurable busy timeout
@@ -98,7 +108,7 @@ class ConnectionManager:
 
             # Other performance optimizations
             conn.execute("PRAGMA synchronous=NORMAL")  # Balanced durability vs performance
-            conn.execute("PRAGMA cache_size=2000")     # 2MB cache
+            conn.execute(f"PRAGMA cache_size={cache_pages}")  # Dynamic cache size
             conn.execute("PRAGMA temp_store=memory")   # Use memory for temp tables
 
             # Enable foreign keys
