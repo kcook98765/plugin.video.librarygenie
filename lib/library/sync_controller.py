@@ -184,10 +184,10 @@ class SyncController:
         }
 
     def _sync_movies(self, progress_dialog=None) -> int:
-        """Sync movies and return count"""
+        """Sync movies only (no TV episodes)"""
         try:
-            # Use existing scanner logic for movies
-            result = self.scanner.perform_full_scan(progress_dialog=progress_dialog)
+            # Use movies-only scanner to avoid double TV episode sync
+            result = self.scanner.perform_movies_only_scan(progress_dialog=progress_dialog)
             if result.get("success", False):
                 return result.get("items_added", 0)
             else:
