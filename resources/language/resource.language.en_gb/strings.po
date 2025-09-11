@@ -61,6 +61,14 @@ msgctxt "#30033"
 msgid "Sync TV episodes during library scan"
 msgstr ""
 
+msgctxt "#30034"
+msgid "Sync movies during library scan"
+msgstr ""
+
+msgctxt "#30035"
+msgid "Manual Library Sync"
+msgstr ""
+
 msgctxt "#30040"
 msgid "Lists Integration"
 msgstr ""
@@ -1862,6 +1870,14 @@ msgstr ""
 
 msgctxt "#35507"
 msgid "Proactively syncs TV episodes during library scans for faster list building. Increases database size and scan time."
+msgstr ""
+
+msgctxt "#35508"
+msgid "Indexes movies during library scans for list management. Disable only if you don't use movie lists."
+msgstr ""
+
+msgctxt "#35509"
+msgid "Manually trigger a library sync based on current movie and TV episode settings."
 msgstr ""
 
 # Lists Settings Help Text
