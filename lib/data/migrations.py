@@ -306,23 +306,6 @@ class MigrationManager:
         CREATE INDEX idx_kodi_favorite_media_item_id ON kodi_favorite (media_item_id);
         CREATE INDEX idx_kodi_favorite_target_classification ON kodi_favorite (target_classification);
         
-        CREATE TABLE favorites_scan_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            scan_type TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            file_modified TEXT,
-            items_found INTEGER DEFAULT 0,
-            items_mapped INTEGER DEFAULT 0,
-            items_added INTEGER DEFAULT 0,
-            items_updated INTEGER DEFAULT 0,
-            scan_duration_ms INTEGER DEFAULT 0,
-            success INTEGER DEFAULT 1,
-            error_message TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        
-        CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log (file_path);
-        CREATE INDEX idx_favorites_scan_log_created ON favorites_scan_log (created_at);
         
         CREATE TABLE remote_cache (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

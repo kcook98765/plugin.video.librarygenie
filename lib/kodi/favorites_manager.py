@@ -51,20 +51,8 @@ class Phase4FavoritesManager:
             # Get file modification time
             file_modified = self.parser.get_file_modified_time(file_path)
 
-            # Phase 4: Check if we need to scan (mtime-based)
-            if not force_refresh:
-                last_scan = self._get_last_scan_info(file_path)
-                if last_scan and last_scan["file_modified"] == file_modified:
-                    self.logger.debug("Favorites file unchanged since last scan")
-                    return {
-                        "success": True,
-                        "scan_type": "check",
-                        "items_found": last_scan["items_found"] if last_scan["items_found"] is not None else 0,
-                        "items_mapped": last_scan["items_mapped"] if last_scan["items_mapped"] is not None else 0,
-                        "message": "No changes detected"
-                    }
-
             # Parse favorites file with enhanced parser
+
             favorites = self.parser.parse_favorites_file(file_path)
 
             # Phase 4: Process in batches with reliable mapping
@@ -73,18 +61,6 @@ class Phase4FavoritesManager:
             # Calculate duration
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
-            # Log scan result
-            self._log_scan_result(
-                scan_type="full",
-                file_path=file_path,
-                file_modified=file_modified or "",
-                items_found=len(favorites),
-                items_mapped=result["items_mapped"],
-                items_added=result["items_added"],
-                items_updated=result["items_updated"],
-                duration_ms=duration_ms,
-                success=True
-            )
 
             self.logger.info(f"Favorites scan complete: {result['items_mapped']}/{len(favorites)} mapped, {result['items_added']} added, {result['items_updated']} updated")
 
@@ -102,20 +78,6 @@ class Phase4FavoritesManager:
         except Exception as e:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
-            # Log error
-            if file_path:
-                self._log_scan_result(
-                    scan_type="full",
-                    file_path=file_path,
-                    file_modified=file_modified or "",
-                    items_found=0,
-                    items_mapped=0,
-                    items_added=0,
-                    items_updated=0,
-                    duration_ms=duration_ms,
-                    success=False,
-                    error_message=str(e)
-                )
 
             self.logger.error(f"Favorites scan failed: {e}")
             return {
