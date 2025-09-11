@@ -90,11 +90,11 @@ class ListsHandler:
 
             # Get all user lists and folders
             all_lists = query_manager.get_all_lists_with_folders()
-            context.logger.info(f"Found {len(all_lists)} total lists")
+            context.logger.info("Found %s total lists", len(all_lists))
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
             user_lists = all_lists
-            context.logger.info(f"Found {len(user_lists)} user lists (including Kodi Favorites)")
+            context.logger.info("Found %s user lists (including Kodi Favorites)", len(user_lists))
 
             if not user_lists:
                 # No lists exist - show empty state instead of dialog
@@ -198,7 +198,7 @@ class ListsHandler:
                             kodi_favorites_item = item
                             break
                     
-                    context.logger.info(f"LISTS HANDLER: Refreshed lists, now have {len(user_lists)} total lists")
+                    context.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
                 except Exception as e:
                     context.logger.error(f"LISTS HANDLER: Error ensuring Kodi Favorites list exists: {e}")
 
@@ -322,7 +322,7 @@ class ListsHandler:
             )
 
         except Exception as e:
-            context.logger.error(f"Error in show_lists_menu: {e}")
+            context.logger.error("Error in show_lists_menu: %s", e)
             return DirectoryResponse(
                 items=[],
                 success=False
@@ -380,7 +380,7 @@ class ListsHandler:
                     message=message
                 )
             else:
-                context.logger.info(f"Successfully created list: {list_name}")
+                context.logger.info("Successfully created list: %s", list_name)
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {list_name}", # This string should also be localized

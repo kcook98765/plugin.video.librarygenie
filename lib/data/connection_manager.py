@@ -44,14 +44,14 @@ class ConnectionManager:
     def _create_connection(self):
         """Create and configure database connection"""
         db_path = self.storage_manager.get_database_path()
-        self.logger.debug(f"Creating database connection to: {db_path}")
+        self.logger.debug("Creating database connection to: %s", db_path)
         
         # Log the absolute path for debugging
         try:
             abs_path = os.path.abspath(db_path)
-            self.logger.debug(f"Absolute database path: {abs_path}")
+            self.logger.debug("Absolute database path: %s", abs_path)
         except Exception as e:
-            self.logger.warning(f"Could not resolve absolute path: {e}")
+            self.logger.warning("Could not resolve absolute path: %s", e)
 
         # Calculate optimal mmap_size based on actual database size
         try:
@@ -75,7 +75,7 @@ class ConnectionManager:
                 else:
                     cache_pages = 2000  # 8MB cache for large DBs (original size)
                 
-                self.logger.debug(f"Database size: {db_size_mb:.1f}MB, setting mmap_size to {mmap_size/1048576:.0f}MB, cache_size to {cache_pages} pages ({cache_pages*4/1024:.1f}MB)")
+                self.logger.debug("Database size: %.1fMB, setting mmap_size to %.0fMB, cache_size to %d pages (%.1fMB)", db_size_mb, mmap_size/1048576, cache_pages, cache_pages*4/1024)
             else:
                 # New database - use conservative values
                 mmap_size = 33554432  # 32MB
@@ -85,7 +85,7 @@ class ConnectionManager:
             # Fallback to conservative sizes on error
             mmap_size = 33554432  # 32MB
             cache_pages = 500  # 2MB cache
-            self.logger.warning(f"Could not determine database size, using 32MB mmap_size and 2MB cache: {e}")
+            self.logger.warning("Could not determine database size, using 32MB mmap_size and 2MB cache: %s", e)
 
         try:
             # Phase 3: Use configurable busy timeout
@@ -121,7 +121,7 @@ class ConnectionManager:
             # Set row factory for easier data access
             conn.row_factory = sqlite3.Row  # Enable dict-like access
 
-            self.logger.debug(f"Database connection established: {db_path} (busy_timeout: {busy_timeout_ms}ms)")
+            self.logger.debug("Database connection established: %s (busy_timeout: %sms)", db_path, busy_timeout_ms)
             
             # Initialize database schema if needed (pass connection directly to avoid recursion)
             try:
@@ -130,14 +130,14 @@ class ConnectionManager:
                 migration_manager.ensure_initialized_with_connection(conn)  # Pass connection directly
                 self.logger.debug("Database schema initialization completed")
             except Exception as e:
-                self.logger.error(f"Database schema initialization failed: {e}")
+                self.logger.error("Database schema initialization failed: %s", e)
                 conn.close()
                 raise
             
             return conn
 
         except Exception as e:
-            self.logger.error(f"Failed to create database connection: {e}")
+            self.logger.error("Failed to create database connection: %s", e)
             raise
 
     @contextmanager
@@ -149,7 +149,7 @@ class ConnectionManager:
                 yield conn
                 conn.commit()
             except Exception as e:
-                self.logger.error(f"Transaction failed, rolling back: {e}")
+                self.logger.error("Transaction failed, rolling back: %s", e)
                 conn.rollback()
                 raise
 
@@ -161,7 +161,7 @@ class ConnectionManager:
                 cursor = conn.execute(query, params or [])
                 return cursor.fetchall()
             except Exception as e:
-                self.logger.error(f"Query failed: {query}, params: {params}, error: {e}")
+                self.logger.error("Query failed: %s, params: %s, error: %s", query, params, e)
                 raise
 
     def execute_single(self, query, params=None):
@@ -177,7 +177,7 @@ class ConnectionManager:
                     self._connection.close()
                     self.logger.debug("Database connection closed")
                 except Exception as e:
-                    self.logger.warning(f"Error closing database connection: {e}")
+                    self.logger.warning("Error closing database connection: %s", e)
                 finally:
                     self._connection = None
 
@@ -210,7 +210,7 @@ class ConnectionManager:
                         if self.operation_count >= self.batch_size:
                             self.conn.commit()
                             self.operation_count = 0
-                            self.logger.debug(f"Committed batch of {self.batch_size} operations")
+                            self.logger.debug("Committed batch of %s operations", self.batch_size)
 
                         return result
 
@@ -220,10 +220,10 @@ class ConnectionManager:
                 # Final commit for any remaining operations
                 if batched_conn.operation_count > 0:
                     conn.commit()
-                    self.logger.debug(f"Final commit of {batched_conn.operation_count} operations")
+                    self.logger.debug("Final commit of %s operations", batched_conn.operation_count)
 
             except Exception as e:
-                self.logger.error(f"Batched transaction failed, rolling back: {e}")
+                self.logger.error("Batched transaction failed, rolling back: %s", e)
                 conn.rollback()
                 raise
 

@@ -73,9 +73,9 @@ def handle_on_select(params: dict, addon_handle: int):
         from lib.config.config_manager import get_select_pref
         import re
 
-        logger.debug(f"=== ON_SELECT HANDLER CALLED ===")
-        logger.debug(f"Handling on_select with params: {params}")
-        logger.debug(f"Addon handle: {addon_handle}")
+        logger.debug("=== ON_SELECT HANDLER CALLED ===")
+        logger.debug("Handling on_select with params: %s", params)
+        logger.debug("Addon handle: %s", addon_handle)
 
         dbtype = params.get("dbtype", "movie")
         dbid = int(params.get("dbid", "0"))
@@ -100,10 +100,10 @@ def handle_on_select(params: dict, addon_handle: int):
         from lib.utils.kodi_version import get_kodi_major_version
         kodi_major = get_kodi_major_version()
 
-        logger.debug(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
+        logger.debug("on_select: dbtype=%s, dbid=%s, videodb_path=%s, preference=%s, kodi_major=%s", dbtype, dbid, vdb, pref, kodi_major)
 
         if pref == "play":
-            logger.info(f"Playing media: {vdb}")
+            logger.info("Playing media: %s", vdb)
             xbmc.executebuiltin(f'PlayMedia("{vdb}")')
         else:
             if kodi_major <= 19:
@@ -122,9 +122,9 @@ def handle_on_select(params: dict, addon_handle: int):
             pass
 
     except Exception as e:
-        logger.error(f"Error in handle_on_select: {e}")
+        logger.error("Error in handle_on_select: %s", e)
         import traceback
-        logger.error(f"on_select error traceback: {traceback.format_exc()}")
+        logger.error("on_select error traceback: %s", traceback.format_exc())
         try:
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
         except Exception:
