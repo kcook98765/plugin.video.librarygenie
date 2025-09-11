@@ -421,8 +421,10 @@ class LibraryGenieService:
     def _check_initial_sync_request(self):
         """Check for initial sync requests from fresh install setup"""
         try:
-            # Check if initial sync is requested
-            initial_sync_requested = self.settings.addon.getSetting('initial_sync_requested')
+            # Create fresh addon instance to avoid settings caching issues between processes
+            import xbmcaddon
+            fresh_addon = xbmcaddon.Addon()
+            initial_sync_requested = fresh_addon.getSetting('initial_sync_requested')
             self.logger.info("🔍 Checking initial sync request: flag='%s'", initial_sync_requested)
             if initial_sync_requested != 'true':
                 return
@@ -444,11 +446,11 @@ class LibraryGenieService:
                 
             try:
                 # Clear the request flag immediately to prevent retriggering
-                self.settings.addon.setSetting('initial_sync_requested', 'false')
+                fresh_addon.setSetting('initial_sync_requested', 'false')
                 
                 # Get sync preferences
-                sync_movies_str = self.settings.addon.getSetting('initial_sync_movies')
-                sync_tv_str = self.settings.addon.getSetting('initial_sync_tv_episodes')
+                sync_movies_str = fresh_addon.getSetting('initial_sync_movies')
+                sync_tv_str = fresh_addon.getSetting('initial_sync_tv_episodes')
                 sync_movies = sync_movies_str == 'true'
                 sync_tv_episodes = sync_tv_str == 'true'
                 
