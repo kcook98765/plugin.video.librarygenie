@@ -140,7 +140,7 @@ class BackupManager:
         """Get timestamp of last backup"""
         try:
             last_backup_str = self.config.get("last_backup_time", "")
-            if last_backup_str:
+            if last_backup_str and isinstance(last_backup_str, str):
                 return datetime.fromisoformat(last_backup_str)
             return None
         except:

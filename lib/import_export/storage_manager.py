@@ -57,7 +57,7 @@ class StorageManager:
             return self._profile_path
 
         except Exception as e:
-            self.logger.error(f"Error getting profile path: {e}")
+            self.logger.error("Error getting profile path: %s", e)
             # Emergency fallback
             fallback_path = os.path.join(os.getcwd(), "data")
             os.makedirs(fallback_path, exist_ok=True)
@@ -73,7 +73,7 @@ class StorageManager:
         try:
             # Validate file path
             if not file_path or file_path.startswith('special:'):
-                self.logger.error(f"Invalid file path: {file_path}")
+                self.logger.error("Invalid file path: %s", file_path)
                 return False
             
             # Ensure parent directory exists
@@ -93,11 +93,11 @@ class StorageManager:
             # Atomic rename
             shutil.move(temp_path, file_path)
 
-            self.logger.info(f"File written atomically: {file_path}")
+            self.logger.info("File written atomically: %s", file_path)
             return True
 
         except Exception as e:
-            self.logger.error(f"Error writing file atomically: {e}")
+            self.logger.error("Error writing file atomically: %s", e)
 
             # Clean up temp file if it exists
             temp_path = f"{file_path}.tmp"
@@ -113,17 +113,17 @@ class StorageManager:
         """Read file with error handling"""
         try:
             if not self.validate_file_path(file_path) or not os.path.exists(file_path):
-                self.logger.warning(f"File not found or invalid path: {file_path}")
+                self.logger.warning("File not found or invalid path: %s", file_path)
                 return None
 
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            self.logger.debug(f"File read successfully: {file_path}")
+            self.logger.debug("File read successfully: %s", file_path)
             return content
 
         except Exception as e:
-            self.logger.error(f"Error reading file {file_path}: {e}")
+            self.logger.error("Error reading file %s: %s", file_path, e)
             return None
 
     def list_export_files(self, pattern: str = "*") -> List[Tuple[str, str, int]]:
@@ -144,14 +144,14 @@ class StorageManager:
                             int(stat.st_size)
                         ))
                     else:
-                        self.logger.warning(f"Skipping invalid file path during listing: {file_path}")
+                        self.logger.warning("Skipping invalid file path during listing: %s", file_path)
 
             # Sort by modification time, newest first
             files.sort(key=lambda x: os.path.getmtime(x[0]), reverse=True)
             return files
 
         except Exception as e:
-            self.logger.error(f"Error listing export files: {e}")
+            self.logger.error("Error listing export files: %s", e)
             return []
 
     def delete_file_safe(self, file_path: str) -> bool:
@@ -159,7 +159,7 @@ class StorageManager:
         try:
             if self.validate_file_path(file_path) and os.path.exists(file_path):
                 os.remove(file_path)
-                self.logger.info(f"File deleted: {file_path}")
+                self.logger.info("File deleted: %s", file_path)
                 return True
             elif not self.validate_file_path(file_path):
                 self.logger.warning(f"Attempted to delete invalid file path: {file_path}")
