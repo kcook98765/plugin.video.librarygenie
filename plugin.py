@@ -534,11 +534,11 @@ def _log_window_state(context: PluginContext):
 
         context.logger.debug("  MyVideoNav.xml visible: %s", myvideo_nav_visible)
         context.logger.debug("  DialogVideoInfo.xml visible: %s", dialog_video_info_visible)
-        context.logger.debug(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
-        context.logger.debug(f"  DialogKeyboard.xml visible: {keyboard_visible}")
+        context.logger.debug("  DialogVideoInfo.xml active: %s", dialog_video_info_active)
+        context.logger.debug("  DialogKeyboard.xml visible: %s", keyboard_visible)
 
     except Exception as e:
-        context.logger.warning(f"Failed to log window state at plugin entry: {e}")
+        context.logger.warning("Failed to log window state at plugin entry: %s", e)
 
 
 def _register_all_handlers(router: Router):

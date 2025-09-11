@@ -138,11 +138,11 @@ class RemoteCache:
                 result = conn.execute("DELETE FROM remote_cache")
 
                 cleared_count = result.rowcount
-                self.logger.info(f"Cleared {cleared_count} cache entries")
+                self.logger.info("Cleared %s cache entries", cleared_count)
                 return True
 
         except Exception as e:
-            self.logger.error(f"Error clearing cache: {e}")
+            self.logger.error("Error clearing cache: %s", e)
             return False
 
     def clear_expired(self) -> int:
@@ -157,12 +157,12 @@ class RemoteCache:
 
                 cleared_count = result.rowcount
                 if cleared_count > 0:
-                    self.logger.debug(f"Cleared {cleared_count} expired cache entries")
+                    self.logger.debug("Cleared %s expired cache entries", cleared_count)
 
                 return cleared_count
 
         except Exception as e:
-            self.logger.error(f"Error clearing expired cache: {e}")
+            self.logger.error("Error clearing expired cache: %s", e)
             return 0
 
     def get_cache_stats(self) -> Dict[str, Any]:
@@ -200,7 +200,7 @@ class RemoteCache:
             }
 
         except Exception as e:
-            self.logger.error(f"Error getting cache stats: {e}")
+            self.logger.error("Error getting cache stats: %s", e)
             return {
                 'total_entries': 0,
                 'active_entries': 0,

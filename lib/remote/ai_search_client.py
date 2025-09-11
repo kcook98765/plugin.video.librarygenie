@@ -207,7 +207,7 @@ class AISearchClient:
                     self._api_key = api_key
                     self._is_activated = True
 
-                    self.logger.info(f"AI SEARCH: Successfully activated with OTP for user: {user_email}")
+                    self.logger.info("AI SEARCH: Successfully activated with OTP for user: %s", user_email)
 
                     # Trigger replace sync after successful activation
                     self._trigger_post_activation_sync()
@@ -226,7 +226,7 @@ class AISearchClient:
                 return result
 
         except Exception as e:
-            self.logger.error(f"AI SEARCH: Error in OTP activation: {e}")
+            self.logger.error("AI SEARCH: Error in OTP activation: %s", e)
             return {
                 'success': False,
                 'error': f'Activation failed: {str(e)}'
@@ -272,7 +272,7 @@ class AISearchClient:
                 }
 
         except Exception as e:
-            self.logger.error(f"Connection test failed: {e}")
+            self.logger.error("Connection test failed: %s", e)
             return {
                 'success': False,
                 'error': f'Connection test failed: {str(e)}'

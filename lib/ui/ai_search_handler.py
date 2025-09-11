@@ -627,14 +627,14 @@ class AISearchHandler:
                     )
             except Exception as e:
                 progress.close()
-                context.logger.error(f"Error during activation: {e}")
+                context.logger.error("Error during activation: %s", e)
                 xbmcgui.Dialog().ok(
                     "Error", 
                     f"Failed to activate AI Search: {str(e)}"
                 )
 
         except Exception as e:
-            context.logger.error(f"Error in authorize_ai_search: {e}")
+            context.logger.error("Error in authorize_ai_search: %s", e)
             xbmcgui.Dialog().ok(
                 "Error",
                 f"An error occurred: {str(e)}"
@@ -740,14 +740,14 @@ class AISearchHandler:
             except Exception as e:
                 if dialog_bg:
                     dialog_bg.close()
-                context.logger.error(f"Error during replace sync: {e}")
+                context.logger.error("Error during replace sync: %s", e)
                 xbmcgui.Dialog().ok(
                     "Error",
                     f"Failed to perform replace sync: {str(e)}"
                 )
 
         except Exception as e:
-            context.logger.error(f"Error in trigger_replace_sync: {e}")
+            context.logger.error("Error in trigger_replace_sync: %s", e)
             xbmcgui.Dialog().ok(
                 "Sync Error",
                 f"An error occurred during sync: {str(e)}"
@@ -831,7 +831,7 @@ class AISearchHandler:
 
             except Exception as e:
                 progress.close()
-                context.logger.error(f"Error during regular sync: {e}")
+                context.logger.error("Error during regular sync: %s", e)
                 xbmcgui.Dialog().ok(
                     "Sync Error", 
                     f"An error occurred during sync: {str(e)}"
