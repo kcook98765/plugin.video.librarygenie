@@ -510,7 +510,7 @@ class ToolsHandler:
                 return DialogResponse(success=False, message=L(36026))  # "Failed to merge lists"
 
         except Exception as e:
-            self.logger.error(f"Error merging lists: {e}")
+            self.logger.error("Error merging lists: %s", e)
             return DialogResponse(success=False, message="Error merging lists")
 
     def _move_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
@@ -563,13 +563,13 @@ class ToolsHandler:
                 return DialogResponse(success=False, message="Failed to move folder")
 
         except Exception as e:
-            self.logger.error(f"Error moving folder: {e}")
+            self.logger.error("Error moving folder: %s", e)
             return DialogResponse(success=False, message="Error moving folder")
 
     def _create_list_in_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Create a new list in the specified folder"""
         try:
-            self.logger.debug(f"TOOLS DEBUG: _create_list_in_folder called with folder_id: {folder_id}")
+            self.logger.debug("TOOLS DEBUG: _create_list_in_folder called with folder_id: %s", folder_id)
 
             # Get list name from user
             new_name = xbmcgui.Dialog().input(
@@ -585,12 +585,12 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
-            self.logger.debug(f"TOOLS DEBUG: Creating list '{new_name.strip()}' in folder_id: {folder_id}")
+            self.logger.debug("TOOLS DEBUG: Creating list '%s' in folder_id: %s", new_name.strip(), folder_id)
 
             # Pass folder_id as the third parameter to create_list (name, description, folder_id)
             result = query_manager.create_list(new_name.strip(), "", folder_id)
 
-            self.logger.debug(f"TOOLS DEBUG: create_list result: {result}")
+            self.logger.debug("TOOLS DEBUG: create_list result: %s", result)
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
@@ -599,7 +599,7 @@ class ToolsHandler:
                     message = "Failed to create list"
                 return DialogResponse(success=False, message=message)
             else:
-                self.logger.info(f"TOOLS DEBUG: Successfully created list '{new_name}' in folder_id: {folder_id}")
+                self.logger.info("TOOLS DEBUG: Successfully created list '%s' in folder_id: %s", new_name, folder_id)
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {new_name}",
@@ -607,13 +607,13 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error creating list in folder: {e}")
+            self.logger.error("Error creating list in folder: %s", e)
             return DialogResponse(success=False, message="Error creating list")
 
     def _create_subfolder(self, context: PluginContext, parent_folder_id: str) -> DialogResponse:
         """Create a new subfolder in the specified parent folder"""
         try:
-            self.logger.debug(f"TOOLS DEBUG: _create_subfolder called with parent_folder_id: {parent_folder_id}")
+            self.logger.debug("TOOLS DEBUG: _create_subfolder called with parent_folder_id: %s", parent_folder_id)
 
             # Get folder name from user
             folder_name = xbmcgui.Dialog().input(
@@ -629,12 +629,12 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
-            self.logger.debug(f"TOOLS DEBUG: Creating subfolder '{folder_name.strip()}' in parent_folder_id: {parent_folder_id}")
+            self.logger.debug("TOOLS DEBUG: Creating subfolder '%s' in parent_folder_id: %s", folder_name.strip(), parent_folder_id)
 
             # Pass parent_folder_id as the second parameter to create_folder (name, parent_id)
             result = query_manager.create_folder(folder_name.strip(), parent_folder_id)
 
-            self.logger.debug(f"TOOLS DEBUG: create_folder result: {result}")
+            self.logger.debug("TOOLS DEBUG: create_folder result: %s", result)
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":
@@ -643,7 +643,7 @@ class ToolsHandler:
                     message = "Failed to create folder"
                 return DialogResponse(success=False, message=message)
             else:
-                self.logger.info(f"TOOLS DEBUG: Successfully created subfolder '{folder_name}' in parent_folder_id: {parent_folder_id}")
+                self.logger.info("TOOLS DEBUG: Successfully created subfolder '%s' in parent_folder_id: %s", folder_name, parent_folder_id)
 
                 # Navigate back to the parent folder where the subfolder was created
                 return DialogResponse(
@@ -653,7 +653,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error creating subfolder: {e}")
+            self.logger.error("Error creating subfolder: %s", e)
             return DialogResponse(success=False, message="Error creating subfolder")
 
     def _export_single_list(self, context: PluginContext, list_id: str) -> DialogResponse:
@@ -766,7 +766,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error exporting single list: {e}")
+            self.logger.error("Error exporting single list: %s", e)
             return DialogResponse(success=False, message="Error exporting list")
 
     def _export_folder_lists(self, context: PluginContext, folder_id: str) -> DialogResponse:
@@ -848,7 +848,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error exporting folder lists: {e}")
+            self.logger.error("Error exporting folder lists: %s", e)
             return DialogResponse(success=False, message="Error exporting folder lists")
 
     def _handle_export_all_lists(self, context: PluginContext) -> DialogResponse:
@@ -915,7 +915,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error exporting all lists: {e}")
+            self.logger.error("Error exporting all lists: %s", e)
             return DialogResponse(success=False, message="Error exporting all lists")
 
     def _handle_import_lists(self, context: PluginContext) -> DialogResponse:
@@ -993,7 +993,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error importing lists: {e}")
+            self.logger.error("Error importing lists: %s", e)
             return DialogResponse(success=False, message="Error importing lists")
 
     def handle_action(self, action: str, params: Dict[str, Any]) -> DialogResponse:
@@ -1022,10 +1022,10 @@ class ToolsHandler:
             elif action == "activate_ai_search":
                 return self.handle_activate_ai_search(params, self)
             else:
-                self.logger.warning(f"Unknown tools action: {action}")
+                self.logger.warning("Unknown tools action: %s", action)
                 return self._show_tools_menu(params)
         except Exception as e:
-            self.logger.error(f"Error in tools handler: {e}")
+            self.logger.error("Error in tools handler: %s", e)
             return DialogResponse(
                 success=False,
                 message=f"Error: {e}"
@@ -1053,7 +1053,7 @@ class ToolsHandler:
             )
 
         except Exception as e:
-            self.logger.error(f"Error getting favorites stats: {e}")
+            self.logger.error("Error getting favorites stats: %s", e)
             return DialogResponse(
                 success=False,
                 message=f"Error getting favorites stats: {e}"
@@ -1078,7 +1078,7 @@ class ToolsHandler:
             )
 
         except Exception as e:
-            self.logger.error(f"Error testing backup config: {e}")
+            self.logger.error("Error testing backup config: %s", e)
             return DialogResponse(
                 success=False,
                 message=f"Error testing backup config: {e}"
@@ -1109,7 +1109,7 @@ class ToolsHandler:
             )
 
         except Exception as e:
-            self.logger.error(f"Error running manual backup: {e}")
+            self.logger.error("Error running manual backup: %s", e)
             return DialogResponse(
                 success=False,
                 message=f"Error running manual backup: {e}"
@@ -1178,7 +1178,7 @@ class ToolsHandler:
                 return DialogResponse(success=False, message=message)
 
         except Exception as e:
-            self.logger.error(f"Error showing backup manager: {e}")
+            self.logger.error("Error showing backup manager: %s", e)
             return DialogResponse(
                 success=False,
                 message=f"Error showing backup manager: {e}"
@@ -1452,7 +1452,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error importing lists: {e}")
+            self.logger.error("Error importing lists: %s", e)
             return DialogResponse(success=False, message="Error importing lists")
 
     def _export_all_lists(self, context: PluginContext) -> DialogResponse:
@@ -1497,7 +1497,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error exporting all lists: {e}")
+            self.logger.error("Error exporting all lists: %s", e)
             return DialogResponse(success=False, message="Error exporting all lists")
 
     def _clear_search_history_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
@@ -1876,7 +1876,7 @@ class ToolsHandler:
             # Pass None as parent_folder_id to create a top-level folder
             result = query_manager.create_folder(folder_name.strip(), None)
 
-            self.logger.debug(f"TOOLS DEBUG: create_folder result: {result}")
+            self.logger.debug("TOOLS DEBUG: create_folder result: %s", result)
 
             if result.get("error"):
                 if result["error"] == "duplicate_name":

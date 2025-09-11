@@ -411,7 +411,7 @@ class QueryManager:
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to delete item {item_id} from list {list_id}: {e}")
+            self.logger.error("Failed to delete item %s from list %s: %s", item_id, list_id, e)
             return False
 
     def rename_list(self, list_id, new_name):
@@ -423,7 +423,7 @@ class QueryManager:
         new_name = new_name.strip()
 
         try:
-            self.logger.debug(f"Renaming list {list_id} to '{new_name}'")
+            self.logger.debug("Renaming list %s to '%s'", list_id, new_name)
 
             with self.connection_manager.transaction() as conn:
                 # Check if list exists
@@ -446,16 +446,16 @@ class QueryManager:
         except Exception as e:
             error_msg = str(e).lower()
             if "unique constraint" in error_msg:
-                self.logger.warning(f"List name '{new_name}' already exists")
+                self.logger.warning("List name '%s' already exists", new_name)
                 return {"error": "duplicate_name"}
             else:
-                self.logger.error(f"Failed to rename list {list_id}: {e}")
+                self.logger.error("Failed to rename list %s: %s", list_id, e)
                 return {"error": "database_error"}
 
     def delete_list(self, list_id):
         """Delete a list and cascade delete its items using unified tables"""
         try:
-            self.logger.debug(f"Deleting list {list_id}")
+            self.logger.debug("Deleting list %s", list_id)
 
             with self.connection_manager.transaction() as conn:
                 # Check if list exists
@@ -472,7 +472,7 @@ class QueryManager:
             return {"success": True}
 
         except Exception as e:
-            self.logger.error(f"Failed to delete list {list_id}: {e}")
+            self.logger.error("Failed to delete list %s: %s", list_id, e)
             return {"error": "database_error"}
 
     def get_list_by_id(self, list_id):
@@ -503,7 +503,7 @@ class QueryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting list by ID {list_id}: {e}")
+            self.logger.error("Error getting list by ID %s: %s", list_id, e)
             return None
 
     def get_list_by_name(self, list_name):
@@ -534,7 +534,7 @@ class QueryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting list by name '{list_name}': {e}")
+            self.logger.error("Error getting list by name '%s': %s", list_name, e)
             return None
 
 
@@ -573,11 +573,11 @@ class QueryManager:
                         return None
                 else:
                     folder_id = cursor.lastrowid
-                    self.logger.debug(f"Created Search History folder with ID: {folder_id}")
+                    self.logger.debug("Created Search History folder with ID: %s", folder_id)
                     return folder_id
 
         except Exception as e:
-            self.logger.error(f"Failed to create Search History folder: {e}")
+            self.logger.error("Failed to create Search History folder: %s", e)
             return None
 
     def create_search_history_list(self, query, search_type, result_count):
@@ -609,11 +609,11 @@ class QueryManager:
                 """, [list_name, folder_id])
                 list_id = cursor.lastrowid
 
-                self.logger.debug(f"Created search history list '{list_name}' with ID: {list_id}")
+                self.logger.debug("Created search history list '%s' with ID: %s", list_name, list_id)
                 return list_id
 
         except Exception as e:
-            self.logger.error(f"Failed to create search history list: {e}")
+            self.logger.error("Failed to create search history list: %s", e)
             return None
 
     def add_search_results_to_list(self, list_id, search_results):
@@ -642,14 +642,14 @@ class QueryManager:
                             added_count += 1
 
                     except Exception as e:
-                        self.logger.error(f"Error adding search result item: {e}")
+                        self.logger.error("Error adding search result item: %s", e)
                         continue
 
-            self.logger.debug(f"Added {added_count} items to search history list {list_id}")
+            self.logger.debug("Added %s items to search history list %s", added_count, list_id)
             return added_count
 
         except Exception as e:
-            self.logger.error(f"Failed to add search results to list: {e}")
+            self.logger.error("Failed to add search results to list: %s", e)
             return 0
 
     def remove_item_from_list(self, list_id, item_id):
@@ -664,14 +664,14 @@ class QueryManager:
                 removed_count = cursor.rowcount
 
                 if removed_count > 0:
-                    self.logger.debug(f"Removed {removed_count} item(s) from list {list_id}")
+                    self.logger.debug("Removed %s item(s) from list %s", removed_count, list_id)
                     return {"success": True, "removed_count": removed_count}
                 else:
-                    self.logger.warning(f"No items found to remove from list {list_id} with item_id {item_id}")
+                    self.logger.warning("No items found to remove from list %s with item_id %s", list_id, item_id)
                     return {"error": "item_not_found"}
 
         except Exception as e:
-            self.logger.error(f"Failed to remove item from list: {e}")
+            self.logger.error("Failed to remove item from list: %s", e)
             return {"error": str(e)}
 
 
@@ -774,7 +774,7 @@ class QueryManager:
             return cursor.lastrowid
 
         except Exception as e:
-            self.logger.error(f"Error inserting/getting media item: {e}")
+            self.logger.error("Error inserting/getting media item: %s", e)
             return None
 
     def get_all_lists_with_folders(self):
@@ -811,13 +811,13 @@ class QueryManager:
                     row_dict['description'] = f"{row_dict['item_count']} items{folder_context}"
                     formatted_results.append(row_dict)
 
-                self.logger.debug(f"Retrieved {len(formatted_results)} lists with folders")
+                self.logger.debug("Retrieved %s lists with folders", len(formatted_results))
                 return formatted_results
 
             return []
 
         except Exception as e:
-            self.logger.error(f"Failed to get lists with folders: {e}")
+            self.logger.error("Failed to get lists with folders: %s", e)
             return []
 
     def _get_kodi_episode_enrichment_data_batch(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -866,7 +866,7 @@ class QueryManager:
 
                 try:
                     if "error" in response:
-                        self.logger.warning(f"Batch enrichment error for episode {kodi_id}: {response['error']}")
+                        self.logger.warning("Batch enrichment error for episode %s: %s", kodi_id, response['error'])
                         continue
 
                     episode_details = response.get("result", {}).get("episodedetails")
@@ -876,14 +876,14 @@ class QueryManager:
                             enrichment_data[kodi_id] = normalized
 
                 except Exception as e:
-                    self.logger.error(f"Failed to process batch response for episode {kodi_id}: {e}")
+                    self.logger.error("Failed to process batch response for episode %s: %s", kodi_id, e)
                     continue
 
-            self.logger.debug(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} episodes")
+            self.logger.debug("Batch enriched %s out of %s episodes", len(enrichment_data), len(kodi_ids))
             return enrichment_data
 
         except Exception as e:
-            self.logger.error(f"Error in batch episode enrichment: {e}")
+            self.logger.error("Error in batch episode enrichment: %s", e)
             return {}
 
     def _get_kodi_episode_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -895,7 +895,7 @@ class QueryManager:
             if not kodi_ids:
                 return {}
 
-            self.logger.info(f"Fetching episode JSON-RPC data for {len(kodi_ids)} episodes: {kodi_ids}")
+            self.logger.info("Fetching episode JSON-RPC data for %s episodes: %s", len(kodi_ids), kodi_ids)
 
             enrichment_data = {}
 
@@ -934,7 +934,7 @@ class QueryManager:
                     response = json.loads(response_str)
 
                     if "error" in response:
-                        self.logger.warning(f"JSON-RPC error for episode {kodi_id}: {response['error']}")
+                        self.logger.warning("JSON-RPC error for episode %s: %s", kodi_id, response['error'])
                         continue
 
                     episode_details = response.get("result", {}).get("episodedetails")
@@ -944,13 +944,13 @@ class QueryManager:
                             enrichment_data[kodi_id] = normalized
 
                 except Exception as e:
-                    self.logger.error(f"Failed to fetch details for episode {kodi_id}: {e}")
+                    self.logger.error("Failed to fetch details for episode %s: %s", kodi_id, e)
                     continue
 
             return enrichment_data
 
         except Exception as e:
-            self.logger.error(f"Error fetching episode enrichment data: {e}")
+            self.logger.error("Error fetching episode enrichment data: %s", e)
             return {}
 
     def _get_kodi_enrichment_data_batch(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -999,7 +999,7 @@ class QueryManager:
 
                 try:
                     if "error" in response:
-                        self.logger.warning(f"Batch enrichment error for movie {kodi_id}: {response['error']}")
+                        self.logger.warning("Batch enrichment error for movie %s: %s", kodi_id, response['error'])
                         continue
 
                     movie_details = response.get("result", {}).get("moviedetails")
@@ -1009,10 +1009,10 @@ class QueryManager:
                             enrichment_data[kodi_id] = normalized
 
                 except Exception as e:
-                    self.logger.error(f"Failed to process batch response for movie {kodi_id}: {e}")
+                    self.logger.error("Failed to process batch response for movie %s: %s", kodi_id, e)
                     continue
 
-            self.logger.debug(f"Batch enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
+            self.logger.debug("Batch enriched %s out of %s movies", len(enrichment_data), len(kodi_ids))
             return enrichment_data
 
         except Exception as e:
