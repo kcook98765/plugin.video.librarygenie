@@ -180,43 +180,6 @@ class MigrationManager:
         CREATE INDEX idx_list_items_position ON list_items (list_id, position);
         
         -- Additional essential tables
-        CREATE TABLE movie_heavy_meta (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            kodi_movieid INTEGER,
-            imdbnumber TEXT,
-            cast_json TEXT,
-            ratings_json TEXT,
-            showlink_json TEXT,
-            stream_json TEXT,
-            uniqueid_json TEXT,
-            tags_json TEXT,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        
-        CREATE TABLE imdb_exports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            imdb_id TEXT,
-            title TEXT,
-            year INTEGER,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        
-        CREATE INDEX idx_imdb_exports_imdb_id ON imdb_exports (imdb_id);
-        
-        CREATE TABLE imdb_to_kodi (
-            imdb_id TEXT,
-            kodi_id INTEGER,
-            media_type TEXT
-        );
-        
-        CREATE UNIQUE INDEX idx_imdb_to_kodi_unique ON imdb_to_kodi (imdb_id, kodi_id, media_type);
-        
-        CREATE TABLE kv_cache (
-            key TEXT PRIMARY KEY,
-            value TEXT,
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        
         CREATE TABLE sync_state (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             local_snapshot TEXT,
