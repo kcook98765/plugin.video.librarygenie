@@ -200,7 +200,7 @@ class ListsHandler:
                     
                     context.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
                 except Exception as e:
-                    context.logger.error(f"LISTS HANDLER: Error ensuring Kodi Favorites list exists: {e}")
+                    context.logger.error("LISTS HANDLER: Error ensuring Kodi Favorites list exists: %s", e)
 
             # ADD KODI FAVORITES FIRST (before any folders or other lists)
             if favorites_enabled and kodi_favorites_item:
@@ -284,7 +284,7 @@ class ListsHandler:
                 self.breadcrumb_helper.show_breadcrumb_notification("LibraryGenie")
                 context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'LibraryGenie' (main interface)")
             except Exception as e:
-                context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
+                context.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
 
             # Build directory items
             for item in menu_items:
@@ -388,7 +388,7 @@ class ListsHandler:
                 )
 
         except Exception as e:
-            context.logger.error(f"Error creating list: {e}")
+            context.logger.error("Error creating list: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error creating list" # This string should also be localized
@@ -397,7 +397,7 @@ class ListsHandler:
     def delete_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle deleting a list"""
         try:
-            context.logger.info(f"Deleting list {list_id}")
+            context.logger.info("Deleting list %s", list_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -444,7 +444,7 @@ class ListsHandler:
                     message="Failed to delete list" # This string should also be localized
                 )
             else:
-                context.logger.info(f"Successfully deleted list: {list_name}")
+                context.logger.info("Successfully deleted list: %s", list_name)
                 return DialogResponse(
                     success=True,
                     message=f"Deleted list: {list_name}", # This string should also be localized
@@ -452,7 +452,7 @@ class ListsHandler:
                 )
 
         except Exception as e:
-            context.logger.error(f"Error deleting list: {e}")
+            context.logger.error("Error deleting list: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error deleting list" # This string should also be localized
@@ -461,7 +461,7 @@ class ListsHandler:
     def rename_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle renaming a list"""
         try:
-            context.logger.info(f"Renaming list {list_id}")
+            context.logger.info("Renaming list %s", list_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -505,14 +505,14 @@ class ListsHandler:
                     message=message
                 )
             else:
-                context.logger.info(f"Successfully renamed list to: {new_name}")
+                context.logger.info("Successfully renamed list to: %s", new_name)
                 return DialogResponse(
                     success=True,
                     message=f"Renamed list to: {new_name}" # This string should also be localized
                 )
 
         except Exception as e:
-            context.logger.error(f"Error renaming list: {e}")
+            context.logger.error("Error renaming list: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error renaming list" # This string should also be localized
@@ -548,7 +548,7 @@ class ListsHandler:
                     break
 
             if not item_info:
-                context.logger.warning(f"Item {item_id} not found in list {list_id}")
+                context.logger.warning("Item %s not found in list %s", item_id, list_id)
                 return DialogResponse(
                     success=False,
                     message="Item not found"
@@ -1098,7 +1098,7 @@ class ListsHandler:
                     self.breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
                     context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
                 except Exception as e:
-                    context.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
+                    context.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
 
             # Build directory items
             for item in menu_items:
