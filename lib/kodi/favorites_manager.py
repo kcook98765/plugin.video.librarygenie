@@ -882,30 +882,34 @@ class Phase4FavoritesManager:
             if not xbmcvfs.exists(userdata_dir):
                 xbmcvfs.mkdirs(userdata_dir)
             
-            # Marker file path
-            marker_file_path = os.path.join(userdata_dir, '.kodi_favorites_last_scan')
+            # Marker file path (use xbmcvfs path)
+            marker_file_path = userdata_dir + '.kodi_favorites_last_scan'
             
             # If marker file doesn't exist, scan is needed
-            if not os.path.exists(marker_file_path):
+            if not xbmcvfs.exists(marker_file_path):
                 self.logger.debug("No scan marker file found - scan needed")
                 return True
             
             # If favorites file doesn't exist, no scan needed
-            if not os.path.exists(favorites_file_path):
+            if not xbmcvfs.exists(favorites_file_path):
                 self.logger.debug("Favorites file doesn't exist - no scan needed")
                 return False
             
-            # Compare modification times
+            # Compare modification times using xbmcvfs.Stat
             try:
-                favorites_mtime = os.path.getmtime(favorites_file_path)
-                marker_mtime = os.path.getmtime(marker_file_path)
+                favorites_stat = xbmcvfs.Stat(favorites_file_path)
+                marker_stat = xbmcvfs.Stat(marker_file_path)
+                
+                favorites_mtime = favorites_stat.st_mtime()
+                marker_mtime = marker_stat.st_mtime()
                 
                 # Scan needed if favorites file is newer than marker
                 scan_needed = favorites_mtime > marker_mtime
                 self.logger.debug(f"Timestamp comparison: favorites={favorites_mtime}, marker={marker_mtime}, scan_needed={scan_needed}")
+                self.logger.debug(f"File paths: favorites='{favorites_file_path}', marker='{marker_file_path}'")
                 return scan_needed
                 
-            except OSError as e:
+            except Exception as e:
                 self.logger.warning(f"Error comparing file timestamps: {e}")
                 return True  # Default to scan if can't compare
                 
@@ -921,12 +925,15 @@ class Phase4FavoritesManager:
             if not xbmcvfs.exists(userdata_dir):
                 xbmcvfs.mkdirs(userdata_dir)
             
-            # Marker file path
-            marker_file_path = os.path.join(userdata_dir, '.kodi_favorites_last_scan')
+            # Marker file path (use xbmcvfs path)
+            marker_file_path = userdata_dir + '.kodi_favorites_last_scan'
             
-            # Touch the marker file (create or update timestamp)
-            with open(marker_file_path, 'a'):
-                os.utime(marker_file_path, None)
+            # Touch the marker file (create or update timestamp) using xbmcvfs
+            marker_file = xbmcvfs.File(marker_file_path, 'w')
+            try:
+                marker_file.write('')  # Write empty content to create/update file
+            finally:
+                marker_file.close()
                 
             self.logger.debug(f"Updated scan marker file: {marker_file_path}")
             
