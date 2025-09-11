@@ -38,7 +38,7 @@ class FavoritesHandler:
 
             # Get favorites for display
             favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
-            self.logger.info(f"Found {len(favorites)} favorites to display")
+            self.logger.info("Found %s favorites to display", len(favorites))
 
             # Show breadcrumb notification for Kodi Favorites
             from .menu_builder import MenuBuilder
@@ -113,7 +113,7 @@ class FavoritesHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error in show_favorites_menu: {e}")
+            self.logger.error("Error in show_favorites_menu: %s", e)
             return DirectoryResponse(
                 items=[],
                 success=False
@@ -163,7 +163,7 @@ class FavoritesHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error scanning favorites: {e}")
+            self.logger.error("Error scanning favorites: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error scanning favorites"
@@ -172,7 +172,7 @@ class FavoritesHandler:
     def add_favorite_to_list(self, context: PluginContext, imdb_id: str) -> DialogResponse:
         """Handle adding a favorite to a user list"""
         try:
-            self.logger.info(f"Adding favorite with IMDb ID {imdb_id} to list")
+            self.logger.info("Adding favorite with IMDb ID %s to list", imdb_id)
 
             # Get available lists
             query_manager = context.query_manager
@@ -241,7 +241,7 @@ class FavoritesHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error adding favorite to list: {e}")
+            self.logger.error("Error adding favorite to list: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error adding favorite to list"
@@ -311,7 +311,7 @@ class FavoritesHandler:
                 )
 
             new_list_id = create_result["id"]
-            self.logger.info(f"Created new list '{new_list_name}' with ID {new_list_id}")
+            self.logger.info("Created new list '%s' with ID %s", new_list_name, new_list_id)
 
             # Add all favorites to the new list
             added_count = 0
@@ -326,10 +326,10 @@ class FavoritesHandler:
                         added_count += 1
                     else:
                         failed_count += 1
-                        self.logger.warning(f"Failed to add favorite '{favorite.get('title')}' to new list")
+                        self.logger.warning("Failed to add favorite '%s' to new list", favorite.get('title'))
                 else:
                     failed_count += 1
-                    self.logger.warning(f"No media_item_id found for favorite '{favorite.get('title')}'")
+                    self.logger.warning("No media_item_id found for favorite '%s'", favorite.get('title'))
 
             # Prepare result message
             message = f"Created list '{new_list_name}' with {added_count} items"

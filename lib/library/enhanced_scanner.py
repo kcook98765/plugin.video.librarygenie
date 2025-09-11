@@ -74,7 +74,7 @@ class Phase3LibraryScanner:
                 total_movies = count_response.data.get("limits", {}).get("total", 0)
             else:
                 total_movies = 0
-            self.logger.info(f"Full scan: {total_movies} movies to process")
+            self.logger.info("Full scan: %s movies to process", total_movies)
 
             if total_movies == 0:
                 self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0)
@@ -85,7 +85,7 @@ class Phase3LibraryScanner:
 
             # Calculate paging
             total_pages = (total_movies + self.page_size - 1) // self.page_size
-            self.logger.info(f"Processing {total_pages} pages of {self.page_size} items each")
+            self.logger.info("Processing %s pages of %s items each", total_pages, self.page_size)
 
             # Process in pages
             offset = 0
@@ -97,11 +97,11 @@ class Phase3LibraryScanner:
 
                 # Check for abort between pages
                 if self._should_abort():
-                    self.logger.info(f"Full scan aborted by user at page {page_num}/{total_pages}")
+                    self.logger.info("Full scan aborted by user at page %s/%s", page_num, total_pages)
                     self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error="Aborted by user")
                     return {"success": False, "error": "Scan aborted by user", "items_added": total_added}
 
-                self.logger.info(f"Processing page {page_num}/{total_pages} (offset {offset})")
+                self.logger.info("Processing page %s/%s (offset %s)", page_num, total_pages, offset)
 
                 # Get page of movies with retry/backoff
                 page_response = self.json_rpc.get_movies_page(offset, self.page_size)
@@ -115,9 +115,9 @@ class Phase3LibraryScanner:
                         is_retryable = False
 
                     if is_retryable:
-                        self.logger.warning(f"{error_msg} - stopping scan gracefully")
+                        self.logger.warning("%s - stopping scan gracefully", error_msg)
                     else:
-                        self.logger.error(f"{error_msg} - stopping scan")
+                        self.logger.error("%s - stopping scan", error_msg)
 
                     self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error=error_msg)
                     return {"success": False, "error": error_msg, "items_added": total_added}
@@ -125,7 +125,7 @@ class Phase3LibraryScanner:
                 movies = page_response.data.get("movies", []) if page_response.data else []
 
                 if not movies:
-                    self.logger.warning(f"Page {page_num} returned no movies, stopping")
+                    self.logger.warning("Page %s returned no movies, stopping", page_num)
                     break
 
                 # Batch insert movies with progress tracking
@@ -136,14 +136,14 @@ class Phase3LibraryScanner:
                 offset += len(movies)
                 items_processed = min(offset, total_movies)
 
-                self.logger.info(f"Page {page_num} complete: +{added_count} movies (total: {items_processed}/{total_movies})")
+                self.logger.info("Page %s complete: +%s movies (total: %s/%s)", page_num, added_count, items_processed, total_movies)
 
                 # Call progress callback if provided
                 if progress_callback:
                     try:
                         progress_callback(page_num, total_pages, items_processed)
                     except Exception as e:
-                        self.logger.warning(f"Progress callback error: {e}")
+                        self.logger.warning("Progress callback error: %s", e)
 
                 # Yield briefly to allow abort checking
                 time.sleep(0.1)
@@ -151,7 +151,7 @@ class Phase3LibraryScanner:
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
 
-            self.logger.info(f"Full scan complete: {total_added}/{total_movies} movies indexed")
+            self.logger.info("Full scan complete: %s/%s movies indexed", total_added, total_movies)
 
             return {
                 "success": True,
@@ -162,7 +162,7 @@ class Phase3LibraryScanner:
             }
 
         except Exception as e:
-            self.logger.error(f"Full scan failed: {e}", exc_info=True)
+            self.logger.error("Full scan failed: %s", e, exc_info=True)
             self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
@@ -207,7 +207,7 @@ class Phase3LibraryScanner:
 
             # Process new movies (fetch full details)
             if new_ids:
-                self.logger.debug(f"Delta scan: {len(new_ids)} new movies detected")
+                self.logger.debug("Delta scan: %s new movies detected", len(new_ids))
                 # For new movies, we need to fetch full details
                 # This is a simplified approach - in practice, we'd batch these requests
                 new_movies_data = self._fetch_movies_full_details(new_ids)
@@ -216,7 +216,7 @@ class Phase3LibraryScanner:
 
             # Mark removed movies (soft delete)
             if removed_ids:
-                self.logger.debug(f"Delta scan: {len(removed_ids)} removed movies detected")
+                self.logger.debug("Delta scan: %s removed movies detected", len(removed_ids))
                 items_removed = self._mark_movies_removed_batch(removed_ids)
 
             # Update last_seen for existing movies (batch update)
@@ -230,7 +230,7 @@ class Phase3LibraryScanner:
             )
 
             if items_added > 0 or items_removed > 0:
-                self.logger.info(f"Delta scan complete: +{items_added} -{items_removed} ~{items_updated} movies")
+                self.logger.info("Delta scan complete: +%s -%s ~%s movies", items_added, items_removed, items_updated)
             else:
                 self.logger.debug("Delta scan complete: no changes detected")
 
@@ -244,7 +244,7 @@ class Phase3LibraryScanner:
             }
 
         except Exception as e:
-            self.logger.error(f"Delta scan failed: {e}", exc_info=True)
+            self.logger.error("Delta scan failed: %s", e, exc_info=True)
             self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
@@ -297,7 +297,7 @@ class Phase3LibraryScanner:
             if total > 0 and offset >= total:
                 break
 
-        self.logger.debug(f"Fetched {len(all_movies)} movies with lightweight properties")
+        self.logger.debug("Fetched %s movies with lightweight properties", len(all_movies))
         return all_movies
 
     def _fetch_movies_full_details(self, kodi_ids: Set[int]) -> List[Dict[str, Any]]:
@@ -305,7 +305,7 @@ class Phase3LibraryScanner:
         # This is a simplified approach - in a real implementation, we'd need
         # individual JSON-RPC calls for specific IDs or a different strategy
         # For now, return empty list to avoid errors
-        self.logger.debug(f"Would fetch full details for {len(kodi_ids)} new movies")
+        self.logger.debug("Would fetch full details for %s new movies", len(kodi_ids))
         return []
 
     def _batch_insert_movies_enhanced(self, movies: List[Dict[str, Any]]) -> int:
@@ -321,7 +321,7 @@ class Phase3LibraryScanner:
                 for movie in movies:
                     # Check for abort periodically
                     if inserted_count % 50 == 0 and self._should_abort():
-                        self.logger.info(f"Aborting batch insert at {inserted_count} movies")
+                        self.logger.info("Aborting batch insert at %s movies", inserted_count)
                         break
 
                     try:
@@ -360,13 +360,13 @@ class Phase3LibraryScanner:
                         inserted_count += 1
 
                     except Exception as e:
-                        self.logger.warning(f"Failed to insert movie '{movie.get('title', 'Unknown')}': {e}")
+                        self.logger.warning("Failed to insert movie '%s': %s", movie.get('title', 'Unknown'), e)
 
-            self.logger.debug(f"Batch inserted {inserted_count}/{len(movies)} movies")
+            self.logger.debug("Batch inserted %s/%s movies", inserted_count, len(movies))
             return inserted_count
 
         except Exception as e:
-            self.logger.error(f"Enhanced batch insert failed: {e}")
+            self.logger.error("Enhanced batch insert failed: %s", e)
             return 0
 
     def _normalize_movie_data(self, movie: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -398,7 +398,7 @@ class Phase3LibraryScanner:
                 "resume_time": 0
             }
         except Exception as e:
-            self.logger.warning(f"Failed to normalize movie data: {e}")
+            self.logger.warning("Failed to normalize movie data: %s", e)
             return None
 
     def _clear_library_index(self):
@@ -408,7 +408,7 @@ class Phase3LibraryScanner:
                 conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
             self.logger.debug("Library index cleared for full scan")
         except Exception as e:
-            self.logger.error(f"Failed to clear library index: {e}")
+            self.logger.error("Failed to clear library index: %s", e)
             raise
 
     def _get_indexed_movies_ids(self) -> List[Dict[str, Any]]:
@@ -421,7 +421,7 @@ class Phase3LibraryScanner:
             """)
             return movies or []
         except Exception as e:
-            self.logger.error(f"Failed to get indexed movie IDs: {e}")
+            self.logger.error("Failed to get indexed movie IDs: %s", e)
             return []
 
     def _mark_movies_removed_batch(self, kodi_ids: Set[int]) -> int:
@@ -446,11 +446,11 @@ class Phase3LibraryScanner:
                     if result.rowcount > 0:
                         removed_count += 1
 
-            self.logger.debug(f"Marked {removed_count} movies as removed")
+            self.logger.debug("Marked %s movies as removed", removed_count)
             return removed_count
 
         except Exception as e:
-            self.logger.error(f"Failed to mark movies as removed: {e}")
+            self.logger.error("Failed to mark movies as removed: %s", e)
             return 0
 
     def _update_last_seen_batch(self, kodi_ids: Set[int]) -> int:

@@ -31,17 +31,17 @@ class Phase4FavoritesParser:
             # If test file path is provided, use it directly
             if self.test_file_path:
                 if os.path.isfile(self.test_file_path):
-                    self.logger.info(f"Using test favorites file: {self.test_file_path}")
+                    self.logger.info("Using test favorites file: %s", self.test_file_path)
                     return self.test_file_path
                 else:
-                    self.logger.warning(f"Test favorites file not found: {self.test_file_path}")
+                    self.logger.warning("Test favorites file not found: %s", self.test_file_path)
                     return None
             
             profile_path = xbmcvfs.translatePath('special://profile/')
             favorites_path = os.path.join(profile_path, 'favourites.xml')
             
             if os.path.isfile(favorites_path):
-                self.logger.info(f"Found favorites file via special://profile/: {favorites_path}")
+                self.logger.info("Found favorites file via special://profile/: %s", favorites_path)
                 return favorites_path
             else:
                 self.logger.info("Favorites file not found at special://profile/favourites.xml")
@@ -70,14 +70,14 @@ class Phase4FavoritesParser:
             # Try fallback paths
             for path in fallback_paths:
                 if path and os.path.isfile(path):
-                    self.logger.info(f"Found favorites file (fallback): {path}")
+                    self.logger.info("Found favorites file (fallback): %s", path)
                     return path
             
             self.logger.info("No favorites file found")
             return None
             
         except Exception as e:
-            self.logger.error(f"Error locating favorites file: {e}")
+            self.logger.error("Error locating favorites file: %s", e)
             return None
     
     def get_file_modified_time(self, file_path: str) -> Optional[str]:
@@ -89,7 +89,7 @@ class Phase4FavoritesParser:
                 return datetime.fromtimestamp(mtime).isoformat()
             return None
         except Exception as e:
-            self.logger.error(f"Error getting file modification time: {e}")
+            self.logger.error("Error getting file modification time: %s", e)
             return None
     
     def parse_favorites_file(self, file_path: str) -> List[Dict]:
@@ -98,17 +98,17 @@ class Phase4FavoritesParser:
         
         try:
             if not os.path.isfile(file_path):
-                self.logger.info(f"Favorites file not found: {file_path}")
+                self.logger.info("Favorites file not found: %s", file_path)
                 return favorites
             
             # Phase 4: Tolerant XML parsing
             favorites = self._parse_xml_tolerantly(file_path)
             
-            self.logger.info(f"Parsed {len(favorites)} favorites from {file_path}")
+            self.logger.info("Parsed %s favorites from %s", len(favorites), file_path)
             return favorites
             
         except Exception as e:
-            self.logger.error(f"Error parsing favorites file: {e}")
+            self.logger.error("Error parsing favorites file: %s", e)
             return []
     
     def _parse_xml_tolerantly(self, file_path: str) -> List[Dict]:
@@ -129,19 +129,19 @@ class Phase4FavoritesParser:
             try:
                 root = ET.fromstring(content)
             except ET.ParseError as e:
-                self.logger.warning(f"XML parse error: {e}")
+                self.logger.warning("XML parse error: %s", e)
                 # Try to recover by cleaning the content
                 content = self._clean_xml_content(content)
                 try:
                     root = ET.fromstring(content)
                     self.logger.debug("XML recovered after cleaning")
                 except ET.ParseError as e2:
-                    self.logger.error(f"XML unrecoverable: {e2}")
+                    self.logger.error("XML unrecoverable: %s", e2)
                     return favorites
             
             # Handle different root tag variations
             if root.tag not in ['favourites', 'favorites']:
-                self.logger.warning(f"Unexpected root tag: {root.tag} (expected 'favourites' or 'favorites')")
+                self.logger.warning("Unexpected root tag: %s (expected 'favourites' or 'favorites')", root.tag)
                 # Continue anyway - maybe it's a variant
             
             # Process each favorite entry with per-row error handling
@@ -151,13 +151,13 @@ class Phase4FavoritesParser:
                     if favorite:
                         favorites.append(favorite)
                 except Exception as e:
-                    self.logger.debug(f"Failed to parse favorite element {i}: {e}")
+                    self.logger.debug("Failed to parse favorite element %s: %s", i, e)
                     continue  # Skip this row, continue with others
             
             return favorites
             
         except Exception as e:
-            self.logger.error(f"Error in tolerant XML parsing: {e}")
+            self.logger.error("Error in tolerant XML parsing: %s", e)
             return []
     
     def _clean_xml_content(self, content: str) -> str:
@@ -177,7 +177,7 @@ class Phase4FavoritesParser:
             return content
             
         except Exception as e:
-            self.logger.error(f"Error cleaning XML content: {e}")
+            self.logger.error("Error cleaning XML content: %s", e)
             return content
     
     def _parse_favorite_element(self, element: ET.Element) -> Optional[Dict]:
@@ -185,7 +185,7 @@ class Phase4FavoritesParser:
         try:
             # Handle different element names
             if element.tag not in ['favourite', 'favorite']:
-                self.logger.debug(f"Skipping element with unexpected tag: {element.tag}")
+                self.logger.debug("Skipping element with unexpected tag: %s", element.tag)
                 return None
             
             # Extract display label
@@ -220,14 +220,14 @@ class Phase4FavoritesParser:
                 thumb_ref = thumb_element.text.strip()
             
             if not target:
-                self.logger.debug(f"Skipping favorite '{name}' with no target")
+                self.logger.debug("Skipping favorite '%s' with no target", name)
                 return None
             
             # Phase 4: Classify and normalize
             classification = self._classify_favorite_target(target)
             normalized_key = self._create_normalized_key(target, classification)
             
-            self.logger.debug(f"Parsed favorite '{name}': target='{target}', classification='{classification}', normalized='{normalized_key}'")
+            self.logger.debug("Parsed favorite '%s': target='%s', classification='%s', normalized='%s'", name, target, classification, normalized_key)
             
             return {
                 'name': name,

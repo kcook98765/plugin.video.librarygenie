@@ -34,7 +34,7 @@ class AddonController:
         try:
             mode = self.params.get('mode', 'home')
 
-            self.logger.debug(f"Routing mode: {mode}")
+            self.logger.debug("Routing mode: %s", mode)
 
             if mode == 'search':
                 self._handle_search()
@@ -47,7 +47,7 @@ class AddonController:
                 self._show_main_menu()
 
         except Exception as e:
-            self.logger.error(f"Error in route handling: {e}")
+            self.logger.error("Error in route handling: %s", e)
             xbmcgui.Dialog().notification(
                 self.addon.getAddonInfo('name'),
                 "An error occurred. Check logs for details.",
@@ -79,13 +79,13 @@ class AddonController:
             xbmcplugin.endOfDirectory(self.handle)
 
         except Exception as e:
-            self.logger.error(f"Error showing main menu: {e}")
+            self.logger.error("Error showing main menu: %s", e)
 
     def _handle_search(self):
         """Handle search functionality"""
         try:
             self.logger.info("Handling search - starting search flow")
-            self.logger.debug(f"Search params: {self.params}")
+            self.logger.debug("Search params: %s", self.params)
 
             # Import search UI handler (lazy import to avoid circular dependencies)
             from .ui.search_handler import SearchHandler
@@ -101,8 +101,8 @@ class AddonController:
 
         except Exception as e:
             import traceback
-            self.logger.error(f"Error in search handling: {e}")
-            self.logger.error(f"SearchHandler error traceback: {traceback.format_exc()}")
+            self.logger.error("Error in search handling: %s", e)
+            self.logger.error("SearchHandler error traceback: %s", traceback.format_exc())
 
             # Show error to user
             xbmcgui.Dialog().notification(
@@ -133,7 +133,7 @@ class AddonController:
             )
             self._show_main_menu()
         except Exception as e:
-            self.logger.error(f"Error in authorization: {e}")
+            self.logger.error("Error in authorization: %s", e)
             self._show_main_menu()
 
     def _handle_logout(self):
@@ -171,7 +171,7 @@ class AddonController:
             )
             self._show_main_menu()
         except Exception as e:
-            self.logger.error(f"Error in logout: {e}")
+            self.logger.error("Error in logout: %s", e)
             xbmcgui.Dialog().notification(
                 self.addon.getAddonInfo('name'),
                 "Error during sign out",
@@ -189,7 +189,7 @@ class AddonController:
             # Auth module not available, assume not authorized
             return False
         except Exception as e:
-            self.logger.error(f"Error checking authorization status: {e}")
+            self.logger.error("Error checking authorization status: %s", e)
             return False
 
 

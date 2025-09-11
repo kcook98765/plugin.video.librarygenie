@@ -68,19 +68,19 @@ class KodiJsonRpcClient:
         }
 
         try:
-            self.logger.debug(f"JSON-RPC request: VideoLibrary.GetMovies offset={offset} limit={actual_limit}")
+            self.logger.debug("JSON-RPC request: VideoLibrary.GetMovies offset=%s limit=%s", offset, actual_limit)
             response_str = xbmc.executeJSONRPC(json.dumps(request))
             response = json.loads(response_str)
 
             if "error" in response:
-                self.logger.error(f"JSON-RPC error: {response['error']}")
+                self.logger.error("JSON-RPC error: %s", response['error'])
                 return {"movies": [], "limits": {"total": 0}}
 
             result = response.get("result", {})
             movies = result.get("movies", [])
             limits = result.get("limits", {"total": 0})
 
-            self.logger.debug(f"Retrieved {len(movies)} movies, total: {limits.get('total', 0)}")
+            self.logger.debug("Retrieved %s movies, total: %s", len(movies), limits.get('total', 0))
 
             # Normalize the movie data
             normalized_movies = []
@@ -92,7 +92,7 @@ class KodiJsonRpcClient:
             return {"movies": normalized_movies, "limits": limits}
 
         except Exception as e:
-            self.logger.error(f"JSON-RPC request failed: {e}")
+            self.logger.error("JSON-RPC request failed: %s", e)
             return {"movies": [], "limits": {"total": 0}}
 
     def get_movie_count(self) -> int:
@@ -113,7 +113,7 @@ class KodiJsonRpcClient:
             response = json.loads(response_str)
 
             if "error" in response:
-                self.logger.error(f"JSON-RPC count error: {response['error']}")
+                self.logger.error("JSON-RPC count error: %s", response['error'])
                 return 0
 
             result = response.get("result", {})
@@ -122,7 +122,7 @@ class KodiJsonRpcClient:
             return limits.get("total", 0)
 
         except Exception as e:
-            self.logger.error(f"JSON-RPC count request failed: {e}")
+            self.logger.error("JSON-RPC count request failed: %s", e)
             return 0
 
     def get_movies_quick_check(self) -> List[Dict[str, Any]]:
@@ -143,7 +143,7 @@ class KodiJsonRpcClient:
             response = json.loads(response_str)
 
             if "error" in response:
-                self.logger.error(f"JSON-RPC quick check error: {response['error']}")
+                self.logger.error("JSON-RPC quick check error: %s", response['error'])
                 return []
 
             result = response.get("result", {})
@@ -152,7 +152,7 @@ class KodiJsonRpcClient:
             return movies
 
         except Exception as e:
-            self.logger.error(f"JSON-RPC quick check failed: {e}")
+            self.logger.error("JSON-RPC quick check failed: %s", e)
             return []
 
     def get_movie_details(self, movie_id: int) -> Optional[Dict[str, Any]]:
