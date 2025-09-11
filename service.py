@@ -473,11 +473,15 @@ class LibraryGenieService:
                     # Sync movies if enabled
                     if sync_movies:
                         try:
-                            if progress_dialog:
-                                progress_dialog.update(30, "LibraryGenie", "Syncing movies...")
-                            movie_count = sync_controller._sync_movies(progress_dialog=progress_dialog)
+                            # Create separate progress dialog for movies
+                            movies_dialog = xbmcgui.DialogProgressBG()
+                            movies_dialog.create("LibraryGenie", "Starting movie sync...")
+                            
+                            movie_count = sync_controller._sync_movies(progress_dialog=movies_dialog)
                             results['movies'] = movie_count
                             self.logger.info("Synced %d movies", movie_count)
+                            
+                            movies_dialog.close()
                         except Exception as e:
                             error_msg = f"Movie sync failed: {str(e)}"
                             results['errors'].append(error_msg)
@@ -486,11 +490,15 @@ class LibraryGenieService:
                     # Sync TV episodes if enabled
                     if sync_tv_episodes:
                         try:
-                            if progress_dialog:
-                                progress_dialog.update(60, "LibraryGenie", "Syncing TV episodes...")
-                            episode_count = sync_controller._sync_tv_episodes(progress_dialog=progress_dialog)
+                            # Create separate progress dialog for TV episodes
+                            tv_dialog = xbmcgui.DialogProgressBG()
+                            tv_dialog.create("LibraryGenie", "Starting TV episodes sync...")
+                            
+                            episode_count = sync_controller._sync_tv_episodes(progress_dialog=tv_dialog)
                             results['episodes'] = episode_count
                             self.logger.info("Synced %d TV episodes", episode_count)
+                            
+                            tv_dialog.close()
                         except Exception as e:
                             error_msg = f"TV episode sync failed: {str(e)}"
                             results['errors'].append(error_msg)
