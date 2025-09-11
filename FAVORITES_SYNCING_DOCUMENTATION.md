@@ -327,19 +327,18 @@ except Exception as e:
     self.logger.error(f"Scan failed, database unchanged: {e}")
 ```
 
-### 3. Scan Result Logging
+### 3. Scan Result Processing
 
-**Comprehensive Metrics:**
+**Result Return:**
 ```python
-self._log_scan_result(
-    scan_type="full",
-    items_found=len(favorites),
-    items_mapped=result["items_mapped"],
-    items_added=result["items_added"],
-    items_updated=result["items_updated"],
-    duration_ms=duration_ms,
-    success=True
-)
+return {
+    "success": True,
+    "items_found": len(favorites),
+    "items_mapped": result["items_mapped"],
+    "items_added": result["items_added"],
+    "items_updated": result["items_updated"],
+    "duration_ms": duration_ms
+}
 ```
 
 ---

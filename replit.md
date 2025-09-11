@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**2025-09-11**: Fixed Kodi Favorites display issue in root plugin menu. Added startup initialization logic to `plugin.py` that ensures the "Kodi Favorites" list is automatically created when the `favorites_integration_enabled` setting is enabled. This resolves cases where fresh installs with the setting enabled would show "Found 0 total lists" instead of displaying the Kodi Favorites option. The fix includes comprehensive error handling and logging while maintaining plugin startup performance.
+**2025-09-11**: Removed favorites_scan_log table and all logging functionality per user request. The favorites scan process still works correctly but no longer stores scan history, timing data, or file modification tracking. This simplifies the database schema and eliminates unnecessary data storage while maintaining all core functionality. Also fixed previous Kodi Favorites display issue in root plugin menu with startup initialization logic.
 
 ## System Architecture
 
