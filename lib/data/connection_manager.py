@@ -88,6 +88,19 @@ class ConnectionManager:
             conn.row_factory = sqlite3.Row  # Enable dict-like access
 
             self.logger.debug(f"Database connection established: {db_path} (busy_timeout: {busy_timeout_ms}ms)")
+            
+            # Initialize database schema if needed (for fresh installs)
+            # Import here to avoid circular imports
+            from .migrations import get_migration_manager
+            try:
+                migration_manager = get_migration_manager()
+                migration_manager.ensure_initialized()
+                self.logger.debug("Database schema initialization completed")
+            except Exception as e:
+                self.logger.error(f"Database schema initialization failed: {e}")
+                conn.close()
+                raise
+            
             return conn
 
         except Exception as e:
