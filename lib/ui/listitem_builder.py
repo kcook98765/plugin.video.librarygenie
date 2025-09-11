@@ -44,10 +44,10 @@ class ListItemBuilder:
                 from lib.data.query_manager import get_query_manager
                 query_manager = get_query_manager()
                 content_type = query_manager.detect_content_type(items)
-                self.logger.debug(f"DIRECTORY BUILD: Auto-detected content type: {content_type}")
+                self.logger.debug("DIRECTORY BUILD: Auto-detected content type: %s", content_type)
             
-            self.logger.info(f"DIRECTORY BUILD: Starting build with {count} items (content_type='{content_type}')")
-            self.logger.debug(f"DIRECTORY BUILD: Setting content type to '{content_type}' for handle {self.addon_handle}")
+            self.logger.info("DIRECTORY BUILD: Starting build with %s items (content_type='%s')", count, content_type)
+            self.logger.debug("DIRECTORY BUILD: Setting content type to '%s' for handle %s", content_type, self.addon_handle)
             xbmcplugin.setContent(self.addon_handle, content_type)
 
             # Add a few sane sort methods once
@@ -56,10 +56,10 @@ class ListItemBuilder:
                 ("SORT_METHOD_DATE", xbmcplugin.SORT_METHOD_DATE),
                 ("SORT_METHOD_VIDEO_YEAR", xbmcplugin.SORT_METHOD_VIDEO_YEAR),
             ]
-            self.logger.debug(f"DIRECTORY BUILD: Adding {len(sort_methods)} sort methods")
+            self.logger.debug("DIRECTORY BUILD: Adding %s sort methods", len(sort_methods))
             for method_name, const in sort_methods:
                 xbmcplugin.addSortMethod(self.addon_handle, const)
-                self.logger.debug(f"DIRECTORY BUILD: Added sort method {method_name}")
+                self.logger.debug("DIRECTORY BUILD: Added sort method %s", method_name)
 
             tuples: List[tuple] = []
             ok = 0
@@ -75,14 +75,14 @@ class ListItemBuilder:
                         ok += 1
                     else:
                         fail += 1
-                        self.logger.warning(f"DIRECTORY BUILD: failed to build #{idx}: '{raw.get('title','Unknown')}'")
+                        self.logger.warning("DIRECTORY BUILD: failed to build #%s: '%s'", idx, raw.get('title','Unknown'))
                 except Exception as ie:
                     fail += 1
-                    self.logger.error(f"DIRECTORY BUILD: exception for #{idx}: {ie}")
+                    self.logger.error("DIRECTORY BUILD: exception for #%s: %s", idx, ie)
 
-            self.logger.info(f"DIRECTORY BUILD: Processed {count} items - {ok} OK, {fail} failed")
+            self.logger.info("DIRECTORY BUILD: Processed %s items - %s OK, %s failed", count, ok, fail)
 
-            self.logger.debug(f"DIRECTORY BUILD: Adding {len(tuples)} directory items to Kodi")
+            self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi", len(tuples))
             for idx, (url, li, is_folder, item) in enumerate(tuples, start=1):
 
                 # Set properties for global context menu detection
@@ -100,13 +100,13 @@ class ListItemBuilder:
                     handle=self.addon_handle, url=url, listitem=li, isFolder=is_folder
                 )
 
-            self.logger.debug(f"DIRECTORY BUILD: Calling endOfDirectory(handle={self.addon_handle}, succeeded=True)")
+            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
-            self.logger.info(f"DIRECTORY BUILD: ✅ Successfully built directory with {ok} items ({fail} failed)")
+            self.logger.info("DIRECTORY BUILD: ✅ Successfully built directory with %s items (%s failed)", ok, fail)
             return True
         except Exception as e:
-            self.logger.error(f"DIRECTORY BUILD: fatal error: {e}")
-            self.logger.debug(f"DIRECTORY BUILD: Calling endOfDirectory(handle={self.addon_handle}, succeeded=False)")
+            self.logger.error("DIRECTORY BUILD: fatal error: %s", e)
+            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
             return False
 
@@ -140,7 +140,7 @@ class ListItemBuilder:
             else:
                 return self._create_external_item(item)
         except Exception as e:
-            self.logger.error(f"ITEM BUILD: failed for '{title}': {e}")
+            self.logger.error("ITEM BUILD: failed for '%s': %s", title, e)
             return None
 
     # ----- normalization -----
@@ -362,7 +362,7 @@ class ListItemBuilder:
 
             # Build videodb:// URL for native library integration
             if kodi_id is None:
-                self.logger.error(f"LIB ITEM: Cannot build videodb URL - kodi_id is None for '{title}'")
+                self.logger.error("LIB ITEM: Cannot build videodb URL - kodi_id is None for '%s'", title)
                 return None
             videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
             li.setPath(videodb_url)
@@ -377,9 +377,9 @@ class ListItemBuilder:
                 li.setProperty("LG.InfoHijack.Armed", "1")
                 li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty("LG.InfoHijack.DBType", media_type)
-                self.logger.debug(f"🎯 HIJACK ARMED: '{title}' - DBID={kodi_id}, DBType={media_type}")
+                self.logger.debug("🎯 HIJACK ARMED: '%s' - DBID=%s, DBType=%s", title, kodi_id, media_type)
             except Exception as e:
-                self.logger.error(f"LIB ITEM: ❌ Failed to set InfoHijack properties for '{title}': {e}")
+                self.logger.error("LIB ITEM: ❌ Failed to set InfoHijack properties for '%s': %s", title, e)
 
             # Handle metadata setting based on Kodi version
             kodi_major = get_kodi_major_version()
@@ -402,21 +402,21 @@ class ListItemBuilder:
                                 video_info_tag.setDbId(int(kodi_id))
                                 dbid_success = True
                             except Exception as e:
-                                self.logger.warning(f"LIB ITEM: setDbId() 1-arg fallback failed for '{title}': {e}")
+                                self.logger.warning("LIB ITEM: setDbId() 1-arg fallback failed for '%s': %s", title, e)
                         except Exception as e:
-                            self.logger.warning(f"LIB ITEM: setDbId() 2-arg failed for '{title}': {e}")
+                            self.logger.warning("LIB ITEM: setDbId() 2-arg failed for '%s': %s", title, e)
                     else:
-                        self.logger.warning(f"LIB ITEM: Cannot set setDbId - kodi_id is None for '{title}'")
+                        self.logger.warning("LIB ITEM: Cannot set setDbId - kodi_id is None for '%s'", title)
 
                     # Report dbid failure for diagnostics
                     if not dbid_success:
-                        self.logger.warning(f"LIB ITEM: DB linking failed for '{title}' - falling back to property method")
+                        self.logger.warning("LIB ITEM: DB linking failed for '%s' - falling back to property method", title)
 
                     # Set metadata via InfoTagVideo setters (v20+) - but keep it lightweight
                     self._set_infotag_metadata(video_info_tag, item, title)
 
                 except Exception as e:
-                    self.logger.error(f"LIB ITEM: InfoTagVideo setup failed for '{title}': {e}")
+                    self.logger.error("LIB ITEM: InfoTagVideo setup failed for '%s': %s", title, e)
             else:
                 # v19: Use classic setInfo() approach
                 info = self._build_lightweight_info(item)
@@ -434,14 +434,14 @@ class ListItemBuilder:
                 li.setProperty('dbid', str(kodi_id) if kodi_id is not None else "0")
                 li.setProperty('mediatype', media_type)
             except Exception as e:
-                self.logger.warning(f"LIB ITEM: Property fallback setup failed for '{title}': {e}")
+                self.logger.warning("LIB ITEM: Property fallback setup failed for '%s': %s", title, e)
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
             return videodb_url, li, is_folder
         except Exception as e:
-            self.logger.error(f"LIB ITEM: failed for '{item.get('title','Unknown')}': {e}")
+            self.logger.error("LIB ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
             return None
 
     def _create_action_item(self, item: Dict[str, Any]) -> Optional[tuple]:
@@ -470,7 +470,7 @@ class ListItemBuilder:
                     if description:
                         video_info_tag.setPlot(description)
                 except Exception as e:
-                    self.logger.debug(f"ACTION ITEM v20+: InfoTagVideo failed for folder '{title}': {e}")
+                    self.logger.debug("ACTION ITEM v20+: InfoTagVideo failed for folder '%s': %s", title, e)
                     # On v21+, completely avoid setInfo() to prevent deprecation warnings
                     # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
                     if kodi_major < 21:
@@ -506,7 +506,7 @@ class ListItemBuilder:
             return url, li, is_folder
 
         except Exception as e:
-            self.logger.error(f"ACTION ITEM: failed for '{item.get('title','Unknown')}': {e}")
+            self.logger.error("ACTION ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
             return None
 
     def _create_external_item(self, item: Dict[str, Any]) -> Optional[tuple]:
@@ -529,7 +529,7 @@ class ListItemBuilder:
                     video_info_tag = li.getVideoInfoTag()
                     self._set_infotag_metadata(video_info_tag, item, title)
                 except Exception as e:
-                    self.logger.warning(f"EXT ITEM v20+: InfoTagVideo setup failed for '{title}': {e}")
+                    self.logger.warning("EXT ITEM v20+: InfoTagVideo setup failed for '%s': %s", title, e)
                     # On v21+, completely avoid setInfo() to prevent deprecation warnings
                     # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
                     if kodi_major < 21:
@@ -579,7 +579,7 @@ class ListItemBuilder:
 
             return url, li, is_folder
         except Exception as e:
-            self.logger.error(f"EXT ITEM: failed for '{item.get('title','Unknown')}': {e}")
+            self.logger.error("EXT ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
             return None
 
     # ----- info/art/resume helpers -----
@@ -769,7 +769,7 @@ class ListItemBuilder:
                     list_item.setProperty('ResumeTime', str(pos))
                     list_item.setProperty('TotalTime', str(tot))
         except Exception as e:
-            self.logger.error(f"RESUME: failed to set resume info: {e}")
+            self.logger.error("RESUME: failed to set resume info: %s", e)
 
     # ----- misc helpers -----
     def _build_videodb_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
@@ -838,7 +838,7 @@ class ListItemBuilder:
             try:
                 video_info_tag.setMediaType(media_type)
             except Exception as e:
-                self.logger.warning(f"LIB ITEM v20+: setMediaType() failed for '{title}': {e}")
+                self.logger.warning("LIB ITEM v20+: setMediaType() failed for '%s': %s", title, e)
 
             # Core identification - minimal to let DB metadata take precedence
             if item.get('title'):
@@ -906,7 +906,7 @@ class ListItemBuilder:
                     video_info_tag.setFirstAired(item['aired'])
 
         except Exception as e:
-            self.logger.warning(f"LIB ITEM v20+: InfoTagVideo metadata setup failed for '{title}': {e}")
+            self.logger.warning("LIB ITEM v20+: InfoTagVideo metadata setup failed for '%s': %s", title, e)
 
     def _get_kodi_mediatype(self, media_type: str) -> str:
         """Map internal media type to Kodi's expected values."""
@@ -1038,7 +1038,7 @@ class ListItemBuilder:
                             video_info_tag.setFirstAired(info_labels['aired'])
 
                 except Exception as e:
-                    self.logger.error(f"Failed to set metadata via InfoTagVideo: {e}")
+                    self.logger.error("Failed to set metadata via InfoTagVideo: %s", e)
                     # Fallback to setInfo for compatibility
                     listitem.setInfo('video', info_labels)
             else:
@@ -1086,7 +1086,7 @@ class ListItemBuilder:
             return listitem, url
 
         except Exception as e:
-            self.logger.error(f"Failed to build media listitem: {e}")
+            self.logger.error("Failed to build media listitem: %s", e)
             # Return error listitem
             error_item = xbmcgui.ListItem(label="Error loading item")
             error_url = "plugin://plugin.video.librarygenie/?action=error"

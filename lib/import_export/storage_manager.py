@@ -162,12 +162,12 @@ class StorageManager:
                 self.logger.info("File deleted: %s", file_path)
                 return True
             elif not self.validate_file_path(file_path):
-                self.logger.warning(f"Attempted to delete invalid file path: {file_path}")
+                self.logger.warning("Attempted to delete invalid file path: %s", file_path)
                 return False
             return False
 
         except Exception as e:
-            self.logger.error(f"Error deleting file {file_path}: {e}")
+            self.logger.error("Error deleting file %s: %s", file_path, e)
             return False
 
     def get_file_size(self, file_path: str) -> int:
@@ -176,7 +176,7 @@ class StorageManager:
             if self.validate_file_path(file_path):
                 return os.path.getsize(file_path)
             else:
-                self.logger.warning(f"Attempted to get size of invalid file path: {file_path}")
+                self.logger.warning("Attempted to get size of invalid file path: %s", file_path)
                 return 0
         except OSError:
             return 0
@@ -197,12 +197,12 @@ class StorageManager:
                     deleted_count += 1
 
             if deleted_count > 0:
-                self.logger.info(f"Cleaned up {deleted_count} old files")
+                self.logger.info("Cleaned up %s old files", deleted_count)
 
             return deleted_count
 
         except Exception as e:
-            self.logger.error(f"Error cleaning up old files: {e}")
+            self.logger.error("Error cleaning up old files: %s", e)
             return 0
 
     def validate_file_path(self, file_path: str) -> bool:
@@ -210,7 +210,7 @@ class StorageManager:
         try:
             # Check if path is empty or a special path that cannot be resolved
             if not file_path or file_path.startswith('special:'):
-                self.logger.warning(f"Invalid file path detected (empty or special): {file_path}")
+                self.logger.warning("Invalid file path detected (empty or special): %s", file_path)
                 return False
 
             # Resolve the absolute path
@@ -224,13 +224,13 @@ class StorageManager:
                 dangerous_paths = ['/bin', '/boot', '/dev', '/etc', '/lib', '/proc', '/root', '/sbin', '/sys', '/usr', 'C:\\Windows', 'C:\\Program Files']
                 for dangerous in dangerous_paths:
                     if resolved_path.startswith(os.path.abspath(dangerous)):
-                        self.logger.warning(f"Access denied to dangerous path: {resolved_path}")
+                        self.logger.warning("Access denied to dangerous path: %s", resolved_path)
                         return False
 
             return True
 
         except Exception as e:
-            self.logger.error(f"Error validating file path: {e}")
+            self.logger.error("Error validating file path: %s", e)
             return False
 
 

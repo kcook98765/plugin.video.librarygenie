@@ -24,7 +24,7 @@ class ResponseHandler:
     def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> None:
         """Handle DialogResponse by showing messages and performing actions"""
         try:
-            context.logger.debug(f"RESPONSE HANDLER: Processing DialogResponse - success={response.success}, message='{response.message}'")
+            context.logger.debug("RESPONSE HANDLER: Processing DialogResponse - success=%s, message='%s'", response.success, response.message)
             
             # Show message if present
             if response.message:
@@ -51,7 +51,7 @@ class ResponseHandler:
                     import xbmc
                     folder_id = response.navigate_to_folder
                     folder_url = context.build_url("show_folder", folder_id=folder_id)
-                    context.logger.debug(f"RESPONSE HANDLER: Navigating to folder {folder_id} with URL: {folder_url}")
+                    context.logger.debug("RESPONSE HANDLER: Navigating to folder %s with URL: %s", folder_id, folder_url)
                     xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
                     return
 
@@ -59,7 +59,7 @@ class ResponseHandler:
                     # Navigate to lists menu
                     import xbmc
                     lists_url = context.build_url("lists")
-                    context.logger.debug(f"RESPONSE HANDLER: Navigating to lists with URL: {lists_url}")
+                    context.logger.debug("RESPONSE HANDLER: Navigating to lists with URL: %s", lists_url)
                     xbmc.executebuiltin(f'Container.Update("{lists_url}",replace)')
                     return
 
@@ -67,7 +67,7 @@ class ResponseHandler:
                     # Navigate to main menu
                     import xbmc
                     main_url = context.build_url("main")
-                    context.logger.debug(f"RESPONSE HANDLER: Navigating to main with URL: {main_url}")
+                    context.logger.debug("RESPONSE HANDLER: Navigating to main with URL: %s", main_url)
                     xbmc.executebuiltin(f'Container.Update("{main_url}",replace)')
                     return
 
@@ -77,7 +77,7 @@ class ResponseHandler:
                     # to prevent tools dialog from reopening
                     import xbmc
                     current_path = xbmc.getInfoLabel('Container.FolderPath')
-                    context.logger.debug(f"RESPONSE HANDLER: Refreshing current path: {current_path}")
+                    context.logger.debug("RESPONSE HANDLER: Refreshing current path: %s", current_path)
                     if 'show_list_tools' in current_path:
                         # If we're in tools context, navigate to parent instead of refreshing
                         xbmc.executebuiltin('Action(ParentDir)')
@@ -89,7 +89,7 @@ class ResponseHandler:
                     context.logger.debug(f"RESPONSE HANDLER: Success response with no navigation flags - letting direct navigation work")
 
         except Exception as e:
-            context.logger.error(f"Error handling dialog response: {e}")
+            context.logger.error("Error handling dialog response: %s", e)
             # Fallback error notification
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
@@ -132,7 +132,7 @@ class ResponseHandler:
             return response.success
 
         except Exception as e:
-            self.logger.error(f"Error handling directory response: {e}")
+            self.logger.error("Error handling directory response: %s", e)
             # Fallback directory ending
             try:
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
@@ -177,7 +177,7 @@ class ResponseHandler:
             return True
 
         except Exception as e:
-            self.logger.error(f"Error handling success navigation: {e}")
+            self.logger.error("Error handling success navigation: %s", e)
             return False
 
     def _handle_failure_navigation(self, response: DialogResponse, context: PluginContext) -> bool:
@@ -203,7 +203,7 @@ class ResponseHandler:
             return True
 
         except Exception as e:
-            self.logger.error(f"Error handling failure navigation: {e}")
+            self.logger.error("Error handling failure navigation: %s", e)
             return False
 
     def handle_action_response(self, response: Any, context: PluginContext, action: str) -> bool:
@@ -217,11 +217,11 @@ class ResponseHandler:
             elif isinstance(response, DirectoryResponse):
                 return self.handle_directory_response(response, context)
             else:
-                self.logger.warning(f"Unknown response type for action '{action}': {type(response)}")
+                self.logger.warning("Unknown response type for action '%s': %s", action, type(response))
                 return False
 
         except Exception as e:
-            self.logger.error(f"Error handling action response for '{action}': {e}")
+            self.logger.error("Error handling action response for '%s': %s", action, e)
             return False
 
     def create_success_dialog_response(self, message: str, **kwargs) -> DialogResponse:
@@ -260,17 +260,17 @@ class ResponseHandler:
     def handle_response(self, response: DialogResponse, context: PluginContext) -> None:
         """Handle dialog response and perform appropriate navigation"""
         try:
-            self.logger.debug(f"RESPONSE HANDLER: Processing response - success={response.success}")
+            self.logger.debug("RESPONSE HANDLER: Processing response - success=%s", response.success)
 
             if not response.success:
                 if response.message:
-                    self.logger.debug(f"RESPONSE HANDLER: Showing error message: {response.message}")
+                    self.logger.debug("RESPONSE HANDLER: Showing error message: %s", response.message)
                     xbmcgui.Dialog().ok("Error", response.message)
                 return
 
             # Show success message if provided
             if response.message:
-                self.logger.debug(f"RESPONSE HANDLER: Showing success message: {response.message}")
+                self.logger.debug("RESPONSE HANDLER: Showing success message: %s", response.message)
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     response.message,
@@ -288,7 +288,7 @@ class ResponseHandler:
                 context.navigate_to_lists_menu()
                 return
             elif response.navigate_to_folder:
-                self.logger.debug(f"RESPONSE HANDLER: Navigating to folder: {response.navigate_to_folder}")
+                self.logger.debug("RESPONSE HANDLER: Navigating to folder: %s", response.navigate_to_folder)
                 context.navigate_to_folder(response.navigate_to_folder)
                 return
             elif response.refresh_needed:
@@ -297,7 +297,7 @@ class ResponseHandler:
                 return
 
         except Exception as e:
-            self.logger.error(f"Error handling dialog response: {e}")
+            self.logger.error("Error handling dialog response: %s", e)
             xbmcgui.Dialog().ok("Error", "An error occurred while processing the request")
 
 

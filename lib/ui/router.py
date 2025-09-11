@@ -35,7 +35,7 @@ class Router:
         """
         action = context.get_param('action', '')
         params = context.get_params() # Get all params for modular tools
-        self.logger.debug(f"Router dispatching action: '{action}'")
+        self.logger.debug("Router dispatching action: '%s'", action)
 
         # Generate breadcrumb context for navigation
         from .breadcrumb_helper import get_breadcrumb_helper
@@ -205,7 +205,7 @@ class Router:
                     ai_handler.trigger_replace_sync(context)
                     return True
                 except Exception as e:
-                    self.logger.error(f"Error in ai_search_replace_sync handler: {e}")
+                    self.logger.error("Error in ai_search_replace_sync handler: %s", e)
                     return False
 
             elif action == "ai_search_regular_sync":
@@ -215,7 +215,7 @@ class Router:
                     ai_handler.trigger_regular_sync(context)
                     return True
                 except Exception as e:
-                    self.logger.error(f"Error in ai_search_regular_sync handler: {e}")
+                    self.logger.error("Error in ai_search_regular_sync handler: %s", e)
                     return False
             elif action == 'test_ai_search_connection':
                 from .handler_factory import get_handler_factory
@@ -232,7 +232,7 @@ class Router:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
                 if not handler:
-                    self.logger.debug(f"No handler found for action '{action}', will show main menu (redirecting to Lists)")
+                    self.logger.debug("No handler found for action '%s', will show main menu (redirecting to Lists)", action)
                     # Show Lists as main menu instead of traditional main menu
                     from .handler_factory import get_handler_factory
                     factory = get_handler_factory()
@@ -246,9 +246,9 @@ class Router:
                 return True
 
         except Exception as e:
-            self.logger.error(f"Error in handler for action '{action}': {e}")
+            self.logger.error("Error in handler for action '%s': %s", action, e)
             import traceback
-            self.logger.error(f"Handler error traceback: {traceback.format_exc()}")
+            self.logger.error("Handler error traceback: %s", traceback.format_exc())
 
             # Show error to user
             try:
@@ -282,7 +282,7 @@ class Router:
             return response_handler.handle_dialog_response(result, context)
 
         except Exception as e:
-            self.logger.error(f"Error in list tools handler: {e}")
+            self.logger.error("Error in list tools handler: %s", e)
             return False
 
     def _handle_noop(self, context: PluginContext) -> bool:
@@ -292,7 +292,7 @@ class Router:
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
             return True
         except Exception as e:
-            self.logger.error(f"Error in noop handler: {e}")
+            self.logger.error("Error in noop handler: %s", e)
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
 
@@ -332,11 +332,11 @@ class Router:
             settings = SettingsManager()
             server_url = settings.get_remote_server_url()
 
-            self.logger.info(f"Retrieved server URL: '{server_url}' (type: {type(server_url)})")
+            self.logger.info("Retrieved server URL: '%s' (type: %s)", server_url, type(server_url))
 
             # Check server URL first
             if not server_url or len(server_url.strip()) == 0:
-                self.logger.warning(f"Server URL validation failed - URL: '{server_url}'")
+                self.logger.warning("Server URL validation failed - URL: '%s'", server_url)
                 xbmcgui.Dialog().ok(
                     "Configuration Required",
                     "Please configure the AI Search Server URL before authorizing.\n\nMake sure it's not empty and contains a valid URL."
@@ -359,8 +359,8 @@ class Router:
                     )
                 return False
 
-            self.logger.info(f"User entered OTP code: {otp_code}")
-            self.logger.info(f"Starting OTP authorization with code: {otp_code}")
+            self.logger.info("User entered OTP code: %s", otp_code)
+            self.logger.info("Starting OTP authorization with code: %s", otp_code)
 
             # Show progress dialog
             progress = xbmcgui.DialogProgress()
@@ -376,7 +376,7 @@ class Router:
                 if result['success']:
                     # Success - activate AI Search 
                     settings.set_ai_search_activated(True)
-                    self.logger.info(f"✅ AI Search activated with server URL: {server_url}")
+                    self.logger.info("✅ AI Search activated with server URL: %s", server_url)
 
                     # Show success dialog
                     xbmcgui.Dialog().ok(
@@ -393,7 +393,7 @@ class Router:
                         f"Failed to activate AI Search:\n\n{result['error']}"
                     )
 
-                    self.logger.warning(f"OTP authorization failed from settings: {result['error']}")
+                    self.logger.warning("OTP authorization failed from settings: %s", result['error'])
                     return False
 
             finally:
@@ -401,7 +401,7 @@ class Router:
                     progress.close()
 
         except Exception as e:
-            self.logger.error(f"Error in authorize_ai_search handler: {e}")
+            self.logger.error("Error in authorize_ai_search handler: %s", e)
             xbmcgui.Dialog().ok(
                 "Authorization Error",
                 f"An unexpected error occurred:\n\n{str(e)[:100]}..."
@@ -420,12 +420,12 @@ class Router:
                 
             list_info = query_manager.get_list_by_id(list_id)
             if list_info and list_info.get('name') == 'Kodi Favorites':
-                self.logger.debug(f"ROUTER: Detected Kodi Favorites list (id: {list_id})")
+                self.logger.debug("ROUTER: Detected Kodi Favorites list (id: %s)", list_id)
                 return True
                 
             return False
         except Exception as e:
-            self.logger.error(f"ROUTER: Error checking if list is Kodi Favorites: {e}")
+            self.logger.error("ROUTER: Error checking if list is Kodi Favorites: %s", e)
             return False
 
     def _handle_kodi_favorites_scan_if_needed(self, context):
@@ -445,9 +445,9 @@ class Router:
                 scan_type = result.get('scan_type', 'unknown')
                 items_found = result.get('items_found', 0)
                 items_mapped = result.get('items_mapped', 0)
-                self.logger.info(f"ROUTER: Kodi Favorites scan completed - type: {scan_type}, found: {items_found}, mapped: {items_mapped}")
+                self.logger.info("ROUTER: Kodi Favorites scan completed - type: %s, found: %s, mapped: %s", scan_type, items_found, items_mapped)
             else:
-                self.logger.warning(f"ROUTER: Kodi Favorites scan failed: {result.get('message', 'Unknown error')}")
+                self.logger.warning("ROUTER: Kodi Favorites scan failed: %s", result.get('message', 'Unknown error'))
                 
         except Exception as e:
-            self.logger.error(f"ROUTER: Error during Kodi Favorites scan: {e}")
+            self.logger.error("ROUTER: Error during Kodi Favorites scan: %s", e)

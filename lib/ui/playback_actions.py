@@ -53,14 +53,14 @@ class PlaybackActionHandler:
             response = json.loads(response_str)
             
             if "error" in response:
-                self.logger.error(f"Playback failed: {response['error']}")
+                self.logger.error("Playback failed: %s", response['error'])
                 return False
             
-            self.logger.info(f"Successfully started playback of movie {kodi_id} (resume={resume})")
+            self.logger.info("Successfully started playback of movie %s (resume=%s)", kodi_id, resume)
             return True
             
         except Exception as e:
-            self.logger.error(f"Error starting playback for movie {kodi_id}: {e}")
+            self.logger.error("Error starting playback for movie %s: %s", kodi_id, e)
             return False
     
     def queue_movie(self, kodi_id: int) -> bool:
@@ -82,14 +82,14 @@ class PlaybackActionHandler:
             response = json.loads(response_str)
             
             if "error" in response:
-                self.logger.error(f"Queue failed: {response['error']}")
+                self.logger.error("Queue failed: %s", response['error'])
                 return False
             
-            self.logger.info(f"Successfully queued movie {kodi_id}")
+            self.logger.info("Successfully queued movie %s", kodi_id)
             return True
             
         except Exception as e:
-            self.logger.error(f"Error queuing movie {kodi_id}: {e}")
+            self.logger.error("Error queuing movie %s: %s", kodi_id, e)
             return False
     
     def show_movie_info(self, kodi_id: int) -> bool:
@@ -100,11 +100,11 @@ class PlaybackActionHandler:
             builtin_cmd = f"Action(Info,{kodi_id})"
             xbmc.executebuiltin(builtin_cmd)
             
-            self.logger.info(f"Opened info dialog for movie {kodi_id}")
+            self.logger.info("Opened info dialog for movie %s", kodi_id)
             return True
             
         except Exception as e:
-            self.logger.error(f"Error showing info for movie {kodi_id}: {e}")
+            self.logger.error("Error showing info for movie %s: %s", kodi_id, e)
             # Try alternative method
             try:
                 builtin_cmd = f"ShowVideoInfo({kodi_id})"
@@ -131,7 +131,7 @@ class PlaybackActionHandler:
             response = json.loads(response_str)
             
             if "error" in response:
-                self.logger.error(f"Failed to get resume info: {response['error']}")
+                self.logger.error("Failed to get resume info: %s", response['error'])
                 return None
             
             movie_details = response.get("result", {}).get("moviedetails", {})
@@ -144,7 +144,7 @@ class PlaybackActionHandler:
             }
             
         except Exception as e:
-            self.logger.error(f"Error getting resume info for movie {kodi_id}: {e}")
+            self.logger.error("Error getting resume info for movie %s: %s", kodi_id, e)
             return None
     
     def check_player_status(self) -> Dict[str, Any]:
@@ -175,7 +175,7 @@ class PlaybackActionHandler:
                 return {"active": False, "type": "none"}
                 
         except Exception as e:
-            self.logger.error(f"Error checking player status: {e}")
+            self.logger.error("Error checking player status: %s", e)
             return {"active": False, "type": "none"}
     
     def stop_playback(self) -> bool:
@@ -199,20 +199,20 @@ class PlaybackActionHandler:
             response = json.loads(response_str)
             
             if "error" in response:
-                self.logger.error(f"Stop playback failed: {response['error']}")
+                self.logger.error("Stop playback failed: %s", response['error'])
                 return False
             
             self.logger.info("Successfully stopped playback")
             return True
             
         except Exception as e:
-            self.logger.error(f"Error stopping playback: {e}")
+            self.logger.error("Error stopping playback: %s", e)
             return False
     
     def handle_playback_error(self, error_message: str, kodi_id: Optional[int] = None):
         """Handle playback errors with user-friendly messages"""
         
-        self.logger.error(f"Playback error for movie {kodi_id}: {error_message}")
+        self.logger.error("Playback error for movie %s: %s", kodi_id, error_message)
         
         # Show user-friendly error dialog
         dialog = xbmcgui.Dialog()
@@ -243,7 +243,7 @@ class PlaybackActionHandler:
             return movie_details.get("file")
             
         except Exception as e:
-            self.logger.error(f"Error getting file path for movie {kodi_id}: {e}")
+            self.logger.error("Error getting file path for movie %s: %s", kodi_id, e)
             return None
 
 

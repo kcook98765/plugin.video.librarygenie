@@ -242,12 +242,12 @@ class RemoteCache:
                 total_cleared = expired_cleared + removed_count
 
                 if total_cleared > 0:
-                    self.logger.info(f"Cache cleanup: {expired_cleared} expired + {removed_count} old = {total_cleared} entries removed")
+                    self.logger.info("Cache cleanup: %s expired + %s old = %s entries removed", expired_cleared, removed_count, total_cleared)
 
                 return total_cleared
 
         except Exception as e:
-            self.logger.error(f"Error during cache cleanup: {e}")
+            self.logger.error("Error during cache cleanup: %s", e)
             return 0
 
 

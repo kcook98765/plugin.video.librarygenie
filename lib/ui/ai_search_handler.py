@@ -838,7 +838,7 @@ class AISearchHandler:
                 )
 
         except Exception as e:
-            context.logger.error(f"Error in trigger_regular_sync: {e}")
+            context.logger.error("Error in trigger_regular_sync: %s", e)
             xbmcgui.Dialog().ok(
                 "Sync Error",
                 f"An error occurred during sync: {str(e)}"

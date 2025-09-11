@@ -548,7 +548,7 @@ class AISearchClient:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error finding similar movies: {e}")
+            self.logger.error("Error finding similar movies: %s", e)
             return None
 
     def _trigger_post_activation_sync(self):
@@ -601,7 +601,7 @@ class AISearchClient:
             endpoint = f"{server_url.rstrip('/')}/otp/exchange"
             payload = {'otp_code': otp_code}
 
-            self.logger.info(f"OTP EXCHANGE: Attempting to exchange OTP code: {otp_code} at {endpoint}")
+            self.logger.info("OTP EXCHANGE: Attempting to exchange OTP code at %s", endpoint)
 
             # Use the imported requests library
             response = http_client.post(endpoint, json=payload, timeout=30)
@@ -613,7 +613,7 @@ class AISearchClient:
                     api_key = data.get('api_key')
                     user_email = data.get('user_email', '')
 
-                    self.logger.info(f"OTP EXCHANGE: Successfully exchanged OTP for API key, user: {user_email}")
+                    self.logger.info("OTP EXCHANGE: Successfully exchanged OTP for API key")
 
                     return {
                         'success': True,
@@ -622,7 +622,7 @@ class AISearchClient:
                     }
                 else:
                     error_msg = data.get('error', 'Unknown error from server')
-                    self.logger.error(f"OTP EXCHANGE: Server returned error: {error_msg}")
+                    self.logger.error("OTP EXCHANGE: Server returned error: %s", error_msg)
                     return {
                         'success': False,
                         'error': error_msg
@@ -635,14 +635,14 @@ class AISearchClient:
                 except:
                     pass # If response is not JSON, keep the HTTP status code error message
 
-                self.logger.error(f"OTP EXCHANGE: HTTP error {response.status_code}: {error_msg}")
+                self.logger.error("OTP EXCHANGE: HTTP error %s: %s", response.status_code, error_msg)
                 return {
                     'success': False,
                     'error': f'Server error: {error_msg}'
                 }
 
         except Exception as e:
-            self.logger.error(f"OTP EXCHANGE: Exception during OTP exchange: {e}")
+            self.logger.error("OTP EXCHANGE: Exception during OTP exchange: %s", e)
             return {
                 'success': False,
                 'error': f'Connection error: {str(e)}'

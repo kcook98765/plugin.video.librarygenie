@@ -59,8 +59,8 @@ class SimpleSearchEngine:
             sql_query, params = self._build_ranked_sql_query(query)
 
             # Log the actual SQL query being executed
-            self.logger.debug(f"Executing search SQL: {sql_query}")
-            self.logger.debug(f"Search SQL parameters: {params}")
+            self.logger.debug("Executing search SQL: %s", sql_query)
+            self.logger.debug("Search SQL parameters: %s", params)
 
             # Execute search
             items = self.conn_manager.execute_query(sql_query, params)
@@ -74,11 +74,11 @@ class SimpleSearchEngine:
             duration = datetime.now() - start_time
             result.search_duration_ms = int(duration.total_seconds() * 1000)
 
-            self.logger.debug(f"Simple search completed: {result.total_count} results in {result.search_duration_ms}ms")
+            self.logger.debug("Simple search completed: %s results in %sms", result.total_count, result.search_duration_ms)
             return result
 
         except Exception as e:
-            self.logger.error(f"Simple search error: {e}")
+            self.logger.error("Simple search error: %s", e)
             result.query_summary = "Search error"
             return result
 
