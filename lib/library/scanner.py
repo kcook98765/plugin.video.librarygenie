@@ -569,12 +569,17 @@ class LibraryScanner:
                     tvshow_id = tvshow.get("kodi_id")
                     tvshow_title = tvshow.get("title", "Unknown Show")
                     
+                    # Calculate incremental progress: 80% to 95% during TV show processing
                     if dialog_bg:
-                        progress_msg = f"Processing episodes for: {tvshow_title}"
-                        dialog_bg.update(80, "LibraryGenie", progress_msg)
+                        overall_show_progress = (show_offset + idx) / total_tvshows
+                        progress_percentage = int(80 + (overall_show_progress * 15))  # 80% to 95%
+                        progress_msg = f"Processing episodes for: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows})"
+                        dialog_bg.update(progress_percentage, "LibraryGenie", progress_msg)
                     elif progress_dialog:
-                        progress_msg = f"Processing episodes for: {tvshow_title}"
-                        progress_dialog.update(80, "LibraryGenie", progress_msg)
+                        overall_show_progress = (show_offset + idx) / total_tvshows
+                        progress_percentage = int(80 + (overall_show_progress * 15))  # 80% to 95%
+                        progress_msg = f"Processing episodes for: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows})"
+                        progress_dialog.update(progress_percentage, "LibraryGenie", progress_msg)
                     
                     # Get all episodes for this TV show
                     episodes = self.kodi_client.get_episodes_for_tvshow(tvshow_id)
