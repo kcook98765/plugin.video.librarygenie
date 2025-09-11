@@ -62,11 +62,11 @@ class MenuBuilder:
         is_folder = item.get("is_folder", True)
         context_menu = item.get("context_menu", [])
 
-        self.logger.debug(f"MENU ITEM: Processing '{title}' - action='{action}', is_folder={is_folder}")
+        self.logger.debug("MENU ITEM: Processing '%s' - action='%s', is_folder=%s", title, action, is_folder)
 
         # Log all item properties for debugging
         item_keys = list(item.keys())
-        self.logger.debug(f"MENU ITEM: Available properties for '{title}': {item_keys}")
+        self.logger.debug("MENU ITEM: Available properties for '%s': %s", title, item_keys)
 
         # Build URL with parameters
         param_keys = []
@@ -86,18 +86,18 @@ class MenuBuilder:
             url = f"{base_url}?{urlencode(params)}"
         else:
             url = ""
-        self.logger.debug(f"MENU ITEM: Built URL for '{title}': '{url}'")
+        self.logger.debug("MENU ITEM: Built URL for '%s': '%s'", title, url)
         if param_keys:
-            self.logger.debug(f"MENU ITEM: Added URL parameters for '{title}': {param_keys}")
+            self.logger.debug("MENU ITEM: Added URL parameters for '%s': %s", title, param_keys)
 
         # Create list item - check if this is a movie item for enhanced rendering
         if item.get("movie_data"):
             # Use Phase 11 renderer for movie items
-            self.logger.debug(f"MENU ITEM: Using movie renderer for '{title}' with movie_data")
+            self.logger.debug("MENU ITEM: Using movie renderer for '%s' with movie_data", title)
             list_item = self.renderer.create_movie_listitem(item["movie_data"], base_url, action)
         else:
             # Use simple renderer for menu items
-            self.logger.debug(f"MENU ITEM: Using simple renderer for '{title}'")
+            self.logger.debug("MENU ITEM: Using simple renderer for '%s'", title)
             list_item = self.renderer.create_simple_listitem(title, description, action, icon=item.get("icon"))
 
             # Ensure non-folder action items are not marked as playable to prevent info dialog
@@ -106,7 +106,7 @@ class MenuBuilder:
 
         # Check if list_item was created successfully
         if list_item is None:
-            self.logger.error(f"MENU ITEM: Failed to create list item for '{title}' - skipping")
+            self.logger.error("MENU ITEM: Failed to create list item for '%s' - skipping", title)
             return
 
         # Add context menu if provided
@@ -114,18 +114,18 @@ class MenuBuilder:
         if context_menu and list_item is not None:
             list_item.addContextMenuItems(context_menu)
             context_items_added = len(context_menu)
-            self.logger.debug(f"MENU ITEM: Added {context_items_added} base context menu items for '{title}'")
+            self.logger.debug("MENU ITEM: Added %s base context menu items for '%s'", context_items_added, title)
 
         # Context menus now handled globally via addon.xml and context.py
 
         if context_items_added > 0:
-            self.logger.debug(f"MENU ITEM: Total context menu items for '{title}': {context_items_added}")
+            self.logger.debug("MENU ITEM: Total context menu items for '%s': %s", title, context_items_added)
 
         # Add to directory
         xbmcplugin.addDirectoryItem(
             handle=addon_handle, url=url, listitem=list_item, isFolder=is_folder
         )
-        self.logger.debug(f"MENU ITEM: Successfully added '{title}' to directory")
+        self.logger.debug("MENU ITEM: Successfully added '%s' to directory", title)
 
     def _show_breadcrumb_if_needed(self, breadcrumb_path: str):
         """Show breadcrumb notification for non-root views using BreadcrumbHelper"""
@@ -135,16 +135,16 @@ class MenuBuilder:
                 breadcrumb_helper = get_breadcrumb_helper()
                 breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
             except Exception as e:
-                self.logger.error(f"BREADCRUMB: Failed to display breadcrumb notification: {e}")
+                self.logger.error("BREADCRUMB: Failed to display breadcrumb notification: %s", e)
 
 
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):
         """Build a menu specifically for movie items with enhanced ListItems"""
-        self.logger.debug(f"MOVIE MENU: Starting build_movie_menu with {len(movies)} movies")
-        self.logger.debug(f"MOVIE MENU: addon_handle={addon_handle}, base_url='{base_url}', options={list(options.keys())}")
+        self.logger.debug("MOVIE MENU: Starting build_movie_menu with %s movies", len(movies))
+        self.logger.debug("MOVIE MENU: addon_handle=%s, base_url='%s', options=%s", addon_handle, base_url, list(options.keys()))
 
         # Set content type for better skin support
-        self.logger.debug(f"MOVIE MENU: Setting content type 'movies' for handle {addon_handle}")
+        self.logger.debug("MOVIE MENU: Setting content type 'movies' for handle %s", addon_handle)
         xbmcplugin.setContent(addon_handle, 'movies')
         self.logger.debug("MOVIE MENU: Successfully set content type to 'movies'")
 
@@ -163,7 +163,7 @@ class MenuBuilder:
 
         for method_name, method in sort_methods:
             xbmcplugin.addSortMethod(addon_handle, method)
-            self.logger.debug(f"MOVIE MENU: Added sort method {method_name}")
+            self.logger.debug("MOVIE MENU: Added sort method %s", method_name)
 
         # Build movie items
         successful_movies = 0
@@ -171,23 +171,23 @@ class MenuBuilder:
 
         for idx, movie in enumerate(movies):
             try:
-                self.logger.debug(f"MOVIE MENU: Processing movie {idx+1}/{len(movies)}: '{movie.get('title', 'Unknown')}'")
+                self.logger.debug("MOVIE MENU: Processing movie %s/%s: '%s'", idx+1, len(movies), movie.get('title', 'Unknown'))
                 self._add_movie_item(movie, addon_handle, base_url, **options)
                 successful_movies += 1
             except Exception as e:
                 failed_movies += 1
-                self.logger.error(f"MOVIE MENU: Failed to add movie {idx+1}: {e}")
+                self.logger.error("MOVIE MENU: Failed to add movie %s: %s", idx+1, e)
 
-        self.logger.debug(f"MOVIE MENU: Added {successful_movies} movies successfully, {failed_movies} failed")
+        self.logger.debug("MOVIE MENU: Added %s movies successfully, %s failed", successful_movies, failed_movies)
 
         # Set view mode if specified
         view_mode = options.get('view_mode')
         category = options.get('category', 'Movies')
         if view_mode:
             xbmcplugin.setPluginCategory(addon_handle, category)
-            self.logger.debug(f"MOVIE MENU: Set plugin category to '{category}' with view_mode '{view_mode}'")
+            self.logger.debug("MOVIE MENU: Set plugin category to '%s' with view_mode '%s'", category, view_mode)
         else:
-            self.logger.debug(f"MOVIE MENU: No view_mode specified, using default category '{category}'")
+            self.logger.debug("MOVIE MENU: No view_mode specified, using default category '%s'", category)
 
         xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
         self.logger.info("MOVIE MENU: Completed movie menu build with caching enabled")
@@ -242,7 +242,7 @@ class MenuBuilder:
                         video_info_tag = list_item.getVideoInfoTag()
                         video_info_tag.setPlot(movie_data['description'])
                     except Exception as e:
-                        self.logger.error(f"Failed to set plot via InfoTagVideo for movie '{movie_data.get('title')}': {e}")
+                        self.logger.error("Failed to set plot via InfoTagVideo for movie '%s': %s", movie_data.get('title'), e)
                         list_item.setInfo('video', {'plot': movie_data['description']})
                 else:
                     list_item.setInfo('video', {'plot': movie_data['description']})
@@ -254,19 +254,19 @@ class MenuBuilder:
         else:
             # Log error if list_item creation failed
             movie_title = movie_data.get('title', 'Unknown')
-            self.logger.error(f"MOVIE MENU: Failed to create list item for movie '{movie_title}' - skipping")
+            self.logger.error("MOVIE MENU: Failed to create list item for movie '%s' - skipping", movie_title)
 
     def create_menu_item(self, label: str, action: str, description: Optional[str] = None, icon: Optional[str] = None, **params) -> Tuple[str, xbmcgui.ListItem]:
         """Create a menu item with URL and ListItem"""
         try:
             kodi_major = get_kodi_major_version()
-            self.logger.info(f"MENU BUILDER: Creating menu item '{label}' (action={action}) on Kodi v{kodi_major}")
+            self.logger.info("MENU BUILDER: Creating menu item '%s' (action=%s) on Kodi v%s", label, action, kodi_major)
 
             # Add stack trace to identify caller
             import traceback
             stack_info = traceback.extract_stack()
             caller_info = stack_info[-2] if len(stack_info) > 1 else "unknown"
-            self.logger.info(f"MENU BUILDER CALLER: {caller_info.filename}:{caller_info.lineno} in {caller_info.name}")
+            self.logger.info("MENU BUILDER CALLER: %s:%s in %s", caller_info.filename, caller_info.lineno, caller_info.name)
 
             # Build URL
             url_params = [f"action={action}"]
@@ -290,7 +290,7 @@ class MenuBuilder:
                         if params.get('content_type'):
                             video_info_tag.setGenres([params.get('content_type')])
                     except Exception as e:
-                        self.logger.error(f"Failed to set metadata via InfoTagVideo for menu item '{label}': {e}")
+                        self.logger.error("Failed to set metadata via InfoTagVideo for menu item '%s': %s", label, e)
                         # Fallback to setInfo for compatibility
                         list_item.setInfo('video', {
                             'title': label,
@@ -305,10 +305,10 @@ class MenuBuilder:
                         'genre': params.get('content_type', '')
                     })
 
-            self.logger.info(f"MENU BUILDER: Successfully created menu item '{label}' -> {url}")
+            self.logger.info("MENU BUILDER: Successfully created menu item '%s' -> %s", label, url)
             return url, list_item
 
         except Exception as e:
-            self.logger.error(f"MENU BUILDER: Failed to create menu item '{label}': {e}")
+            self.logger.error("MENU BUILDER: Failed to create menu item '%s': %s", label, e)
             # Return fallback
             return f"{self.base_url}?action={action}", xbmcgui.ListItem(label=label)

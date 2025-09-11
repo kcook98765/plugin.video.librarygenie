@@ -238,19 +238,19 @@ class Phase4FavoritesParser:
             }
             
         except Exception as e:
-            self.logger.debug(f"Error parsing favorite element: {e}")
+            self.logger.debug("Error parsing favorite element: %s", e)
             return None
     
     def _classify_favorite_target(self, target: str) -> str:
         """Classify favorite by target scheme - Phase 4 comprehensive classification"""
         try:
             target_lower = target.lower().strip()
-            self.logger.debug(f"Classifying target: '{target}'")
+            self.logger.debug("Classifying target: '%s'", target)
             
             # First check for PlayMedia commands and extract the path
             extracted_path = self._extract_path_from_command(target)
             if extracted_path and extracted_path != target:
-                self.logger.info(f"Extracted path from command: '{extracted_path}'")
+                self.logger.info("Extracted path from command: '%s'", extracted_path)
                 # Recursively classify the extracted path
                 return self._classify_favorite_target(extracted_path)
             
@@ -267,7 +267,7 @@ class Phase4FavoritesParser:
             
             for scheme in mappable_schemes:
                 if target_lower.startswith(scheme):
-                    self.logger.debug(f"Classified as 'mappable_file' (scheme: {scheme})")
+                    self.logger.debug("Classified as 'mappable_file' (scheme: %s)", scheme)
                     return 'mappable_file'
             
             # Kodi video database references
@@ -282,7 +282,7 @@ class Phase4FavoritesParser:
             
             for scheme in unsupported_schemes:
                 if target_lower.startswith(scheme):
-                    self.logger.debug(f"Classified as 'plugin_or_script' (scheme: {scheme})")
+                    self.logger.debug("Classified as 'plugin_or_script' (scheme: %s)", scheme)
                     return 'plugin_or_script'
             
             # Kodi built-in commands
@@ -293,7 +293,7 @@ class Phase4FavoritesParser:
             
             for pattern in builtin_patterns:
                 if pattern in target_lower:
-                    self.logger.debug(f"Classified as 'builtin_command' (pattern: {pattern})")
+                    self.logger.debug("Classified as 'builtin_command' (pattern: %s)", pattern)
                     return 'builtin_command'
             
             # Plain file paths (no scheme)
@@ -305,7 +305,7 @@ class Phase4FavoritesParser:
             return 'unknown'
             
         except Exception as e:
-            self.logger.debug(f"Error classifying target '{target}': {e}")
+            self.logger.debug("Error classifying target '%s': %s", target, e)
             return 'unknown'
     
     def _looks_like_file_path(self, target: str) -> bool:
@@ -344,20 +344,20 @@ class Phase4FavoritesParser:
         """Extract file path from Kodi commands like PlayMedia()"""
         try:
             target_stripped = target.strip()
-            self.logger.debug(f"Extracting path from command: '{target_stripped}'")
+            self.logger.debug("Extracting path from command: '%s'", target_stripped)
             
             # Handle PlayMedia("path", options)
             playmedia_match = re.match(r'PlayMedia\s*\(\s*"([^"]+)"(?:,.*?)?\s*\)', target_stripped, re.IGNORECASE)
             if playmedia_match:
                 extracted = playmedia_match.group(1)
-                self.logger.info(f"Extracted from PlayMedia: '{extracted}'")
+                self.logger.info("Extracted from PlayMedia: '%s'", extracted)
                 return extracted
             
             # Handle ActivateWindow commands that might contain paths
             activatewindow_match = re.match(r'ActivateWindow\s*\([^,]+,\s*"([^"]+)"(?:,.*?)?\s*\)', target_stripped, re.IGNORECASE)
             if activatewindow_match:
                 extracted = activatewindow_match.group(1)
-                self.logger.info(f"Extracted from ActivateWindow: '{extracted}'")
+                self.logger.info("Extracted from ActivateWindow: '%s'", extracted)
                 return extracted
             
             # If no command wrapper found, return original
@@ -365,7 +365,7 @@ class Phase4FavoritesParser:
             return target
             
         except Exception as e:
-            self.logger.warning(f"Error extracting path from command '{target}': {e}")
+            self.logger.warning("Error extracting path from command '%s': %s", target, e)
             return target
 
     def _create_normalized_key(self, target: str, classification: str) -> str:
@@ -373,24 +373,24 @@ class Phase4FavoritesParser:
         try:
             # First extract the actual path from any command wrappers
             extracted_path = self._extract_path_from_command(target)
-            self.logger.debug(f"Working with extracted path: '{extracted_path}'")
+            self.logger.debug("Working with extracted path: '%s'", extracted_path)
             
             if classification == 'videodb':
                 normalized = self._normalize_videodb_key(extracted_path)
-                self.logger.debug(f"Normalized videodb key: '{extracted_path}' -> '{normalized}'")
+                self.logger.debug("Normalized videodb key: '%s' -> '%s'", extracted_path, normalized)
                 return normalized
             elif classification in ['mappable_file']:
                 normalized = self._normalize_file_path_key(extracted_path)
-                self.logger.debug(f"Normalized file path key: '{extracted_path}' -> '{normalized}'")
+                self.logger.debug("Normalized file path key: '%s' -> '%s'", extracted_path, normalized)
                 return normalized
             else:
                 # For non-mappable items, use a simple normalized form
                 normalized = target.lower().strip()
-                self.logger.debug(f"Simple normalized key: '{target}' -> '{normalized}'")
+                self.logger.debug("Simple normalized key: '%s' -> '%s'", target, normalized)
                 return normalized
                 
         except Exception as e:
-            self.logger.debug(f"Error creating normalized key for '{target}': {e}")
+            self.logger.debug("Error creating normalized key for '%s': %s", target, e)
             return target.lower().strip()
     
     def _normalize_videodb_key(self, target: str) -> str:
@@ -463,7 +463,7 @@ class Phase4FavoritesParser:
                 return path_part
             
         except Exception as e:
-            self.logger.debug(f"Error normalizing file path '{target}': {e}")
+            self.logger.debug("Error normalizing file path '%s': %s", target, e)
             return target.lower()
     
     def _normalize_path_component(self, path: str) -> str:
