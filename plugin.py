@@ -483,6 +483,10 @@ def main():
 
         # Ensure critical startup initialization is completed
         _ensure_startup_initialization(context)
+        
+        # Check for fresh install and show setup modal if needed
+        if _check_and_handle_fresh_install(context):
+            return  # Exit early after fresh install setup
 
         # Create router and register handlers
         router = Router()
@@ -539,6 +543,160 @@ def _log_window_state(context: PluginContext):
 
     except Exception as e:
         context.logger.warning("Failed to log window state at plugin entry: %s", e)
+
+
+def _check_and_handle_fresh_install(context: PluginContext) -> bool:
+    """Check for fresh install and show setup modal if needed. Returns True if handled."""
+    try:
+        from lib.library.sync_controller import SyncController
+        from lib.ui.localization import L
+        
+        sync_controller = SyncController()
+        
+        # Skip if first run already completed
+        if not sync_controller.is_first_run():
+            return False
+            
+        logger.info("First run detected - showing setup modal")
+        
+        # Show fresh install setup dialog
+        dialog = xbmcgui.Dialog()
+        
+        # Create setup options with localized strings
+        options = [
+            L(35521),  # "Movies and TV Episodes (Recommended)"
+            L(35522),  # "Movies Only"
+            L(35523),  # "TV Episodes Only"
+            L(35524)   # "Skip Setup (Configure Later)"
+        ]
+        
+        # Use compatible dialog.select parameters
+        selected = dialog.select(L(35520), options)  # "LibraryGenie Setup"
+        
+        # Handle user selection
+        if selected == -1:  # User canceled or pressed back
+            logger.info("Fresh install setup canceled by user")
+            return True  # Still exit early to avoid showing main menu
+            
+        elif selected == 0:  # Both movies and TV episodes
+            logger.info("User selected: Movies and TV Episodes")
+            _show_setup_progress(L(35525))  # "Setting up Movies and TV Episodes sync..."
+            sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=True)
+            _show_setup_complete(L(35528))  # "Setup complete! Both movies and TV episodes will be synced."
+            
+        elif selected == 1:  # Movies only
+            logger.info("User selected: Movies Only")
+            _show_setup_progress(L(35526))  # "Setting up Movies sync..."
+            sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
+            _show_setup_complete(L(35529))  # "Setup complete! Movies will be synced."
+            
+        elif selected == 2:  # TV Episodes only
+            logger.info("User selected: TV Episodes Only")
+            _show_setup_progress(L(35527))  # "Setting up TV Episodes sync..."
+            sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=True)
+            _show_setup_complete(L(35530))  # "Setup complete! TV episodes will be synced."
+            
+        elif selected == 3:  # Skip setup
+            logger.info("User selected: Skip Setup")
+            # Mark first run complete but don't enable any syncing
+            sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=False)
+            xbmcgui.Dialog().notification(
+                L(35002),   # "LibraryGenie"
+                L(35531),   # "Setup skipped. Configure sync options in Settings."
+                xbmcgui.NOTIFICATION_INFO,
+                4000
+            )
+        
+        return True  # Handled fresh install, exit early
+        
+    except Exception as e:
+        logger.error("Error during fresh install setup: %s", e)
+        # On error, mark first run complete to avoid infinite loops
+        try:
+            from lib.library.sync_controller import SyncController
+            sync_controller = SyncController()
+            sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
+        except:
+            pass
+        
+        from lib.ui.localization import L
+        xbmcgui.Dialog().notification(
+            L(35002),   # "LibraryGenie"
+            L(35532),   # "Setup error - using default settings"
+            xbmcgui.NOTIFICATION_WARNING,
+            4000
+        )
+        return True
+
+
+def _show_setup_progress(message: str):
+    """Show setup progress notification"""
+    from lib.ui.localization import L
+    xbmcgui.Dialog().notification(
+        L(35520),   # "LibraryGenie Setup"
+        message,
+        xbmcgui.NOTIFICATION_INFO,
+        3000
+    )
+
+
+def _show_setup_complete(message: str):
+    """Show setup completion notification"""
+    from lib.ui.localization import L
+    xbmcgui.Dialog().notification(
+        L(35520),   # "LibraryGenie Setup"
+        message,
+        xbmcgui.NOTIFICATION_INFO,
+        6000
+    )
+
+
+def _handle_manual_library_sync(context: PluginContext):
+    """Handle manual library sync triggered from settings"""
+    try:
+        from lib.library.sync_controller import SyncController
+        
+        logger.info("Manual library sync triggered from settings")
+        
+        # Show initial notification
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Starting library sync...",
+            xbmcgui.NOTIFICATION_INFO,
+            2000
+        )
+        
+        # Perform sync
+        sync_controller = SyncController()
+        success, message = sync_controller.perform_manual_sync()
+        
+        # Show result notification
+        if success:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                message,
+                xbmcgui.NOTIFICATION_INFO,
+                6000
+            )
+            logger.info("Manual library sync completed successfully: %s", message)
+        else:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                f"Sync failed: {message}",
+                xbmcgui.NOTIFICATION_ERROR,
+                8000
+            )
+            logger.warning("Manual library sync failed: %s", message)
+            
+    except Exception as e:
+        error_msg = f"Manual sync error: {str(e)}"
+        logger.error(error_msg)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            error_msg,
+            xbmcgui.NOTIFICATION_ERROR,
+            6000
+        )
 
 
 def _register_all_handlers(router: Router):
@@ -604,6 +762,7 @@ def _register_all_handlers(router: Router):
         'restore_backup': lambda ctx: _handle_restore_backup(ctx),
         'noop': lambda ctx: handle_noop(),
         'settings': lambda ctx: handle_settings(),
+        'manual_library_sync': lambda ctx: _handle_manual_library_sync(ctx),
     })
 
 
