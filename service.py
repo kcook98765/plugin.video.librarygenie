@@ -44,6 +44,10 @@ class LibraryGenieService:
         self._last_ai_sync_check_time = 0
         self._last_service_log_time = 0
         
+        # TV episode sync state tracking
+        self._last_tv_sync_state = None
+        self._last_tv_sync_check_time = 0
+        
         self.logger.info("🚀 LibraryGenie service initialized with InfoHijack manager")
 
         # Debug: Check initial dialog state
@@ -134,6 +138,10 @@ class LibraryGenieService:
             else:
                 self.logger.info("❌ AI Search sync conditions not met - sync disabled")
 
+            # Check TV episode sync status at startup
+            self.logger.info("📺 Checking TV episode sync activation status at startup...")
+            self._check_tv_episode_sync_activation()
+
             # Main service loop
             self.run() # Changed to call run() which contains the hijack manager loop
 
@@ -217,6 +225,8 @@ class LibraryGenieService:
                 # Check for AI sync activation changes periodically
                 if tick_count % ai_sync_check_interval == 0:
                     self._check_ai_sync_activation(tick_count)
+                    # Also check TV episode sync activation
+                    self._check_tv_episode_sync_activation(tick_count)
 
                 # Run hijack manager tick only when needed
                 if hijack_mode:
@@ -370,6 +380,61 @@ class LibraryGenieService:
             self.logger.error("AI sync worker error: %s", e)
         finally:
             self.logger.info("AI search sync worker stopped")
+            
+    def _check_tv_episode_sync_activation(self, tick_count=None):
+        """Check if TV episode sync should be triggered (for dynamic activation detection)"""
+        try:
+            current_time = time.time()
+            tv_sync_enabled = self.settings.get_sync_tv_episodes()
+            
+            # Only log periodic check every 5 minutes instead of 30 seconds
+            should_log_periodic = (tick_count is not None and 
+                                 (current_time - self._last_tv_sync_check_time) > 300)  # 5 minutes
+            
+            if should_log_periodic:
+                self.logger.info("🔄 Periodic TV episode sync check (tick %s)", tick_count)
+                self._last_tv_sync_check_time = current_time
+                
+            # Check for state change from False to True (newly enabled)
+            if tv_sync_enabled and not self._last_tv_sync_state:
+                self.logger.info("📺 TV episode sync was just enabled - triggering immediate sync")
+                self._trigger_tv_episode_sync()
+                
+            # Update last known state
+            self._last_tv_sync_state = tv_sync_enabled
+            
+        except Exception as e:
+            self.logger.error("Error checking TV episode sync activation: %s", e)
+            
+    def _trigger_tv_episode_sync(self):
+        """Trigger TV episode sync when the setting is enabled"""
+        try:
+            from lib.config.tv_sync_helper import on_tv_episode_sync_enabled
+            
+            self.logger.info("📺 Triggering TV episode sync...")
+            success = on_tv_episode_sync_enabled()
+            
+            if success:
+                self.logger.info("📺 TV episode sync completed successfully")
+                self._show_notification(
+                    "TV episode sync completed - episodes are now available for list building",
+                    time_ms=8000
+                )
+            else:
+                self.logger.warning("📺 TV episode sync completed with issues")
+                self._show_notification(
+                    "TV episode sync completed with issues - check logs for details",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    time_ms=8000
+                )
+                
+        except Exception as e:
+            self.logger.error("Error triggering TV episode sync: %s", e)
+            self._show_notification(
+                f"TV episode sync failed: {str(e)[:50]}...",
+                xbmcgui.NOTIFICATION_ERROR,
+                time_ms=8000
+            )
 
     def _perform_ai_sync(self):
         """Perform AI search synchronization"""
