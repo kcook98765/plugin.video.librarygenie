@@ -309,19 +309,20 @@ class MigrationManager:
         CREATE TABLE favorites_scan_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             scan_type TEXT NOT NULL,
-            start_time TEXT NOT NULL,
-            end_time TEXT,
-            total_favorites INTEGER DEFAULT 0,
-            favorites_added INTEGER DEFAULT 0,
-            favorites_mapped INTEGER DEFAULT 0,
-            favorites_removed INTEGER DEFAULT 0,
-            error TEXT,
+            file_path TEXT NOT NULL,
+            file_modified TEXT,
+            items_found INTEGER DEFAULT 0,
+            items_mapped INTEGER DEFAULT 0,
+            items_added INTEGER DEFAULT 0,
+            items_updated INTEGER DEFAULT 0,
+            scan_duration_ms INTEGER DEFAULT 0,
+            success INTEGER DEFAULT 1,
+            error_message TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         
-        CREATE INDEX idx_favorites_scan_log_type_time ON favorites_scan_log (scan_type, start_time);
+        CREATE INDEX idx_favorites_scan_log_file_path ON favorites_scan_log (file_path);
         CREATE INDEX idx_favorites_scan_log_created ON favorites_scan_log (created_at);
-        CREATE INDEX idx_favorites_scan_log_start_time ON favorites_scan_log (start_time);
         
         CREATE TABLE remote_cache (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

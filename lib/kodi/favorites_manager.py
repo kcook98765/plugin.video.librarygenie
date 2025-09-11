@@ -54,13 +54,13 @@ class Phase4FavoritesManager:
             # Phase 4: Check if we need to scan (mtime-based)
             if not force_refresh:
                 last_scan = self._get_last_scan_info(file_path)
-                if last_scan and last_scan.get("file_modified") == file_modified:
+                if last_scan and last_scan["file_modified"] == file_modified:
                     self.logger.debug("Favorites file unchanged since last scan")
                     return {
                         "success": True,
                         "scan_type": "check",
-                        "items_found": last_scan.get("items_found", 0),
-                        "items_mapped": last_scan.get("items_mapped", 0),
+                        "items_found": last_scan["items_found"] if last_scan["items_found"] is not None else 0,
+                        "items_mapped": last_scan["items_mapped"] if last_scan["items_mapped"] is not None else 0,
                         "message": "No changes detected"
                     }
 
@@ -257,7 +257,8 @@ class Phase4FavoritesManager:
                 """, [normalized_key])
 
                 if result:
-                    self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}' (type: {result.get('media_type', 'unknown')})")
+                    media_type = result['media_type'] if 'media_type' in result else 'unknown'
+                    self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}' (type: {media_type})")
                     self.logger.info(f"    Matched file_path: {result['file_path']}")
                     return result["id"]
                 else:
