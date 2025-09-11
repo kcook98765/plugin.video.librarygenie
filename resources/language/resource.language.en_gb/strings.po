@@ -1880,6 +1880,59 @@ msgctxt "#35509"
 msgid "Manually trigger a library sync based on current movie and TV episode settings."
 msgstr ""
 
+# Fresh Install Setup Strings
+msgctxt "#35520"
+msgid "LibraryGenie Setup"
+msgstr ""
+
+msgctxt "#35521"
+msgid "Movies and TV Episodes (Recommended)"
+msgstr ""
+
+msgctxt "#35522"
+msgid "Movies Only"
+msgstr ""
+
+msgctxt "#35523"
+msgid "TV Episodes Only"
+msgstr ""
+
+msgctxt "#35524"
+msgid "Skip Setup (Configure Later)"
+msgstr ""
+
+msgctxt "#35525"
+msgid "Setting up Movies and TV Episodes sync..."
+msgstr ""
+
+msgctxt "#35526"
+msgid "Setting up Movies sync..."
+msgstr ""
+
+msgctxt "#35527"
+msgid "Setting up TV Episodes sync..."
+msgstr ""
+
+msgctxt "#35528"
+msgid "Setup complete! Both movies and TV episodes will be synced."
+msgstr ""
+
+msgctxt "#35529"
+msgid "Setup complete! Movies will be synced."
+msgstr ""
+
+msgctxt "#35530"
+msgid "Setup complete! TV episodes will be synced."
+msgstr ""
+
+msgctxt "#35531"
+msgid "Setup skipped. Configure sync options in Settings."
+msgstr ""
+
+msgctxt "#35532"
+msgid "Setup error - using default settings"
+msgstr ""
+
 # Lists Settings Help Text
 msgctxt "#35510"
 msgid "Allows quickly adding movies to your default list with a single click from the library browser."
