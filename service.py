@@ -423,7 +423,7 @@ class LibraryGenieService:
         try:
             # Check if initial sync is requested
             initial_sync_requested = self.settings.addon.getSetting('initial_sync_requested')
-            self.logger.debug("Checking initial sync request: flag='%s'", initial_sync_requested)
+            self.logger.info("🔍 Checking initial sync request: flag='%s'", initial_sync_requested)
             if initial_sync_requested != 'true':
                 return
                 
