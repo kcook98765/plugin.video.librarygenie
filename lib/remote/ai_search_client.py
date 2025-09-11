@@ -308,15 +308,15 @@ class AISearchClient:
                     self.logger.error("Invalid response format: results is not a list")
                     return None
 
-                self.logger.info(f"AI search completed: {len(results)} results")
+                self.logger.info("AI search completed: %s results", len(results))
                 return response
             else:
                 error_msg = response.get('error', 'Unknown error') if response else 'No response'
-                self.logger.error(f"AI search failed: {error_msg}")
+                self.logger.error("AI search failed: %s", error_msg)
                 return None
 
         except Exception as e:
-            self.logger.error(f"Error performing AI search: {e}")
+            self.logger.error("Error performing AI search: %s", e)
             return None
 
     def get_library_version(self) -> Optional[Dict[str, Any]]:
@@ -336,7 +336,7 @@ class AISearchClient:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting library hash: {e}")
+            self.logger.error("Error getting library hash: %s", e)
             return None
 
     def sync_media_batch(self, media_items: List[Dict[str, Any]], batch_size: int = 500, use_replace_mode: bool = False, progress_callback=None) -> Optional[Dict[str, Any]]:
@@ -379,11 +379,11 @@ class AISearchClient:
                 'source': 'kodi'
             }
 
-            self.logger.info(f"Starting batch sync in '{sync_mode}' mode with {len(imdb_ids)} items")
+            self.logger.info("Starting batch sync in '%s' mode with %s items", sync_mode, len(imdb_ids))
             start_response = self._make_request('library/batch/start', 'POST', batch_start_data)
             if not start_response or not start_response.get('success'):
                 error_msg = start_response.get('error', 'Failed to start batch session') if start_response else 'No response'
-                self.logger.error(f"Failed to start batch upload session: {error_msg}")
+                self.logger.error("Failed to start batch upload session: %s", error_msg)
                 return {'success': False, 'error': error_msg}
 
             # Get upload_id from start response
@@ -435,7 +435,7 @@ class AISearchClient:
                     results['duplicates'] += chunk_results.get('duplicates', 0)
                     results['invalid'] += chunk_results.get('invalid', 0)
 
-                    self.logger.debug(f"Uploaded chunk {chunk_index + 1}: {chunk_results}")
+                    self.logger.debug("Uploaded chunk %s: %s", chunk_index + 1, chunk_results)
 
                     # Rate limiting - wait between chunks
                     if i + chunk_size < len(imdb_ids):
@@ -443,7 +443,7 @@ class AISearchClient:
 
                 else:
                     error_msg = response.get('error', 'Unknown error') if response else 'No response'
-                    self.logger.warning(f"Chunk upload failed: {error_msg}")
+                    self.logger.warning("Chunk upload failed: %s", error_msg)
 
                     # For certain errors, continue with next chunk instead of failing completely
                     if 'rate limit' in error_msg.lower() or 'timeout' in error_msg.lower():
@@ -456,12 +456,12 @@ class AISearchClient:
                 chunk_index += 1
 
             # Commit the batch - REQUIRED for replace-sync operations            
-            self.logger.info(f"Committing batch upload for {upload_id}")
+            self.logger.info("Committing batch upload for %s", upload_id)
             commit_response = self._make_request(f'library/batch/{upload_id}/commit', 'POST')
             
             if not commit_response or not commit_response.get('success'):
                 error_msg = commit_response.get('error', 'Failed to commit batch') if commit_response else 'No response'
-                self.logger.error(f"Failed to commit batch: {error_msg}")
+                self.logger.error("Failed to commit batch: %s", error_msg)
                 return {'success': False, 'error': f'Commit failed: {error_msg}'}
 
             # Get final results from commit response
@@ -469,9 +469,9 @@ class AISearchClient:
             user_movie_count = commit_response.get('user_movie_count', 0)
             removed_count = commit_response.get('removed_count', 0)
 
-            self.logger.info(f"Media batch sync completed: {final_tallies}")
+            self.logger.info("Media batch sync completed: %s", final_tallies)
             if use_replace_mode and removed_count > 0:
-                self.logger.info(f"Replace sync removed {removed_count} movies not in current batch")
+                self.logger.info("Replace sync removed %s movies not in current batch", removed_count)
 
             return {
                 'success': True,
@@ -482,7 +482,7 @@ class AISearchClient:
             }
 
         except Exception as e:
-            self.logger.error(f"Error performing media batch sync: {e}")
+            self.logger.error("Error performing media batch sync: %s", e)
             return {'success': False, 'error': f'Sync failed: {str(e)}'}
 
     def get_library_stats(self) -> Optional[Dict[str, Any]]:
@@ -502,7 +502,7 @@ class AISearchClient:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting library stats: {e}")
+            self.logger.error("Error getting library stats: %s", e)
             return None
 
     def search_similar_movies(self, reference_imdb_id: str, facets: Dict[str, bool]) -> Optional[List[str]]:
@@ -542,7 +542,7 @@ class AISearchClient:
 
             if response and response.get('success'):
                 results = response.get('results', [])
-                self.logger.info(f"Found {len(results)} similar movies for {reference_imdb_id}")
+                self.logger.info("Found %s similar movies for %s", len(results), reference_imdb_id)
                 return results
 
             return None

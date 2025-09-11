@@ -1184,7 +1184,7 @@ class QueryManager:
                 if existing_item:
                     # Use existing media item
                     media_item_id = existing_item['id']
-                    self.logger.logger.debug(f"Found existing media_item with id={media_item_id}")
+                    self.logger.debug("Found existing media_item with id=%s", media_item_id)
                 else:
                     # Create new media item - normalize the item first for proper data extraction
                     canonical_item = self._normalize_to_canonical(kodi_item)
