@@ -12,6 +12,7 @@
     <setting label="30030" type="lsep"/>
     <setting id="track_library_changes" type="bool" label="30031" help="35505" default="true"/>
     <setting id="soft_delete_removed_items" type="bool" label="30032" help="35506" default="true"/>
+    <setting id="sync_tv_episodes" type="bool" label="30033" help="35507" default="false"/>
 
   </category>
 
