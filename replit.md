@@ -12,7 +12,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
-**2025-09-11**: Removed favorites_scan_log table and all logging functionality per user request. The favorites scan process still works correctly but no longer stores scan history, timing data, or file modification tracking. This simplifies the database schema and eliminates unnecessary data storage while maintaining all core functionality. Also fixed previous Kodi Favorites display issue in root plugin menu with startup initialization logic.
+**2025-09-11**: 
+- **Major Feature**: Implemented proactive TV episode synchronization system alongside existing movie-only sync process. The feature is gated by an opt-in setting `sync_tv_episodes` (defaulting to off) to give users control over storage impact. This eliminates the need for on-demand episode creation when building lists while maintaining backwards compatibility through database migration system and minimal fallback creation.
+
+- **Database Migration System**: Added comprehensive migration framework to safely upgrade existing installations with new `tvshow_kodi_id` field and indices for reliable episode lookup. Migration runs automatically on startup and handles both fresh installs and existing databases gracefully.
+
+- **Episode Lookup Enhancement**: Fixed episode lookup ambiguity in favorites by using `tvshow_kodi_id` for reliable matching across different shows with same season/episode numbers. Added fallback logic for backwards compatibility with older database schemas.
+
+- **Previous**: Removed favorites_scan_log table and all logging functionality per user request. The favorites scan process still works correctly but no longer stores scan history, timing data, or file modification tracking. This simplifies the database schema and eliminates unnecessary data storage while maintaining all core functionality. Also fixed previous Kodi Favorites display issue in root plugin menu with startup initialization logic.
 
 ## System Architecture
 
