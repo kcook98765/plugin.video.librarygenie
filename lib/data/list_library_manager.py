@@ -32,7 +32,7 @@ class ListLibraryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting item by ID {item_id}: {e}")
+            self.logger.error("Error getting item by ID %s: %s", item_id, e)
             return None
 
     def find_by_imdb(self, imdb_id: str) -> Optional[Dict[str, Any]]:
@@ -47,7 +47,7 @@ class ListLibraryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error finding item by IMDb {imdb_id}: {e}")
+            self.logger.error("Error finding item by IMDb %s: %s", imdb_id, e)
             return None
 
     def find_by_title_year(self, title: str, year: int) -> Optional[Dict[str, Any]]:
@@ -62,7 +62,7 @@ class ListLibraryManager:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error finding item by title/year {title}/{year}: {e}")
+            self.logger.error("Error finding item by title/year %s/%s: %s", title, year, e)
             return None
 
     def get_all_items(self, limit: int = 1000) -> List[Dict[str, Any]]:
@@ -75,7 +75,7 @@ class ListLibraryManager:
             return [dict(row) for row in results]
 
         except Exception as e:
-            self.logger.error(f"Error getting all items: {e}")
+            self.logger.error("Error getting all items: %s", e)
             return []
 
     def update_item(self, item_id: int, data: Dict[str, Any]) -> bool:
@@ -105,7 +105,7 @@ class ListLibraryManager:
             return True
 
         except Exception as e:
-            self.logger.error(f"Error updating item {item_id}: {e}")
+            self.logger.error("Error updating item %s: %s", item_id, e)
             return False
 
     def delete_item(self, item_id: int) -> bool:
@@ -116,7 +116,7 @@ class ListLibraryManager:
             return True
 
         except Exception as e:
-            self.logger.error(f"Error deleting item {item_id}: {e}")
+            self.logger.error("Error deleting item %s: %s", item_id, e)
             return False
 
     def insert_or_update_item(self, data: Dict[str, Any]) -> Optional[int]:
@@ -170,7 +170,7 @@ class ListLibraryManager:
                     return cursor.lastrowid
 
         except Exception as e:
-            self.logger.error(f"Error inserting/updating item: {e}")
+            self.logger.error("Error inserting/updating item: %s", e)
             return None
 
     def get_stats(self) -> Dict[str, int]:
@@ -195,7 +195,7 @@ class ListLibraryManager:
             }
 
         except Exception as e:
-            self.logger.error(f"Error getting stats: {e}")
+            self.logger.error("Error getting stats: %s", e)
             return {'total_items': 0, 'movies': 0, 'episodes': 0}
 
 

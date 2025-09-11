@@ -53,7 +53,7 @@ class BackupManager:
             return now >= next_backup
 
         except Exception as e:
-            self.logger.error(f"Error checking backup schedule: {e}")
+            self.logger.error("Error checking backup schedule: %s", e)
             return False
 
     def run_automatic_backup(self) -> Dict[str, Any]:
@@ -68,7 +68,7 @@ class BackupManager:
             return timestamp_backup_manager.run_automatic_backup()
 
         except Exception as e:
-            self.logger.error(f"Error in automatic backup: {e}")
+            self.logger.error("Error in automatic backup: %s", e)
             return {"success": False, "error": str(e)}
 
     def list_backups(self) -> List[Dict[str, Any]]:
@@ -90,7 +90,7 @@ class BackupManager:
                 return []
 
         except Exception as e:
-            self.logger.error(f"Error listing backups: {e}")
+            self.logger.error("Error listing backups: %s", e)
             return []
 
     def delete_backup(self, filename: str) -> bool:
@@ -100,13 +100,13 @@ class BackupManager:
             file_path = os.path.join(profile_path, filename)
 
             if self.storage_manager.delete_file_safe(file_path):
-                self.logger.info(f"Deleted backup: {filename}")
+                self.logger.info("Deleted backup: %s", filename)
                 return True
             else:
                 return False
 
         except Exception as e:
-            self.logger.error(f"Error deleting backup: {e}")
+            self.logger.error("Error deleting backup: %s", e)
             return False
 
     def get_backup_settings(self) -> Dict[str, Any]:
@@ -124,7 +124,7 @@ class BackupManager:
             }
             return backup_preferences
         except Exception as e:
-            self.logger.error(f"Error getting backup settings: {e}")
+            self.logger.error("Error getting backup settings: %s", e)
             # Return safe defaults
             return {
                 'enabled': False,
@@ -152,9 +152,9 @@ class BackupManager:
             now = datetime.now()
             # Note: This would update config if we had a way to persist it
             # For now, we'll rely on file timestamps
-            self.logger.debug(f"Backup completed at {now}")
+            self.logger.debug("Backup completed at %s", now)
         except Exception as e:
-            self.logger.error(f"Error updating backup time: {e}")
+            self.logger.error("Error updating backup time: %s", e)
 
     def _cleanup_old_backups(self):
         """Clean up old backup files based on retention policy"""
@@ -176,10 +176,10 @@ class BackupManager:
                     deleted_count += 1
 
             if deleted_count > 0:
-                self.logger.info(f"Cleaned up {deleted_count} old backup files")
+                self.logger.info("Cleaned up %s old backup files", deleted_count)
 
         except Exception as e:
-            self.logger.error(f"Error cleaning up backups: {e}")
+            self.logger.error("Error cleaning up backups: %s", e)
 
     def estimate_backup_size(self, export_types: List[str]) -> Dict[str, Any]:
         """Estimate size of backup with given export types"""
@@ -192,7 +192,7 @@ class BackupManager:
                 "breakdown": preview["totals"]
             }
         except Exception as e:
-            self.logger.error(f"Error estimating backup size: {e}")
+            self.logger.error("Error estimating backup size: %s", e)
             return {"export_types": export_types, "estimated_items": 0, "estimated_size_kb": 0}
 
     def get_backup_preferences(self) -> Dict[str, Any]:
@@ -204,57 +204,57 @@ class BackupManager:
             enabled = None
             try:
                 enabled = self.config.get_bool('backup_enabled', False)
-                self.logger.debug(f"BACKUP_DEBUG: backup_enabled = {enabled}")
+                self.logger.debug("BACKUP_DEBUG: backup_enabled = %s", enabled)
             except Exception as e:
-                self.logger.error(f"BACKUP_DEBUG: Error getting backup_enabled: {e}")
+                self.logger.error("BACKUP_DEBUG: Error getting backup_enabled: %s", e)
                 enabled = False
 
             schedule_interval = None
             try:
                 schedule_interval = self.config.get('backup_interval', 'weekly')
-                self.logger.debug(f"BACKUP_DEBUG: backup_interval = {schedule_interval}")
+                self.logger.debug("BACKUP_DEBUG: backup_interval = %s", schedule_interval)
             except Exception as e:
-                self.logger.error(f"BACKUP_DEBUG: Error getting backup_interval: {e}")
+                self.logger.error("BACKUP_DEBUG: Error getting backup_interval: %s", e)
                 schedule_interval = 'weekly'
 
             retention_days = None
             try:
                 retention_days = self.config.get_int('backup_retention_count', 5)
-                self.logger.debug(f"BACKUP_DEBUG: backup_retention_count = {retention_days}")
+                self.logger.debug("BACKUP_DEBUG: backup_retention_count = %s", retention_days)
             except Exception as e:
-                self.logger.error(f"BACKUP_DEBUG: Error getting backup_retention_count: {e}")
+                self.logger.error("BACKUP_DEBUG: Error getting backup_retention_count: %s", e)
                 retention_days = 5
 
             storage_path = None
             try:
                 storage_path = self.config.get_backup_storage_location()
-                self.logger.debug(f"BACKUP_DEBUG: storage_path = {storage_path}")
+                self.logger.debug("BACKUP_DEBUG: storage_path = %s", storage_path)
             except Exception as e:
-                self.logger.error(f"BACKUP_DEBUG: Error getting storage_path: {e}")
+                self.logger.error("BACKUP_DEBUG: Error getting storage_path: %s", e)
                 storage_path = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
 
             storage_type = None
             try:
                 storage_type = self.config.get('backup_storage_type', 'local')
-                self.logger.debug(f"BACKUP_DEBUG: backup_storage_type = {storage_type}")
+                self.logger.debug("BACKUP_DEBUG: backup_storage_type = %s", storage_type)
             except Exception as e:
-                self.logger.error(f"BACKUP_DEBUG: Error getting backup_storage_type: {e}")
+                self.logger.error("BACKUP_DEBUG: Error getting backup_storage_type: %s", e)
                 storage_type = 'local'
 
             include_settings = None
             try:
                 include_settings = self.config.get_bool('backup_include_settings', True)
-                self.logger.debug(f"BACKUP_DEBUG: backup_include_settings = {include_settings}")
+                self.logger.debug("BACKUP_DEBUG: backup_include_settings = %s", include_settings)
             except Exception as e:
-                self.logger.error(f"BACKUP_DEBUG: Error getting backup_include_settings: {e}")
+                self.logger.error("BACKUP_DEBUG: Error getting backup_include_settings: %s", e)
                 include_settings = True
 
             include_non_library = None
             try:
                 include_non_library = self.config.get_bool('backup_include_non_library', False)
-                self.logger.debug(f"BACKUP_DEBUG: backup_include_non_library = {include_non_library}")
+                self.logger.debug("BACKUP_DEBUG: backup_include_non_library = %s", include_non_library)
             except Exception as e:
-                self.logger.error(f"BACKUP_DEBUG: Error getting backup_include_non_library: {e}")
+                self.logger.error("BACKUP_DEBUG: Error getting backup_include_non_library: %s", e)
                 include_non_library = False
 
             result = {
@@ -267,11 +267,11 @@ class BackupManager:
                 'include_non_library': include_non_library
             }
 
-            self.logger.debug(f"BACKUP_DEBUG: Final backup preferences: {result}")
+            self.logger.debug("BACKUP_DEBUG: Final backup preferences: %s", result)
             return result
 
         except Exception as e:
-            self.logger.error(f"BACKUP_DEBUG: Exception in get_backup_preferences: {e}")
+            self.logger.error("BACKUP_DEBUG: Exception in get_backup_preferences: %s", e)
             return {
                 'enabled': False,
                 'schedule_interval': 'weekly',

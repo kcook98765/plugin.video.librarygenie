@@ -53,7 +53,7 @@ class RemoteHTTPClient:
                 }
                 
         except Exception as e:
-            self.logger.warning(f"Health check failed: {e}")
+            self.logger.warning("Health check failed: %s", e)
             return {
                 'success': False,
                 'message': f"Connection failed: {str(e)}",
@@ -94,7 +94,7 @@ class RemoteHTTPClient:
                 }
                 
         except Exception as e:
-            self.logger.error(f"Remote search failed: {e}")
+            self.logger.error("Remote search failed: %s", e)
             return {
                 'success': False,
                 'message': f"Search error: {str(e)}",
@@ -119,7 +119,7 @@ class RemoteHTTPClient:
                 }
                 
         except Exception as e:
-            self.logger.error(f"Failed to get remote lists: {e}")
+            self.logger.error("Failed to get remote lists: %s", e)
             return {
                 'success': False,
                 'message': f"Lists error: {str(e)}",
@@ -152,7 +152,7 @@ class RemoteHTTPClient:
                 }
                 
         except Exception as e:
-            self.logger.error(f"Failed to get list contents for {list_id}: {e}")
+            self.logger.error("Failed to get list contents for %s: %s", list_id, e)
             return {
                 'success': False,
                 'message': f"List contents error: {str(e)}",
@@ -186,7 +186,7 @@ class RemoteHTTPClient:
             request.data = json.dumps(data).encode('utf-8')
         
         if self.log_requests:
-            self.logger.debug(f"Remote request: {method} {url}")
+            self.logger.debug("Remote request: %s %s", method, url)
         
         # Make request with retries
         last_error = None
@@ -208,7 +208,7 @@ class RemoteHTTPClient:
                     result['_response_time_ms'] = int((time.time() - start_time) * 1000)
                     
                     if self.log_requests:
-                        self.logger.debug(f"Remote response: {response.status} ({result.get('_response_time_ms')}ms)")
+                        self.logger.debug("Remote response: %s (%sms)", response.status, result.get('_response_time_ms'))
                     
                     return result
                     
@@ -217,11 +217,11 @@ class RemoteHTTPClient:
                 if e.code >= 400 and e.code < 500:
                     # Client error - don't retry
                     break
-                self.logger.warning(f"HTTP error on attempt {attempt + 1}: {e}")
+                self.logger.warning("HTTP error on attempt %s: %s", attempt + 1, e)
                 
             except (URLError, OSError) as e:
                 last_error = e
-                self.logger.warning(f"Network error on attempt {attempt + 1}: {e}")
+                self.logger.warning("Network error on attempt %s: %s", attempt + 1, e)
                 
             # Wait before retry (except on last attempt)
             if attempt < self.retry_count:

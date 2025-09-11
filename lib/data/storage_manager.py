@@ -33,11 +33,11 @@ class StorageManager:
                     raise RuntimeError(f"Failed to create addon profile directory: {profile_dir}")
 
             db_path = os.path.join(profile_dir, 'librarygenie.db')
-            self.logger.debug(f"Using Kodi addon profile database path: {db_path}")
+            self.logger.debug("Using Kodi addon profile database path: %s", db_path)
             return db_path
 
         except Exception as e:
-            self.logger.error(f"Failed to get Kodi addon profile path: {e}")
+            self.logger.error("Failed to get Kodi addon profile path: %s", e)
             raise RuntimeError(f"Cannot initialize database - Kodi addon profile path unavailable: {e}")
 
     def get_cache_dir(self):
@@ -54,7 +54,7 @@ class StorageManager:
             return cache_dir
 
         except Exception as e:
-            self.logger.error(f"Failed to get cache directory: {e}")
+            self.logger.error("Failed to get cache directory: %s", e)
             raise RuntimeError(f"Cannot initialize cache directory: {e}")
 
     def get_temp_dir(self):
@@ -71,7 +71,7 @@ class StorageManager:
             return temp_dir
 
         except Exception as e:
-            self.logger.error(f"Failed to get temp directory: {e}")
+            self.logger.error("Failed to get temp directory: %s", e)
             raise RuntimeError(f"Cannot initialize temp directory: {e}")
 
 

@@ -40,7 +40,7 @@ class TimestampBackupManager:
                 storage_path = xbmcvfs.translatePath(storage_path)
 
             if not os.path.exists(storage_path):
-                self.logger.debug(f"Backup storage path does not exist: {storage_path}")
+                self.logger.debug("Backup storage path does not exist: %s", storage_path)
                 return []
 
             # List backup files
@@ -61,17 +61,17 @@ class TimestampBackupManager:
                             'age_days': age_days
                         })
                     except (OSError, ValueError) as e:
-                        self.logger.warning(f"Error getting stats for backup file {filename}: {e}")
+                self.logger.warning("Error getting stats for backup file %s: %s", filename, e)
                         continue
 
             # Sort by modification time, newest first
             backups.sort(key=lambda x: x['modified_time'], reverse=True)
 
-            self.logger.debug(f"Found {len(backups)} backup files")
+            self.logger.debug("Found %s backup files", len(backups))
             return backups
 
         except Exception as e:
-            self.logger.error(f"Error listing backups: {e}")
+            self.logger.error("Error listing backups: %s", e)
             return []
 
     def run_automatic_backup(self) -> Dict[str, Any]:
@@ -82,7 +82,7 @@ class TimestampBackupManager:
             # Check if backup is worthy
             worthiness = self._validate_backup_worthiness()
             if not worthiness["worthy"]:
-                self.logger.info(f"Skipping backup: {worthiness['reason']}")
+                self.logger.info("Skipping backup: %s", worthiness['reason'])
                 return {"success": False, "reason": "not_worthy", "message": worthiness["reason"]}
 
             # Determine what to backup based on settings
@@ -114,14 +114,14 @@ class TimestampBackupManager:
             import shutil
             shutil.move(temp_file, backup_path)
 
-            self.logger.info(f"Backup stored in settings location: {backup_path}")
+            self.logger.info("Backup stored in settings location: %s", backup_path)
 
             # Database logging removed to reduce storage overhead on user devices
 
             # Cleanup old backups
             self._cleanup_old_backups()
 
-            self.logger.info(f"Automatic backup completed: {backup_filename}")
+            self.logger.info("Automatic backup completed: %s", backup_filename)
 
             return {
                 "success": True,
@@ -131,7 +131,7 @@ class TimestampBackupManager:
             }
 
         except Exception as e:
-            self.logger.error(f"Error in automatic backup: {e}")
+            self.logger.error("Error in automatic backup: %s", e)
             return {"success": False, "error": str(e)}
 
     def restore_backup(self, file_path: str, replace_mode: bool = False) -> Dict[str, Any]:
@@ -152,14 +152,14 @@ class TimestampBackupManager:
             result = import_engine.import_from_content(content, filename, replace_mode)
 
             if result["success"]:
-                self.logger.info(f"Backup restored successfully from {file_path}")
+                self.logger.info("Backup restored successfully from %s", file_path)
             else:
-                self.logger.error(f"Backup restore failed from {file_path}: {result.get('errors', [])}")
+                self.logger.error("Backup restore failed from %s: %s", file_path, result.get('errors', []))
 
             return result
 
         except Exception as e:
-            self.logger.error(f"Error restoring backup: {e}")
+            self.logger.error("Error restoring backup: %s", e)
             return {"success": False, "error": str(e)}
 
     def _get_backup_file_path(self, filename: str) -> str:
@@ -189,15 +189,15 @@ class TimestampBackupManager:
                 try:
                     os.remove(backup["file_path"])
                     deleted_count += 1
-                    self.logger.debug(f"Deleted old backup: {backup['filename']}")
+                    self.logger.debug("Deleted old backup: %s", backup['filename'])
                 except OSError as e:
-                    self.logger.warning(f"Failed to delete backup {backup['filename']}: {e}")
+                    self.logger.warning("Failed to delete backup %s: %s", backup['filename'], e)
 
             if deleted_count > 0:
-                self.logger.info(f"Cleaned up {deleted_count} old backup files")
+                self.logger.info("Cleaned up %s old backup files", deleted_count)
 
         except Exception as e:
-            self.logger.error(f"Error cleaning up old backups: {e}")
+            self.logger.error("Error cleaning up old backups: %s", e)
 
     def _validate_backup_worthiness(self) -> Dict[str, Any]:
         """Check if backup contains meaningful user data"""
@@ -229,7 +229,7 @@ class TimestampBackupManager:
 
             user_folders = folders_count.get('count', 0) if folders_count else 0
 
-            self.logger.debug(f"Backup worthiness check: {user_lists} lists, {total_items} items, {user_folders} folders")
+            self.logger.debug("Backup worthiness check: %s lists, %s items, %s folders", user_lists, total_items, user_folders)
 
             # Backup is worthy if there are user lists, items, or folders
             if user_lists > 0 or total_items > 0 or user_folders > 0:
@@ -244,7 +244,7 @@ class TimestampBackupManager:
                 }
 
         except Exception as e:
-            self.logger.warning(f"Error validating backup worthiness: {e}")
+            self.logger.warning("Error validating backup worthiness: %s", e)
             # If we can't validate, err on the side of allowing backup
             return {"worthy": True, "reason": "Validation failed, allowing backup"}
 

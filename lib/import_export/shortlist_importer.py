@@ -37,11 +37,11 @@ class ShortListImporter:
                 return False
 
             is_enabled = (response.data or {}).get("addon", {}).get("enabled", False)
-            self.logger.info(f"ShortList addon enabled: {is_enabled}")
+            self.logger.info("ShortList addon enabled: %s", is_enabled)
             return is_enabled
 
         except Exception as e:
-            self.logger.debug(f"ShortList addon not found: {e}")
+            self.logger.debug("ShortList addon not found: %s", e)
             return False
 
     def get_shortlist_directory(self, url: str, start: int = 0, end: int = 200) -> List[Dict]:
@@ -63,7 +63,7 @@ class ShortListImporter:
             })
 
             if not response.success:
-                self.logger.error(f"Failed to get directory {url}: {response.error.message if response.error else 'Unknown error'}")
+                self.logger.error("Failed to get directory %s: %s", url, response.error.message if response.error else 'Unknown error')
                 return []
 
             files = (response.data or {}).get("files", [])
@@ -90,7 +90,7 @@ class ShortListImporter:
             return files
 
         except Exception as e:
-            self.logger.error(f"Error getting ShortList directory {url}: {e}")
+            self.logger.error("Error getting ShortList directory %s: %s", url, e)
             return []
 
     def scrape_shortlist_data(self) -> List[Dict]:
@@ -101,7 +101,7 @@ class ShortListImporter:
         try:
             # Get top-level directories (lists)
             entries = self.get_shortlist_directory(base_url)
-            self.logger.info(f"Found {len(entries)} top-level entries in ShortList")
+            self.logger.info("Found %s top-level entries in ShortList", len(entries))
 
             for entry in entries:
                 if entry.get("filetype") != "directory":
@@ -111,10 +111,10 @@ class ShortListImporter:
                 list_url = entry.get("file")
 
                 if not list_url:
-                    self.logger.warning(f"Skipping list '{list_name}' - no valid URL found")
+                    self.logger.warning("Skipping list '%s' - no valid URL found", list_name)
                     continue
 
-                self.logger.info(f"Processing ShortList: {list_name}")
+                self.logger.info("Processing ShortList: %s", list_name)
 
                 # Get items in this list
                 items_raw = self.get_shortlist_directory(list_url)
@@ -152,13 +152,13 @@ class ShortListImporter:
                         "url": list_url,
                         "items": items
                     })
-                    self.logger.info(f"Added list '{list_name}' with {len(items)} items")
+                    self.logger.info("Added list '%s' with %s items", list_name, len(items))
 
         except Exception as e:
-            self.logger.error(f"Error scraping ShortList data: {e}")
+            self.logger.error("Error scraping ShortList data: %s", e)
             raise
 
-        self.logger.info(f"ShortList scrape complete: {len(lists)} lists found")
+        self.logger.info("ShortList scrape complete: %s lists found", len(lists))
         return lists
 
     def match_movie_to_library(self, item_data: Dict) -> Optional[int]:
@@ -209,7 +209,7 @@ class ShortListImporter:
             return None
 
         except Exception as e:
-            self.logger.error(f"Error matching movie to library: {e}")
+            self.logger.error("Error matching movie to library: %s", e)
             return None
 
     def remove_existing_shortlist_import(self) -> bool:
@@ -228,7 +228,7 @@ class ShortListImporter:
                 return True
                 
             folder_id = folder_info[0] if hasattr(folder_info, '__getitem__') else folder_info.get('id')
-            self.logger.info(f"Found existing ShortList Import folder (ID: {folder_id}) - removing all contents")
+            self.logger.info("Found existing ShortList Import folder (ID: %s) - removing all contents", folder_id)
             
             with self.conn_manager.transaction() as conn:
                 # Use recursive CTE to find all descendant folders (including the root folder)
@@ -300,7 +300,7 @@ class ShortListImporter:
                     iteration += 1
                     
                     if folders_deleted:
-                        self.logger.debug(f"Deleted {result.rowcount} leaf folders in iteration {iteration}")
+                        self.logger.debug("Deleted %s leaf folders in iteration %s", result.rowcount, iteration)
                 
                 if iteration >= max_iterations:
                     self.logger.warning("Reached maximum iterations for folder deletion - continuing with root deletion")
@@ -312,7 +312,7 @@ class ShortListImporter:
             return True
             
         except Exception as e:
-            self.logger.error(f"Error removing existing ShortList Import folder: {e}")
+            self.logger.error("Error removing existing ShortList Import folder: %s", e)
             return False
 
     def create_shortlist_import_folder(self) -> Optional[int]:
@@ -326,11 +326,11 @@ class ShortListImporter:
                 """, ["ShortList Import"])
                 folder_id = cursor.lastrowid
 
-            self.logger.info(f"Created ShortList Import folder (ID: {folder_id})")
+            self.logger.info("Created ShortList Import folder (ID: %s)", folder_id)
             return folder_id
 
         except Exception as e:
-            self.logger.error(f"Error creating ShortList Import folder: {e}")
+            self.logger.error("Error creating ShortList Import folder: %s", e)
             return None
 
     def create_or_get_shortlist_sublist(self, list_name: str, folder_id: int, conn=None) -> Tuple[Optional[int], bool]:
@@ -348,7 +348,7 @@ class ShortListImporter:
                 return self._create_or_get_list_internal(list_name, folder_id, conn)
 
         except Exception as e:
-            self.logger.error(f"Error creating list '{list_name}': {e}")
+            self.logger.error("Error creating list '%s': %s", list_name, e)
             return None, False
 
     def _create_or_get_list_internal(self, list_name: str, folder_id: int, conn) -> Tuple[int, bool]:
@@ -361,7 +361,7 @@ class ShortListImporter:
 
         if existing:
             list_id = existing['id']
-            self.logger.info(f"Using existing list '{list_name}' (ID: {list_id})")
+            self.logger.info("Using existing list '%s' (ID: %s)", list_name, list_id)
             return list_id, False
 
         # Create new list in the folder
@@ -371,16 +371,16 @@ class ShortListImporter:
         """, [list_name, folder_id])
         list_id = cursor.lastrowid
 
-        self.logger.info(f"Created list '{list_name}' (ID: {list_id}) in ShortList Import folder")
+        self.logger.info("Created list '%s' (ID: %s) in ShortList Import folder", list_name, list_id)
         return list_id, True
 
     def import_shortlist_items(self) -> Dict[str, Any]:
         """Import all ShortList items into LibraryGenie"""
         self.logger.info("=== IMPORT_SHORTLIST_ITEMS METHOD CALLED ===")
-        self.logger.info(f"Method signature check - self: {type(self)}")
+        self.logger.info("Method signature check - self: %s", type(self))
         
         start_time = datetime.now()
-        self.logger.info(f"Import started at: {start_time}")
+        self.logger.info("Import started at: %s", start_time)
 
         try:
             self.logger.info("Starting ShortList import process...")
@@ -427,15 +427,15 @@ class ShortListImporter:
                     total_items += len(items)
 
                     if not items:
-                        self.logger.info(f"Skipping empty shortlist: '{list_name}'")
+                        self.logger.info("Skipping empty shortlist: '%s'", list_name)
                         continue
 
-                    self.logger.info(f"Processing {len(items)} items from '{list_name}'")
+                    self.logger.info("Processing %s items from '%s'", len(items), list_name)
 
                     # Create or get list for this shortlist
                     list_id, was_created = self.create_or_get_shortlist_sublist(list_name, import_folder_id, conn)
                     if not list_id:
-                        self.logger.error(f"Failed to create list for '{list_name}', skipping")
+                        self.logger.error("Failed to create list for '%s', skipping", list_name)
                         continue
 
                     if was_created:
@@ -469,12 +469,12 @@ class ShortListImporter:
                                 # For unmapped items, we could optionally store them
                                 # as metadata only entries, but for now we skip them
                                 # since LibraryGenie focuses on library integration
-                                self.logger.debug(f"Skipping unmapped item: {item.get('title')}")
+                                self.logger.debug("Skipping unmapped item: %s", item.get('title'))
 
                         except Exception as e:
-                            self.logger.error(f"Error processing item {item.get('title')}: {e}")
+                            self.logger.error("Error processing item %s: %s", item.get('title'), e)
 
-                    self.logger.info(f"Completed list '{list_name}' with {position} items added")
+                    self.logger.info("Completed list '%s' with %s items added", list_name, position)
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
@@ -490,7 +490,7 @@ class ShortListImporter:
             }
 
         except Exception as e:
-            self.logger.error(f"ShortList import failed: {e}")
+            self.logger.error("ShortList import failed: %s", e)
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
             return {

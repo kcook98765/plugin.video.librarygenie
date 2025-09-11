@@ -188,7 +188,7 @@ class SettingsManager:
             # Default to addon data directory
             return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
         except Exception as e:
-            self.logger.warning(f"Error reading backup storage location: {e}")
+            self.logger.warning("Error reading backup storage location: %s", e)
             return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
 
     def get_backup_storage_type(self) -> str:
@@ -196,7 +196,7 @@ class SettingsManager:
         try:
             return self.addon.getSetting('backup_storage_type') or 'local'
         except Exception as e:
-            self.logger.warning(f"Error reading backup storage type: {e}")
+            self.logger.warning("Error reading backup storage type: %s", e)
             return 'local'
 
     def get_backup_enabled(self) -> bool:
@@ -209,7 +209,7 @@ class SettingsManager:
                 str_val = self.addon.getSettingString('backup_enabled')
                 return str_val.lower() in ('true', '1', 'yes')
             except Exception:
-                self.logger.warning(f"Error reading backup_enabled setting: {e}")
+                self.logger.warning("Error reading backup_enabled setting: %s", e)
                 return False
 
     def get_backup_retention_count(self) -> int:
@@ -225,7 +225,7 @@ class SettingsManager:
                 else:
                     return 5
             except (ValueError, TypeError):
-                self.logger.warning(f"Error reading backup retention count: {e}")
+                self.logger.warning("Error reading backup retention count: %s", e)
                 return 5
 
     def get_backup_retention_policy(self) -> str:
@@ -251,9 +251,9 @@ class SettingsManager:
                 self.addon.setSettingInt(setting_id, value)
             else:
                 self.addon.setSetting(setting_id, str(value))
-            self.logger.debug(f"Setting {setting_id} set to {value}")
+            self.logger.debug("Setting %s set to %s", setting_id, value)
         except Exception as e:
-            self.logger.error(f"Failed to set setting {setting_id}: {e}")
+            self.logger.error("Failed to set setting %s: %s", setting_id, e)
 
     def reset_to_defaults(self) -> None:
         """Reset all settings to their default values"""
@@ -262,7 +262,7 @@ class SettingsManager:
             # For now, we'll log the action
             self.logger.info(L(34503))  # "Setting restored to default"
         except Exception as e:
-            self.logger.error(f"Failed to reset settings: {e}")
+            self.logger.error("Failed to reset settings: %s", e)
 
     def validate_settings(self) -> bool:
         """Validate all settings and return True if valid"""
@@ -279,7 +279,7 @@ class SettingsManager:
             self.logger.info(L(34504))  # "Configuration validated"
             return True
         except Exception as e:
-            self.logger.error(f"{L(34505)}: {e}")  # "Configuration validation failed"
+            self.logger.error("%s: %s", L(34505), e)  # "Configuration validation failed"
             return False
 
     def get_validation_status_message(self, is_valid: bool) -> str:
@@ -305,7 +305,7 @@ class SettingsManager:
                 'include_non_library': config.get_bool('backup_include_non_library', False)
             }
         except Exception as e:
-            self.logger.warning(f"Error reading backup preferences: {e}")
+            self.logger.warning("Error reading backup preferences: %s", e)
             return {
                 'enabled': False,
                 'schedule_interval': 'weekly',
