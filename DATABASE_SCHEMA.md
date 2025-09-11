@@ -140,28 +140,6 @@ Kodi Favorites are also integrated into the unified lists system. A special list
 
 ---
 
-### `favorites_scan_log`
-Records favorites scan operations and their results.
-
-| Column             | Type    | Notes |
-|--------------------|---------|-------|
-| `id`               | INTEGER | PRIMARY KEY AUTOINCREMENT |
-| `scan_type`        | TEXT    | NOT NULL - type of scan performed |
-| `file_path`        | TEXT    | NOT NULL - path to favorites file |
-| `file_modified`    | TEXT    | File modification timestamp |
-| `items_found`      | INTEGER | DEFAULT 0 - favorites found in file |
-| `items_mapped`     | INTEGER | DEFAULT 0 - favorites mapped to library |
-| `items_added`      | INTEGER | DEFAULT 0 - new favorites added |
-| `items_updated`    | INTEGER | DEFAULT 0 - existing favorites updated |
-| `scan_duration_ms` | INTEGER | DEFAULT 0 - scan duration in milliseconds |
-| `success`          | INTEGER | DEFAULT 1 - whether scan succeeded |
-| `error_message`    | TEXT    | Error message if scan failed |
-| `created_at`       | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-
-Indexes:
-- INDEX on `file_path`.
-- INDEX on `created_at`.
-
 ---
 
 ### `movie_heavy_meta`
