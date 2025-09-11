@@ -164,7 +164,7 @@ def _handle_test_backup(context: PluginContext):
             xbmcgui.Dialog().ok("Backup Test Failed", f"Test failed:\n{error_msg}")
 
     except Exception as e:
-        logger.error(f"Error in test backup handler: {e}")
+        logger.error("Error in test backup handler: %s", e)
         xbmcgui.Dialog().ok("Backup Test Error", f"Test error: {str(e)}")
 
     # Don't render directory for settings actions
@@ -200,7 +200,7 @@ def _handle_manual_backup(context: PluginContext):
             xbmcgui.Dialog().ok("Manual Backup Failed", f"Backup failed:\n{error_msg}")
 
     except Exception as e:
-        logger.error(f"Error in manual backup handler: {e}")
+        logger.error("Error in manual backup handler: %s", e)
         xbmcgui.Dialog().ok("Manual Backup Error", f"Backup error: {str(e)}")
 
     # Don't render directory for settings actions
@@ -229,7 +229,7 @@ def _handle_restore_backup(context: PluginContext):
             response_handler.handle_dialog_response(response, context)
 
     except Exception as e:
-        logger.error(f"Error in restore backup handler: {e}")
+        logger.error("Error in restore backup handler: %s", e)
         xbmcgui.Dialog().ok("Restore Backup Error", f"An error occurred: {str(e)}")
 
     # Don't render directory for settings actions
@@ -277,12 +277,12 @@ def handle_shortlist_import():
             logger.info("Successfully imported get_shortlist_importer function")
 
             importer = get_shortlist_importer()
-            logger.info(f"Successfully got importer instance: {type(importer)}")
+            logger.info("Successfully got importer instance: %s", type(importer))
 
         except Exception as import_e:
-            logger.error(f"Error importing or getting ShortList importer: {import_e}")
+            logger.error("Error importing or getting ShortList importer: %s", import_e)
             import traceback
-            logger.error(f"Import error traceback: {traceback.format_exc()}")
+            logger.error("Import error traceback: %s", traceback.format_exc())
             progress.close()
             dialog.notification(
                 "LibraryGenie",
@@ -296,7 +296,7 @@ def handle_shortlist_import():
         logger.info("Checking if ShortList addon is installed...")
         try:
             is_installed = importer.is_shortlist_installed()
-            logger.info(f"ShortList installed check result: {is_installed}")
+            logger.info("ShortList installed check result: %s", is_installed)
 
             if not is_installed:
                 progress.close()
@@ -308,9 +308,9 @@ def handle_shortlist_import():
                 )
                 return
         except Exception as check_e:
-            logger.error(f"Error checking ShortList installation: {check_e}")
+            logger.error("Error checking ShortList installation: %s", check_e)
             import traceback
-            logger.error(f"Check error traceback: {traceback.format_exc()}")
+            logger.error("Check error traceback: %s", traceback.format_exc())
             progress.close()
             dialog.notification(
                 "LibraryGenie",
@@ -323,13 +323,13 @@ def handle_shortlist_import():
         progress.update(30, "Scanning ShortList data...")
 
         logger.info("About to call importer.import_shortlist_items()")
-        logger.info(f"Importer type: {type(importer)}")
-        logger.info(f"Importer instance: {importer}")
+        logger.info("Importer type: %s", type(importer))
+        logger.info("Importer instance: %s", importer)
 
         # Check if the method exists
         if hasattr(importer, 'import_shortlist_items'):
-            logger.info(f"import_shortlist_items method exists: {importer.import_shortlist_items}")
-            logger.info(f"import_shortlist_items callable: {callable(importer.import_shortlist_items)}")
+            logger.info("import_shortlist_items method exists: %s", importer.import_shortlist_items)
+            logger.info("import_shortlist_items callable: %s", callable(importer.import_shortlist_items))
         else:
             logger.error("import_shortlist_items method does not exist on importer!")
             progress.close()
@@ -347,28 +347,28 @@ def handle_shortlist_import():
             logger.info("Calling import_shortlist_items method...")
             result = importer.import_shortlist_items()
             logger.info(f"=== IMPORT METHOD COMPLETED ===")
-            logger.info(f"Import result type: {type(result)}")
-            logger.info(f"Import result: {result}")
+            logger.info("Import result type: %s", type(result))
+            logger.info("Import result: %s", result)
         except TypeError as te:
             logger.error(f"=== IMPORT METHOD TYPEERROR ===")
-            logger.error(f"TypeError calling import_shortlist_items: {te}")
+            logger.error("TypeError calling import_shortlist_items: %s", te)
             import traceback
-            logger.error(f"TypeError traceback: {traceback.format_exc()}")
+            logger.error("TypeError traceback: %s", traceback.format_exc())
 
             # Try to get more info about the method signature
             import inspect
             try:
                 sig = inspect.signature(importer.import_shortlist_items)
-                logger.error(f"Method signature: {sig}")
+                logger.error("Method signature: %s", sig)
             except Exception as sig_e:
-                logger.error(f"Could not get method signature: {sig_e}")
+                logger.error("Could not get method signature: %s", sig_e)
 
             raise
         except Exception as e:
             logger.error(f"=== IMPORT METHOD ERROR ===")
-            logger.error(f"Error calling import_shortlist_items: {e}")
+            logger.error("Error calling import_shortlist_items: %s", e)
             import traceback
-            logger.error(f"Import method traceback: {traceback.format_exc()}")
+            logger.error("Import method traceback: %s", traceback.format_exc())
             raise
 
         progress.update(100, "Import complete!")
@@ -387,13 +387,13 @@ def handle_shortlist_import():
         else:
             error_msg = result.get("error", "Unknown error occurred")
             dialog.ok("ShortList Import", f"Import failed: {error_msg}")
-            logger.error(f"ShortList import failed: {error_msg}")
+            logger.error("ShortList import failed: %s", error_msg)
 
     except Exception as e:
         logger.error(f"=== SHORTLIST HANDLER EXCEPTION ===")
-        logger.error(f"ShortList import handler error: {e}")
+        logger.error("ShortList import handler error: %s", e)
         import traceback
-        logger.error(f"Handler exception traceback: {traceback.format_exc()}")
+        logger.error("Handler exception traceback: %s", traceback.format_exc())
 
         try:
             progress.close()
@@ -425,7 +425,7 @@ def _ensure_startup_initialization(context: PluginContext):
         
         # Check if favorites integration is enabled
         favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
-        logger.debug(f"Favorites integration enabled: {favorites_enabled}")
+        logger.debug("Favorites integration enabled: %s", favorites_enabled)
         
         if favorites_enabled:
             logger.debug("Favorites integration is enabled - ensuring Kodi Favorites list exists")
@@ -449,9 +449,9 @@ def _ensure_startup_initialization(context: PluginContext):
                             on_favorites_integration_enabled()
                             logger.info("STARTUP: Successfully ensured 'Kodi Favorites' list exists")
                         except Exception as e:
-                            logger.error(f"STARTUP: Failed to create 'Kodi Favorites' list: {e}")
+                            logger.error("STARTUP: Failed to create 'Kodi Favorites' list: %s", e)
                     else:
-                        logger.debug(f"STARTUP: 'Kodi Favorites' list already exists with ID {kodi_list['id']}")
+                        logger.debug("STARTUP: 'Kodi Favorites' list already exists with ID %s", kodi_list['id'])
             else:
                 logger.warning("STARTUP: Could not initialize query manager for startup check")
         else:
@@ -460,7 +460,7 @@ def _ensure_startup_initialization(context: PluginContext):
         logger.debug("=== STARTUP INITIALIZATION COMPLETE ===")
         
     except Exception as e:
-        logger.error(f"STARTUP: Error during startup initialization: {e}")
+        logger.error("STARTUP: Error during startup initialization: %s", e)
         import traceback
         logger.error(f"STARTUP: Initialization error traceback: {traceback.format_exc()}")
         # Don't fail the plugin startup for initialization issues

@@ -74,7 +74,7 @@ class Phase4FavoritesManager:
             # Update scan marker file after successful scan
             self._update_scan_marker()
             
-            self.logger.info(f"Favorites scan complete: {result['items_mapped']}/{len(favorites)} mapped, {result['items_added']} added, {result['items_updated']} updated")
+            self.logger.info("Favorites scan complete: %s/%s mapped, %s added, %s updated", result['items_mapped'], len(favorites), result['items_added'], result['items_updated'])
 
             return {
                 "success": True,
@@ -91,7 +91,7 @@ class Phase4FavoritesManager:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
 
-            self.logger.error(f"Favorites scan failed: {e}")
+            self.logger.error("Favorites scan failed: %s", e)
             return {
                 "success": False,
                 "error": "scan_error",
@@ -105,7 +105,7 @@ class Phase4FavoritesManager:
         items_updated = 0
         items_mapped = 0
 
-        self.logger.info(f"Starting batch import of {len(favorites)} favorites")
+        self.logger.info("Starting batch import of %s favorites", len(favorites))
 
         try:
             with self.conn_manager.transaction() as conn:
@@ -124,23 +124,23 @@ class Phase4FavoritesManager:
                     self.logger.info("Created 'Kodi Favorites' list in unified lists table")
                 else:
                     kodi_list_id = kodi_list["id"]
-                    self.logger.info(f"Using existing 'Kodi Favorites' list with ID {kodi_list_id}")
+                    self.logger.info("Using existing 'Kodi Favorites' list with ID %s", kodi_list_id)
 
                 # Clear existing items from the Kodi Favorites list
                 deleted_count = conn.execute("DELETE FROM list_items WHERE list_id = ?", [kodi_list_id]).rowcount
-                self.logger.info(f"Cleared {deleted_count} existing items from Kodi Favorites list")
+                self.logger.info("Cleared %s existing items from Kodi Favorites list", deleted_count)
 
                 # Log database stats before processing
                 media_count = conn.execute("SELECT COUNT(*) as count FROM media_items WHERE is_removed = 0").fetchone()["count"]
-                self.logger.info(f"Database contains {media_count} active media items for matching")
+                self.logger.info("Database contains %s active media items for matching", media_count)
 
                 # Process favorites and add mapped ones to the list
                 for i, favorite in enumerate(favorites):
                     favorite_name = favorite.get('name', 'unknown')
-                    self.logger.info(f"Processing favorite {i+1}/{len(favorites)}: '{favorite_name}'")
-                    self.logger.info(f"  Raw target: {favorite['target_raw']}")
-                    self.logger.info(f"  Classification: {favorite['target_classification']}")
-                    self.logger.info(f"  Normalized key: {favorite['normalized_key']}")
+                    self.logger.info("Processing favorite %s/%s: '%s'", i+1, len(favorites), favorite_name)
+                    self.logger.info("  Raw target: %s", favorite['target_raw'])
+                    self.logger.info("  Classification: %s", favorite['target_classification'])
+                    self.logger.info("  Normalized key: %s", favorite['normalized_key'])
 
                     try:
                         # Try to find library match
@@ -151,7 +151,7 @@ class Phase4FavoritesManager:
                         )
 
                         if library_movie_id:
-                            self.logger.info(f"  ✓ MATCHED to library item ID {library_movie_id}")
+                            self.logger.info("  ✓ MATCHED to library item ID %s", library_movie_id)
 
                             # Add to the unified list_items table
                             conn.execute("""
@@ -162,10 +162,10 @@ class Phase4FavoritesManager:
                             items_mapped += 1
                             items_added += 1
                         else:
-                            self.logger.info(f"  ✗ NO MATCH found for '{favorite_name}'")
+                            self.logger.info("  ✗ NO MATCH found for '%s'", favorite_name)
 
                     except Exception as e:
-                        self.logger.warning(f"Error processing favorite '{favorite_name}': {e}")
+                        self.logger.warning("Error processing favorite '%s': %s", favorite_name, e)
                         continue
 
                 # Note: lists table doesn't have updated_at column in current schema
