@@ -27,7 +27,7 @@ class ContextItem:
         """Determines the action for Quick Add based on context."""
         if context_info.get("source") == "search_results":
             return "add_to_default_list_from_search"
-        elif context_info.get("source") == "library":
+        elif context_info.get("source") == "lib":
             return "add_to_default_list_from_library"
         else:
             return "add_to_default_list"
@@ -49,7 +49,7 @@ class ContextItem:
         return (
             self.settings
             and self.settings.get_quick_add_to_default_list_enabled()
-            and context_info.get("source") in ["search_results", "library"]
+            and context_info.get("source") in ["search_results", "lib"]
         )
 
     def get_context_menu(self):

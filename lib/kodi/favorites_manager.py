@@ -660,7 +660,7 @@ class Phase4FavoritesManager:
                         tvshowtitle, season, episode, aired
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, [
-                    'episode', episode_title, show_year, imdb_id, tmdb_id, episode_kodi_id, 'library',
+                    'episode', episode_title, show_year, imdb_id, tmdb_id, episode_kodi_id, 'lib',
                     file_path, plot, rating, votes, duration, genre_str, studio_str,
                     file_path, normalized_path, 0, display_title,
                     runtime, datetime.now().isoformat(), datetime.now().isoformat(),
@@ -732,7 +732,7 @@ class Phase4FavoritesManager:
                         tvshowtitle, season, episode, aired
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, [
-                    'episode', episode_title, show_year, imdb_id, tmdb_id, episode_kodi_id, 'library',
+                    'episode', episode_title, show_year, imdb_id, tmdb_id, episode_kodi_id, 'lib',
                     file_path, plot, rating, votes, duration, genre_str, studio_str,
                     file_path, normalized_path, 0, display_title,
                     runtime, datetime.now().isoformat(), datetime.now().isoformat(),

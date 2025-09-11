@@ -1434,7 +1434,7 @@ class ListsHandler:
 
                 if existing_item:
                     library_item = dict(existing_item)
-                    library_item['source'] = 'library'
+                    library_item['source'] = 'lib'
                 else:
                     # Item not in database yet - create minimal entry
                     library_item = {
@@ -1442,7 +1442,7 @@ class ListsHandler:
                         'media_type': 'movie',
                         'title': f'Movie {dbid}',  # Placeholder, will be enriched later
                         'year': 0,
-                        'source': 'library'
+                        'source': 'lib'
                     }
 
             elif dbtype == 'episode':
@@ -1452,14 +1452,14 @@ class ListsHandler:
 
                 if existing_item:
                     library_item = dict(existing_item)
-                    library_item['source'] = 'library'
+                    library_item['source'] = 'lib'
                 else:
                     # Item not in database yet - create minimal entry
                     library_item = {
                         'kodi_id': int(dbid),
                         'media_type': 'episode',
                         'title': f'Episode {dbid}',  # Placeholder, will be enriched later
-                        'source': 'library'
+                        'source': 'lib'
                     }
 
             if not library_item:
