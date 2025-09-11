@@ -80,26 +80,32 @@ class LibraryGenieService:
     def _check_and_perform_initial_scan(self):
         """Check if library has been scanned and perform initial scan if needed"""
         try:
+            # Check if first-run setup has been completed
+            if not self.settings.get_first_run_completed():
+                self.logger.info("First run not completed - skipping automatic scan until user configures sync options")
+                return
+                
             scanner = LibraryScanner()
 
             if not scanner.is_library_indexed():
                 self.logger.info("Library not indexed, performing initial scan...")
 
-                # Perform initial full scan with DialogBG for better UX
-                result = scanner.perform_full_scan(use_dialog_bg=True)
-
-                if result.get('success'):
-                    items_added = result.get('items_added', 0)
-                    self.logger.info("Initial library scan completed: %s movies indexed", items_added)
+                # Use SyncController for proper sync orchestration
+                from lib.library.sync_controller import SyncController
+                sync_controller = SyncController()
+                
+                success, message = sync_controller.perform_manual_sync()
+                
+                if success:
+                    self.logger.info("Initial library sync completed: %s", message)
                     self._show_notification(
-                        f"Library scan completed: {items_added} movies indexed",
+                        f"Library sync completed: {message}",
                         time_ms=8000
                     )
                 else:
-                    error = result.get('error', 'Unknown error')
-                    self.logger.error("Initial library scan failed: %s", error)
+                    self.logger.error("Initial library sync failed: %s", message)
                     self._show_notification(
-                        f"Library scan failed: {error[:40]}...",
+                        f"Library sync failed: {message[:40]}...",
                         xbmcgui.NOTIFICATION_ERROR,
                         time_ms=8000
                     )
