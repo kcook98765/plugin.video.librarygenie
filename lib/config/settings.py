@@ -44,9 +44,29 @@ class SettingsManager:
         """Get soft delete removed items setting"""
         return self.addon.getSettingBool('soft_delete_removed')
 
+    def get_sync_movies(self) -> bool:
+        """Get sync movies during library scan setting"""
+        return self.addon.getSettingBool('sync_movies')
+
+    def set_sync_movies(self, enabled: bool) -> None:
+        """Set sync movies during library scan setting"""
+        self.addon.setSettingBool('sync_movies', enabled)
+
     def get_sync_tv_episodes(self) -> bool:
         """Get sync TV episodes during library scan setting"""
         return self.addon.getSettingBool('sync_tv_episodes')
+
+    def set_sync_tv_episodes(self, enabled: bool) -> None:
+        """Set sync TV episodes during library scan setting"""
+        self.addon.setSettingBool('sync_tv_episodes', enabled)
+
+    def get_first_run_completed(self) -> bool:
+        """Get whether first run setup has been completed"""
+        return self.addon.getSettingBool('first_run_completed')
+
+    def set_first_run_completed(self, completed: bool) -> None:
+        """Set whether first run setup has been completed"""
+        self.addon.setSettingBool('first_run_completed', completed)
 
     # Lists Settings
     def get_default_list_id(self) -> Optional[str]:
