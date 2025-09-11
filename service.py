@@ -165,6 +165,7 @@ class LibraryGenieService:
         # Reduced logging frequency
         log_interval = 300  # Log every 30 seconds in normal mode, 10 seconds in hijack mode
         ai_sync_check_interval = 30  # Check AI sync activation every 30 seconds
+        tv_sync_check_interval = 5   # Check TV sync activation every 5 seconds for responsiveness
 
         while not self.monitor.abortRequested():
             try:
@@ -226,7 +227,9 @@ class LibraryGenieService:
                 # Check for AI sync activation changes periodically
                 if tick_count % ai_sync_check_interval == 0:
                     self._check_ai_sync_activation(tick_count)
-                    # Also check TV episode sync activation
+                    
+                # Check TV episode sync more frequently for responsiveness
+                if tick_count % tv_sync_check_interval == 0:
                     self._check_tv_episode_sync_activation(tick_count)
 
                 # Run hijack manager tick only when needed
