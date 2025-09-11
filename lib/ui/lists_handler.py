@@ -39,7 +39,7 @@ class ListsHandler:
                 video_info_tag = list_item.getVideoInfoTag()
                 video_info_tag.setPlot(plot)
             except Exception as e:
-                self.logger.error(f"InfoTagVideo failed for plot: {e}")
+                self.logger.error("InfoTagVideo failed for plot: %s", e)
         else:
             # v19/v20: Use setInfo() as fallback
             list_item.setInfo('video', {'plot': plot})
@@ -68,7 +68,7 @@ class ListsHandler:
                     
         except Exception as e:
             # Fallback to original behavior
-            self.logger.error(f"Custom art failed: {e}")
+            self.logger.error("Custom art failed: %s", e)
             if 'icon' in item_data:
                 list_item.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
             else:
@@ -566,7 +566,7 @@ class ListsHandler:
             result = query_manager.delete_item_from_list(list_id, item_id)
 
             if result:
-                context.logger.info(f"Removed '{item_info['title']}' from list '{list_info['name']}'")
+                context.logger.info("Removed '%s' from list '%s'", item_info['title'], list_info['name'])
                 return DialogResponse(
                     success=True,
                     message=f"Removed '{item_info['title']}' from list",
@@ -579,7 +579,7 @@ class ListsHandler:
                 )
 
         except Exception as e:
-            context.logger.error(f"Error removing item from list: {e}")
+            context.logger.error("Error removing item from list: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error removing from list"
@@ -622,7 +622,7 @@ class ListsHandler:
                     message=message
                 )
             else:
-                context.logger.info(f"Successfully created folder: {folder_name}")
+                context.logger.info("Successfully created folder: %s", folder_name)
                 return DialogResponse(
                     success=True,
                     message=f"Created folder: {folder_name}", # This string should also be localized
@@ -630,7 +630,7 @@ class ListsHandler:
                 )
 
         except Exception as e:
-            context.logger.error(f"Error creating folder: {e}")
+            context.logger.error("Error creating folder: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error creating folder" # This string should also be localized
@@ -639,7 +639,7 @@ class ListsHandler:
     def rename_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle renaming a folder"""
         try:
-            context.logger.info(f"Renaming folder {folder_id}")
+            context.logger.info("Renaming folder %s", folder_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -690,14 +690,14 @@ class ListsHandler:
                     message=message
                 )
             else:
-                context.logger.info(f"Successfully renamed folder to: {new_name}")
+                context.logger.info("Successfully renamed folder to: %s", new_name)
                 return DialogResponse(
                     success=True,
                     message=f"Renamed folder to: {new_name}" # This string should also be localized
                 )
 
         except Exception as e:
-            context.logger.error(f"Error renaming folder: {e}")
+            context.logger.error("Error renaming folder: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error renaming folder" # This string should also be localized
@@ -706,7 +706,7 @@ class ListsHandler:
     def delete_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle deleting a folder"""
         try:
-            context.logger.info(f"Deleting folder {folder_id}")
+            context.logger.info("Deleting folder %s", folder_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -757,7 +757,7 @@ class ListsHandler:
                     message="Failed to delete folder" # This string should also be localized
                 )
             else:
-                context.logger.info(f"Successfully deleted folder: {folder_name}")
+                context.logger.info("Successfully deleted folder: %s", folder_name)
 
                 # If deletion was successful, navigate back to lists menu
                 # since the current folder no longer exists
@@ -771,7 +771,7 @@ class ListsHandler:
                 )
 
         except Exception as e:
-            context.logger.error(f"Error deleting folder: {e}")
+            context.logger.error("Error deleting folder: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error deleting folder" # This string should also be localized
@@ -780,12 +780,12 @@ class ListsHandler:
     def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
         """Display contents of a specific list"""
         try:
-            context.logger.info(f"Displaying list {list_id}")
+            context.logger.info("Displaying list %s", list_id)
 
             # Check for custom parent path to fix navigation from search results
             parent_path = context.get_param('parent_path')
             if parent_path:
-                context.logger.debug(f"Setting custom parent path: {parent_path}")
+                context.logger.debug("Setting custom parent path: %s", parent_path)
                 # This will be used by Kodi for the ".." navigation
                 xbmcplugin.setProperty(context.addon_handle, 'ParentDir', parent_path)
 
@@ -801,18 +801,18 @@ class ListsHandler:
             # Get list info
             list_info = query_manager.get_list_by_id(list_id)
             if not list_info:
-                context.logger.error(f"List {list_id} not found")
+                context.logger.error("List %s not found", list_id)
                 return DirectoryResponse(
                     items=[],
                     success=False
                 )
 
             # Get list items
-            context.logger.debug(f"Getting list items from query_manager for list_id={list_id}")
+            context.logger.debug("Getting list items from query_manager for list_id=%s", list_id)
             list_items = query_manager.get_list_items(list_id)
-            context.logger.debug(f"Query manager returned {len(list_items)} items")
+            context.logger.debug("Query manager returned %s items", len(list_items))
 
-            context.logger.info(f"List '{list_info['name']}' has {len(list_items)} items")
+            context.logger.info("List '%s' has %s items", list_info['name'], len(list_items))
 
             # Show breadcrumb notification and render list
             # breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action("show_list", {"list_id": list_id}, self.query_manager)
@@ -821,9 +821,9 @@ class ListsHandler:
             if breadcrumb_path:
                 try:
                     self.breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
-                    self.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
+                    self.logger.debug("LISTS HANDLER: Showed breadcrumb notification: '%s'", breadcrumb_path)
                 except Exception as e:
-                    self.logger.error(f"LISTS HANDLER: Failed to show breadcrumb notification: {e}")
+                    self.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
 
             # self.menu_builder.build_movie_menu(
             #     list_items,
@@ -872,8 +872,8 @@ class ListsHandler:
                         # The query should return 'id' field from the database
                         # If not present, skip the item entirely
                         if 'id' not in item:
-                            context.logger.warning(f"HANDLER: Skipping list item without ID: {item.get('title', 'Unknown')}")
-                            context.logger.warning(f"HANDLER: Available keys in item: {list(item.keys())}")
+                            context.logger.warning("HANDLER: Skipping list item without ID: %s", item.get('title', 'Unknown'))
+                            context.logger.warning("HANDLER: Available keys in item: %s", list(item.keys()))
                             continue
 
                         # Build context menu for item
@@ -897,7 +897,7 @@ class ListsHandler:
                                     listitem.addContextMenuItems(context_menu)
 
                                 except Exception as e:
-                                    context.logger.warning(f"HANDLER: Failed to add context menu: {e}")
+                                    context.logger.warning("HANDLER: Failed to add context menu: %s", e)
 
                             # Add to directory
                             xbmcplugin.addDirectoryItem(
@@ -907,18 +907,18 @@ class ListsHandler:
                                 is_folder
                             )
                         else:
-                            context.logger.error(f"HANDLER: Failed to build item for '{item.get('title')}'")
+                            context.logger.error("HANDLER: Failed to build item for '%s'", item.get('title'))
                             continue
 
                     except Exception as e:
-                        context.logger.error(f"HANDLER: Error building list item {item_idx}: {e}")
+                        context.logger.error("HANDLER: Error building list item %s: %s", item_idx, e)
                         import traceback
-                        context.logger.error(f"HANDLER: Traceback: {traceback.format_exc()}")
+                        context.logger.error("HANDLER: Traceback: %s", traceback.format_exc())
                         continue
 
             # Detect appropriate content type based on list contents
             detected_content_type = query_manager.detect_content_type(list_items)
-            context.logger.debug(f"Detected content type: {detected_content_type} for {len(list_items)} items")
+            context.logger.debug("Detected content type: %s for %s items", detected_content_type, len(list_items))
 
             # Set content type and finish directory
             xbmcplugin.setContent(context.addon_handle, detected_content_type)
@@ -936,9 +936,9 @@ class ListsHandler:
             )
 
         except Exception as e:
-            context.logger.error(f"Error viewing list: {e}")
+            context.logger.error("Error viewing list: %s", e)
             import traceback
-            context.logger.error(f"Traceback: {traceback.format_exc()}")
+            context.logger.error("Traceback: %s", traceback.format_exc())
             return DirectoryResponse(
                 items=[],
                 success=False
@@ -947,7 +947,7 @@ class ListsHandler:
     def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Display contents of a specific folder"""
         try:
-            context.logger.info(f"Displaying folder {folder_id}")
+            context.logger.info("Displaying folder %s", folder_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -961,7 +961,7 @@ class ListsHandler:
             # Get folder info
             folder_info = query_manager.get_folder_by_id(folder_id)
             if not folder_info:
-                context.logger.error(f"Folder {folder_id} not found")
+                context.logger.error("Folder %s not found", folder_id)
                 return DirectoryResponse(
                     items=[],
                     success=False
@@ -969,25 +969,25 @@ class ListsHandler:
 
             # Get subfolders in this folder
             subfolders = query_manager.get_all_folders(folder_id)
-            context.logger.info(f"Folder '{folder_info['name']}' has {len(subfolders)} subfolders")
+            context.logger.info("Folder '%s' has %s subfolders", folder_info['name'], len(subfolders))
 
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            context.logger.info(f"Folder '{folder_info['name']}' (id={folder_id}) has {len(lists_in_folder)} lists")
+            context.logger.info("Folder '%s' (id=%s) has %s lists", folder_info['name'], folder_id, len(lists_in_folder))
 
             # Debug: Log each list found
             for lst in lists_in_folder:
-                context.logger.debug(f"  Found list in folder: {lst['name']} (id={lst['id']}, folder_id={lst.get('folder_id')})")
+                context.logger.debug("  Found list in folder: %s (id=%s, folder_id=%s)", lst['name'], lst['id'], lst.get('folder_id'))
 
             # Additional debugging: Check if there are any lists with this folder_id in the database
-            context.logger.debug(f"DEBUG: Querying for all lists in folder_id={folder_id}")
+            context.logger.debug("DEBUG: Querying for all lists in folder_id=%s", folder_id)
             debug_lists = query_manager.connection_manager.execute_query("""
                 SELECT l.id, l.name, l.folder_id, f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
                 WHERE l.folder_id = ?
             """, [int(folder_id)])
-            context.logger.debug(f"DEBUG: Raw query returned {len(debug_lists)} lists: {[dict(row) for row in debug_lists]}")
+            context.logger.debug("DEBUG: Raw query returned %s lists: %s", len(debug_lists), [dict(row) for row in debug_lists])
 
             # Also check all lists to see where our list ended up
             all_lists_debug = query_manager.connection_manager.execute_query("""
@@ -996,7 +996,7 @@ class ListsHandler:
                 LEFT JOIN folders f ON l.folder_id = f.id
                 ORDER BY l.id
             """)
-            context.logger.debug(f"DEBUG: All lists in database: {[dict(row) for row in all_lists_debug]}")
+            context.logger.debug("DEBUG: All lists in database: %s", [dict(row) for row in all_lists_debug])
 
             # Check for folder ID mismatch
             if len(lists_in_folder) == 0:
@@ -1008,18 +1008,18 @@ class ListsHandler:
                     WHERE f.name = ?
                 """, [folder_info['name']])
                 if orphaned_lists:
-                    context.logger.warning(f"Found {len(orphaned_lists)} lists with folder name '{folder_info['name']}' but different ID: {[dict(row) for row in orphaned_lists]}")
+                    context.logger.warning("Found %s lists with folder name '%s' but different ID: %s", len(orphaned_lists), folder_info['name'], [dict(row) for row in orphaned_lists])
 
                 # Also check for lists that might have the wrong folder_id
                 all_folder_refs = query_manager.connection_manager.execute_query("""
                     SELECT DISTINCT folder_id FROM lists WHERE folder_id IS NOT NULL
                 """)
-                context.logger.debug(f"All folder_id references in lists table: {[row['folder_id'] for row in all_folder_refs]}")
+                context.logger.debug("All folder_id references in lists table: %s", [row['folder_id'] for row in all_folder_refs])
 
                 all_folder_ids = query_manager.connection_manager.execute_query("""
                     SELECT id, name FROM folders ORDER BY id
                 """)
-                context.logger.debug(f"All folders in folders table: {[dict(row) for row in all_folder_ids]}")
+                context.logger.debug("All folders in folders table: %s", [dict(row) for row in all_folder_ids])
 
             menu_items = []
 
@@ -1096,7 +1096,7 @@ class ListsHandler:
             if breadcrumb_path:
                 try:
                     self.breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
-                    context.logger.debug(f"LISTS HANDLER: Showed breadcrumb notification: '{breadcrumb_path}'")
+                    context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: '%s'", breadcrumb_path)
                 except Exception as e:
                     context.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
 
@@ -1136,7 +1136,7 @@ class ListsHandler:
             )
 
         except Exception as e:
-            context.logger.error(f"Error showing folder: {e}")
+            context.logger.error("Error showing folder: %s", e)
             return DirectoryResponse(
                 items=[],
                 success=False
@@ -1242,14 +1242,14 @@ class ListsHandler:
             # Get list name for confirmation message
             selected_list_name = list_options[selected_index].split(' (')[0] if selected_index < len(list_options) - 1 else "newly created list"
 
-            context.logger.info(f"Set default quick-add list to: {selected_list_name}")
+            context.logger.info("Set default quick-add list to: %s", selected_list_name)
             return DialogResponse(
                 success=True,
                 message=f"Default quick-add list set to: '{selected_list_name}'" # Localize this string
             )
 
         except Exception as e:
-            context.logger.error(f"Error in set_default_list: {e}")
+            context.logger.error("Error in set_default_list: %s", e)
             return DialogResponse(
                 success=False,
                 message="Failed to set default list" # Localize this string
@@ -1345,7 +1345,7 @@ class ListsHandler:
                 return False
 
         except Exception as e:
-            context.logger.error(f"Error adding to list: {e}")
+            context.logger.error("Error adding to list: %s", e)
             return False
 
     def add_library_item_to_list_context(self, context: PluginContext) -> bool:
@@ -1359,7 +1359,7 @@ class ListsHandler:
                 context.logger.error("Missing dbtype or dbid for library item")
                 return False
 
-            context.logger.info(f"Adding library item to list: dbtype={dbtype}, dbid={dbid}")
+            context.logger.info("Adding library item to list: dbtype=%s, dbid=%s", dbtype, dbid)
 
             query_manager = get_query_manager()
             if not query_manager.initialize():
@@ -1463,7 +1463,7 @@ class ListsHandler:
                     }
 
             if not library_item:
-                context.logger.error(f"Unsupported dbtype: {dbtype}")
+                context.logger.error("Unsupported dbtype: %s", dbtype)
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     f"Unsupported item type: {dbtype}", # Localize this string
@@ -1491,9 +1491,9 @@ class ListsHandler:
                 return False
 
         except Exception as e:
-            context.logger.error(f"Error adding library item to list from context: {e}")
+            context.logger.error("Error adding library item to list from context: %s", e)
             import traceback
-            context.logger.error(f"Traceback: {traceback.format_exc()}")
+            context.logger.error("Traceback: %s", traceback.format_exc())
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
                 f"Error: {str(e)}", # Localize this string
@@ -1596,7 +1596,7 @@ class ListsHandler:
                 return False
 
         except Exception as e:
-            context.logger.error(f"Error adding to list from context: {e}")
+            context.logger.error("Error adding to list from context: %s", e)
             return False
 
     def quick_add_context(self, context: PluginContext) -> bool:
@@ -1638,7 +1638,7 @@ class ListsHandler:
             return result is not None
 
         except Exception as e:
-            context.logger.error(f"Error quick adding to list from context: {e}")
+            context.logger.error("Error quick adding to list from context: %s", e)
             return False
 
     def add_external_item_to_list(self, context: PluginContext) -> bool:
@@ -1682,7 +1682,7 @@ class ListsHandler:
                     if key in external_data:
                         media_item[key] = external_data[key]
 
-            context.logger.info(f"Processing external item: {media_item['title']} (type: {media_item['media_type']})")
+            context.logger.info("Processing external item: %s (type: %s)", media_item['title'], media_item['media_type'])
 
             # Use existing add_to_list flow with the external media item
             query_manager = get_query_manager()
@@ -1760,7 +1760,7 @@ class ListsHandler:
                 return False
 
         except Exception as e:
-            context.logger.error(f"Error in add_external_item_to_list: {e}")
+            context.logger.error("Error in add_external_item_to_list: %s", e)
             return False
 
     def remove_library_item_from_list(self, context: PluginContext, list_id: str, dbtype: str, dbid: str) -> bool:
@@ -1783,7 +1783,7 @@ class ListsHandler:
                     break
 
             if not matching_item or 'id' not in matching_item:
-                context.logger.warning(f"Could not find library item {dbtype}:{dbid} in list {list_id}")
+                context.logger.warning("Could not find library item %s:%s in list %s", dbtype, dbid, list_id)
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     "Item not found in list",
@@ -1806,5 +1806,5 @@ class ListsHandler:
             return False
 
         except Exception as e:
-            context.logger.error(f"Error removing library item from list: {e}")
+            context.logger.error("Error removing library item from list: %s", e)
             return False

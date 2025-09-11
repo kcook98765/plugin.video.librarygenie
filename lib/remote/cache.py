@@ -44,7 +44,7 @@ class RemoteCache:
                 """)
 
         except Exception as e:
-            self.logger.error(f"Failed to create remote cache table: {e}")
+            self.logger.error("Failed to create remote cache table: %s", e)
 
     def get(self, cache_key: str) -> Optional[Any]:
         """Get cached data by key, returns None if not found or expired"""
@@ -70,13 +70,13 @@ class RemoteCache:
                 try:
                     return json.loads(result['data'])
                 except json.JSONDecodeError as e:
-                    self.logger.warning(f"Failed to parse cached data for {cache_key}: {e}")
+                    self.logger.warning("Failed to parse cached data for %s: %s", cache_key, e)
                     self.delete(cache_key)
 
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting cached data for {cache_key}: {e}")
+            self.logger.error("Error getting cached data for %s: %s", cache_key, e)
             return None
 
     def set(self, cache_key: str, data: Any, ttl_hours: int = 6) -> bool:
@@ -89,7 +89,7 @@ class RemoteCache:
             try:
                 serialized_data = json.dumps(data, ensure_ascii=False)
             except (TypeError, ValueError) as e:
-                self.logger.warning(f"Failed to serialize data for cache key {cache_key}: {e}")
+                self.logger.warning("Failed to serialize data for cache key %s: %s", cache_key, e)
                 return False
 
             # Store in cache
@@ -106,11 +106,11 @@ class RemoteCache:
                     now.isoformat()
                 ])
 
-            self.logger.debug(f"Cached data for key {cache_key} (TTL: {ttl_hours}h)")
+            self.logger.debug("Cached data for key %s (TTL: %sh)", cache_key, ttl_hours)
             return True
 
         except Exception as e:
-            self.logger.error(f"Error setting cached data for {cache_key}: {e}")
+            self.logger.error("Error setting cached data for %s: %s", cache_key, e)
             return False
 
     def delete(self, cache_key: str) -> bool:
@@ -123,12 +123,12 @@ class RemoteCache:
 
                 deleted = result.rowcount > 0
                 if deleted:
-                    self.logger.debug(f"Deleted cache entry: {cache_key}")
+                    self.logger.debug("Deleted cache entry: %s", cache_key)
 
                 return deleted
 
         except Exception as e:
-            self.logger.error(f"Error deleting cache entry {cache_key}: {e}")
+            self.logger.error("Error deleting cache entry %s: %s", cache_key, e)
             return False
 
     def clear_all(self) -> bool:

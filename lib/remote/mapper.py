@@ -33,23 +33,23 @@ class RemoteMapper:
         # Strategy 1: Unique ID matching (highest confidence)
         local_item = self._map_by_unique_id(remote_item)
         if local_item:
-            self.logger.debug(f"Mapped '{remote_item.get('title')}' by unique ID")
+            self.logger.debug("Mapped '%s' by unique ID", remote_item.get('title'))
             return local_item
         
         # Strategy 2: Title + year exact match  
         local_item = self._map_by_title_year(remote_item)
         if local_item:
-            self.logger.debug(f"Mapped '{remote_item.get('title')}' by title+year")
+            self.logger.debug("Mapped '%s' by title+year", remote_item.get('title'))
             return local_item
         
         # Strategy 3: Title + file path heuristic (if available)
         local_item = self._map_by_title_path(remote_item)
         if local_item:
-            self.logger.debug(f"Mapped '{remote_item.get('title')}' by title+path")
+            self.logger.debug("Mapped '%s' by title+path", remote_item.get('title'))
             return local_item
         
         # No mapping found
-        self.logger.debug(f"No local mapping found for '{remote_item.get('title')}'")
+        self.logger.debug("No local mapping found for '%s'", remote_item.get('title'))
         return None
     
     def _map_by_unique_id(self, remote_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -84,7 +84,7 @@ class RemoteMapper:
             return None
             
         except Exception as e:
-            self.logger.error(f"Error in unique ID mapping: {e}")
+            self.logger.error("Error in unique ID mapping: %s", e)
             return None
     
     def _map_by_title_year(self, remote_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -124,7 +124,7 @@ class RemoteMapper:
             return None
             
         except Exception as e:
-            self.logger.error(f"Error in title+year mapping: {e}")
+            self.logger.error("Error in title+year mapping: %s", e)
             return None
     
     def _map_by_title_path(self, remote_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -154,7 +154,7 @@ class RemoteMapper:
             return None
             
         except Exception as e:
-            self.logger.error(f"Error in title+path mapping: {e}")
+            self.logger.error("Error in title+path mapping: %s", e)
             return None
     
     def _extract_imdb_id(self, item: Dict[str, Any]) -> Optional[str]:

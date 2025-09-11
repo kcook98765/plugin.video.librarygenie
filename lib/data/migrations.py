@@ -31,7 +31,7 @@ class MigrationManager:
                 # No migrations to run in this version
 
         except Exception as e:
-            self.logger.error(f"Database initialization failed: {e}")
+            self.logger.error("Database initialization failed: %s", e)
             raise
 
     def ensure_initialized_with_connection(self, conn):
@@ -46,7 +46,7 @@ class MigrationManager:
                 # No migrations to run in this version
 
         except Exception as e:
-            self.logger.error(f"Database initialization failed: {e}")
+            self.logger.error("Database initialization failed: %s", e)
             raise
 
     def _is_database_empty(self):
