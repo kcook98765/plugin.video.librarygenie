@@ -389,6 +389,7 @@ class LibraryGenieService:
         """Check if TV episode sync should be triggered (for dynamic activation detection)"""
         try:
             current_time = time.time()
+            # CRITICAL: Always read the current setting value from Kodi
             tv_sync_enabled = self.settings.get_sync_tv_episodes()
             
             # Only log periodic check every 5 minutes instead of 30 seconds
@@ -396,7 +397,8 @@ class LibraryGenieService:
                                  (current_time - self._last_tv_sync_check_time) > 300)  # 5 minutes
             
             if should_log_periodic:
-                self.logger.info("🔄 Periodic TV episode sync check (tick %s)", tick_count)
+                self.logger.info("🔄 Periodic TV episode sync check (tick %s) - Current: %s, Last: %s", 
+                                tick_count, tv_sync_enabled, self._last_tv_sync_state)
                 self._last_tv_sync_check_time = current_time
                 
             # Check for state change from False to True (newly enabled)
