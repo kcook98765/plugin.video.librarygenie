@@ -418,6 +418,55 @@ def handle_noop():
         pass
 
 
+def _ensure_startup_initialization(context: PluginContext):
+    """Ensure critical startup initialization is completed"""
+    try:
+        logger.debug("=== STARTUP INITIALIZATION ===")
+        
+        # Check if favorites integration is enabled
+        favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
+        logger.debug(f"Favorites integration enabled: {favorites_enabled}")
+        
+        if favorites_enabled:
+            logger.debug("Favorites integration is enabled - ensuring Kodi Favorites list exists")
+            
+            # Use context query manager for consistency
+            query_manager = context.query_manager
+            
+            if query_manager.initialize():
+                with query_manager.connection_manager.transaction() as conn:
+                    # Check if Kodi Favorites list exists
+                    kodi_list = conn.execute("""
+                        SELECT id FROM lists WHERE name = 'Kodi Favorites'
+                    """).fetchone()
+                    
+                    if not kodi_list:
+                        # Create the Kodi Favorites list since it doesn't exist
+                        logger.info("STARTUP: Creating 'Kodi Favorites' list - setting is enabled but list doesn't exist")
+                        
+                        try:
+                            from lib.config.favorites_helper import on_favorites_integration_enabled
+                            on_favorites_integration_enabled()
+                            logger.info("STARTUP: Successfully ensured 'Kodi Favorites' list exists")
+                        except Exception as e:
+                            logger.error(f"STARTUP: Failed to create 'Kodi Favorites' list: {e}")
+                    else:
+                        logger.debug(f"STARTUP: 'Kodi Favorites' list already exists with ID {kodi_list['id']}")
+            else:
+                logger.warning("STARTUP: Could not initialize query manager for startup check")
+        else:
+            logger.debug("STARTUP: Favorites integration is disabled - skipping Kodi Favorites list check")
+            
+        logger.debug("=== STARTUP INITIALIZATION COMPLETE ===")
+        
+    except Exception as e:
+        logger.error(f"STARTUP: Error during startup initialization: {e}")
+        import traceback
+        logger.error(f"STARTUP: Initialization error traceback: {traceback.format_exc()}")
+        # Don't fail the plugin startup for initialization issues
+        pass
+
+
 def main():
     """Main plugin entry point using new modular architecture"""
 
@@ -431,6 +480,9 @@ def main():
 
         # Log window state for debugging
         _log_window_state(context)
+
+        # Ensure critical startup initialization is completed
+        _ensure_startup_initialization(context)
 
         # Create router and register handlers
         router = Router()
