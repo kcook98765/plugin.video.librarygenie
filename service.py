@@ -44,9 +44,6 @@ class LibraryGenieService:
         self._last_ai_sync_check_time = 0
         self._last_service_log_time = 0
         
-        # TV episode sync state tracking - initialize to current setting value
-        self._last_tv_sync_state = self.settings.get_sync_tv_episodes()
-        self._last_tv_sync_check_time = 0
         
         self.logger.info("🚀 LibraryGenie service initialized with InfoHijack manager")
 
@@ -138,10 +135,6 @@ class LibraryGenieService:
             else:
                 self.logger.info("❌ AI Search sync conditions not met - sync disabled")
 
-            # Initialize TV episode sync state at startup (without triggering sync)
-            self.logger.info("📺 Initializing TV episode sync state at startup...")
-            self._last_tv_sync_state = self.settings.get_sync_tv_episodes()
-            self.logger.info("📺 Initial TV episode sync state: %s", self._last_tv_sync_state)
 
             # Main service loop
             self.run() # Changed to call run() which contains the hijack manager loop
@@ -228,9 +221,9 @@ class LibraryGenieService:
                 if tick_count % ai_sync_check_interval == 0:
                     self._check_ai_sync_activation(tick_count)
                     
-                # Check TV episode sync more frequently for responsiveness
+                # Check for periodic library sync based on user settings
                 if tick_count % tv_sync_check_interval == 0:
-                    self._check_tv_episode_sync_activation(tick_count)
+                    self._check_periodic_library_sync(tick_count)
 
                 # Run hijack manager tick only when needed
                 if hijack_mode:
@@ -385,62 +378,24 @@ class LibraryGenieService:
         finally:
             self.logger.info("AI search sync worker stopped")
             
-    def _check_tv_episode_sync_activation(self, tick_count=None):
-        """Check if TV episode sync should be triggered (for dynamic activation detection)"""
+    def _check_periodic_library_sync(self, tick_count=None):
+        """Check if periodic library sync should be performed based on user settings"""
         try:
-            current_time = time.time()
-            # CRITICAL: Always read the current setting value from Kodi
-            tv_sync_enabled = self.settings.get_sync_tv_episodes()
+            from lib.library.sync_controller import SyncController
             
-            # Only log periodic check every 5 minutes instead of 30 seconds
-            should_log_periodic = (tick_count is not None and 
-                                 (current_time - self._last_tv_sync_check_time) > 300)  # 5 minutes
+            # Initialize sync controller
+            sync_controller = SyncController()
             
-            if should_log_periodic:
-                self.logger.info("🔄 Periodic TV episode sync check (tick %s) - Current: %s, Last: %s", 
-                                tick_count, tv_sync_enabled, self._last_tv_sync_state)
-                self._last_tv_sync_check_time = current_time
-                
-            # Check for state change from False to True (newly enabled)
-            if tv_sync_enabled and not self._last_tv_sync_state:
-                self.logger.info("📺 TV episode sync was just enabled - triggering immediate sync")
-                self._trigger_tv_episode_sync()
-                
-            # Update last known state
-            self._last_tv_sync_state = tv_sync_enabled
-            
-        except Exception as e:
-            self.logger.error("Error checking TV episode sync activation: %s", e)
-            
-    def _trigger_tv_episode_sync(self):
-        """Trigger TV episode sync when the setting is enabled"""
-        try:
-            from lib.config.tv_sync_helper import on_tv_episode_sync_enabled
-            
-            self.logger.info("📺 Triggering TV episode sync...")
-            success = on_tv_episode_sync_enabled()
-            
-            if success:
-                self.logger.info("📺 TV episode sync completed successfully")
+            # Perform periodic sync (returns True if sync was performed)
+            if sync_controller.perform_periodic_sync():
+                self.logger.info("📚 Periodic library sync completed")
                 self._show_notification(
-                    "TV episode sync completed - episodes are now available for list building",
-                    time_ms=8000
-                )
-            else:
-                self.logger.warning("📺 TV episode sync completed with issues")
-                self._show_notification(
-                    "TV episode sync completed with issues - check logs for details",
-                    xbmcgui.NOTIFICATION_WARNING,
-                    time_ms=8000
+                    "Library sync completed - content updated",
+                    time_ms=6000
                 )
                 
         except Exception as e:
-            self.logger.error("Error triggering TV episode sync: %s", e)
-            self._show_notification(
-                f"TV episode sync failed: {str(e)[:50]}...",
-                xbmcgui.NOTIFICATION_ERROR,
-                time_ms=8000
-            )
+            self.logger.error("Error during periodic library sync: %s", e)
 
     def _perform_ai_sync(self):
         """Perform AI search synchronization"""
