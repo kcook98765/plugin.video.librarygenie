@@ -422,25 +422,34 @@ class Phase4FavoritesManager:
             
             with self.conn_manager.transaction() as conn:
                 # Strategy 1: Try to find by tvshow_kodi_id + season + episode (most reliable)
-                result = conn.execute("""
-                    SELECT id, title, tvshowtitle FROM media_items
-                    WHERE tvshow_kodi_id = ? 
-                    AND season = ? 
-                    AND episode = ? 
-                    AND media_type = 'episode'
-                    AND is_removed = 0
-                """, [show_kodi_id, season, episode]).fetchone()
-                
-                if result:
-                    self.logger.info("    Found episode by tvshow_kodi_id match: ID %s - '%s' from show '%s'", result['id'], result['title'], result.get('tvshowtitle', 'Unknown'))
-                    return result["id"]
+                # Use safe column check to handle missing tvshow_kodi_id in older database schemas
+                try:
+                    result = conn.execute("""
+                        SELECT id, title, tvshowtitle FROM media_items
+                        WHERE tvshow_kodi_id = ? 
+                        AND season = ? 
+                        AND episode = ? 
+                        AND media_type = 'episode'
+                        AND is_removed = 0
+                    """, [show_kodi_id, season, episode]).fetchone()
+                    
+                    if result:
+                        self.logger.info("    Found episode by tvshow_kodi_id match: ID %s - '%s' from show '%s'", result['id'], result['title'], result.get('tvshowtitle', 'Unknown'))
+                        return result["id"]
+                        
+                except Exception as db_error:
+                    # Column likely doesn't exist in older database schema - fall back to legacy approach
+                    if "no such column: tvshow_kodi_id" in str(db_error).lower():
+                        self.logger.debug("    tvshow_kodi_id column not found - using legacy episode lookup")
+                    else:
+                        self.logger.warning("    Database error in tvshow_kodi_id lookup: %s", db_error)
                 
                 # Strategy 2: Fallback to episode kodi_id lookup (if available from videodb URL parsing)
                 # Note: This would require extracting episode kodi_id from more complex videodb URLs
                 # For now, this strategy is not implemented as it requires URL parsing changes
                 
                 # Strategy 3: Try finding by season + episode with show title matching
-                # This is less reliable but better than before
+                # This is the legacy approach that works with older schemas
                 result = conn.execute("""
                     SELECT id, title, tvshowtitle FROM media_items
                     WHERE season = ? 
@@ -450,7 +459,7 @@ class Phase4FavoritesManager:
                 """, [season, episode]).fetchall()
                 
                 if result:
-                    self.logger.info("    Found %s episodes with S%02dE%02d without show_id match", len(result), season, episode)
+                    self.logger.info("    Found %s episodes with S%02dE%02d", len(result), season, episode)
                     if len(result) == 1:
                         ep = result[0]
                         self.logger.info("    Using unique episode: ID %s - '%s' from show '%s'", ep['id'], ep['title'], ep.get('tvshowtitle', 'Unknown'))
@@ -459,11 +468,13 @@ class Phase4FavoritesManager:
                         # Multiple episodes - log the ambiguity but still return first match
                         # This maintains existing behavior while we improve the sync to store tvshow_kodi_id
                         ep = result[0]
-                        self.logger.warning("    Multiple S%02dE%02d episodes found, no show_id match - using first: ID %s from '%s'", ep['id'], ep.get('tvshowtitle', 'Unknown'))
+                        self.logger.warning("    Multiple S%02dE%02d episodes found - using first: ID %s from '%s'", ep['id'], ep.get('tvshowtitle', 'Unknown'))
                         return ep["id"]
                 
-                # No existing episode found
-                self.logger.info("    No existing episode found for show_id=%s S%02dE%02d - episode may not be synced or sync disabled", show_kodi_id, season, episode)
+                # No existing episode found - provide informative message about sync settings
+                self.logger.info("    No existing episode found for show_id=%s S%02dE%02d", show_kodi_id, season, episode)
+                self.logger.info("    Note: TV episode sync may be disabled (default) or episodes not yet synced")
+                self.logger.info("    Enable 'Sync TV Episodes' in settings and run a full library scan to sync episodes")
                 return None
 
         except Exception as e:
