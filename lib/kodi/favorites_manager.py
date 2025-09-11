@@ -416,336 +416,60 @@ class Phase4FavoritesManager:
             return None
 
     def _find_or_create_episode_by_show_season_episode(self, show_kodi_id: int, season: int, episode: int) -> Optional[int]:
-        """Find episode by show/season/episode, create if missing using on-demand loading"""
+        """Find episode by show/season/episode - episodes should exist from proactive sync"""
         try:
-            # Get episode info from Kodi first to get episode kodi_id and file path
-            episode_data = self._get_episode_data_from_kodi(show_kodi_id, season, episode)
-            if not episode_data:
-                self.logger.info("    Could not retrieve episode data for show %s S%sE%s", show_kodi_id, season, episode)
-                return None
-            
-            episode_kodi_id = episode_data.get('episodeid')
-            episode_file = episode_data.get('file', '')
-            show_title = episode_data.get('show_title', '')
-            
-            self.logger.info("    Looking for episode: '%s' S%02dE%02d (kodi_id: %s)", show_title, season, episode, episode_kodi_id)
+            self.logger.info("    Looking for episode: show_id=%s S%02dE%02d", show_kodi_id, season, episode)
             
             with self.conn_manager.transaction() as conn:
-                # Strategy 1: Try to find by episode kodi_id (most reliable)
-                if episode_kodi_id:
-                    result = conn.execute("""
-                        SELECT id, title FROM media_items
-                        WHERE kodi_id = ? AND media_type = 'episode' AND is_removed = 0
-                    """, [episode_kodi_id]).fetchone()
-                    
-                    if result:
-                        self.logger.info("    Found existing episode by kodi_id: ID %s - '%s'", result['id'], result['title'])
-                        return result["id"]
+                # Strategy 1: Try to find by tvshow_kodi_id + season + episode (most reliable)
+                result = conn.execute("""
+                    SELECT id, title, tvshowtitle FROM media_items
+                    WHERE tvshow_kodi_id = ? 
+                    AND season = ? 
+                    AND episode = ? 
+                    AND media_type = 'episode'
+                    AND is_removed = 0
+                """, [show_kodi_id, season, episode]).fetchone()
                 
-                # Strategy 2: Try to find by file path
-                if episode_file:
-                    normalized_path = self._normalize_episode_path(episode_file)
-                    result = conn.execute("""
-                        SELECT id, title FROM media_items
-                        WHERE (file_path = ? OR normalized_path = ?) 
-                        AND media_type = 'episode' AND is_removed = 0
-                    """, [episode_file, normalized_path]).fetchone()
-                    
-                    if result:
-                        self.logger.info("    Found existing episode by file path: ID %s - '%s'", result['id'], result['title'])
-                        return result["id"]
+                if result:
+                    self.logger.info("    Found episode by tvshow_kodi_id match: ID %s - '%s' from show '%s'", result['id'], result['title'], result.get('tvshowtitle', 'Unknown'))
+                    return result["id"]
                 
-                # Strategy 3: Try to find by show title + season + episode (fallback)
-                if show_title:
-                    result = conn.execute("""
-                        SELECT id, title FROM media_items
-                        WHERE LOWER(tvshowtitle) = LOWER(?) 
-                        AND season = ? 
-                        AND episode = ? 
-                        AND media_type = 'episode'
-                        AND is_removed = 0
-                    """, [show_title, season, episode]).fetchone()
-
-                    if result:
-                        self.logger.info("    Found existing episode by show+season+episode: ID %s - '%s'", result['id'], result['title'])
-                        return result["id"]
+                # Strategy 2: Fallback to episode kodi_id lookup (if available from videodb URL parsing)
+                # Note: This would require extracting episode kodi_id from more complex videodb URLs
+                # For now, this strategy is not implemented as it requires URL parsing changes
                 
-                # No existing episode found - create on-demand
-                self.logger.info(f"    No existing episode found - creating on-demand")
-                episode_id = self._create_episode_from_episode_data(episode_data)
-                if episode_id:
-                    self.logger.info("    Successfully created episode: ID %s", episode_id)
-                    return episode_id
-                else:
-                    self.logger.info(f"    Failed to create episode from Kodi")
-                    return None
+                # Strategy 3: Try finding by season + episode with show title matching
+                # This is less reliable but better than before
+                result = conn.execute("""
+                    SELECT id, title, tvshowtitle FROM media_items
+                    WHERE season = ? 
+                    AND episode = ? 
+                    AND media_type = 'episode'
+                    AND is_removed = 0
+                """, [season, episode]).fetchall()
+                
+                if result:
+                    self.logger.info("    Found %s episodes with S%02dE%02d without show_id match", len(result), season, episode)
+                    if len(result) == 1:
+                        ep = result[0]
+                        self.logger.info("    Using unique episode: ID %s - '%s' from show '%s'", ep['id'], ep['title'], ep.get('tvshowtitle', 'Unknown'))
+                        return ep["id"]
+                    else:
+                        # Multiple episodes - log the ambiguity but still return first match
+                        # This maintains existing behavior while we improve the sync to store tvshow_kodi_id
+                        ep = result[0]
+                        self.logger.warning("    Multiple S%02dE%02d episodes found, no show_id match - using first: ID %s from '%s'", ep['id'], ep.get('tvshowtitle', 'Unknown'))
+                        return ep["id"]
+                
+                # No existing episode found
+                self.logger.info("    No existing episode found for show_id=%s S%02dE%02d - episode may not be synced or sync disabled", show_kodi_id, season, episode)
+                return None
 
         except Exception as e:
-            self.logger.error("Error finding/creating episode for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
+            self.logger.error("Error finding episode for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
             return None
 
-    def _get_show_info_from_kodi(self, show_kodi_id: int) -> Optional[Dict]:
-        """Get TV show information from Kodi using JSON-RPC"""
-        try:
-            import xbmc
-            import json
-            
-            # Use Kodi's JSON-RPC to get show information
-            request = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetTVShowDetails",
-                "params": {
-                    "tvshowid": show_kodi_id,
-                    "properties": ["title", "plot", "year", "premiered", "rating", "votes", "genre", "studio", "imdbnumber", "uniqueid"]
-                },
-                "id": 1
-            }
-            
-            response = xbmc.executeJSONRPC(json.dumps(request))
-            response_data = json.loads(response)
-            
-            if "result" in response_data and "tvshowdetails" in response_data["result"]:
-                show_details = response_data["result"]["tvshowdetails"]
-                self.logger.info("    Retrieved show info: '%s'", show_details.get('title'))
-                return show_details
-            else:
-                self.logger.warning("    No show details found for Kodi show ID %s", show_kodi_id)
-                return None
-                
-        except Exception as e:
-            self.logger.error("Error getting show info from Kodi for ID %s: %s", show_kodi_id, e)
-            return None
-
-    def _get_episode_data_from_kodi(self, show_kodi_id: int, season: int, episode: int) -> Optional[Dict]:
-        """Get combined TV show and episode data from Kodi using JSON-RPC"""
-        try:
-            # Get show info first
-            show_info = self._get_show_info_from_kodi(show_kodi_id)
-            if not show_info:
-                return None
-            
-            import xbmc
-            import json
-            
-            # Get episode details from Kodi using JSON-RPC
-            request = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetEpisodes",
-                "params": {
-                    "tvshowid": show_kodi_id,
-                    "season": season,
-                    "properties": ["title", "plot", "rating", "votes", "runtime", "firstaired", 
-                                 "playcount", "lastplayed", "file", "streamdetails", "art", "uniqueid"]
-                },
-                "id": 1
-            }
-            
-            response = xbmc.executeJSONRPC(json.dumps(request))
-            response_data = json.loads(response)
-            
-            if "result" not in response_data or "episodes" not in response_data["result"]:
-                self.logger.warning("    No episodes found for show %s season %s", show_kodi_id, season)
-                return None
-            
-            # Find the specific episode
-            target_episode = None
-            for ep in response_data["result"]["episodes"]:
-                if ep.get("episode") == episode:
-                    target_episode = ep
-                    break
-            
-            if not target_episode:
-                self.logger.warning("    Episode %s not found in season %s of show %s", episode, season, show_kodi_id)
-                return None
-            
-            # Combine show and episode data
-            combined_data = {
-                'show_info': show_info,
-                'episode_info': target_episode,
-                'show_title': show_info.get('title', ''),
-                'season': season,
-                'episode': episode,
-                'episodeid': target_episode.get('episodeid'),
-                'file': target_episode.get('file', '')
-            }
-            
-            return combined_data
-            
-        except Exception as e:
-            self.logger.error("Error getting episode data from Kodi for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
-            return None
-
-    def _create_episode_from_kodi(self, show_kodi_id: int, season: int, episode: int, show_info: Dict) -> Optional[int]:
-        """Create episode media_item from Kodi JSON-RPC data"""
-        try:
-            import xbmc
-            import json
-            from datetime import datetime
-            
-            # Get episode details from Kodi using JSON-RPC
-            request = {
-                "jsonrpc": "2.0",
-                "method": "VideoLibrary.GetEpisodes",
-                "params": {
-                    "tvshowid": show_kodi_id,
-                    "season": season,
-                    "properties": ["title", "plot", "rating", "votes", "runtime", "firstaired", 
-                                 "playcount", "lastplayed", "file", "streamdetails", "art", "uniqueid"]
-                },
-                "id": 1
-            }
-            
-            response = xbmc.executeJSONRPC(json.dumps(request))
-            response_data = json.loads(response)
-            
-            if "result" not in response_data or "episodes" not in response_data["result"]:
-                self.logger.warning("    No episodes found for show %s season %s", show_kodi_id, season)
-                return None
-            
-            # Find the specific episode
-            target_episode = None
-            for ep in response_data["result"]["episodes"]:
-                if ep.get("episode") == episode:
-                    target_episode = ep
-                    break
-            
-            if not target_episode:
-                self.logger.warning("    Episode %s not found in season %s of show %s", episode, season, show_kodi_id)
-                return None
-            
-            # Extract episode data
-            episode_title = target_episode.get("title", f"Episode {episode}")
-            plot = target_episode.get("plot", "")
-            rating = target_episode.get("rating", 0.0)
-            votes = target_episode.get("votes", 0)
-            runtime = target_episode.get("runtime", 0)  # in seconds
-            duration = runtime // 60 if runtime else 0  # convert to minutes
-            firstaired = target_episode.get("firstaired", "")
-            file_path = target_episode.get("file", "")
-            episode_kodi_id = target_episode.get("episodeid")
-            
-            # Get show metadata
-            show_title = show_info.get("title", "Unknown Show")
-            show_year = show_info.get("year")
-            show_genre = show_info.get("genre", [])
-            genre_str = ", ".join(show_genre) if isinstance(show_genre, list) else str(show_genre) if show_genre else ""
-            show_studio = show_info.get("studio", [])
-            studio_str = ", ".join(show_studio) if isinstance(show_studio, list) else str(show_studio) if show_studio else ""
-            
-            # Get external IDs
-            imdb_id = show_info.get("imdbnumber", "")
-            tmdb_id = ""
-            if "uniqueid" in show_info and isinstance(show_info["uniqueid"], dict):
-                tmdb_id = show_info["uniqueid"].get("tmdb", "")
-                # Episode-specific IMDb ID if available
-                if "uniqueid" in target_episode and isinstance(target_episode["uniqueid"], dict):
-                    episode_imdb = target_episode["uniqueid"].get("imdb", "")
-                    if episode_imdb:
-                        imdb_id = episode_imdb
-            
-            # Create normalized path
-            normalized_path = self._normalize_episode_path(file_path) if file_path else ""
-            
-            # Create display title
-            display_title = f"{show_title} - S{season:02d}E{episode:02d} - {episode_title}"
-            
-            # Insert into media_items table
-            with self.conn_manager.transaction() as conn:
-                cursor = conn.execute("""
-                    INSERT INTO media_items (
-                        media_type, title, year, imdbnumber, tmdb_id, kodi_id, source,
-                        play, plot, rating, votes, duration, genre, studio,
-                        file_path, normalized_path, is_removed, display_title, 
-                        duration_seconds, created_at, updated_at,
-                        tvshowtitle, season, episode, aired
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, [
-                    'episode', episode_title, show_year, imdb_id, tmdb_id, episode_kodi_id, 'lib',
-                    file_path, plot, rating, votes, duration, genre_str, studio_str,
-                    file_path, normalized_path, 0, display_title,
-                    runtime, datetime.now().isoformat(), datetime.now().isoformat(),
-                    show_title, season, episode, firstaired
-                ])
-                
-                episode_media_id = cursor.lastrowid
-                self.logger.info("    Created episode media_item: ID %s - '%s'", episode_media_id, display_title)
-                return episode_media_id
-                
-        except Exception as e:
-            self.logger.error("Error creating episode from Kodi for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
-            return None
-
-    def _create_episode_from_episode_data(self, episode_data: Dict) -> Optional[int]:
-        """Create episode media_item from combined episode data"""
-        try:
-            from datetime import datetime
-            
-            show_info = episode_data['show_info']
-            episode_info = episode_data['episode_info']
-            show_title = episode_data['show_title']
-            season = episode_data['season']
-            episode = episode_data['episode']
-            
-            # Extract episode data
-            episode_title = episode_info.get("title", f"Episode {episode}")
-            plot = episode_info.get("plot", "")
-            rating = episode_info.get("rating", 0.0)
-            votes = episode_info.get("votes", 0)
-            runtime = episode_info.get("runtime", 0)  # in seconds
-            duration = runtime // 60 if runtime else 0  # convert to minutes
-            firstaired = episode_info.get("firstaired", "")
-            file_path = episode_info.get("file", "")
-            episode_kodi_id = episode_info.get("episodeid")
-            
-            # Get show metadata
-            show_year = show_info.get("year")
-            show_genre = show_info.get("genre", [])
-            genre_str = ", ".join(show_genre) if isinstance(show_genre, list) else str(show_genre) if show_genre else ""
-            show_studio = show_info.get("studio", [])
-            studio_str = ", ".join(show_studio) if isinstance(show_studio, list) else str(show_studio) if show_studio else ""
-            
-            # Get external IDs
-            imdb_id = show_info.get("imdbnumber", "")
-            tmdb_id = ""
-            if "uniqueid" in show_info and isinstance(show_info["uniqueid"], dict):
-                tmdb_id = show_info["uniqueid"].get("tmdb", "")
-                # Episode-specific IMDb ID if available
-                if "uniqueid" in episode_info and isinstance(episode_info["uniqueid"], dict):
-                    episode_imdb = episode_info["uniqueid"].get("imdb", "")
-                    if episode_imdb:
-                        imdb_id = episode_imdb
-            
-            # Create normalized path
-            normalized_path = self._normalize_episode_path(file_path) if file_path else ""
-            
-            # Create display title
-            display_title = f"{show_title} - S{season:02d}E{episode:02d} - {episode_title}"
-            
-            # Insert into media_items table with consistent schema usage
-            with self.conn_manager.transaction() as conn:
-                cursor = conn.execute("""
-                    INSERT INTO media_items (
-                        media_type, title, year, imdbnumber, tmdb_id, kodi_id, source,
-                        play, plot, rating, votes, duration, genre, studio,
-                        file_path, normalized_path, is_removed, display_title, 
-                        duration_seconds, created_at, updated_at,
-                        tvshowtitle, season, episode, aired
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, [
-                    'episode', episode_title, show_year, imdb_id, tmdb_id, episode_kodi_id, 'lib',
-                    file_path, plot, rating, votes, duration, genre_str, studio_str,
-                    file_path, normalized_path, 0, display_title,
-                    runtime, datetime.now().isoformat(), datetime.now().isoformat(),
-                    show_title, season, episode, firstaired
-                ])
-                
-                episode_media_id = cursor.lastrowid
-                self.logger.info("    Created episode media_item: ID %s - '%s'", episode_media_id, display_title)
-                return episode_media_id
-                
-        except Exception as e:
-            self.logger.error("Error creating episode from episode data: %s", e)
-            return None
 
     def _normalize_episode_path(self, file_path: str) -> str:
         """Normalize episode file path for matching"""

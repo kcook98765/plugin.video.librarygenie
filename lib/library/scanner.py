@@ -598,10 +598,10 @@ class LibraryScanner:
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
                              plot, rating, votes, duration, mpaa, genre, director, studio, country, 
                              writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds,
-                             tvshowtitle, season, episode, aired)
+                             tvshowtitle, season, episode, aired, tvshow_kodi_id)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
                                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?,
-                                    ?, ?, ?, ?)
+                                    ?, ?, ?, ?, ?)
                         """, [
                             'episode',
                             episode["kodi_id"],
@@ -634,7 +634,8 @@ class LibraryScanner:
                             tvshowtitle,
                             season,
                             episode_num,
-                            episode.get("firstaired", "")
+                            episode.get("firstaired", ""),
+                            tvshow_data.get("kodi_id")  # Store show's Kodi ID for reliable lookup
                         ])
                         inserted_count += 1
                     except Exception as e:

@@ -79,6 +79,11 @@ The unified table for storing all media content metadata.
 | `is_removed` | INTEGER | Flag indicating if item was removed (0/1) |
 | `display_title` | TEXT | Pre-computed display title with year |
 | `duration_seconds` | INTEGER | Duration in seconds (pre-computed) |
+| `tvshowtitle` | TEXT | TV show title (for episodes) |
+| `season` | INTEGER | Season number (for episodes) |
+| `episode` | INTEGER | Episode number (for episodes) |
+| `aired` | TEXT | Air date (for episodes) |
+| `tvshow_kodi_id` | INTEGER | TV show's Kodi ID (for reliable episode lookup) |
 | `created_at` | TEXT | Creation timestamp |
 | `updated_at` | TEXT | Last update timestamp |
 
