@@ -75,7 +75,7 @@ class ListItemRenderer:
             
         except Exception as e:
             # Fallback if setArt() fails
-            self.logger.error(f"Failed to set custom art for {kind}: {e}")
+            self.logger.error("Failed to set custom art for %s: %s", kind, e)
             
             try:
                 list_item.setArt({
@@ -83,7 +83,7 @@ class ListItemRenderer:
                     'thumb': 'DefaultFolder.png'
                 })
             except Exception as fallback_error:
-                self.logger.error(f"Even fallback art failed: {fallback_error}")
+                self.logger.error("Even fallback art failed: %s", fallback_error)
 
     def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
@@ -97,10 +97,10 @@ class ListItemRenderer:
             bool: Success status
         """
         try:
-            self.logger.info(f"RENDER LISTS: Starting render of {len(lists)} lists (folder_id={folder_id})")
+            self.logger.info("RENDER LISTS: Starting render of %s lists (folder_id=%s)", len(lists), folder_id)
 
             # Set content type for lists
-            self.logger.debug(f"RENDER LISTS: Setting content type 'files' for handle {self.addon_handle}")
+            self.logger.debug("RENDER LISTS: Setting content type 'files' for handle %s", self.addon_handle)
             xbmcplugin.setContent(self.addon_handle, "files")
 
             success_count = 0
@@ -109,12 +109,12 @@ class ListItemRenderer:
                     list_name = list_data.get('name', 'Unknown List')
                     list_id = list_data.get('id')
 
-                    self.logger.debug(f"RENDER LISTS: Processing list #{idx}/{len(lists)}: '{list_name}' (id={list_id})")
+                    self.logger.debug("RENDER LISTS: Processing list #%s/%s: '%s' (id=%s)", idx, len(lists), list_name, list_id)
 
                     list_item = self._build_list_item(list_data)
                     if list_item:
                         url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                        self.logger.debug(f"RENDER LISTS: Built list item for '{list_name}' - URL: '{url}'")
+                        self.logger.debug("RENDER LISTS: Built list item for '%s' - URL: '%s'", list_name, url)
 
                         xbmcplugin.addDirectoryItem(
                             handle=self.addon_handle,
@@ -123,20 +123,20 @@ class ListItemRenderer:
                             isFolder=True
                         )
                         success_count += 1
-                        self.logger.debug(f"RENDER LISTS: Successfully added list #{idx} '{list_name}' to directory")
+                        self.logger.debug("RENDER LISTS: Successfully added list #%s '%s' to directory", idx, list_name)
                     else:
-                        self.logger.warning(f"RENDER LISTS: Failed to build list item for '{list_name}'")
+                        self.logger.warning("RENDER LISTS: Failed to build list item for '%s'", list_name)
                 except Exception as e:
-                    self.logger.error(f"RENDER LISTS: Error processing list #{idx}: {e}")
+                    self.logger.error("RENDER LISTS: Error processing list #%s: %s", idx, e)
 
-            self.logger.info(f"RENDER LISTS: Successfully added {success_count}/{len(lists)} lists to directory")
-            self.logger.debug(f"RENDER LISTS: Calling endOfDirectory(handle={self.addon_handle}, cacheToDisc=True)")
+            self.logger.info("RENDER LISTS: Successfully added %s/%s lists to directory", success_count, len(lists))
+            self.logger.debug("RENDER LISTS: Calling endOfDirectory(handle=%s, cacheToDisc=True)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return True
 
         except Exception as e:
-            self.logger.error(f"RENDER LISTS: Failed to render lists: {e}")
-            self.logger.debug(f"RENDER LISTS: Calling endOfDirectory(handle={self.addon_handle}, succeeded=False)")
+            self.logger.error("RENDER LISTS: Failed to render lists: %s", e)
+            self.logger.debug("RENDER LISTS: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
             return False
 
@@ -153,7 +153,7 @@ class ListItemRenderer:
             bool: Success status
         """
         try:
-            self.logger.info(f"RENDERER: Starting render_media_items with {len(items)} items (content_type='{content_type}')")
+            self.logger.info("RENDERER: Starting render_media_items with %s items (content_type='%s')", len(items), content_type)
             if context_menu_callback:
                 self.logger.info("RENDERER: Context menu callback provided - will apply to each item")
 
@@ -162,16 +162,16 @@ class ListItemRenderer:
             success = builder.build_directory(items, content_type, context_menu_callback)
 
             if success:
-                self.logger.info(f"RENDERER: Successfully rendered {len(items)} items")
+                self.logger.info("RENDERER: Successfully rendered %s items", len(items))
             else:
                 self.logger.error("RENDERER: Failed to render items")
 
             return success
 
         except Exception as e:
-            self.logger.error(f"RENDERER: Error rendering media items: {e}")
+            self.logger.error("RENDERER: Error rendering media items: %s", e)
             import traceback
-            self.logger.error(f"RENDERER: Traceback: {traceback.format_exc()}")
+            self.logger.error("RENDERER: Traceback: %s", traceback.format_exc())
             return False
 
 
@@ -207,7 +207,7 @@ class ListItemRenderer:
             return True
 
         except Exception as e:
-            self.logger.error(f"Failed to render folders: {e}")
+            self.logger.error("Failed to render folders: %s", e)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
             return False
 
@@ -225,9 +225,9 @@ class ListItemRenderer:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
                     video_info_tag.setPlot(f"User list: {name}")
-                    self.logger.debug(f"LIST ITEM v21+: Set metadata via InfoTagVideo for '{name}'")
+                    self.logger.debug("LIST ITEM v21+: Set metadata via InfoTagVideo for '%s'", name)
                 except Exception as e:
-                    self.logger.error(f"LIST ITEM v21+: InfoTagVideo failed for '{name}': {e}")
+                    self.logger.error("LIST ITEM v21+: InfoTagVideo failed for '%s': %s", name, e)
                     # No fallback to setInfo() on v21+ to avoid deprecation warnings
             elif kodi_major == 20:
                 # v20: Try InfoTagVideo first, fallback to setInfo() if needed
@@ -235,9 +235,9 @@ class ListItemRenderer:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
                     video_info_tag.setPlot(f"User list: {name}")
-                    self.logger.debug(f"LIST ITEM v20: Set metadata via InfoTagVideo for '{name}'")
+                    self.logger.debug("LIST ITEM v20: Set metadata via InfoTagVideo for '%s'", name)
                 except Exception as e:
-                    self.logger.warning(f"LIST ITEM v20: InfoTagVideo failed for '{name}': {e}, falling back to setInfo()")
+                    self.logger.warning("LIST ITEM v20: InfoTagVideo failed for '%s': %s, falling back to setInfo()", name, e)
                     list_item.setInfo('video', {
                         'title': name,
                         'plot': f"User list: {name}"
@@ -248,7 +248,7 @@ class ListItemRenderer:
                     'title': name,
                     'plot': f"User list: {name}"
                 })
-                self.logger.debug(f"LIST ITEM v19: Set metadata via setInfo for '{name}'")
+                self.logger.debug("LIST ITEM v19: Set metadata via setInfo for '%s'", name)
 
             # Set list playlist icon
             self._apply_art(list_item, 'list')
@@ -259,7 +259,7 @@ class ListItemRenderer:
             return list_item
 
         except Exception as e:
-            self.logger.error(f"Failed to build list item: {e}")
+            self.logger.error("Failed to build list item: %s", e)
             return None
 
     def _build_folder_item(self, folder_data: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
@@ -276,9 +276,9 @@ class ListItemRenderer:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
                     video_info_tag.setPlot(f"Folder: {name}")
-                    self.logger.debug(f"FOLDER ITEM v21+: Set metadata via InfoTagVideo for '{name}'")
+                    self.logger.debug("FOLDER ITEM v21+: Set metadata via InfoTagVideo for '%s'", name)
                 except Exception as e:
-                    self.logger.error(f"FOLDER ITEM v21+: InfoTagVideo failed for '{name}': {e}")
+                    self.logger.error("FOLDER ITEM v21+: InfoTagVideo failed for '%s': %s", name, e)
                     # No fallback to setInfo() on v21+ to avoid deprecation warnings
             elif kodi_major == 20:
                 # v20: Try InfoTagVideo first, fallback to setInfo() if needed
@@ -286,9 +286,9 @@ class ListItemRenderer:
                     video_info_tag = list_item.getVideoInfoTag()
                     video_info_tag.setTitle(name)
                     video_info_tag.setPlot(f"Folder: {name}")
-                    self.logger.debug(f"FOLDER ITEM v20: Set metadata via InfoTagVideo for '{name}'")
+                    self.logger.debug("FOLDER ITEM v20: Set metadata via InfoTagVideo for '%s'", name)
                 except Exception as e:
-                    self.logger.warning(f"FOLDER ITEM v20: InfoTagVideo failed for '{name}': {e}, falling back to setInfo()")
+                    self.logger.warning("FOLDER ITEM v20: InfoTagVideo failed for '%s': %s, falling back to setInfo()", name, e)
                     list_item.setInfo('video', {
                         'title': name,
                         'plot': f"Folder: {name}"
@@ -299,7 +299,7 @@ class ListItemRenderer:
                     'title': name,
                     'plot': f"Folder: {name}"
                 })
-                self.logger.debug(f"FOLDER ITEM v19: Set metadata via setInfo for '{name}'")
+                self.logger.debug("FOLDER ITEM v19: Set metadata via setInfo for '%s'", name)
 
             # Set folder icon
             self._apply_art(list_item, 'folder')
@@ -310,7 +310,7 @@ class ListItemRenderer:
             return list_item
 
         except Exception as e:
-            self.logger.error(f"Failed to build folder item: {e}")
+            self.logger.error("Failed to build folder item: %s", e)
             return None
 
     def _set_list_context_menu(self, list_item: xbmcgui.ListItem, list_data: Dict[str, Any]):
@@ -375,7 +375,7 @@ class ListItemRenderer:
                     if description:
                         video_info_tag.setPlot(description)
                 except Exception as e:
-                    self.logger.error(f"SIMPLE LISTITEM v21+: InfoTagVideo failed for '{title}': {e}")
+                    self.logger.error("SIMPLE LISTITEM v21+: InfoTagVideo failed for '%s': %s", title, e)
                     # No fallback to setInfo() on v21+ to avoid deprecation warnings
             elif kodi_major == 20:
                 # v20: Try InfoTagVideo first, fallback to setInfo() if needed
@@ -385,7 +385,7 @@ class ListItemRenderer:
                     if description:
                         video_info_tag.setPlot(description)
                 except Exception as e:
-                    self.logger.warning(f"SIMPLE LISTITEM v20: InfoTagVideo failed for '{title}': {e}, falling back to setInfo()")
+                    self.logger.warning("SIMPLE LISTITEM v20: InfoTagVideo failed for '%s': %s, falling back to setInfo()", title, e)
                     info = {'title': title}
                     if description:
                         info['plot'] = description
@@ -410,7 +410,7 @@ class ListItemRenderer:
             return list_item
 
         except Exception as e:
-            self.logger.error(f"SIMPLE LISTITEM: Failed to create simple listitem for '{title}': {e}")
+            self.logger.error("SIMPLE LISTITEM: Failed to create simple listitem for '%s': %s", title, e)
             # Return basic listitem on error
             return xbmcgui.ListItem(label=title)
 
@@ -434,7 +434,7 @@ class ListItemRenderer:
                 return None
 
         except Exception as e:
-            self.logger.error(f"Failed to create movie listitem: {e}")
+            self.logger.error("Failed to create movie listitem: %s", e)
             return None
 
     def _create_episode_listitem(self, episode_data: Dict[str, Any]) -> xbmcgui.ListItem:
@@ -450,7 +450,7 @@ class ListItemRenderer:
                 title = episode_data.get('title', episode_data.get('label', 'Unknown'))
                 return self.create_simple_listitem(title)
         except Exception as e:
-            self.logger.error(f"Failed to create episode listitem: {e}")
+            self.logger.error("Failed to create episode listitem: %s", e)
             # Fallback to simple listitem
             title = episode_data.get('title', episode_data.get('label', 'Unknown'))
             return self.create_simple_listitem(title)
@@ -469,8 +469,8 @@ class ListItemRenderer:
         """
         try:
             # Container hygiene - set content type appropriately for skin layouts/overlays
-            self.logger.info(f"RENDERER DIRECTORY: Starting render of {len(items)} items with content_type='{content_type}'")
-            self.logger.debug(f"RENDERER DIRECTORY: Setting content type '{content_type}' for handle {self.addon_handle}")
+            self.logger.info("RENDERER DIRECTORY: Starting render of %s items with content_type='%s'", len(items), content_type)
+            self.logger.debug("RENDERER DIRECTORY: Setting content type '%s' for handle %s", content_type, self.addon_handle)
             xbmcplugin.setContent(self.addon_handle, content_type)
 
             # Add sort methods once per build (not per item)
@@ -479,24 +479,24 @@ class ListItemRenderer:
                 ("SORT_METHOD_VIDEO_YEAR", xbmcplugin.SORT_METHOD_VIDEO_YEAR),
                 ("SORT_METHOD_DATE", xbmcplugin.SORT_METHOD_DATE)
             ]
-            self.logger.debug(f"RENDERER DIRECTORY: Adding {len(sort_methods)} sort methods")
+            self.logger.debug("RENDERER DIRECTORY: Adding %s sort methods", len(sort_methods))
             for method_name, method in sort_methods:
                 xbmcplugin.addSortMethod(self.addon_handle, method)
-                self.logger.debug(f"RENDERER DIRECTORY: Added sort method {method_name}")
+                self.logger.debug("RENDERER DIRECTORY: Added sort method %s", method_name)
 
             # Build all items, ensuring non-empty URLs
             success_count = 0
             for idx, item in enumerate(items, start=1):
                 try:
                     title = item.get('title', 'Unknown')
-                    self.logger.debug(f"RENDERER DIRECTORY: Processing item #{idx}/{len(items)}: '{title}'")
+                    self.logger.debug("RENDERER DIRECTORY: Processing item #%s/%s: '%s'", idx, len(items), title)
 
                     result = self.builder._build_single_item(item)
                     if result:
                         url, listitem, is_folder = result
                         # Ensure non-empty URL to avoid directory errors
                         if url and url.strip():
-                            self.logger.debug(f"RENDERER DIRECTORY: Adding item #{idx} '{title}' - URL: '{url}', isFolder: {is_folder}")
+                            self.logger.debug("RENDERER DIRECTORY: Adding item #%s '%s' - URL: '%s', isFolder: %s", idx, title, url, is_folder)
                             xbmcplugin.addDirectoryItem(
                                 handle=self.addon_handle,
                                 url=url,
@@ -505,20 +505,20 @@ class ListItemRenderer:
                             )
                             success_count += 1
                         else:
-                            self.logger.warning(f"RENDERER DIRECTORY: Skipping item #{idx} with empty URL: '{title}'")
+                            self.logger.warning("RENDERER DIRECTORY: Skipping item #%s with empty URL: '%s'", idx, title)
                     else:
-                        self.logger.warning(f"RENDERER DIRECTORY: Failed to build item #{idx}: '{title}'")
+                        self.logger.warning("RENDERER DIRECTORY: Failed to build item #%s: '%s'", idx, title)
                 except Exception as e:
-                    self.logger.error(f"RENDERER DIRECTORY: Error building item #{idx} '{item.get('title', 'Unknown')}': {e}")
+                    self.logger.error("RENDERER DIRECTORY: Error building item #%s '%s': %s", idx, item.get('title', 'Unknown'), e)
 
-            self.logger.info(f"RENDERER DIRECTORY: Successfully added {success_count}/{len(items)} items to directory")
-            self.logger.debug(f"RENDERER DIRECTORY: Calling endOfDirectory(handle={self.addon_handle}, succeeded=True, cacheToDisc=True)")
+            self.logger.info("RENDERER DIRECTORY: Successfully added %s/%s items to directory", success_count, len(items))
+            self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=True, cacheToDisc=True)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return True
 
         except Exception as e:
-            self.logger.error(f"RENDERER DIRECTORY: Fatal error in render_directory: {e}")
-            self.logger.debug(f"RENDERER DIRECTORY: Calling endOfDirectory(handle={self.addon_handle}, succeeded=False)")
+            self.logger.error("RENDERER DIRECTORY: Fatal error in render_directory: %s", e)
+            self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
             return False
 
@@ -528,7 +528,7 @@ class ListItemRenderer:
             # Get list metadata
             list_info = self.query_manager.get_list_by_id(list_id)
             if not list_info:
-                self.logger.error(f"List not found: {list_id}")
+                self.logger.error("List not found: %s", list_id)
                 return
 
             # Get list items with enhanced media data - no JSON RPC calls needed
@@ -543,7 +543,7 @@ class ListItemRenderer:
                 )
                 return
 
-            self.logger.debug(f"Rendering {len(items)} list items using media_items data")
+            self.logger.debug("Rendering %s list items using media_items data", len(items))
 
             # Process items efficiently using enhanced media_items data
             for item in items:
@@ -569,17 +569,17 @@ class ListItemRenderer:
                     )
 
                 except Exception as e:
-                    self.logger.error(f"Failed to render list item {item.get('id', 'unknown')}: {e}")
+                    self.logger.error("Failed to render list item %s: %s", item.get('id', 'unknown'), e)
                     continue
 
             # Set content type and finish directory
             self.plugin_context.set_content_type('movies')
             self.plugin_context.end_directory(cacheToDisc=True)
 
-            self.logger.debug(f"Successfully rendered {len(items)} list items")
+            self.logger.debug("Successfully rendered %s list items", len(items))
 
         except Exception as e:
-            self.logger.error(f"Failed to render list items: {e}")
+            self.logger.error("Failed to render list items: %s", e)
             self.plugin_context.end_directory(succeeded=False)
 
 

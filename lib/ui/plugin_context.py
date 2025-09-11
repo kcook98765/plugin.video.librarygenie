@@ -42,9 +42,9 @@ class PluginContext:
         # Navigation context - generate breadcrumb automatically
         self.breadcrumb_path = self._generate_breadcrumb()
 
-        self.logger.debug(f"PluginContext created: handle={self.addon_handle}, base_url={self.base_url}, params={self.params}")
+        self.logger.debug("PluginContext created: handle=%s, base_url=%s, params=%s", self.addon_handle, self.base_url, self.params)
         if self.breadcrumb_path:
-            self.logger.debug(f"Generated breadcrumb: {self.breadcrumb_path}")
+            self.logger.debug("Generated breadcrumb: %s", self.breadcrumb_path)
 
     @property
     def is_authorized(self) -> bool:
@@ -117,19 +117,19 @@ class PluginContext:
             breadcrumb_helper = get_breadcrumb_helper()
             return breadcrumb_helper.get_breadcrumb_for_action(action, self.params, self.query_manager)
         except Exception as e:
-            self.logger.error(f"Error generating breadcrumb: {e}")
+            self.logger.error("Error generating breadcrumb: %s", e)
             return None
 
     def display_folder(self, folder_id: str):
         """Display folder contents with proper breadcrumb"""
         try:
-            self.logger.info(f"Displaying folder {folder_id}")
+            self.logger.info("Displaying folder %s", folder_id)
 
             query_manager = get_query_manager()
             folder_info = query_manager.get_folder_info(folder_id)
 
             if not folder_info:
-                self.logger.error(f"Folder {folder_id} not found")
+                self.logger.error("Folder %s not found", folder_id)
                 self._show_error("Folder not found")
                 return
 
@@ -143,15 +143,15 @@ class PluginContext:
                 {'folder_id': folder_id}, 
                 query_manager
             )
-            self.logger.info(f"Generated folder breadcrumb: '{breadcrumb_path}'")
+            self.logger.info("Generated folder breadcrumb: '%s'", breadcrumb_path)
 
             # Get subfolders
             subfolders = query_manager.get_all_folders(parent_id=folder_id)
-            self.logger.info(f"Folder '{folder_name}' has {len(subfolders)} subfolders")
+            self.logger.info("Folder '%s' has %s subfolders", folder_name, len(subfolders))
 
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            self.logger.info(f"Folder '{folder_name}' has {len(lists_in_folder)} lists")
+            self.logger.info("Folder '%s' has %s lists", folder_name, len(lists_in_folder))
 
             # Build menu items
             menu_items = []
@@ -205,5 +205,5 @@ class PluginContext:
             menu_builder.build_directory_listing(menu_items, self.addon_handle, self.base_url, breadcrumb_path=breadcrumb_path)
 
         except Exception as e:
-            self.logger.error(f"Error displaying folder {folder_id}: {e}")
+            self.logger.error("Error displaying folder %s: %s", folder_id, e)
             self._show_error("Error displaying folder")

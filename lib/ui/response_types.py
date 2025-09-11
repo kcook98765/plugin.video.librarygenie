@@ -108,7 +108,7 @@ class ErrorResponse:
 
     def handle_error(self, context):
         """Handle error with appropriate user feedback"""
-        context.logger.error(f"Handler error: {self.error_message}")
+        context.logger.error("Handler error: %s", self.error_message)
 
         if self.show_to_user:
             try:

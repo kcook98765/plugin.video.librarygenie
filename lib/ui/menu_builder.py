@@ -276,7 +276,7 @@ class MenuBuilder:
             url = f"{self.base_url}?{'&'.join(url_params)}"
 
             # Create ListItem using renderer's method
-            self.logger.logger.info(f"MENU BUILDER: Calling renderer.create_simple_listitem for '{label}'")
+            self.logger.info("MENU BUILDER: Calling renderer.create_simple_listitem for '%s'", label)
             list_item = self.renderer.create_simple_listitem(label, description, action, icon)
 
             # Set metadata based on Kodi version to avoid deprecation warnings

@@ -239,8 +239,8 @@ class SearchHandler:
             return success
 
         except Exception as e:
-            context.logger.error(f"AI SEARCH: Error in ai_search_prompt: {e}")
+            context.logger.error("AI SEARCH: Error in ai_search_prompt: %s", e)
             import traceback
-            context.logger.error(f"AI SEARCH: Traceback: {traceback.format_exc()}")
+            context.logger.error("AI SEARCH: Traceback: %s", traceback.format_exc())
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False

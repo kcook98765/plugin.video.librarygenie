@@ -506,14 +506,14 @@ class Phase4FavoritesManager:
             
             if "result" in response_data and "tvshowdetails" in response_data["result"]:
                 show_details = response_data["result"]["tvshowdetails"]
-                self.logger.info(f"    Retrieved show info: '{show_details.get('title')}'")
+                self.logger.info("    Retrieved show info: '%s'", show_details.get('title'))
                 return show_details
             else:
-                self.logger.warning(f"    No show details found for Kodi show ID {show_kodi_id}")
+                self.logger.warning("    No show details found for Kodi show ID %s", show_kodi_id)
                 return None
                 
         except Exception as e:
-            self.logger.error(f"Error getting show info from Kodi for ID {show_kodi_id}: {e}")
+            self.logger.error("Error getting show info from Kodi for ID %s: %s", show_kodi_id, e)
             return None
 
     def _get_episode_data_from_kodi(self, show_kodi_id: int, season: int, episode: int) -> Optional[Dict]:
@@ -544,7 +544,7 @@ class Phase4FavoritesManager:
             response_data = json.loads(response)
             
             if "result" not in response_data or "episodes" not in response_data["result"]:
-                self.logger.warning(f"    No episodes found for show {show_kodi_id} season {season}")
+                self.logger.warning("    No episodes found for show %s season %s", show_kodi_id, season)
                 return None
             
             # Find the specific episode
@@ -555,7 +555,7 @@ class Phase4FavoritesManager:
                     break
             
             if not target_episode:
-                self.logger.warning(f"    Episode {episode} not found in season {season} of show {show_kodi_id}")
+                self.logger.warning("    Episode %s not found in season %s of show %s", episode, season, show_kodi_id)
                 return None
             
             # Combine show and episode data
@@ -572,7 +572,7 @@ class Phase4FavoritesManager:
             return combined_data
             
         except Exception as e:
-            self.logger.error(f"Error getting episode data from Kodi for show {show_kodi_id} S{season}E{episode}: {e}")
+            self.logger.error("Error getting episode data from Kodi for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
             return None
 
     def _create_episode_from_kodi(self, show_kodi_id: int, season: int, episode: int, show_info: Dict) -> Optional[int]:
@@ -599,7 +599,7 @@ class Phase4FavoritesManager:
             response_data = json.loads(response)
             
             if "result" not in response_data or "episodes" not in response_data["result"]:
-                self.logger.warning(f"    No episodes found for show {show_kodi_id} season {season}")
+                self.logger.warning("    No episodes found for show %s season %s", show_kodi_id, season)
                 return None
             
             # Find the specific episode
@@ -610,7 +610,7 @@ class Phase4FavoritesManager:
                     break
             
             if not target_episode:
-                self.logger.warning(f"    Episode {episode} not found in season {season} of show {show_kodi_id}")
+                self.logger.warning("    Episode %s not found in season %s of show %s", episode, season, show_kodi_id)
                 return None
             
             # Extract episode data
@@ -668,11 +668,11 @@ class Phase4FavoritesManager:
                 ])
                 
                 episode_media_id = cursor.lastrowid
-                self.logger.info(f"    Created episode media_item: ID {episode_media_id} - '{display_title}'")
+                self.logger.info("    Created episode media_item: ID %s - '%s'", episode_media_id, display_title)
                 return episode_media_id
                 
         except Exception as e:
-            self.logger.error(f"Error creating episode from Kodi for show {show_kodi_id} S{season}E{episode}: {e}")
+            self.logger.error("Error creating episode from Kodi for show %s S%sE%s: %s", show_kodi_id, season, episode, e)
             return None
 
     def _create_episode_from_episode_data(self, episode_data: Dict) -> Optional[int]:
@@ -740,11 +740,11 @@ class Phase4FavoritesManager:
                 ])
                 
                 episode_media_id = cursor.lastrowid
-                self.logger.info(f"    Created episode media_item: ID {episode_media_id} - '{display_title}'")
+                self.logger.info("    Created episode media_item: ID %s - '%s'", episode_media_id, display_title)
                 return episode_media_id
                 
         except Exception as e:
-            self.logger.error(f"Error creating episode from episode data: {e}")
+            self.logger.error("Error creating episode from episode data: %s", e)
             return None
 
     def _normalize_episode_path(self, file_path: str) -> str:
@@ -759,7 +759,7 @@ class Phase4FavoritesManager:
             return parser._normalize_file_path_key(file_path)
             
         except Exception as e:
-            self.logger.debug(f"Error normalizing episode path '{file_path}': {e}")
+            self.logger.debug("Error normalizing episode path '%s': %s", file_path, e)
             return file_path.lower()
 
     def get_mapped_favorites(self, show_unmapped: bool = False) -> List[Dict]:
@@ -784,11 +784,11 @@ class Phase4FavoritesManager:
             # Use the standard list items query - same as other lists use
             favorites = query_manager.get_list_items(kodi_list_id)
 
-            self.logger.info(f"Retrieved {len(favorites)} favorites using standard list query approach")
+            self.logger.info("Retrieved %s favorites using standard list query approach", len(favorites))
             return favorites
 
         except Exception as e:
-            self.logger.error(f"Error getting mapped favorites: {e}")
+            self.logger.error("Error getting mapped favorites: %s", e)
             return []
 
     def get_favorites_stats(self) -> Dict[str, int]:
@@ -813,7 +813,7 @@ class Phase4FavoritesManager:
                 }
 
         except Exception as e:
-            self.logger.error(f"Error getting favorites stats: {e}")
+            self.logger.error("Error getting favorites stats: %s", e)
             return {"total": 0, "present": 0, "mapped": 0, "unmapped": 0, "missing": 0}
 
     def add_favorites_to_list(self, list_id: int, favorite_ids: List[int]) -> Dict[str, Any]:
@@ -867,7 +867,7 @@ class Phase4FavoritesManager:
             }
 
         except Exception as e:
-            self.logger.error(f"Error adding favorites to list: {e}")
+            self.logger.error("Error adding favorites to list: %s", e)
             return {
                 "success": False,
                 "error": "operation_error",
@@ -905,16 +905,16 @@ class Phase4FavoritesManager:
                 
                 # Scan needed if favorites file is newer than marker
                 scan_needed = favorites_mtime > marker_mtime
-                self.logger.debug(f"Timestamp comparison: favorites={favorites_mtime}, marker={marker_mtime}, scan_needed={scan_needed}")
-                self.logger.debug(f"File paths: favorites='{favorites_file_path}', marker='{marker_file_path}'")
+                self.logger.debug("Timestamp comparison: favorites=%s, marker=%s, scan_needed=%s", favorites_mtime, marker_mtime, scan_needed)
+                self.logger.debug("File paths: favorites='%s', marker='%s'", favorites_file_path, marker_file_path)
                 return scan_needed
                 
             except Exception as e:
-                self.logger.warning(f"Error comparing file timestamps: {e}")
+                self.logger.warning("Error comparing file timestamps: %s", e)
                 return True  # Default to scan if can't compare
                 
         except Exception as e:
-            self.logger.warning(f"Error checking scan necessity: {e}")
+            self.logger.warning("Error checking scan necessity: %s", e)
             return True  # Default to scan on any error
 
     def _update_scan_marker(self):
@@ -935,10 +935,10 @@ class Phase4FavoritesManager:
             finally:
                 marker_file.close()
                 
-            self.logger.debug(f"Updated scan marker file: {marker_file_path}")
+            self.logger.debug("Updated scan marker file: %s", marker_file_path)
             
         except Exception as e:
-            self.logger.warning(f"Error updating scan marker file: {e}")
+            self.logger.warning("Error updating scan marker file: %s", e)
 
     def _fetch_artwork_from_kodi(self, kodi_id: int, media_type: str) -> Dict[str, str]:
         """Fetch artwork for library item from Kodi JSON-RPC"""
@@ -975,7 +975,7 @@ class Phase4FavoritesManager:
                     if "fanart" in movie_details:
                         artwork["fanart"] = movie_details["fanart"]
 
-                    self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for movie {kodi_id}")
+                    self.logger.debug("ARTWORK: Retrieved %s art items for movie %s", len(artwork), kodi_id)
                     return artwork
 
             elif media_type == 'episode':
@@ -1007,14 +1007,14 @@ class Phase4FavoritesManager:
                     if "fanart" in episode_details:
                         artwork["fanart"] = episode_details["fanart"]
 
-                    self.logger.debug(f"ARTWORK: Retrieved {len(artwork)} art items for episode {kodi_id}")
+                    self.logger.debug("ARTWORK: Retrieved %s art items for episode %s", len(artwork), kodi_id)
                     return artwork
 
-            self.logger.debug(f"ARTWORK: No artwork retrieved for {media_type} {kodi_id}")
+            self.logger.debug("ARTWORK: No artwork retrieved for %s %s", media_type, kodi_id)
             return {}
 
         except Exception as e:
-            self.logger.warning(f"ARTWORK: Failed to fetch artwork for {media_type} {kodi_id}: {e}")
+            self.logger.warning("ARTWORK: Failed to fetch artwork for %s %s: %s", media_type, kodi_id, e)
             return {}
 
 

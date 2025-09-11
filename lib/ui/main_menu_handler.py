@@ -25,7 +25,7 @@ class MainMenuHandler:
         """Show main menu - redirect to Lists as primary interface"""
         try:
             kodi_major = get_kodi_major_version()
-            context.logger.info(f"MAIN MENU: Starting main menu display on Kodi v{kodi_major} - redirecting to Lists")
+            context.logger.info("MAIN MENU: Starting main menu display on Kodi v%s - redirecting to Lists", kodi_major)
 
             # Redirect main menu directly to Lists interface
             from .handler_factory import get_handler_factory
@@ -38,8 +38,8 @@ class MainMenuHandler:
             return response.success if hasattr(response, 'success') else True
 
         except Exception as e:
-            context.logger.error(f"MAIN MENU: Error showing main menu: {e}")
+            context.logger.error("MAIN MENU: Error showing main menu: %s", e)
             import traceback
-            context.logger.error(f"MAIN MENU: Traceback: {traceback.format_exc()}")
+            context.logger.error("MAIN MENU: Traceback: %s", traceback.format_exc())
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False

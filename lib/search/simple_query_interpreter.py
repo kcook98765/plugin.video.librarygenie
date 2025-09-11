@@ -42,11 +42,11 @@ class SimpleQueryInterpreter:
                 # Use normalizer to get clean tokens
                 query.keywords = self.normalizer.normalize_tokens(user_input.strip())
 
-            self.logger.debug(f"Parsed simple query: {query.to_dict()}")
+            self.logger.debug("Parsed simple query: %s", query.to_dict())
             return query
 
         except Exception as e:
-            self.logger.error(f"Error parsing simple query '{user_input}': {e}")
+            self.logger.error("Error parsing simple query '%s': %s", user_input, e)
             # Return safe default query
             if user_input:
                 query.keywords = user_input.strip().lower().split()
