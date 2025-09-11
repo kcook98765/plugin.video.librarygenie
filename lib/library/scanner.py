@@ -502,7 +502,7 @@ class LibraryScanner:
             self._abort_requested = False
 
             if progress_dialog:
-                progress_dialog.update(10, "LibraryGenie", "Preparing TV episodes scan...")
+                progress_dialog.update(0, "LibraryGenie", "Preparing TV episodes scan...")
 
             # Clear existing TV episodes only
             with self.conn_manager.transaction() as conn:
@@ -510,7 +510,7 @@ class LibraryScanner:
                 self.logger.debug("Cleared existing TV episodes for resync")
 
             if progress_dialog:
-                progress_dialog.update(30, "LibraryGenie", "Syncing TV episodes...")
+                progress_dialog.update(10, "LibraryGenie", "Starting TV episodes sync...")
 
             # Sync TV episodes
             total_episodes_added = self._sync_tv_episodes(progress_dialog=progress_dialog, progress_callback=progress_callback)
@@ -569,16 +569,16 @@ class LibraryScanner:
                     tvshow_id = tvshow.get("kodi_id")
                     tvshow_title = tvshow.get("title", "Unknown Show")
                     
-                    # Calculate incremental progress: 80% to 95% during TV show processing
+                    # Calculate progress based on TV series processed: 20% to 90%
                     if dialog_bg:
                         overall_show_progress = (show_offset + idx) / total_tvshows
-                        progress_percentage = int(80 + (overall_show_progress * 15))  # 80% to 95%
-                        progress_msg = f"Processing episodes for: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows})"
+                        progress_percentage = int(20 + (overall_show_progress * 70))  # 20% to 90%
+                        progress_msg = f"Processing: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows} series)"
                         dialog_bg.update(progress_percentage, "LibraryGenie", progress_msg)
                     elif progress_dialog:
                         overall_show_progress = (show_offset + idx) / total_tvshows
-                        progress_percentage = int(80 + (overall_show_progress * 15))  # 80% to 95%
-                        progress_msg = f"Processing episodes for: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows})"
+                        progress_percentage = int(20 + (overall_show_progress * 70))  # 20% to 90%
+                        progress_msg = f"Processing: {tvshow_title} ({show_offset + idx + 1}/{total_tvshows} series)"
                         progress_dialog.update(progress_percentage, "LibraryGenie", progress_msg)
                     
                     # Get all episodes for this TV show
