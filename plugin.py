@@ -485,8 +485,8 @@ def main():
         _ensure_startup_initialization(context)
         
         # Check for fresh install and show setup modal if needed
-        if _check_and_handle_fresh_install(context):
-            return  # Exit early after fresh install setup
+        fresh_install_handled = _check_and_handle_fresh_install(context)
+        # Continue to main menu even after fresh install setup
 
         # Create router and register handlers
         router = Router()
@@ -576,7 +576,7 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
         # Handle user selection
         if selected == -1:  # User canceled or pressed back
             logger.info("Fresh install setup canceled by user")
-            return True  # Still exit early to avoid showing main menu
+            return True  # Handled cancellation, continue to main menu
             
         elif selected == 0:  # Both movies and TV episodes
             logger.info("User selected: Movies and TV Episodes")
@@ -607,7 +607,7 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
                 4000
             )
         
-        return True  # Handled fresh install, exit early
+        return True  # Handled fresh install, continue to main menu
         
     except Exception as e:
         logger.error("Error during fresh install setup: %s", e)

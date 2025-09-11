@@ -423,8 +423,11 @@ class LibraryGenieService:
         try:
             # Check if initial sync is requested
             initial_sync_requested = self.settings.addon.getSetting('initial_sync_requested')
+            self.logger.debug("Checking initial sync request: flag='%s'", initial_sync_requested)
             if initial_sync_requested != 'true':
                 return
+                
+            self.logger.info("⚡ INITIAL SYNC REQUEST DETECTED - Processing sync request")
                 
             # Import here to avoid circular imports
             from lib.utils.sync_lock import GlobalSyncLock
