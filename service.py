@@ -49,7 +49,7 @@ class LibraryGenieService:
         # Debug: Check initial dialog state
         initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
         initial_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        self.logger.info(f"🔍 SERVICE INIT: Initial dialog state - ID: {initial_dialog_id}, VideoInfo active: {initial_dialog_active}")
+        self.logger.info("🔍 SERVICE INIT: Initial dialog state - ID: %s, VideoInfo active: %s", initial_dialog_id, initial_dialog_active)
 
     def _show_notification(self, message: str, icon: int = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
         """Show a Kodi notification"""
@@ -61,7 +61,7 @@ class LibraryGenieService:
                 time_ms
             )
         except Exception as e:
-            self.logger.error(f"Failed to show notification: {e}")
+            self.logger.error("Failed to show notification: %s", e)
 
     def _initialize_database(self):
         """Initialize database schema if needed"""
@@ -70,7 +70,7 @@ class LibraryGenieService:
             initialize_database()
             self.logger.info("Database initialization completed")
         except Exception as e:
-            self.logger.error(f"Database initialization failed: {e}")
+            self.logger.error("Database initialization failed: %s", e)
             self._show_notification(
                 f"Database initialization failed: {str(e)[:50]}...",
                 xbmcgui.NOTIFICATION_ERROR
@@ -89,14 +89,14 @@ class LibraryGenieService:
 
                 if result.get('success'):
                     items_added = result.get('items_added', 0)
-                    self.logger.info(f"Initial library scan completed: {items_added} movies indexed")
+                    self.logger.info("Initial library scan completed: %s movies indexed", items_added)
                     self._show_notification(
                         f"Library scan completed: {items_added} movies indexed",
                         time_ms=8000
                     )
                 else:
                     error = result.get('error', 'Unknown error')
-                    self.logger.error(f"Initial library scan failed: {error}")
+                    self.logger.error("Initial library scan failed: %s", error)
                     self._show_notification(
                         f"Library scan failed: {error[:40]}...",
                         xbmcgui.NOTIFICATION_ERROR,
@@ -106,7 +106,7 @@ class LibraryGenieService:
                 self.logger.info("Library already indexed, skipping initial scan")
 
         except Exception as e:
-            self.logger.error(f"Error during initial scan check: {e}")
+            self.logger.error("Error during initial scan check: %s", e)
             self._show_notification(
                 f"Scan check failed: {str(e)[:50]}...",
                 xbmcgui.NOTIFICATION_ERROR
@@ -126,7 +126,7 @@ class LibraryGenieService:
             # Start AI search sync if enabled  
             self.logger.info("🔍 Checking AI Search activation status at startup...")
             ai_activated = self.settings.get_ai_search_activated()
-            self.logger.info(f"🔍 AI Search activated setting: {ai_activated}")
+            self.logger.info("🔍 AI Search activated setting: %s", ai_activated)
             
             if self._should_start_ai_sync():
                 self.logger.info("✅ AI Search sync conditions met - starting sync thread")
@@ -142,7 +142,7 @@ class LibraryGenieService:
             self.logger.info("LibraryGenie background service stopped")
 
         except Exception as e:
-            self.logger.error(f"Service error: {e}")
+            self.logger.error("Service error: %s", e)
 
     def run(self):
         """Main service loop - optimized for minimal resource usage"""
@@ -205,10 +205,10 @@ class LibraryGenieService:
                     mode_str = "HIJACK" if hijack_mode else "IDLE"
                     
                     if state_changed:
-                        self.logger.info(f"🔍 SERVICE STATE CHANGE [{mode_str}]: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}")
+                        self.logger.info("🔍 SERVICE STATE CHANGE [%s]: dialog_active=%s, dialog_id=%s, armed=%s", mode_str, dialog_active, dialog_id, armed_state)
                     else:
                         # Only log periodic ticks when in hijack mode and something is active
-                        self.logger.info(f"🔍 SERVICE [{mode_str}] PERIODIC CHECK {tick_count}: dialog_active={dialog_active}, armed={armed_state}")
+                        self.logger.info("🔍 SERVICE [%s] PERIODIC CHECK %s: dialog_active=%s, armed=%s", mode_str, tick_count, dialog_active, armed_state)
 
                 # Store state for next comparison
                 last_dialog_active = dialog_active
@@ -249,9 +249,9 @@ class LibraryGenieService:
                         break
 
             except Exception as e:
-                self.logger.error(f"💥 SERVICE ERROR: {e}")
+                self.logger.error("💥 SERVICE ERROR: %s", e)
                 import traceback
-                self.logger.error(f"SERVICE TRACEBACK: {traceback.format_exc()}")
+                self.logger.error("SERVICE TRACEBACK: %s", traceback.format_exc())
                 # Error recovery with longer wait
                 if self.monitor.waitForAbort(2.0):
                     break
@@ -267,7 +267,7 @@ class LibraryGenieService:
                                  (current_time - self._last_ai_sync_check_time) > 300)  # 5 minutes
             
             if should_log_periodic:
-                self.logger.info(f"🔄 Periodic AI sync check (tick {tick_count})")
+                self.logger.info("🔄 Periodic AI sync check (tick %s)", tick_count)
                 self._last_ai_sync_check_time = current_time
                 
             # Check if AI sync should start and isn't already running
@@ -281,7 +281,7 @@ class LibraryGenieService:
                     self.logger.info("🛑 AI Search deactivation detected - stopping sync thread")
                     self._stop_ai_sync_thread()
         except Exception as e:
-            self.logger.error(f"Error checking AI sync activation: {e}")
+            self.logger.error("Error checking AI sync activation: %s", e)
 
     def _should_start_ai_sync(self, force_log=False) -> bool:
         """Check if AI search sync should be started"""
@@ -311,7 +311,7 @@ class LibraryGenieService:
         
         # Only log detailed info if state changed or forced
         if force_log or current_state != self._last_ai_sync_state:
-            self.logger.info(f"🔍 Server URL: '{server_url}' (exists: {current_state['server_url_exists']})")
+            self.logger.info("🔍 Server URL: '%s' (exists: %s)", server_url, current_state['server_url_exists'])
             self.logger.info(f"🔍 API Key (from settings): {'[PRESENT]' if api_key else '[MISSING]'} (length: {len(api_key) if api_key else 0})")
             self.logger.info(f"🔍 is_authorized() result: {auth_status}")
             self.logger.info(f"🔍 API Key (from database): {'[PRESENT]' if db_api_key else '[MISSING]'} (length: {len(db_api_key) if db_api_key else 0})")

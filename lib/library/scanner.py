@@ -58,7 +58,7 @@ class LibraryScanner:
         try:
             current_version = get_kodi_major_version()
         except Exception as e:
-            self.logger.warning(f"Failed to get Kodi version: {e}")
+            self.logger.warning("Failed to get Kodi version: %s", e)
             current_version = None
 
         scan_start = datetime.now().isoformat()
@@ -77,7 +77,7 @@ class LibraryScanner:
 
             # Get total count for progress tracking
             total_movies = self.kodi_client.get_movie_count()
-            self.logger.info(f"Full scan: {total_movies} movies to process")
+            self.logger.info("Full scan: %s movies to process", total_movies)
 
             if total_movies == 0:
                 if dialog_bg:
@@ -88,7 +88,7 @@ class LibraryScanner:
 
             # Calculate paging
             total_pages = (total_movies + self.batch_size - 1) // self.batch_size
-            self.logger.info(f"Processing {total_pages} pages of {self.batch_size} items each")
+            self.logger.info("Processing %s pages of %s items each", total_pages, self.batch_size)
 
             if dialog_bg:
                 dialog_bg.update(20, "LibraryGenie", f"Processing {total_movies} movies...")
@@ -105,7 +105,7 @@ class LibraryScanner:
 
                 # Check for abort between pages
                 if self._should_abort():
-                    self.logger.info(f"Full scan aborted by user at page {page_num}/{total_pages}")
+                    self.logger.info("Full scan aborted by user at page %s/%s", page_num, total_pages)
                     if dialog_bg:
                         dialog_bg.update(100, "LibraryGenie", "Scan aborted")
                         dialog_bg.close()
@@ -128,14 +128,14 @@ class LibraryScanner:
                 # Calculate percentage for more frequent updates
                 progress_percentage = min(int((items_processed / total_movies) * 80) + 20, 100)  # Reserve 20% for initialization
 
-                self.logger.debug(f"Full scan progress: {items_processed}/{total_movies} movies processed ({progress_percentage}%)")
+                self.logger.debug("Full scan progress: %s/%s movies processed (%s%%)", items_processed, total_movies, progress_percentage)
 
                 # Call progress callback if provided
                 if progress_callback:
                     try:
                         progress_callback(page_num, total_pages, items_processed)
                     except Exception as e:
-                        self.logger.warning(f"Progress callback error: {e}")
+                        self.logger.warning("Progress callback error: %s", e)
                 
                 # Update dialog progress more frequently
                 progress_message = f"Processing: {items_processed}/{total_movies} ({progress_percentage}%)"
@@ -151,7 +151,7 @@ class LibraryScanner:
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
 
-            self.logger.info(f"Full scan complete: {total_added} movies indexed")
+            self.logger.info("Full scan complete: %s movies indexed", total_added)
 
             if dialog_bg:
                 dialog_bg.update(100, "LibraryGenie", f"Scan complete: {total_added} movies indexed")
@@ -167,7 +167,7 @@ class LibraryScanner:
             }
 
         except Exception as e:
-            self.logger.error(f"Full scan failed: {e}")
+            self.logger.error("Full scan failed: %s", e)
             if dialog_bg:
                 dialog_bg.update(100, "LibraryGenie", f"Scan failed: {e}")
                 dialog_bg.close()
@@ -188,12 +188,12 @@ class LibraryScanner:
         try:
             current_version = get_kodi_major_version()
         except Exception as e:
-            self.logger.warning(f"Failed to get Kodi version: {e}")
+            self.logger.warning("Failed to get Kodi version: %s", e)
             current_version = None
 
         # Check if Kodi version has changed since last scan
         if current_version and self._has_kodi_version_changed(current_version):
-            self.logger.info(f"Kodi version changed to {current_version}, forcing full scan")
+            self.logger.info("Kodi version changed to %s, forcing full scan", current_version)
             return self.perform_full_scan()
 
         scan_start = datetime.now().isoformat()
@@ -218,13 +218,13 @@ class LibraryScanner:
 
             # Process new movies
             if new_ids:
-                self.logger.debug(f"Delta scan: {len(new_ids)} new movies detected")
+                self.logger.debug("Delta scan: %s new movies detected", len(new_ids))
                 new_movies_data = self._fetch_movies_by_ids(new_ids)
                 items_added = self._batch_insert_movies(new_movies_data)
 
             # Mark removed movies
             if removed_ids:
-                self.logger.debug(f"Delta scan: {len(removed_ids)} removed movies detected")
+                self.logger.debug("Delta scan: %s removed movies detected", len(removed_ids))
                 items_removed = self._mark_movies_removed(removed_ids)
 
             # Update last_seen for existing movies
@@ -239,7 +239,7 @@ class LibraryScanner:
             )
 
             if items_added > 0 or items_removed > 0:
-                self.logger.info(f"Delta scan complete: +{items_added} -{items_removed} movies")
+                self.logger.info("Delta scan complete: +%s -%s movies", items_added, items_removed)
             else:
                 self.logger.debug("Delta scan complete: no changes detected")
 

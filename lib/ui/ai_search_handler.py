@@ -41,7 +41,7 @@ class AISearchHandler:
             bool: True if search was successful and results were saved
         """
         try:
-            self.logger.info(f"AI SEARCH: Starting AI search for query: '{query}'")
+            self.logger.info("AI SEARCH: Starting AI search for query: '%s'", query)
 
             # Check if AI search is activated
             if not self.ai_client.is_activated():
@@ -64,7 +64,7 @@ class AISearchHandler:
             if not connection_test.get('success'):
                 progress.close()
                 error_msg = connection_test.get('error', 'Connection failed')
-                self.logger.error(f"AI SEARCH: Connection test failed: {error_msg}")
+                self.logger.error("AI SEARCH: Connection test failed: %s", error_msg)
                 xbmcgui.Dialog().notification(
                     "AI Search",
                     f"Connection failed: {error_msg}",
@@ -81,7 +81,7 @@ class AISearchHandler:
             if not search_results or not search_results.get('success'):
                 progress.close()
                 error_msg = search_results.get('error', 'Unknown error') if search_results else 'No response from server'
-                self.logger.error(f"AI SEARCH: Search failed: {error_msg}")
+                self.logger.error("AI SEARCH: Search failed: %s", error_msg)
                 xbmcgui.Dialog().notification(
                     "AI Search",
                     f"Search failed: {error_msg}",
@@ -91,7 +91,7 @@ class AISearchHandler:
                 return False
 
             ai_results = search_results.get('results', [])
-            self.logger.info(f"AI SEARCH: Received {len(ai_results)} results from AI search")
+            self.logger.info("AI SEARCH: Received %s results from AI search", len(ai_results))
 
             if not ai_results:
                 progress.close()
@@ -112,7 +112,7 @@ class AISearchHandler:
                 if imdb_id and imdb_id.startswith('tt'):
                     imdb_ids.append(imdb_id)
 
-            self.logger.info(f"AI SEARCH: Extracted {len(imdb_ids)} IMDb IDs from AI results")
+            self.logger.info("AI SEARCH: Extracted %s IMDb IDs from AI results", len(imdb_ids))
 
             # Match IMDb IDs with local media items
             matched_items = self._match_imdb_ids_to_media_items(imdb_ids)
@@ -125,7 +125,7 @@ class AISearchHandler:
 
                 if list_id:
                     progress.close()
-                    self.logger.info(f"AI SEARCH: Successfully created search history list {list_id} with {len(matched_items)} items")
+                    self.logger.info("AI SEARCH: Successfully created search history list %s with %s items", list_id, len(matched_items))
 
                     # Show success notification
                     xbmcgui.Dialog().notification(
@@ -163,9 +163,9 @@ class AISearchHandler:
             progress = locals().get('progress')
             if progress:
                 progress.close()
-            self.logger.error(f"AI SEARCH: Error performing AI search: {e}")
+            self.logger.error("AI SEARCH: Error performing AI search: %s", e)
             import traceback
-            self.logger.error(f"AI SEARCH: Traceback: {traceback.format_exc()}")
+            self.logger.error("AI SEARCH: Traceback: %s", traceback.format_exc())
             xbmcgui.Dialog().notification(
                 "AI Search",
                 "Search error occurred",
