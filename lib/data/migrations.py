@@ -155,6 +155,7 @@ class MigrationManager:
             season INTEGER,
             episode INTEGER,
             aired TEXT,
+            tvshow_kodi_id INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
@@ -165,6 +166,7 @@ class MigrationManager:
         CREATE INDEX idx_media_items_year ON media_items (year);
         CREATE INDEX idx_media_items_episode_match ON media_items (tvshowtitle, season, episode);
         CREATE INDEX idx_media_items_tvshowtitle ON media_items (tvshowtitle COLLATE NOCASE);
+        CREATE INDEX idx_media_items_tvshow_episode ON media_items (tvshow_kodi_id, season, episode);
         
         CREATE TABLE list_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
