@@ -20,6 +20,9 @@ from .scanner import LibraryScanner
 class SyncController:
     """Centralized controller for all library sync operations"""
 
+    # Class-level flag to prevent duplicate scans
+    _sync_in_progress = False
+
     def __init__(self):
         self.settings = SettingsManager()
         self.logger = get_logger(__name__)
@@ -54,7 +57,16 @@ class SyncController:
         Perform manual library sync based on current toggle states
         Returns: (success, status_message)
         """
+        # Check if sync is already in progress
+        if SyncController._sync_in_progress:
+            message = "Sync already in progress - skipping duplicate sync"
+            self.logger.info(message)
+            return False, message
+            
         try:
+            # Set sync flag to prevent duplicates
+            SyncController._sync_in_progress = True
+            
             sync_movies = self.settings.get_sync_movies()
             sync_tv_episodes = self.settings.get_sync_tv_episodes()
             
@@ -101,6 +113,9 @@ class SyncController:
             error_msg = f"Manual sync failed: {str(e)}"
             self.logger.error(error_msg)
             return False, error_msg
+        finally:
+            # Always clear sync flag when done
+            SyncController._sync_in_progress = False
 
     def perform_periodic_sync(self) -> bool:
         """
@@ -112,6 +127,11 @@ class SyncController:
             # Skip if first run not completed
             if self.is_first_run():
                 self.logger.debug("Skipping periodic sync - first run not completed")
+                return False
+
+            # Skip if sync already in progress (prevents duplicate scans)
+            if SyncController._sync_in_progress:
+                self.logger.debug("Skipping periodic sync - sync already in progress")
                 return False
 
             sync_movies = self.settings.get_sync_movies()
