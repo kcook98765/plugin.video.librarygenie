@@ -7,8 +7,11 @@ Robust favorites integration with reliable mapping, idempotent updates, and batc
 """
 
 import re
+import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+
+import xbmcvfs
 
 from ..data import get_query_manager
 from ..data.connection_manager import get_connection_manager
@@ -29,8 +32,8 @@ class Phase4FavoritesManager:
         self.parser = Phase4FavoritesParser()
         self.library_manager = get_list_library_manager()
 
-    def scan_favorites(self, file_path: Optional[str] = None) -> Dict[str, Any]:
-        """Scan and import favorites and batch processing"""
+    def scan_favorites(self, file_path: Optional[str] = None, force_refresh: bool = False) -> Dict[str, Any]:
+        """Scan and import favorites with file-based optimization"""
         start_time = datetime.now()
 
         try:
@@ -47,8 +50,18 @@ class Phase4FavoritesManager:
                         "message": "No favorites file found"
                     }
 
-            # Parse favorites file with enhanced parser
+            # Check if scan is needed (unless forced)
+            if not force_refresh and not self._should_scan_favorites(file_path):
+                self.logger.debug("Favorites file unchanged since last scan - skipping")
+                return {
+                    "success": True,
+                    "scan_type": "skipped",
+                    "items_found": 0,
+                    "items_mapped": 0,
+                    "message": "No changes detected, scan skipped"
+                }
 
+            # Parse favorites file with enhanced parser
             favorites = self.parser.parse_favorites_file(file_path)
 
             # Phase 4: Process in batches with reliable mapping
@@ -58,6 +71,9 @@ class Phase4FavoritesManager:
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 
 
+            # Update scan marker file after successful scan
+            self._update_scan_marker()
+            
             self.logger.info(f"Favorites scan complete: {result['items_mapped']}/{len(favorites)} mapped, {result['items_added']} added, {result['items_updated']} updated")
 
             return {
@@ -858,6 +874,64 @@ class Phase4FavoritesManager:
                 "message": str(e)
             }
 
+    def _should_scan_favorites(self, favorites_file_path: str) -> bool:
+        """Check if favorites scan is needed by comparing file timestamps"""
+        try:
+            # Get addon userdata directory
+            userdata_dir = xbmcvfs.translatePath('special://profile/addon_data/plugin.video.librarygenie/')
+            if not xbmcvfs.exists(userdata_dir):
+                xbmcvfs.mkdirs(userdata_dir)
+            
+            # Marker file path
+            marker_file_path = os.path.join(userdata_dir, '.kodi_favorites_last_scan')
+            
+            # If marker file doesn't exist, scan is needed
+            if not os.path.exists(marker_file_path):
+                self.logger.debug("No scan marker file found - scan needed")
+                return True
+            
+            # If favorites file doesn't exist, no scan needed
+            if not os.path.exists(favorites_file_path):
+                self.logger.debug("Favorites file doesn't exist - no scan needed")
+                return False
+            
+            # Compare modification times
+            try:
+                favorites_mtime = os.path.getmtime(favorites_file_path)
+                marker_mtime = os.path.getmtime(marker_file_path)
+                
+                # Scan needed if favorites file is newer than marker
+                scan_needed = favorites_mtime > marker_mtime
+                self.logger.debug(f"Timestamp comparison: favorites={favorites_mtime}, marker={marker_mtime}, scan_needed={scan_needed}")
+                return scan_needed
+                
+            except OSError as e:
+                self.logger.warning(f"Error comparing file timestamps: {e}")
+                return True  # Default to scan if can't compare
+                
+        except Exception as e:
+            self.logger.warning(f"Error checking scan necessity: {e}")
+            return True  # Default to scan on any error
+
+    def _update_scan_marker(self):
+        """Update the scan marker file timestamp"""
+        try:
+            # Get addon userdata directory
+            userdata_dir = xbmcvfs.translatePath('special://profile/addon_data/plugin.video.librarygenie/')
+            if not xbmcvfs.exists(userdata_dir):
+                xbmcvfs.mkdirs(userdata_dir)
+            
+            # Marker file path
+            marker_file_path = os.path.join(userdata_dir, '.kodi_favorites_last_scan')
+            
+            # Touch the marker file (create or update timestamp)
+            with open(marker_file_path, 'a'):
+                os.utime(marker_file_path, None)
+                
+            self.logger.debug(f"Updated scan marker file: {marker_file_path}")
+            
+        except Exception as e:
+            self.logger.warning(f"Error updating scan marker file: {e}")
 
     def _fetch_artwork_from_kodi(self, kodi_id: int, media_type: str) -> Dict[str, str]:
         """Fetch artwork for library item from Kodi JSON-RPC"""
