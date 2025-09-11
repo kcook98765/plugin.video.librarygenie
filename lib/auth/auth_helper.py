@@ -50,7 +50,7 @@ class AuthorizationHelper:
         )
 
         if not result:
-            self.logger.debug(f"User declined authorization for {feature_name}")
+            self.logger.debug("User declined authorization for %s", feature_name)
             return False
 
         # Start authorization flow
@@ -69,7 +69,7 @@ class AuthorizationHelper:
             return is_api_key_valid(str(server_url))
             
         except Exception as e:
-            self.logger.error(f"Error verifying API key: {e}")
+            self.logger.error("Error verifying API key: %s", e)
             return False
 
     def show_authorization_status(self):
@@ -133,7 +133,7 @@ class AuthorizationHelper:
                 return False
                 
         except Exception as e:
-            self.logger.error(f"Error during OTP authorization: {e}")
+            self.logger.error("Error during OTP authorization: %s", e)
             xbmcgui.Dialog().notification(
                 "Authorization Error",
                 f"Failed to authorize device: {str(e)[:50]}...",
@@ -153,7 +153,7 @@ class AuthorizationHelper:
                 )
             return result
         except Exception as e:
-            self.logger.error(f"Error clearing authorization: {e}")
+            self.logger.error("Error clearing authorization: %s", e)
             return False
 
 

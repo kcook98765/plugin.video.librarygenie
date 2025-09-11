@@ -47,7 +47,7 @@ class ExportEngine:
                 payload[export_type] = data
                 total_items += count
 
-                self.logger.info(f"Collected {count} items for {export_type}")
+                self.logger.info("Collected %s items for %s", count, export_type)
 
             # Create envelope
             envelope = ExportEnvelope.create(export_types, payload)
@@ -106,7 +106,7 @@ class ExportEngine:
                 return {"success": False, "error": "Failed to write export file"}
 
         except Exception as e:
-            self.logger.error(f"Export error: {e}")
+            self.logger.error("Export error: %s", e)
             return {"success": False, "error": str(e)}
 
     def _collect_export_data(self, export_type: str, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
@@ -126,7 +126,7 @@ class ExportEngine:
                 return [], 0
 
         except Exception as e:
-            self.logger.error(f"Error collecting {export_type} data: {e}")
+            self.logger.error("Error collecting %s data: %s", export_type, e)
             return [], 0
 
     def _collect_lists_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
@@ -400,7 +400,7 @@ class ExportEngine:
             return self.storage_manager.write_file_atomic(file_path, content)
 
         except Exception as e:
-            self.logger.error(f"Error writing JSON export: {e}")
+            self.logger.error("Error writing JSON export: %s", e)
             return False
 
     def _write_csv_export(self, payload: Dict[str, Any], export_types: List[str], file_path: str) -> bool:
@@ -436,7 +436,7 @@ class ExportEngine:
             return self.storage_manager.write_file_atomic(file_path, content)
 
         except Exception as e:
-            self.logger.error(f"Error writing CSV export: {e}")
+            self.logger.error("Error writing CSV export: %s", e)
             return False
 
     def get_export_preview(self, export_types: List[str]) -> Dict[str, Any]:
@@ -459,7 +459,7 @@ class ExportEngine:
             return preview
 
         except Exception as e:
-            self.logger.error(f"Error creating export preview: {e}")
+            self.logger.error("Error creating export preview: %s", e)
             return {"export_types": export_types, "totals": {}, "estimated_size_kb": 0}
 
     def _prompt_for_export_location(self, config) -> Optional[str]:
@@ -483,7 +483,7 @@ class ExportEngine:
                 # Save the path to settings
                 config.set_export_location(export_path)
                 
-                self.logger.info(f"Export location set to: {export_path}")
+                self.logger.info("Export location set to: %s", export_path)
                 
                 # Show confirmation
                 dialog.notification("LibraryGenie", 
@@ -496,7 +496,7 @@ class ExportEngine:
                 return None
                 
         except Exception as e:
-            self.logger.error(f"Error prompting for export location: {e}")
+            self.logger.error("Error prompting for export location: %s", e)
             return None
 
 

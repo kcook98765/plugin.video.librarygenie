@@ -1252,11 +1252,11 @@ class ToolsHandler:
             except Exception as e:
                 progress.update(100, "Restore failed!")
                 progress.close()
-                self.logger.error(f"Error during restore_backup execution: {e}")
+                self.logger.error("Error during restore_backup execution: %s", e)
                 return DialogResponse(success=False, message=f"An error occurred during restore: {str(e)}")
 
         except Exception as e:
-            self.logger.error(f"Error in restore backup from settings: {e}")
+            self.logger.error("Error in restore backup from settings: %s", e)
             return DialogResponse(success=False, message=f"An error occurred: {str(e)}")
 
     def _show_tools_menu(self, params: Dict[str, Any]) -> DialogResponse:
@@ -1301,7 +1301,7 @@ class ToolsHandler:
             current_folder_id = context.get_param('folder_id')
             current_folder_name = "Lists"  # Default for root level
 
-            self.logger.debug(f"TOOLS DEBUG: _show_lists_main_tools called with folder_id from context: {current_folder_id}")
+            self.logger.debug("TOOLS DEBUG: _show_lists_main_tools called with folder_id from context: %s", current_folder_id)
 
             # Resolve folder name if we have a folder_id
             if current_folder_id:
@@ -1310,9 +1310,9 @@ class ToolsHandler:
                     folder_info = query_manager.get_folder_by_id(current_folder_id)
                     if folder_info:
                         current_folder_name = folder_info['name']
-                        self.logger.debug(f"TOOLS DEBUG: Resolved folder name: '{current_folder_name}' for folder_id: {current_folder_id}")
+                        self.logger.debug("TOOLS DEBUG: Resolved folder name: '%s' for folder_id: %s", current_folder_name, current_folder_id)
                     else:
-                        self.logger.warning(f"TOOLS DEBUG: Could not find folder info for folder_id: {current_folder_id}")
+                        self.logger.warning("TOOLS DEBUG: Could not find folder info for folder_id: %s", current_folder_id)
                         current_folder_id = None  # Reset to None if folder not found
                 else:
                     self.logger.warning(f"TOOLS DEBUG: Query manager not available for folder resolution")
@@ -1340,7 +1340,7 @@ class ToolsHandler:
 
 
             # Debug logging for lists main tools options
-            self.logger.debug(f"TOOLS DEBUG: Built {len(tools_options)} options for lists main tools (folder: '{current_folder_name}', folder_id: {current_folder_id}):")
+            self.logger.debug("TOOLS DEBUG: Built %s options for lists main tools (folder: '%s', folder_id: %s):", len(tools_options), current_folder_name, current_folder_id)
             for i, option in enumerate(tools_options):
                 self.logger.debug("TOOLS DEBUG: [%s] %s", i, option)
 
@@ -1348,10 +1348,10 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             selected_index = dialog.select(L(36000), list(tools_options))  # "Tools & Options"
 
-            self.logger.debug(f"TOOLS DEBUG: User selected option {selected_index} from lists main tools dialog")
+            self.logger.debug("TOOLS DEBUG: User selected option %s from lists main tools dialog", selected_index)
 
             if selected_index < 0 or selected_index == len(tools_options) - 1:  # Cancel
-                self.logger.debug(f"TOOLS DEBUG: Lists main tools cancelled (selected_index: {selected_index})")
+                self.logger.debug("TOOLS DEBUG: Lists main tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 
             # Handle main lists menu actions
@@ -1380,7 +1380,7 @@ class ToolsHandler:
             return DialogResponse(success=False)
 
         except Exception as e:
-            self.logger.error(f"Error showing lists main tools: {e}")
+            self.logger.error("Error showing lists main tools: %s", e)
             return DialogResponse(
                 success=False,
                 message="Error showing lists tools"
@@ -1547,7 +1547,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error clearing search history folder: {e}")
+            self.logger.error("Error clearing search history folder: %s", e)
             return DialogResponse(success=False, message="Error clearing search history")
 
     def _format_file_size(self, size_bytes: int) -> str:
@@ -1671,7 +1671,7 @@ class ToolsHandler:
                     if result.rowcount == 0:
                         raise Exception("No rows updated - list may not exist")
 
-                self.logger.info(f"Successfully converted search history list {search_list_id} to '{new_name.strip()}' in {destination_name}")
+                self.logger.info("Successfully converted search history list %s to '%s' in %s", search_list_id, new_name.strip(), destination_name)
 
                 item_count = search_list_info.get('item_count', 0)
 
@@ -1696,16 +1696,16 @@ class ToolsHandler:
                     )
 
             except Exception as db_error:
-                self.logger.error(f"Database error during list conversion: {db_error}")
+                self.logger.error("Database error during list conversion: %s", db_error)
                 return DialogResponse(
                     success=False,
                     message=f"Failed to move list: {str(db_error)}"
                 )
 
         except Exception as e:
-            self.logger.error(f"Error converting search history to list: {e}")
+            self.logger.error("Error converting search history to list: %s", e)
             import traceback
-            self.logger.error(f"Traceback: {traceback.format_exc()}")
+            self.logger.error("Traceback: %s", traceback.format_exc())
             return DialogResponse(success=False, message="Error converting search history")
 
     def handle_restore_backup(self, params: dict, context) -> DialogResponse:
@@ -1871,7 +1871,7 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
-            self.logger.debug(f"TOOLS DEBUG: Creating top-level folder '{folder_name.strip()}'")
+            self.logger.debug("TOOLS DEBUG: Creating top-level folder '%s'", folder_name.strip())
 
             # Pass None as parent_folder_id to create a top-level folder
             result = query_manager.create_folder(folder_name.strip(), None)
@@ -1885,7 +1885,7 @@ class ToolsHandler:
                     message = "Failed to create folder"
                 return DialogResponse(success=False, message=message)
             else:
-                self.logger.info(f"TOOLS DEBUG: Successfully created top-level folder '{folder_name}'")
+                self.logger.info("TOOLS DEBUG: Successfully created top-level folder '%s'", folder_name)
 
                 # Navigate back to the lists main menu after creating the folder
                 return DialogResponse(
@@ -1895,7 +1895,7 @@ class ToolsHandler:
                 )
 
         except Exception as e:
-            self.logger.error(f"Error creating folder: {e}")
+            self.logger.error("Error creating folder: %s", e)
             return DialogResponse(success=False, message="Error creating folder")
 
     def _handle_create_list(self, context: PluginContext) -> DialogResponse:
@@ -1911,7 +1911,7 @@ class ToolsHandler:
                 
             return result
         except Exception as e:
-            self.logger.error(f"Error creating list: {e}")
+            self.logger.error("Error creating list: %s", e)
             return DialogResponse(success=False, message="Error creating list")
 
     def _handle_create_backup(self, context: PluginContext) -> DialogResponse:

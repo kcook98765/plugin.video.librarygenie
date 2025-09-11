@@ -1016,7 +1016,7 @@ class QueryManager:
             return enrichment_data
 
         except Exception as e:
-            self.logger.error(f"Error in batch movie enrichment: {e}")
+            self.logger.error("Error in batch movie enrichment: %s", e)
             return {}
 
     def _get_kodi_enrichment_data(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
@@ -1028,7 +1028,7 @@ class QueryManager:
             if not kodi_ids:
                 return {}
 
-            self.logger.info(f"Fetching JSON-RPC data for {len(kodi_ids)} movies: {kodi_ids}")
+            self.logger.info("Fetching JSON-RPC data for %s movies: %s", len(kodi_ids), kodi_ids)
 
             enrichment_data = {}
 
@@ -1064,41 +1064,41 @@ class QueryManager:
                         "id": 1
                     }
 
-                    self.logger.debug(f"JSON-RPC request for movie {kodi_id}: {json.dumps(request)}")
+                    self.logger.debug("JSON-RPC request for movie %s: %s", kodi_id, json.dumps(request))
                     response_str = xbmc.executeJSONRPC(json.dumps(request))
-                    self.logger.debug(f"JSON-RPC response for movie {kodi_id}: {response_str[:200]}...")
+                    self.logger.debug("JSON-RPC response for movie %s: %s...", kodi_id, response_str[:200])
                     response = json.loads(response_str)
 
                     if "error" in response:
-                        self.logger.warning(f"JSON-RPC error for movie {kodi_id}: {response['error']}")
+                        self.logger.warning("JSON-RPC error for movie %s: %s", kodi_id, response['error'])
                         continue
 
                     movie_details = response.get("result", {}).get("moviedetails")
                     if movie_details:
-                        self.logger.debug(f"Got movie details for {kodi_id}: {movie_details.get('title', 'Unknown')}")
+                        self.logger.debug("Got movie details for %s: %s", kodi_id, movie_details.get('title', 'Unknown'))
                         # Normalize the movie data similar to how json_rpc_client does it
                         normalized = self._normalize_kodi_movie_details(movie_details)
                         if normalized:
                             enrichment_data[kodi_id] = normalized
-                            self.logger.info(f"Successfully enriched movie {kodi_id}: {normalized.get('title')}")
+                            self.logger.info("Successfully enriched movie %s: %s", kodi_id, normalized.get('title'))
                         else:
-                            self.logger.warning(f"Failed to normalize movie details for {kodi_id}")
+                            self.logger.warning("Failed to normalize movie details for %s", kodi_id)
                     else:
-                        self.logger.warning(f"No moviedetails found in response for {kodi_id}")
+                        self.logger.warning("No moviedetails found in response for %s", kodi_id)
 
                 except Exception as e:
-                    self.logger.error(f"Failed to fetch details for movie {kodi_id}: {e}")
+                    self.logger.error("Failed to fetch details for movie %s: %s", kodi_id, e)
                     import traceback
-                    self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
+                    self.logger.error("Enrichment error traceback: %s", traceback.format_exc())
                     continue
 
-            self.logger.info(f"Successfully enriched {len(enrichment_data)} out of {len(kodi_ids)} movies")
+            self.logger.info("Successfully enriched %s out of %s movies", len(enrichment_data), len(kodi_ids))
             return enrichment_data
 
         except Exception as e:
-            self.logger.error(f"Error fetching Kodi enrichment data: {e}")
+            self.logger.error("Error fetching Kodi enrichment data: %s", e)
             import traceback
-            self.logger.error(f"Enrichment error traceback: {traceback.format_exc()}")
+            self.logger.error("Enrichment error traceback: %s", traceback.format_exc())
             return {}
 
     def _enrich_with_kodi_data(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -1134,7 +1134,7 @@ class QueryManager:
                 item_year = item_data.get('year')
                 item_imdb = (item_data.get('imdb_id') or '').strip()
 
-                self.logger.debug(f"Trying to match: {item_title} ({item_year}) IMDb: {item_imdb}")
+                self.logger.debug("Trying to match: %s (%s) IMDb: %s", item_title, item_year, item_imdb)
 
                 # Try to find a match in the library
                 for library_movie in library_data['movies']:
@@ -1145,7 +1145,7 @@ class QueryManager:
                     # Match by IMDb ID (most reliable)
                     if item_imdb and library_imdb and item_imdb == library_imdb:
                         matched_kodi_id = library_movie.get('kodi_id')
-                        self.logger.debug(f"IMDb match: {item_title} -> kodi_id {matched_kodi_id}")
+                        self.logger.debug("IMDb match: %s -> kodi_id %s", item_title, matched_kodi_id)
                         break
 
                     # Match by title and year
@@ -1154,17 +1154,17 @@ class QueryManager:
                           item_year and library_year and 
                           int(item_year) == int(library_year)):
                         matched_kodi_id = library_movie.get('kodi_id')
-                        self.logger.debug(f"Title/Year match: {item_title} ({item_year}) -> kodi_id {matched_kodi_id}")
+                        self.logger.debug("Title/Year match: %s (%s) -> kodi_id %s", item_title, item_year, matched_kodi_id)
                         break
 
                 matched_ids[item_index] = matched_kodi_id
                 if not matched_kodi_id:
-                    self.logger.debug(f"No match found for: {item_title} ({item_year})")
+                    self.logger.debug("No match found for: %s (%s)", item_title, item_year)
 
             return matched_ids
 
         except Exception as e:
-            self.logger.error(f"Error matching items to Kodi library: {e}")
+            self.logger.error("Error matching items to Kodi library: %s", e)
             return {}
 
     def add_library_item_to_list(self, list_id, kodi_item):
@@ -1173,7 +1173,7 @@ class QueryManager:
             kodi_id = kodi_item.get('kodi_id')
             media_type = kodi_item.get('media_type', 'movie')
 
-            self.logger.debug(f"Adding library item kodi_id={kodi_id}, media_type={media_type} to list {list_id}")
+            self.logger.debug("Adding library item kodi_id=%s, media_type=%s to list %s", kodi_id, media_type, list_id)
 
             with self.connection_manager.transaction() as conn:
                 # First check if this library item already exists in media_items
@@ -1217,7 +1217,7 @@ class QueryManager:
                     }
 
                     media_item_id = self._insert_or_get_media_item(conn, media_data)
-                    self.logger.debug(f"Created new media_item with id={media_item_id}")
+                    self.logger.debug("Created new media_item with id=%s", media_item_id)
 
                 if not media_item_id:
                     return None
@@ -1228,7 +1228,7 @@ class QueryManager:
                 """, [int(list_id), media_item_id]).fetchone()
 
                 if existing_list_item:
-                    self.logger.debug(f"Item already exists in list {list_id}")
+                    self.logger.debug("Item already exists in list %s", list_id)
                     return {
                         "id": str(media_item_id),
                         "title": kodi_item.get('title', 'Unknown'),
@@ -1256,7 +1256,7 @@ class QueryManager:
             }
 
         except Exception as e:
-            self.logger.error(f"Failed to add library item to list {list_id}: {e}")
+            self.logger.error("Failed to add library item to list %s: %s", list_id, e)
             return None
 
     def _row_to_dict(self, cursor, row):
@@ -1410,11 +1410,11 @@ class QueryManager:
                 """, [name, parent_id])
                 folder_id = cursor.lastrowid
 
-            self.logger.debug(f"Created folder '{name}' with ID: {folder_id}")
+            self.logger.debug("Created folder '%s' with ID: %s", name, folder_id)
             return {"success": True, "folder_id": folder_id}
 
         except Exception as e:
-            self.logger.error(f"Failed to create folder: {e}")
+            self.logger.error("Failed to create folder: %s", e)
             return {"success": False, "error": "database_error", "message": str(e)}
 
     def rename_folder(self, folder_id, new_name):
@@ -1456,11 +1456,11 @@ class QueryManager:
                     UPDATE folders SET name = ? WHERE id = ?
                 """, [new_name, folder_id])
 
-            self.logger.debug(f"Renamed folder {folder_id} from '{folder['name']}' to '{new_name}'")
+            self.logger.debug("Renamed folder %s from '%s' to '%s'", folder_id, folder['name'], new_name)
             return {"success": True}
 
         except Exception as e:
-            self.logger.error(f"Failed to rename folder: {e}")
+            self.logger.error("Failed to rename folder: %s", e)
             return {"success": False, "error": "database_error", "message": str(e)}
 
     def delete_folder(self, folder_id):
@@ -1498,7 +1498,7 @@ class QueryManager:
             with self.connection_manager.transaction() as conn:
                 conn.execute("DELETE FROM folders WHERE id = ?", [folder_id])
 
-            self.logger.debug(f"Deleted folder '{folder['name']}' (ID: {folder_id})")
+            self.logger.debug("Deleted folder '%s' (ID: %s)", folder['name'], folder_id)
             return {"success": True}
 
         except Exception as e:
