@@ -257,7 +257,7 @@ class Phase4FavoritesManager:
                 """, [normalized_key])
 
                 if result:
-                    media_type = result['media_type'] if 'media_type' in result else 'unknown'
+                    media_type = result['media_type'] or 'unknown'
                     self.logger.info(f"    Found exact normalized path match: ID {result['id']} - '{result['title']}' (type: {media_type})")
                     self.logger.info(f"    Matched file_path: {result['file_path']}")
                     return result["id"]
