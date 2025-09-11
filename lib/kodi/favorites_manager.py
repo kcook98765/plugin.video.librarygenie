@@ -862,41 +862,6 @@ class Phase4FavoritesManager:
                 "message": str(e)
             }
 
-    def _get_last_scan_info(self, file_path: str) -> Optional[Dict]:
-        """Get last scan info for favorites file"""
-        try:
-            with self.conn_manager.transaction() as conn:
-                result = conn.execute("""
-                    SELECT file_modified, items_found, items_mapped
-                    FROM favorites_scan_log
-                    WHERE file_path = ? AND success = 1
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                """, [file_path]).fetchone()
-
-                return dict(result) if result else None
-
-        except Exception as e:
-            self.logger.debug(f"No previous scan info found: {e}")
-            return None
-
-    def _get_last_scan_info_for_display(self) -> Optional[Dict]:
-        """Get last scan info for display purposes (any file path)"""
-        try:
-            with self.conn_manager.transaction() as conn:
-                result = conn.execute("""
-                    SELECT file_path, file_modified, items_found, items_mapped, created_at
-                    FROM favorites_scan_log
-                    WHERE success = 1
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                """).fetchone()
-
-                return dict(result) if result else None
-
-        except Exception as e:
-            self.logger.debug(f"No previous scan info found for display: {e}")
-            return None
 
     def _fetch_artwork_from_kodi(self, kodi_id: int, media_type: str) -> Dict[str, str]:
         """Fetch artwork for library item from Kodi JSON-RPC"""
@@ -975,25 +940,6 @@ class Phase4FavoritesManager:
             self.logger.warning(f"ARTWORK: Failed to fetch artwork for {media_type} {kodi_id}: {e}")
             return {}
 
-    def _log_scan_result(self, scan_type: str, file_path: str, file_modified: Optional[str] = None,
-                        items_found: int = 0, items_mapped: int = 0, items_added: int = 0,
-                        items_updated: int = 0, duration_ms: int = 0, success: bool = True,
-                        error_message: Optional[str] = None):
-        """Log scan result to database"""
-        try:
-            with self.conn_manager.transaction() as conn:
-                conn.execute("""
-                    INSERT INTO favorites_scan_log
-                    (scan_type, file_path, file_modified, items_found, items_mapped,
-                     items_added, items_updated, scan_duration_ms, success, error_message)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, [
-                    scan_type, file_path, file_modified, items_found, items_mapped,
-                    items_added, items_updated, duration_ms, 1 if success else 0, error_message
-                ])
-
-        except Exception as e:
-            self.logger.error(f"Error logging scan result: {e}")
 
 
 # Global Phase 4 favorites manager instance

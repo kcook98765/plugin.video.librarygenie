@@ -71,30 +71,7 @@ class ToolsHandler:
                     message="Failed to initialize favorites manager"
                 )
 
-            last_scan_info = favorites_manager._get_last_scan_info_for_display()
             scan_option = f"[COLOR white]{L(36001)}[/COLOR]"  # "Scan Favorites"
-
-            if last_scan_info:
-                try:
-                    last_scan_time = datetime.fromisoformat(last_scan_info['created_at'])
-                    current_time = datetime.now()
-                    time_diff = current_time - last_scan_time
-
-                    if time_diff.total_seconds() < 60:
-                        time_ago = "just now"
-                    elif time_diff.total_seconds() < 3600:
-                        minutes = int(time_diff.total_seconds() / 60)
-                        time_ago = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-                    elif time_diff.total_seconds() < 86400:
-                        hours = int(time_diff.total_seconds() / 3600)
-                        time_ago = f"{hours} hour{'s' if hours != 1 else ''} ago"
-                    else:
-                        days = int(time_diff.total_seconds() / 86400)
-                        time_ago = f"{days} day{'s' if days != 1 else ''} ago"
-
-                    scan_option = f"[COLOR white]{L(36001)} ({time_ago})[/COLOR]"  # "Scan Favorites"
-                except Exception as e:
-                    context.logger.debug(f"Could not parse last scan time: {e}")
 
             # Build options for favorites - organized by type
             options = [
