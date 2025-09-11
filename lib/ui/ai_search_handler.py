@@ -229,12 +229,12 @@ class AISearchHandler:
 
                 matched_items.append(standard_item)
 
-            self.logger.info(f"AI SEARCH MATCH: Found {len(matched_items)} matches out of {len(imdb_ids)} IMDb IDs")
+            self.logger.info("AI SEARCH MATCH: Found %s matches out of %s IMDb IDs", len(matched_items), len(imdb_ids))
 
             return matched_items
 
         except Exception as e:
-            self.logger.error(f"AI SEARCH MATCH: Error matching IMDb IDs: {e}")
+            self.logger.error("AI SEARCH MATCH: Error matching IMDb IDs: %s", e)
             return []
 
     def _create_ai_search_history_list(self, query: str, matched_items: List[Dict[str, Any]], total_ai_results: int) -> Optional[int]:
@@ -263,14 +263,14 @@ class AISearchHandler:
                 self.logger.error("AI SEARCH HISTORY: Failed to create search history list")
                 return None
 
-            self.logger.info(f"AI SEARCH HISTORY: Created search history list {list_id}")
+            self.logger.info("AI SEARCH HISTORY: Created search history list %s", list_id)
 
             # Use standard method to add items to list - same as local search
             search_results = {"items": matched_items}
             added_count = self.query_manager.add_search_results_to_list(list_id, search_results)
 
             if added_count > 0:
-                self.logger.info(f"AI SEARCH HISTORY: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
+                self.logger.info("AI SEARCH HISTORY: Added %s/%s items to search history list %s", added_count, len(matched_items), list_id)
                 return list_id
             else:
                 # Clean up empty list
@@ -279,7 +279,7 @@ class AISearchHandler:
                 return None
 
         except Exception as e:
-            self.logger.error(f"AI SEARCH HISTORY: Error creating search history list: {e}")
+            self.logger.error("AI SEARCH HISTORY: Error creating search history list: %s", e)
             return None
 
     def _redirect_to_search_list(self, list_id: int):
@@ -297,10 +297,10 @@ class AISearchHandler:
             # Use same redirect pattern as local search
             list_url = f"plugin://{addon_id}/?action=show_list&list_id={list_id}"
             xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
-            self.logger.info(f"AI SEARCH: Redirected to search history list {list_id}")
+            self.logger.info("AI SEARCH: Redirected to search history list %s", list_id)
 
         except Exception as e:
-            self.logger.error(f"AI SEARCH: Failed to redirect to search list: {e}")
+            self.logger.error("AI SEARCH: Failed to redirect to search list: %s", e)
 
     def prompt_and_search(self) -> bool:
         """
@@ -322,13 +322,13 @@ class AISearchHandler:
                 return False
 
             query = query.strip()
-            self.logger.info(f"AI SEARCH PROMPT: User entered query: '{query}'")
+            self.logger.info("AI SEARCH PROMPT: User entered query: '%s'", query)
 
             # Perform the search
             return self.perform_ai_search(query)
 
         except Exception as e:
-            self.logger.error(f"AI SEARCH PROMPT: Error in prompt and search: {e}")
+            self.logger.error("AI SEARCH PROMPT: Error in prompt and search: %s", e)
             return False
 
     def find_similar_movies(self, context) -> bool:
@@ -358,7 +358,7 @@ class AISearchHandler:
                 )
                 return False
 
-            self.logger.info(f"SIMILAR MOVIES: Finding movies similar to {title} ({imdb_id})")
+            self.logger.info("SIMILAR MOVIES: Finding movies similar to %s (%s)", title, imdb_id)
 
             # Check if AI search is activated
             if not self.ai_client.is_activated():
@@ -388,7 +388,7 @@ class AISearchHandler:
             if not connection_test.get('success'):
                 progress.close()
                 error_msg = connection_test.get('error', 'Connection failed')
-                self.logger.error(f"SIMILAR MOVIES: Connection test failed: {error_msg}")
+                self.logger.error("SIMILAR MOVIES: Connection test failed: %s", error_msg)
                 xbmcgui.Dialog().notification(
                     "Similar Movies",
                     f"Connection failed: {error_msg}",
@@ -426,7 +426,7 @@ class AISearchHandler:
 
                 if list_id:
                     progress.close()
-                    self.logger.info(f"SIMILAR MOVIES: Successfully created list {list_id} with {len(matched_items)} items")
+                    self.logger.info("SIMILAR MOVIES: Successfully created list %s with %s items", list_id, len(matched_items))
 
                     # Show success notification
                     xbmcgui.Dialog().notification(
@@ -466,9 +466,9 @@ class AISearchHandler:
             progress = locals().get('progress')
             if progress:
                 progress.close()
-            self.logger.error(f"SIMILAR MOVIES: Error finding similar movies: {e}")
+            self.logger.error("SIMILAR MOVIES: Error finding similar movies: %s", e)
             import traceback
-            self.logger.error(f"SIMILAR MOVIES: Traceback: {traceback.format_exc()}")
+            self.logger.error("SIMILAR MOVIES: Traceback: %s", traceback.format_exc())
             xbmcgui.Dialog().notification(
                 "Similar Movies",
                 "Error occurred",
@@ -512,11 +512,11 @@ class AISearchHandler:
             if not any(facets.values()):
                 return None
 
-            self.logger.info(f"SIMILAR MOVIES: Selected facets: {facets}")
+            self.logger.info("SIMILAR MOVIES: Selected facets: %s", facets)
             return facets
 
         except Exception as e:
-            self.logger.error(f"SIMILAR MOVIES: Error in facet selection: {e}")
+            self.logger.error("SIMILAR MOVIES: Error in facet selection: %s", e)
             return None
 
     def _create_similar_movies_list(self, title: str, year: str, matched_items: List[Dict[str, Any]], 
@@ -554,7 +554,7 @@ class AISearchHandler:
                 self.logger.error("SIMILAR MOVIES: Failed to create search history list")
                 return None
 
-            self.logger.info(f"SIMILAR MOVIES: Created search history list {list_id}")
+            self.logger.info("SIMILAR MOVIES: Created search history list %s", list_id)
 
             # Add matched items to the list
             added_count = 0
@@ -569,9 +569,9 @@ class AISearchHandler:
                         added_count += 1
 
                     except Exception as e:
-                        self.logger.error(f"SIMILAR MOVIES: Error adding item {item.get('id', 'unknown')} to list: {e}")
+                        self.logger.error("SIMILAR MOVIES: Error adding item %s to list: %s", item.get('id', 'unknown'), e)
 
-            self.logger.info(f"SIMILAR MOVIES: Added {added_count}/{len(matched_items)} items to search history list {list_id}")
+            self.logger.info("SIMILAR MOVIES: Added %s/%s items to search history list %s", added_count, len(matched_items), list_id)
 
             if added_count > 0:
                 return list_id
@@ -581,7 +581,7 @@ class AISearchHandler:
                 return None
 
         except Exception as e:
-            self.logger.error(f"SIMILAR MOVIES: Error creating search history list: {e}")
+            self.logger.error("SIMILAR MOVIES: Error creating search history list: %s", e)
             return None
 
     def authorize_ai_search(self, context: PluginContext) -> None:

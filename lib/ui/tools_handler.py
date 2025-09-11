@@ -1919,7 +1919,7 @@ class ToolsHandler:
         try:
             return self._run_manual_backup()
         except Exception as e:
-            self.logger.error(f"Error creating backup: {e}")
+            self.logger.error("Error creating backup: %s", e)
             return DialogResponse(success=False, message="Error creating backup")
 
     def _handle_restore_backup_from_tools(self, context: PluginContext) -> DialogResponse:
@@ -1927,7 +1927,7 @@ class ToolsHandler:
         try:
             return self._show_backup_manager()
         except Exception as e:
-            self.logger.error(f"Error restoring backup: {e}")
+            self.logger.error("Error restoring backup: %s", e)
             return DialogResponse(success=False, message="Error restoring backup")
 
     def _handle_open_settings(self, context: PluginContext) -> DialogResponse:
