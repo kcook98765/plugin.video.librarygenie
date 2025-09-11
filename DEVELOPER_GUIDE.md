@@ -90,7 +90,7 @@ LibraryGenie consists of three main layers:
 - **Version-Aware Scanning**: Automatically detect Kodi version changes and trigger appropriate scan types
 - **Pre-computed Metadata**: Store metadata in format optimized for current Kodi version (v19 setInfo vs v20+ InfoTagVideo)
 - **Batch Operations**: Batch DB writes in chunks using configurable batch sizes
-- **Memory Caching**: Cache lookups in memory where possible (e.g., IMDb→Kodi mapping via `imdb_to_kodi` table)
+- **Memory Caching**: Cache lookups in memory where possible (e.g., remote cache for external API responses)
 - **Connection Management**: Use SQLite prepared statements and connection pooling (`connection_manager.py`)
 - **Background Processing**: Delegate heavy operations to background service, avoid UI thread blocking
 - **Incremental Updates**: Implement delta detection for efficient library synchronization
