@@ -1321,6 +1321,7 @@ class ToolsHandler:
             # Main lists menu tools - enhanced with search (Kodi Favorites removed as it's now a regular list)
             tools_options = [
                 f"🔍 {L(33000)}",  # Local Movie Search
+                "🔎 Local Episodes Search",  # Local Episodes Search
                 "📊 Search History",
                 "---",  # Separator
                 "Create New List",
@@ -1358,6 +1359,8 @@ class ToolsHandler:
             selected_option = tools_options[selected_index]
             if selected_option == f"🔍 {L(33000)}":  # Local Movie Search
                 return self._handle_local_search(context)
+            elif selected_option == "🔎 Local Episodes Search":  # Local Episodes Search
+                return self._handle_local_episodes_search(context)
             elif selected_option == f"🤖 {L(34100)}":  # AI Movie Search
                 return self._handle_ai_search(context)
             elif selected_option == "📊 Search History":
@@ -1817,6 +1820,36 @@ class ToolsHandler:
         except Exception as e:
             context.logger.error("Error executing search: %s", e)
             return DialogResponse(success=False, message="Failed to execute search")
+
+    def _handle_local_episodes_search(self, context: PluginContext) -> DialogResponse:
+        """Execute local episodes search directly"""
+        try:
+            from .handler_factory import get_handler_factory
+            
+            # Get search handler and execute search
+            factory = get_handler_factory()
+            factory.context = context
+            search_handler = factory.get_search_handler()
+            
+            # Execute the search directly with episode media scope
+            success = search_handler.prompt_and_search(context, media_scope="episode")
+            
+            if success:
+                return DialogResponse(
+                    success=True, 
+                    message="Episode search completed",
+                    refresh_needed=False,
+                    navigate_to_main=False
+                )
+            else:
+                return DialogResponse(
+                    success=True, 
+                    message="Episode search cancelled",
+                    refresh_needed=False
+                )
+        except Exception as e:
+            context.logger.error("Error executing episode search: %s", e)
+            return DialogResponse(success=False, message="Failed to execute episode search")
 
     def _handle_ai_search(self, context: PluginContext) -> DialogResponse:
         """Navigate to AI search"""
