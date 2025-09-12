@@ -108,7 +108,7 @@ class SearchHandler:
             # Execute search
             results = self.search_engine.search(query)
 
-            self._info(f"Simple search completed: {results.total_count} results for '{search_terms}'")
+            self._debug(f"Simple search completed: {results.total_count} results for '{search_terms}'")
             return results
 
         except Exception as e:
@@ -122,10 +122,10 @@ class SearchHandler:
         """Save search results to search history"""
         try:
             if results.total_count == 0:
-                self._info("No results to save to search history")
+                self._debug("No results to save to search history")
                 return
 
-            self._info(f"Saving search history for '{search_terms}' with {results.total_count} results")
+            self._debug(f"Saving search history for '{search_terms}' with {results.total_count} results")
 
             # Create search history list with simplified description
             query_desc = f"{search_terms}"
@@ -137,12 +137,12 @@ class SearchHandler:
             )
 
             if list_id:
-                self._info(f"Created search history list with ID: {list_id}")
+                self._debug(f"Created search history list with ID: {list_id}")
                 # Convert results to format expected by query manager
                 search_results = {"items": results.items}
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
-                    self._info(f"Successfully added {added} items to search history list {list_id}")
+                    self._debug(f"Successfully added {added} items to search history list {list_id}")
                     # Use f-string formatting to avoid string formatting errors
                     base_message = L(32102)  # Should be "Search saved: %d items" or similar
                     if '%d' in base_message:
@@ -211,6 +211,9 @@ class SearchHandler:
     def _info(self, msg: str):
         self.logger.info(msg)
 
+    def _debug(self, msg: str):
+        self.logger.debug(msg)
+
     def _warn(self, msg: str):
         self.logger.warning(msg)
 
@@ -228,7 +231,7 @@ class SearchHandler:
         try:
             from .ai_search_handler import get_ai_search_handler
             
-            context.logger.info("AI SEARCH: Starting AI search prompt")
+            context.logger.debug("AI SEARCH: Starting AI search prompt")
             
             # Use the new AI search handler
             ai_search_handler = get_ai_search_handler()

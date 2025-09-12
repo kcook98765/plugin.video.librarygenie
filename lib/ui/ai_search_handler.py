@@ -263,14 +263,14 @@ class AISearchHandler:
                 self.logger.error("AI SEARCH HISTORY: Failed to create search history list")
                 return None
 
-            self.logger.info("AI SEARCH HISTORY: Created search history list %s", list_id)
+            self.logger.debug("AI SEARCH HISTORY: Created search history list %s", list_id)
 
             # Use standard method to add items to list - same as local search
             search_results = {"items": matched_items}
             added_count = self.query_manager.add_search_results_to_list(list_id, search_results)
 
             if added_count > 0:
-                self.logger.info("AI SEARCH HISTORY: Added %s/%s items to search history list %s", added_count, len(matched_items), list_id)
+                self.logger.debug("AI SEARCH HISTORY: Added %s/%s items to search history list %s", added_count, len(matched_items), list_id)
                 return list_id
             else:
                 # Clean up empty list
@@ -358,7 +358,7 @@ class AISearchHandler:
                 )
                 return False
 
-            self.logger.info("SIMILAR MOVIES: Finding movies similar to %s (%s)", title, imdb_id)
+            self.logger.debug("SIMILAR MOVIES: Finding movies similar to %s (%s)", title, imdb_id)
 
             # Check if AI search is activated
             if not self.ai_client.is_activated():
@@ -374,7 +374,7 @@ class AISearchHandler:
             # Show facet selection dialog
             facets = self._show_facet_selection_dialog()
             if not facets:
-                self.logger.info("SIMILAR MOVIES: User cancelled facet selection")
+                self.logger.debug("SIMILAR MOVIES: User cancelled facet selection")
                 return False
 
             # Show progress dialog
@@ -404,7 +404,7 @@ class AISearchHandler:
 
             if not similar_imdb_ids:
                 progress.close()
-                self.logger.info("SIMILAR MOVIES: No similar movies found")
+                self.logger.debug("SIMILAR MOVIES: No similar movies found")
                 xbmcgui.Dialog().notification(
                     "Similar Movies",
                     "No similar movies found",
@@ -426,7 +426,7 @@ class AISearchHandler:
 
                 if list_id:
                     progress.close()
-                    self.logger.info("SIMILAR MOVIES: Successfully created list %s with %s items", list_id, len(matched_items))
+                    self.logger.debug("SIMILAR MOVIES: Successfully created list %s with %s items", list_id, len(matched_items))
 
                     # Show success notification
                     xbmcgui.Dialog().notification(
@@ -453,7 +453,7 @@ class AISearchHandler:
                     return False
             else:
                 progress.close()
-                self.logger.info("SIMILAR MOVIES: No matches found in local library")
+                self.logger.debug("SIMILAR MOVIES: No matches found in local library")
                 xbmcgui.Dialog().notification(
                     "Similar Movies",
                     f"No similar movies found in your library (searched {len(similar_imdb_ids)} movies)",
@@ -512,7 +512,7 @@ class AISearchHandler:
             if not any(facets.values()):
                 return None
 
-            self.logger.info("SIMILAR MOVIES: Selected facets: %s", facets)
+            self.logger.debug("SIMILAR MOVIES: Selected facets: %s", facets)
             return facets
 
         except Exception as e:
@@ -554,7 +554,7 @@ class AISearchHandler:
                 self.logger.error("SIMILAR MOVIES: Failed to create search history list")
                 return None
 
-            self.logger.info("SIMILAR MOVIES: Created search history list %s", list_id)
+            self.logger.debug("SIMILAR MOVIES: Created search history list %s", list_id)
 
             # Add matched items to the list
             added_count = 0
@@ -571,7 +571,7 @@ class AISearchHandler:
                     except Exception as e:
                         self.logger.error("SIMILAR MOVIES: Error adding item %s to list: %s", item.get('id', 'unknown'), e)
 
-            self.logger.info("SIMILAR MOVIES: Added %s/%s items to search history list %s", added_count, len(matched_items), list_id)
+            self.logger.debug("SIMILAR MOVIES: Added %s/%s items to search history list %s", added_count, len(matched_items), list_id)
 
             if added_count > 0:
                 return list_id

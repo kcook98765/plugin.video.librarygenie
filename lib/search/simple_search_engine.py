@@ -51,11 +51,11 @@ class SimpleSearchEngine:
 
         try:
             # Log query context for complete visibility
-            self.logger.info("DEBUG: Starting search with query context: %s", query.to_dict())
+            self.logger.debug("DEBUG: Starting search with query context: %s", query.to_dict())
             
             # Validate query
             if not query.is_valid():
-                self.logger.info("DEBUG: Search aborted - empty/invalid query")
+                self.logger.debug("DEBUG: Search aborted - empty/invalid query")
                 result.query_summary = "Empty search"
                 return result
 
@@ -63,16 +63,16 @@ class SimpleSearchEngine:
             sql_query, params = self._build_ranked_sql_query(query)
 
             # Log the actual SQL query being executed
-            self.logger.info("DEBUG: Generated SQL query: %s", sql_query)
-            self.logger.info("DEBUG: SQL parameters: %s", params)
+            self.logger.debug("DEBUG: Generated SQL query: %s", sql_query)
+            self.logger.debug("DEBUG: SQL parameters: %s", params)
             self.logger.debug("Executing search SQL: %s", sql_query)
             self.logger.debug("Search SQL parameters: %s", params)
 
             # Execute search
             items = self.conn_manager.execute_query(sql_query, params)
-            self.logger.info("DEBUG: Raw database query returned %d items", len(items) if items else 0)
+            self.logger.debug("DEBUG: Raw database query returned %d items", len(items) if items else 0)
             if items and len(items) > 0:
-                self.logger.info("DEBUG: Sample of first result: %s", dict(items[0]) if hasattr(items[0], 'keys') else items[0])
+                self.logger.debug("DEBUG: Sample of first result: %s", dict(items[0]) if hasattr(items[0], 'keys') else items[0])
             
             result.items = [dict(item) if hasattr(item, 'keys') else item for item in items or []]
             result.total_count = len(result.items)
@@ -131,8 +131,8 @@ class SimpleSearchEngine:
 
         # Build search conditions and ranking expression
         search_conditions, ranking_expr, search_params = self._build_search_conditions(query)
-        self.logger.info("DEBUG: Search conditions: %s", search_conditions)
-        self.logger.info("DEBUG: Search parameters from conditions: %s", search_params)
+        self.logger.debug("DEBUG: Search conditions: %s", search_conditions)
+        self.logger.debug("DEBUG: Search parameters from conditions: %s", search_params)
         where_clauses.extend(search_conditions)
         params.extend(search_params)
 
