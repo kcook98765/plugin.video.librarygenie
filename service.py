@@ -456,10 +456,6 @@ class LibraryGenieService:
                 
                 self.logger.info("Starting initial sync - Movies: %s, TV: %s", sync_movies, sync_tv_episodes)
                 
-                # Create progress dialog
-                progress_dialog = xbmcgui.DialogProgressBG()
-                progress_dialog.create("LibraryGenie", "Starting library sync...")
-                
                 try:
                     # Initialize sync controller
                     sync_controller = SyncController()
@@ -527,7 +523,8 @@ class LibraryGenieService:
                         )
                         
                 finally:
-                    progress_dialog.close()
+                    # Individual progress dialogs are closed by their respective sync operations
+                    pass
                     
             finally:
                 lock.release()
