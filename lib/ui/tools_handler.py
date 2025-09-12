@@ -1969,9 +1969,11 @@ class ToolsHandler:
             import xbmc
             xbmc.executebuiltin(f'Addon.OpenSettings({context.addon.getAddonInfo("id")})')
 
+            # Return success=True with no navigation flags so tools return location logic activates
+            # This ensures user returns to their original location after settings
             return DialogResponse(
                 success=True,
-                message="Settings opened"
+                message=""  # No notification needed for settings - tools return will handle navigation
             )
         except Exception as e:
             context.logger.error("Error opening settings: %s", e)
