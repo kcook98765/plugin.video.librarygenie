@@ -37,7 +37,10 @@ class ToolsHandler:
     def show_list_tools(self, context: PluginContext, list_type: str, list_id: Optional[str] = None) -> DialogResponse:
         """Show tools & options modal for different list types"""
         try:
-            self.logger.debug("Showing tools & options for list_type: %s, list_id: %s", list_type, list_id)
+            import xbmc
+            current_path = xbmc.getInfoLabel('Container.FolderPath')
+            self.logger.debug("TOOLS DEBUG: show_list_tools ENTRY - list_type: %s, list_id: %s", list_type, list_id)
+            self.logger.debug("TOOLS DEBUG: Current container path at tools entry: %s", current_path)
 
             if list_type == "favorites":
                 return self._show_favorites_tools(context)
@@ -1297,11 +1300,20 @@ class ToolsHandler:
     def _show_lists_main_tools(self, context: PluginContext) -> DialogResponse:
         """Show tools specific to the main Lists menu"""
         try:
+            import xbmc
+            current_path = xbmc.getInfoLabel('Container.FolderPath')
+            
             # Get current folder info from context - this should come from the calling URL
             current_folder_id = context.get_param('folder_id')
             current_folder_name = "Lists"  # Default for root level
 
-            self.logger.debug("TOOLS DEBUG: _show_lists_main_tools called with folder_id from context: %s", current_folder_id)
+            self.logger.debug("TOOLS DEBUG: _show_lists_main_tools ENTRY - folder_id: %s, current_path: %s", current_folder_id, current_path)
+            
+            # Check if tools return location is set when entering main tools
+            from .session_state import get_session_state
+            session_state = get_session_state()
+            tools_return = session_state.get_tools_return_location()
+            self.logger.debug("TOOLS DEBUG: Tools return location at main tools entry: %s", tools_return)
 
             # Resolve folder name if we have a folder_id
             if current_folder_id:
