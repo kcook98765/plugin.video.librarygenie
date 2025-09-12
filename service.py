@@ -15,6 +15,7 @@ from typing import Optional
 
 from lib.utils.kodi_log import log, log_info, log_error, log_warning
 from lib.config.settings import SettingsManager
+from lib.config.config_manager import get_config
 from lib.remote.ai_search_client import get_ai_search_client
 from lib.library.scanner import LibraryScanner
 from lib.data.storage_manager import get_storage_manager
@@ -25,6 +26,22 @@ from lib.ui.info_hijack_manager import InfoHijackManager # Import added
 addon = xbmcaddon.Addon()
 
 
+class LibraryGenieMonitor(xbmc.Monitor):
+    """Custom monitor that handles settings changes"""
+    
+    def __init__(self):
+        super().__init__()
+        self.config_manager = get_config()
+    
+    def onSettingsChanged(self):
+        """Called when addon settings are changed"""
+        try:
+            log_info("Settings changed - reloading configuration cache")
+            self.config_manager.reload()
+        except Exception as e:
+            log_error(f"Failed to reload settings cache: {e}")
+
+
 class LibraryGenieService:
     """Background service for LibraryGenie addon"""
 
@@ -32,7 +49,7 @@ class LibraryGenieService:
         self.settings = SettingsManager()
         self.ai_client = get_ai_search_client()
         self.storage_manager = get_storage_manager()
-        self.monitor = xbmc.Monitor()
+        self.monitor = LibraryGenieMonitor()
         self.sync_thread = None
         self.sync_stop_event = threading.Event()
         self.hijack_manager = InfoHijackManager() # Hijack manager initialized
