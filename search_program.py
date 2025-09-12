@@ -67,7 +67,7 @@ def show_program_menu():
             addon.openSettings()
             
     except Exception as e:
-        logger.error(f"Error in program menu: {e}")
+        logger.error("Error in program menu: %s", e)
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Error accessing tools",
