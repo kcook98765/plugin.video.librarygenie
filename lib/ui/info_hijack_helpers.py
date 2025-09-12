@@ -20,14 +20,15 @@ LOG_PREFIX = "[LG.Hijack]"
 LIST_ID = 50
 VIDEOS_WINDOW = "MyVideoNav.xml"
 
-def _log(message: str, level: int = xbmc.LOGDEBUG) -> None:
-    """Internal logging with consistent prefix"""
+def _log(message: str, level: int = xbmc.LOGDEBUG, *args) -> None:
+    """Internal logging with consistent prefix and deferred formatting"""
+    prefixed_message = LOG_PREFIX + " " + message
     if level == xbmc.LOGWARNING:
-        logger.warning(f"[InfoHijack] {message}")
+        logger.warning(prefixed_message, *args)
     elif level == xbmc.LOGERROR:
-        logger.error(f"[InfoHijack] {message}")
+        logger.error(prefixed_message, *args)
     else:
-        logger.debug(f"[InfoHijack] {message}")
+        logger.debug(prefixed_message, *args)
 
 
 
@@ -42,7 +43,7 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
     try:
         return json.loads(raw)
     except Exception:
-        _log(f"JSON parse error for {method}: {raw}", xbmc.LOGWARNING)
+        _log("JSON parse error for %s: %s", xbmc.LOGWARNING, method, raw)
         return {}
 
 def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait: float = 1.0) -> bool:
@@ -56,14 +57,14 @@ def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait
         # Dialog closed when ID changes from the initial dialog
         if current_dialog_id != initial_dialog_id:
             elapsed = time.time() - start_time
-            logger.debug(f"HIJACK: Dialog close detected {context} after {elapsed:.3f}s ({initial_dialog_id}→{current_dialog_id})")
+            logger.debug("HIJACK: Dialog close detected %s after %.3fs (%d→%d)", context, elapsed, initial_dialog_id, current_dialog_id)
             return True
         
         xbmc.sleep(int(check_interval * 1000))
     
     elapsed = time.time() - start_time
     current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    logger.warning(f"HIJACK: Dialog close timeout {context} after {elapsed:.1f}s (still {current_dialog_id})")
+    logger.warning("HIJACK: Dialog close timeout %s after %.1fs (still %d)", context, elapsed, current_dialog_id)
     return False
 
 def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
@@ -80,7 +81,7 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
         check_count += 1
         if cond():
             t_end = time.perf_counter()
-            _log(f"wait_until: SUCCESS after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)")
+            _log("wait_until: SUCCESS after %d checks (%.3fs, timeout was %dms)", xbmc.LOGDEBUG, check_count, t_end - t_start, timeout_ms)
             return True
         
         xbmc.sleep(current_step_ms)
@@ -90,7 +91,7 @@ def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
             current_step_ms = min(current_step_ms + 10, max_step_ms)
 
     t_end = time.perf_counter()
-    _log(f"wait_until: TIMEOUT after {check_count} checks ({t_end - t_start:.3f}s, timeout was {timeout_ms}ms)", xbmc.LOGWARNING)
+    _log("wait_until: TIMEOUT after %d checks (%.3fs, timeout was %dms)", xbmc.LOGWARNING, check_count, t_end - t_start, timeout_ms)
     return False
 
 def _wait_for_info_dialog(timeout=10.0):
@@ -101,7 +102,7 @@ def _wait_for_info_dialog(timeout=10.0):
     t_start = time.perf_counter()
     end = time.time() + timeout
 
-    _log(f"_wait_for_info_dialog: Starting wait for info dialog with {timeout:.1f}s timeout")
+    _log("_wait_for_info_dialog: Starting wait for info dialog with %.1fs timeout", xbmc.LOGDEBUG, timeout)
 
     while time.time() < end:
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
@@ -109,14 +110,14 @@ def _wait_for_info_dialog(timeout=10.0):
         # Only check for target dialog - no other validations
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo / Fallback
             t_end = time.perf_counter()
-            _log(f"_wait_for_info_dialog: SUCCESS ({t_end - t_start:.3f}s) - dialog_id={current_dialog_id}")
+            _log("_wait_for_info_dialog: SUCCESS (%.3fs) - dialog_id=%d", xbmc.LOGDEBUG, t_end - t_start, current_dialog_id)
             return True
             
         # Simple polling - no complex state tracking
         xbmc.sleep(200)
 
     t_end = time.perf_counter()
-    _log(f"_wait_for_info_dialog: TIMEOUT ({t_end - t_start:.3f}s)", xbmc.LOGWARNING)
+    _log("_wait_for_info_dialog: TIMEOUT (%.3fs)", xbmc.LOGWARNING, t_end - t_start)
     return False
 
 def verify_list_focus() -> bool:
@@ -138,11 +139,11 @@ def verify_list_focus() -> bool:
         in_list_view = (view_mode in VERTICAL_VIEWS or view_mode in HORIZONTAL_VIEWS or
                        any(v in view_mode for v in VERTICAL_VIEWS | HORIZONTAL_VIEWS))
         
-        _log(f"verify_list_focus: viewmode='{view_mode}', in_list_view={in_list_view}")
+        _log("verify_list_focus: viewmode='%s', in_list_view=%s", xbmc.LOGDEBUG, view_mode, in_list_view)
         return in_list_view
         
     except Exception as e:
-        _log(f"Error in verify_list_focus: {e} - assuming we're in a list view", xbmc.LOGWARNING)
+        _log("Error in verify_list_focus: %s - assuming we're in a list view", xbmc.LOGWARNING, e)
         return True
 
 def _capture_navigation_state() -> dict:
@@ -156,7 +157,7 @@ def _capture_navigation_state() -> dict:
             'focused_label': xbmc.getInfoLabel("Container.ListItem().Label")
         }
     except Exception as e:
-        _log(f"Error capturing navigation state: {e}", xbmc.LOGWARNING)
+        _log("Error capturing navigation state: %s", xbmc.LOGWARNING, e)
         return {}
 
 def _is_still_in_container(original_state: dict) -> bool:
@@ -169,7 +170,7 @@ def _is_still_in_container(original_state: dict) -> bool:
         return (current_items == original_state.get('num_items') and 
                 current_window == original_state.get('current_window'))
     except Exception as e:
-        _log(f"Error checking container state: {e}", xbmc.LOGWARNING)
+        _log("Error checking container state: %s", xbmc.LOGWARNING, e)
         return True  # Assume safe if we can't check
 
 def _did_navigation_work(original_state: dict) -> bool:
@@ -186,7 +187,7 @@ def _did_navigation_work(original_state: dict) -> bool:
         
         return position_changed or control_changed or label_changed
     except Exception as e:
-        _log(f"Error checking navigation success: {e}", xbmc.LOGWARNING)
+        _log("Error checking navigation success: %s", xbmc.LOGWARNING, e)
         return False
 
 def _test_navigation_direction(action: str, opposite_action: str, step_ms: int = 100) -> bool:
@@ -197,7 +198,7 @@ def _test_navigation_direction(action: str, opposite_action: str, step_ms: int =
     try:
         # Capture state before testing
         original_state = _capture_navigation_state()
-        _log(f"Testing navigation: {action}")
+        _log("Testing navigation: %s", xbmc.LOGDEBUG, action)
         
         # Try the navigation action
         xbmc.executebuiltin(action)
@@ -205,21 +206,21 @@ def _test_navigation_direction(action: str, opposite_action: str, step_ms: int =
         
         # Check if we're still in the same container
         if not _is_still_in_container(original_state):
-            _log(f"Navigation {action} moved outside container - undoing with {opposite_action}")
+            _log("Navigation %s moved outside container - undoing with %s", xbmc.LOGDEBUG, action, opposite_action)
             xbmc.executebuiltin(opposite_action)
             xbmc.sleep(step_ms)
             return False
         
         # Check if navigation actually worked (focus/position changed)
         if _did_navigation_work(original_state):
-            _log(f"Navigation {action} successful - position/focus changed")
+            _log("Navigation %s successful - position/focus changed", xbmc.LOGDEBUG, action)
             return True
         else:
-            _log(f"Navigation {action} had no effect - position unchanged")
+            _log("Navigation %s had no effect - position unchanged", xbmc.LOGDEBUG, action)
             return False
             
     except Exception as e:
-        _log(f"Error testing navigation {action}: {e}", xbmc.LOGERROR)
+        _log("Error testing navigation %s: %s", xbmc.LOGERROR, action, e)
         return False
 
 def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms: int = 100) -> bool:
@@ -228,7 +229,7 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
 
     try:
         view_mode = xbmc.getInfoLabel("Container.Viewmode").lower().strip()
-        _log(f"focus_list_manual: Detected viewmode = '{view_mode}'")
+        _log("focus_list_manual: Detected viewmode = '%s'", xbmc.LOGDEBUG, view_mode)
         
         # Define view types
         VERTICAL_VIEWS = {"list", "widelist", "lowlist", "bannerlist", "biglist", 
@@ -240,28 +241,28 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
         if view_mode in VERTICAL_VIEWS or any(v in view_mode for v in VERTICAL_VIEWS):
             navigation_action = "Action(Down)"
             orientation = "vertical"
-            _log(f"focus_list_manual: Using {navigation_action} for {orientation} view")
+            _log("focus_list_manual: Using %s for %s view", xbmc.LOGDEBUG, navigation_action, orientation)
             
             # Send navigation action for known vertical views
             for attempt in range(tries):
-                _log(f"Attempt {attempt + 1}: Sending {navigation_action}")
+                _log("Attempt %d: Sending %s", xbmc.LOGDEBUG, attempt + 1, navigation_action)
                 xbmc.executebuiltin(navigation_action)
                 xbmc.sleep(step_ms)
                 
         elif view_mode in HORIZONTAL_VIEWS or any(v in view_mode for v in HORIZONTAL_VIEWS):
             navigation_action = "Action(Right)"
             orientation = "horizontal"
-            _log(f"focus_list_manual: Using {navigation_action} for {orientation} view")
+            _log("focus_list_manual: Using %s for %s view", xbmc.LOGDEBUG, navigation_action, orientation)
             
             # Send navigation action for known horizontal views
             for attempt in range(tries):
-                _log(f"Attempt {attempt + 1}: Sending {navigation_action}")
+                _log("Attempt %d: Sending %s", xbmc.LOGDEBUG, attempt + 1, navigation_action)
                 xbmc.executebuiltin(navigation_action)
                 xbmc.sleep(step_ms)
                 
         else:
             # Unknown view mode - intelligent fallback with safe testing
-            _log(f"Unknown viewmode '{view_mode}' - using intelligent fallback testing")
+            _log("Unknown viewmode '%s' - using intelligent fallback testing", xbmc.LOGDEBUG, view_mode)
             
             # Test Right navigation first (horizontal)
             if _test_navigation_direction("Action(Right)", "Action(Left)", step_ms):
@@ -270,7 +271,7 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
                 
                 # Continue with remaining navigation attempts
                 for attempt in range(tries - 1):  # -1 because we already tested once
-                    _log(f"Attempt {attempt + 2}: Sending {navigation_action}")
+                    _log("Attempt %d: Sending %s", xbmc.LOGDEBUG, attempt + 2, navigation_action)
                     xbmc.executebuiltin(navigation_action)
                     xbmc.sleep(step_ms)
                     
@@ -281,7 +282,7 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
                 
                 # Continue with remaining navigation attempts
                 for attempt in range(tries - 1):  # -1 because we already tested once
-                    _log(f"Attempt {attempt + 2}: Sending {navigation_action}")
+                    _log("Attempt %d: Sending %s", xbmc.LOGDEBUG, attempt + 2, navigation_action)
                     xbmc.executebuiltin(navigation_action)
                     xbmc.sleep(step_ms)
                     
@@ -290,12 +291,12 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
                 return False
         
         t_focus_end = time.perf_counter()
-        _log(f"focus_list_manual: Completed navigation in {t_focus_end - t_focus_start:.3f}s")
+        _log("focus_list_manual: Completed navigation in %.3fs", xbmc.LOGDEBUG, t_focus_end - t_focus_start)
         return True
         
     except Exception as e:
         t_focus_end = time.perf_counter()
-        _log(f"Error in focus_list_manual: {e} - graceful fallback failed (took {t_focus_end - t_focus_start:.3f}s)", xbmc.LOGERROR)
+        _log("Error in focus_list_manual: %s - graceful fallback failed (took %.3fs)", xbmc.LOGERROR, e, t_focus_end - t_focus_start)
         return False
 
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
@@ -305,7 +306,7 @@ def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int =
     # First check if list control is already focused (should be automatic after XSP navigation)
     if verify_list_focus():
         t_focus_end = time.perf_counter()
-        _log(f"focus_list: List already focused - substep 5 complete ({t_focus_end - t_focus_start:.3f}s)")
+        _log("focus_list: List already focused - substep 5 complete (%.3fs)", xbmc.LOGDEBUG, t_focus_end - t_focus_start)
         return True
     else:
         _log("focus_list: Manual focus needed - using focus_list_manual()")
@@ -318,7 +319,7 @@ def _write_text(path_special: str, text: str) -> bool:
         f.close()
         return True
     except Exception as e:
-        _log(f"xbmcvfs write failed: {e}", xbmc.LOGWARNING)
+        _log("xbmcvfs write failed: %s", xbmc.LOGWARNING, e)
         return False
 
 def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
@@ -326,19 +327,19 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
         data = jsonrpc("VideoLibrary.GetMovieDetails", {"movieid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("moviedetails") or {}
         file_path = md.get("file")
-        _log(f"Movie {dbid} file path: {file_path}")
+        _log("Movie %d file path: %s", xbmc.LOGDEBUG, dbid, file_path)
         return file_path
     elif dbtype == "episode":
         data = jsonrpc("VideoLibrary.GetEpisodeDetails", {"episodeid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("episodedetails") or {}
         file_path = md.get("file")
-        _log(f"Episode {dbid} file path: {file_path}")
+        _log("Episode %d file path: %s", xbmc.LOGDEBUG, dbid, file_path)
         return file_path
     elif dbtype == "musicvideo":
         data = jsonrpc("VideoLibrary.GetMusicVideoDetails", {"musicvideoid": int(dbid), "properties": ["file"]})
         md = (data.get("result") or {}).get("musicvideodetails") or {}
         file_path = md.get("file")
-        _log(f"MusicVideo {dbid} file path: {file_path}")
+        _log("MusicVideo %d file path: %s", xbmc.LOGDEBUG, dbid, file_path)
         return file_path
     elif dbtype == "tvshow":
         # tvshow has multiple files; we'll still open its videodb node below.
@@ -351,17 +352,17 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
     This creates a native Kodi list containing just the target item.
     """
     try:
-        _log(f"Creating XSP for database item {db_type} {db_id}")
+        _log("Creating XSP for database item %s %d", xbmc.LOGDEBUG, db_type, db_id)
         
         # Get the actual file path from the database item
         file_path = _get_file_for_dbitem(db_type, db_id)
         if not file_path:
-            _log(f"No file path found for {db_type} {db_id}", xbmc.LOGWARNING)
+            _log("No file path found for %s %d", xbmc.LOGWARNING, db_type, db_id)
             return None
         
         filename = os.path.basename(file_path)
         filename_no_ext = os.path.splitext(filename)[0]
-        _log(f"Creating XSP for {db_type} {db_id}: filename='{filename}', no_ext='{filename_no_ext}'")
+        _log("Creating XSP for %s %d: filename='%s', no_ext='%s'", xbmc.LOGDEBUG, db_type, db_id, filename, filename_no_ext)
         
         name = f"LG Hijack {db_type} {db_id}"
         
@@ -388,7 +389,7 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
   <order direction="ascending">title</order>
 </smartplaylist>"""
         else:
-            _log(f"Unsupported db_type for XSP creation: {db_type}", xbmc.LOGWARNING)
+            _log("Unsupported db_type for XSP creation: %s", xbmc.LOGWARNING, db_type)
             return None
         
         # Use addon userdata directory for stable XSP file location
@@ -402,37 +403,37 @@ def _create_xsp_for_dbitem(db_type: str, db_id: int) -> Optional[str]:
         # Ensure hijack directory exists
         try:
             if not xbmcvfs.exists(hijack_dir):
-                _log(f"Creating hijack directory: {hijack_dir}")
+                _log("Creating hijack directory: %s", xbmc.LOGDEBUG, hijack_dir)
                 xbmcvfs.mkdirs(hijack_dir)
         except Exception as e:
-            _log(f"Failed to create hijack directory: {e}", xbmc.LOGWARNING)
+            _log("Failed to create hijack directory: %s", xbmc.LOGWARNING, e)
             # Fallback to profile root
             path = os.path.join(profile_dir, xsp_filename)
         
         # Log the XSP content for debugging
-        _log(f"XSP content for {db_type} {db_id}:\n{xsp}")
+        _log("XSP content for %s %d:\n%s", xbmc.LOGDEBUG, db_type, db_id, xsp)
         
         if _write_text(path, xsp):
-            _log(f"XSP created successfully: {path}")
+            _log("XSP created successfully: %s", xbmc.LOGDEBUG, path)
             return path
         else:
-            _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
+            _log("Failed to write XSP file: %s", xbmc.LOGWARNING, path)
             return None
             
     except Exception as e:
-        _log(f"Exception creating XSP for {db_type} {db_id}: {e}", xbmc.LOGERROR)
+        _log("Exception creating XSP for %s %d: %s", xbmc.LOGERROR, db_type, db_id, e)
         return None
 
 def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     fp = _get_file_for_dbitem(dbtype, dbid)
     if not fp:
-        _log(f"No file path found for {dbtype} {dbid}", xbmc.LOGWARNING)
+        _log("No file path found for %s %d", xbmc.LOGWARNING, dbtype, dbid)
         return None
 
     filename = os.path.basename(fp)
     # Remove file extension for XSP matching
     filename_no_ext = os.path.splitext(filename)[0]
-    _log(f"Creating XSP for {dbtype} {dbid}: filename='{filename}', no_ext='{filename_no_ext}', full_path='{fp}'")
+    _log("Creating XSP for %s %d: filename='%s', no_ext='%s', full_path='%s'", xbmc.LOGDEBUG, dbtype, dbid, filename, filename_no_ext, fp)
 
     name = f"LG Native Info {dbtype} {dbid}"
 
@@ -459,21 +460,21 @@ def _create_xsp_for_file(dbtype: str, dbid: int) -> Optional[str]:
     # Ensure hijack temp directory exists
     try:
         if not xbmcvfs.exists(hijack_dir):
-            _log(f"Creating hijack temp directory: {hijack_dir}")
+            _log("Creating hijack temp directory: %s", xbmc.LOGDEBUG, hijack_dir)
             xbmcvfs.mkdirs(hijack_dir)
     except Exception as e:
-        _log(f"Failed to create hijack temp directory: {e}", xbmc.LOGWARNING)
+        _log("Failed to create hijack temp directory: %s", xbmc.LOGWARNING, e)
         # Fallback to direct temp
         path = f"special://temp/{xsp_filename}"
 
     # Log the raw XSP content for debugging
-    _log(f"XSP RAW CONTENT for {dbtype} {dbid}:\n{xsp}")
+    _log("XSP RAW CONTENT for %s %d:\n%s", xbmc.LOGDEBUG, dbtype, dbid, xsp)
 
     if _write_text(path, xsp):
-        _log(f"XSP created successfully: {path} (filename='{filename}')")
+        _log("XSP created successfully: %s (filename='%s')", xbmc.LOGDEBUG, path, filename)
         return path
     else:
-        _log(f"Failed to write XSP file: {path}", xbmc.LOGWARNING)
+        _log("Failed to write XSP file: %s", xbmc.LOGWARNING, path)
         return None
 
 # XSP cleanup removed - using persistent generic filename for debugging
@@ -485,7 +486,7 @@ def _find_index_in_dir_by_file(directory: str, target_file: Optional[str]) -> in
         "properties": ["file", "title", "thumbnail"]
     })
     items = (data.get("result") or {}).get("files") or []
-    _log(f"XSP directory items count: {len(items)}")
+    _log("XSP directory items count: %d", xbmc.LOGDEBUG, len(items))
 
     if not items:
         _log("No items found in XSP directory", xbmc.LOGWARNING)
@@ -507,7 +508,7 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
     condition_met_count = 0
     last_condition_details = {}
 
-    _log(f"_wait_videos_on: Starting wait for path '{t_norm}' with {timeout_ms}ms timeout")
+    _log("_wait_videos_on: Starting wait for path '%s' with %dms timeout", xbmc.LOGDEBUG, t_norm, timeout_ms)
 
     def check_condition():
         nonlocal condition_met_count, last_condition_details
@@ -535,50 +536,50 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
         
         # Log when conditions change
         if current_details != last_condition_details:
-            _log(f"_wait_videos_on CONDITION CHANGE at {elapsed:.3f}s: {current_details}")
+            _log("_wait_videos_on CONDITION CHANGE at %.3fs: %s", xbmc.LOGDEBUG, elapsed, current_details)
             last_condition_details = current_details.copy()
         
         # Show scan warning after 3 seconds if still busy
         nonlocal scan_warning_shown
         if elapsed > 3.0 and (not not_busy or not not_scanning) and not scan_warning_shown:
-            _log(f"_wait_videos_on: Kodi busy for {elapsed:.1f}s - likely scanning for associated files")
+            _log("_wait_videos_on: Kodi busy for %.1fs - likely scanning for associated files", xbmc.LOGDEBUG, elapsed)
             scan_warning_shown = True
         
         # More frequent logging for debugging delays
         if int(elapsed * 2) % 3 == 0 and elapsed - int(elapsed * 2) / 2 < 0.05:  # Every 1.5 seconds
-            _log(f"_wait_videos_on check ({elapsed:.1f}s): window={window_active}, path_match={path_match} ('{folder_path}' vs '{t_norm}'), items={num_items}, not_busy={not_busy}, not_scanning={not_scanning}")
+            _log("_wait_videos_on check (%.1fs): window=%s, path_match=%s ('%s' vs '%s'), items=%d, not_busy=%s, not_scanning=%s", xbmc.LOGDEBUG, elapsed, window_active, path_match, folder_path, t_norm, num_items, not_busy, not_scanning)
 
         final_condition = window_active and path_match and num_items > 0 and not_busy and not_scanning
         if final_condition:
             condition_met_count += 1
-            _log(f"_wait_videos_on: ALL CONDITIONS MET at {elapsed:.3f}s (count: {condition_met_count})")
+            _log("_wait_videos_on: ALL CONDITIONS MET at %.3fs (count: %d)", xbmc.LOGDEBUG, elapsed, condition_met_count)
         else:
             condition_met_count = 0
 
         return final_condition
 
     # Extended timeout for network storage scenarios
-    _log(f"_wait_videos_on: Starting wait_until with {max(timeout_ms, 10000)}ms timeout")
+    _log("_wait_videos_on: Starting wait_until with %dms timeout", xbmc.LOGDEBUG, max(timeout_ms, 10000))
     wait_start = time.perf_counter()
     result = wait_until(check_condition, timeout_ms=max(timeout_ms, 10000), step_ms=100)
     wait_end = time.perf_counter()
     t_end = time.perf_counter()
 
-    _log(f"_wait_videos_on: wait_until completed in {wait_end - wait_start:.3f}s, result={result}")
+    _log("_wait_videos_on: wait_until completed in %.3fs, result=%s", xbmc.LOGDEBUG, wait_end - wait_start, result)
 
     if result:
-        _log(f"_wait_videos_on SUCCESS after {t_end - t_start:.3f}s")
+        _log("_wait_videos_on SUCCESS after %.3fs", xbmc.LOGDEBUG, t_end - t_start)
         if scan_warning_shown:
-            _log(f"_wait_videos_on: XSP loaded successfully after file scanning completed")
+            _log("_wait_videos_on: XSP loaded successfully after file scanning completed")
     else:
-        _log(f"_wait_videos_on TIMEOUT after {t_end - t_start:.3f}s", xbmc.LOGWARNING)
+        _log("_wait_videos_on TIMEOUT after %.3fs", xbmc.LOGWARNING, t_end - t_start)
         # Log final state for debugging
         final_window = xbmc.getCondVisibility(f"Window.IsActive({VIDEOS_WINDOW})")
         final_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
         final_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         final_busy = xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
         final_progress = xbmc.getCondVisibility("Window.IsActive(DialogProgress.xml)")
-        _log(f"_wait_videos_on FINAL STATE: window={final_window}, path='{final_path}', items={final_items}, busy={final_busy}, progress={final_progress}", xbmc.LOGWARNING)
+        _log("_wait_videos_on FINAL STATE: window=%s, path='%s', items=%s, busy=%s, progress=%s", xbmc.LOGWARNING, final_window, final_path, final_items, final_busy, final_progress)
 
     return result
 
@@ -593,107 +594,107 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
     """
     try:
         overall_start_time = time.perf_counter()
-        logger.debug(f"HIJACK HELPERS: Starting hijack process for {db_type} {db_id}")
+        logger.debug("%s Starting hijack process for %s %d", LOG_PREFIX, db_type, db_id)
         
         # Clean up any old hijack files before starting
         cleanup_old_hijack_files()
         
         # 🔒 SUBSTEP 1: Close any open dialog first
         substep1_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 1: Checking for open dialogs to close")
+        logger.debug("%s SUBSTEP 1: Checking for open dialogs to close", LOG_PREFIX)
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
-            logger.debug(f"SUBSTEP 1: Found open dialog ID {current_dialog_id}, closing it")
+            logger.debug("%s SUBSTEP 1: Found open dialog ID %d, closing it", LOG_PREFIX, current_dialog_id)
             xbmc.executebuiltin('Action(Back)')
             
             # Monitor for dialog actually closing instead of fixed sleep
             if wait_for_dialog_close("SUBSTEP 1 dialog close", current_dialog_id, logger, max_wait=1.0):
                 after_close_id = xbmcgui.getCurrentWindowDialogId()
-                logger.debug(f"SUBSTEP 1 COMPLETE: Dialog closed (was {current_dialog_id}, now {after_close_id})")
+                logger.debug("%s SUBSTEP 1 COMPLETE: Dialog closed (was %d, now %d)", LOG_PREFIX, current_dialog_id, after_close_id)
             else:
-                logger.warning(f"⚠️ SUBSTEP 1: Dialog close timeout, proceeding anyway")
+                logger.warning("%s ⚠️ SUBSTEP 1: Dialog close timeout, proceeding anyway", LOG_PREFIX)
         else:
-            logger.debug(f"SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: {current_dialog_id})")
+            logger.debug("%s SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: %d)", LOG_PREFIX, current_dialog_id)
         substep1_end = time.perf_counter()
-        logger.debug(f"⏱️ SUBSTEP 1 TIMING: {substep1_end - substep1_start:.3f}s")
+        logger.debug("%s ⏱️ SUBSTEP 1 TIMING: %.3fs", LOG_PREFIX, substep1_end - substep1_start)
         
         # 📝 SUBSTEP 2: Create XSP file for single item to create a native list
         substep2_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 2: Creating XSP file for {db_type} {db_id}")
+        logger.debug("%s SUBSTEP 2: Creating XSP file for %s %d", LOG_PREFIX, db_type, db_id)
         start_xsp_time = time.perf_counter()
         xsp_path = _create_xsp_for_dbitem(db_type, db_id)
         end_xsp_time = time.perf_counter()
         
         if not xsp_path:
-            logger.warning(f"❌ SUBSTEP 2 FAILED: Failed to create XSP for {db_type} {db_id}")
+            logger.warning("%s ❌ SUBSTEP 2 FAILED: Failed to create XSP for %s %d", LOG_PREFIX, db_type, db_id)
             return False
-        logger.debug(f"SUBSTEP 2 COMPLETE: XSP created at {xsp_path} in {end_xsp_time - start_xsp_time:.3f}s")
+        logger.debug("%s SUBSTEP 2 COMPLETE: XSP created at %s in %.3fs", LOG_PREFIX, xsp_path, end_xsp_time - start_xsp_time)
         substep2_end = time.perf_counter()
-        logger.debug(f"⏱️ SUBSTEP 2 TIMING: {substep2_end - substep2_start:.3f}s")
+        logger.debug("%s ⏱️ SUBSTEP 2 TIMING: %.3fs", LOG_PREFIX, substep2_end - substep2_start)
         
         # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
         substep3_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 3: Navigating to native list: {xsp_path}")
+        logger.debug("%s SUBSTEP 3: Navigating to native list: %s", LOG_PREFIX, xsp_path)
         current_window_before = xbmcgui.getCurrentWindowId()
         start_nav_time = time.perf_counter()
-        logger.debug(f"SUBSTEP 3 DEBUG: About to execute ActivateWindow command at {start_nav_time - overall_start_time:.3f}s")
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        logger.debug("%s SUBSTEP 3 DEBUG: About to execute ActivateWindow command at %.3fs", LOG_PREFIX, start_nav_time - overall_start_time)
+        xbmc.executebuiltin('ActivateWindow(Videos,"%s",return)' % xsp_path)
         activate_window_end = time.perf_counter()
-        logger.debug(f"SUBSTEP 3 DEBUG: ActivateWindow command executed in {activate_window_end - start_nav_time:.3f}s")
+        logger.debug("%s SUBSTEP 3 DEBUG: ActivateWindow command executed in %.3fs", LOG_PREFIX, activate_window_end - start_nav_time)
         
         # ⏳ SUBSTEP 4: Wait for the Videos window to load with our item
         substep4_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 4: Waiting for Videos window to load with XSP content")
+        logger.debug("%s SUBSTEP 4: Waiting for Videos window to load with XSP content", LOG_PREFIX)
         wait_start = time.perf_counter()
         if not _wait_videos_on(xsp_path, timeout_ms=4000):
             wait_end = time.perf_counter()
             end_nav_time = time.perf_counter()
             current_window_after = xbmcgui.getCurrentWindowId()
             current_path = xbmc.getInfoLabel("Container.FolderPath")
-            logger.warning(f"❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: {xsp_path} after {end_nav_time - start_nav_time:.3f}s")
-            logger.warning(f"SUBSTEP 4 DEBUG: Window before={current_window_before}, after={current_window_after}, current_path='{current_path}'")
-            logger.warning(f"⏱️ SUBSTEP 4 WAIT TIMING: {wait_end - wait_start:.3f}s")
+            logger.warning("%s ❌ SUBSTEP 4 FAILED: Failed to load Videos window with XSP: %s after %.3fs", LOG_PREFIX, xsp_path, end_nav_time - start_nav_time)
+            logger.warning("%s SUBSTEP 4 DEBUG: Window before=%d, after=%d, current_path='%s'", LOG_PREFIX, current_window_before, current_window_after, current_path)
+            logger.warning("%s ⏱️ SUBSTEP 4 WAIT TIMING: %.3fs", LOG_PREFIX, wait_end - wait_start)
             return False
         wait_end = time.perf_counter()
         end_nav_time = time.perf_counter()
         current_window_after = xbmcgui.getCurrentWindowId()
         current_path = xbmc.getInfoLabel("Container.FolderPath")
         num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
-        logger.debug(f"SUBSTEP 4 COMPLETE: Videos window loaded in {end_nav_time - start_nav_time:.3f}s")
-        logger.debug(f"SUBSTEP 4 STATUS: Window {current_window_before}→{current_window_after}, path='{current_path}', items={num_items}")
+        logger.debug("%s SUBSTEP 4 COMPLETE: Videos window loaded in %.3fs", LOG_PREFIX, end_nav_time - start_nav_time)
+        logger.debug("%s SUBSTEP 4 STATUS: Window %d→%d, path='%s', items=%s", LOG_PREFIX, current_window_before, current_window_after, current_path, num_items)
         substep4_end = time.perf_counter()
-        logger.debug(f"⏱️ SUBSTEP 4 TIMING: {substep4_end - substep4_start:.3f}s (wait: {wait_end - wait_start:.3f}s)")
-        logger.debug(f"⏱️ SUBSTEP 3+4 COMBINED TIMING: {substep4_end - substep3_start:.3f}s")
+        logger.debug("%s ⏱️ SUBSTEP 4 TIMING: %.3fs (wait: %.3fs)", LOG_PREFIX, substep4_end - substep4_start, wait_end - wait_start)
+        logger.debug("%s ⏱️ SUBSTEP 3+4 COMBINED TIMING: %.3fs", LOG_PREFIX, substep4_end - substep3_start)
         
         # 🎯 SUBSTEP 5: Focus the list and find our item
         substep5_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 5: Focusing list to locate {db_type} {db_id}")
+        logger.debug("%s SUBSTEP 5: Focusing list to locate %s %d", LOG_PREFIX, db_type, db_id)
         start_focus_time = time.perf_counter()
         if not focus_list():
             end_focus_time = time.perf_counter()
-            logger.warning(f"❌ SUBSTEP 5 FAILED: Failed to focus list control after {end_focus_time - start_focus_time:.3f}s")
+            logger.warning("%s ❌ SUBSTEP 5 FAILED: Failed to focus list control after %.3fs", LOG_PREFIX, end_focus_time - start_focus_time)
             return False
         end_focus_time = time.perf_counter()
-        logger.debug(f"SUBSTEP 5 COMPLETE: List focused in {end_focus_time - start_focus_time:.3f}s")
+        logger.debug("%s SUBSTEP 5 COMPLETE: List focused in %.3fs", LOG_PREFIX, end_focus_time - start_focus_time)
         substep5_end = time.perf_counter()
-        logger.debug(f"⏱️ SUBSTEP 5 TIMING: {substep5_end - substep5_start:.3f}s")
+        logger.debug("%s ⏱️ SUBSTEP 5 TIMING: %.3fs", LOG_PREFIX, substep5_end - substep5_start)
         
         # 📍 SUBSTEP 6: Check current item and navigate away from parent if needed
         substep6_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 6: Checking current item and navigating to movie")
+        logger.debug("%s SUBSTEP 6: Checking current item and navigating to movie", LOG_PREFIX)
         current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         current_item_label = xbmc.getInfoLabel('ListItem.Label')
         
         # Check if we're focused on the parent item ".."
         if current_item_label == ".." or current_item_label.strip() == "..":
-            logger.debug(f"SUBSTEP 6: Currently on parent item '{current_item_label}', navigating to next item")
+            logger.debug("%s SUBSTEP 6: Currently on parent item '%s', navigating to next item", LOG_PREFIX, current_item_label)
             xbmc.executebuiltin('Action(Down)')  # Move to next item
             xbmc.sleep(150)  # Wait for navigation
             current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
             new_label = xbmc.getInfoLabel('ListItem.Label')
-            logger.debug(f"SUBSTEP 6: Moved from parent item {current_item_before} to item {current_item_after}, new label: '{new_label}'")
+            logger.debug("%s SUBSTEP 6: Moved from parent item %s to item %s, new label: '%s'", LOG_PREFIX, current_item_before, current_item_after, new_label)
         else:
-            logger.debug(f"SUBSTEP 6: Already on target item '{current_item_label}' at position {current_item_before}")
+            logger.debug("%s SUBSTEP 6: Already on target item '%s' at position %s", LOG_PREFIX, current_item_label, current_item_before)
         
         # Verify we're now on the correct item
         final_item_label = xbmc.getInfoLabel('ListItem.Label')
@@ -701,32 +702,32 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         
         if final_item_label == ".." or final_item_label.strip() == "..":
-            logger.warning(f"❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt")
+            logger.warning("%s ❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt", LOG_PREFIX)
             return False
         
-        logger.debug(f"SUBSTEP 6 COMPLETE: On target item - Position: {final_item_position}, Label: '{final_item_label}', DBID: {final_item_dbid}")
+        logger.debug("%s SUBSTEP 6 COMPLETE: On target item - Position: %s, Label: '%s', DBID: %s", LOG_PREFIX, final_item_position, final_item_label, final_item_dbid)
         substep6_end = time.perf_counter()
-        logger.debug(f"⏱️ SUBSTEP 6 TIMING: {substep6_end - substep6_start:.3f}s")
+        logger.debug("%s ⏱️ SUBSTEP 6 TIMING: %.3fs", LOG_PREFIX, substep6_end - substep6_start)
         
         # Brief pause between SUBSTEP 6 and 7 for UI stability
         xbmc.sleep(50)
         
         # 🎬 SUBSTEP 7: Open info from the native list (this gets full metadata population)
         substep7_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 7: Opening video info from native list")
+        logger.debug("%s SUBSTEP 7: Opening video info from native list", LOG_PREFIX)
         pre_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
         start_info_time = time.perf_counter()
-        logger.debug(f"SUBSTEP 7 DEBUG: About to execute Action(Info) at {start_info_time - overall_start_time:.3f}s")
+        logger.debug("%s SUBSTEP 7 DEBUG: About to execute Action(Info) at %.3fs", LOG_PREFIX, start_info_time - overall_start_time)
         xbmc.executebuiltin('Action(Info)')
         action_info_end = time.perf_counter()
-        logger.debug(f"SUBSTEP 7 DEBUG: Action(Info) command executed in {action_info_end - start_info_time:.3f}s")
+        logger.debug("%s SUBSTEP 7 DEBUG: Action(Info) command executed in %.3fs", LOG_PREFIX, action_info_end - start_info_time)
         
         # Brief pause between SUBSTEP 7 and 8 for UI stability
         xbmc.sleep(50)
         
         # ⌛ SUBSTEP 8: Wait for the native info dialog to appear
         substep8_start = time.perf_counter()
-        logger.debug(f"SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)")
+        logger.debug("%s SUBSTEP 8: Waiting for native info dialog to appear (extended timeout for network storage)", LOG_PREFIX)
         dialog_wait_start = time.perf_counter()
         success = _wait_for_info_dialog(timeout=10.0)
         dialog_wait_end = time.perf_counter()
@@ -734,26 +735,26 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         post_info_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
         if success:
-            logger.debug(f"SUBSTEP 8 COMPLETE: Native info dialog opened in {end_info_time - start_info_time:.3f}s")
-            logger.debug(f"SUBSTEP 8 STATUS: Dialog ID changed from {pre_info_dialog_id} to {post_info_dialog_id}")
-            logger.debug(f"HIJACK HELPERS: Native info hijack completed successfully for {db_type} {db_id}")
+            logger.debug("%s SUBSTEP 8 COMPLETE: Native info dialog opened in %.3fs", LOG_PREFIX, end_info_time - start_info_time)
+            logger.debug("%s SUBSTEP 8 STATUS: Dialog ID changed from %d to %d", LOG_PREFIX, pre_info_dialog_id, post_info_dialog_id)
+            logger.debug("%s HIJACK HELPERS: Native info hijack completed successfully for %s %d", LOG_PREFIX, db_type, db_id)
         else:
-            logger.warning(f"❌ SUBSTEP 8 FAILED: Failed to open native info after {end_info_time - start_info_time:.3f}s")
-            logger.warning(f"SUBSTEP 8 DEBUG: Dialog ID remains {post_info_dialog_id} (was {pre_info_dialog_id})")
-            logger.warning(f"💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for {db_type} {db_id}")
+            logger.warning("%s ❌ SUBSTEP 8 FAILED: Failed to open native info after %.3fs", LOG_PREFIX, end_info_time - start_info_time)
+            logger.warning("%s SUBSTEP 8 DEBUG: Dialog ID remains %d (was %d)", LOG_PREFIX, post_info_dialog_id, pre_info_dialog_id)
+            logger.warning("%s 💥 HIJACK HELPERS: ❌ Failed to open native info after hijack for %s %d", LOG_PREFIX, db_type, db_id)
         
         substep8_end = time.perf_counter()
-        logger.debug(f"⏱️ SUBSTEP 8 TIMING: {substep8_end - substep8_start:.3f}s (dialog wait: {dialog_wait_end - dialog_wait_start:.3f}s)")
+        logger.debug("%s ⏱️ SUBSTEP 8 TIMING: %.3fs (dialog wait: %.3fs)", LOG_PREFIX, substep8_end - substep8_start, dialog_wait_end - dialog_wait_start)
         
         overall_end_time = time.perf_counter()
-        logger.debug(f"⏱️ OVERALL HIJACK TIMING: {overall_end_time - overall_start_time:.3f}s")
-        logger.debug(f"⏱️ TIMING BREAKDOWN: S1={substep1_end - substep1_start:.3f}s, S2={substep2_end - substep2_start:.3f}s, S3+4={substep4_end - substep3_start:.3f}s, S5={substep5_end - substep5_start:.3f}s, S6={substep6_end - substep6_start:.3f}s, S7+8={substep8_end - substep7_start:.3f}s")
+        logger.debug("%s ⏱️ OVERALL HIJACK TIMING: %.3fs", LOG_PREFIX, overall_end_time - overall_start_time)
+        logger.debug("%s ⏱️ TIMING BREAKDOWN: S1=%.3fs, S2=%.3fs, S3+4=%.3fs, S5=%.3fs, S6=%.3fs, S7+8=%.3fs", LOG_PREFIX, substep1_end - substep1_start, substep2_end - substep2_start, substep4_end - substep3_start, substep5_end - substep5_start, substep6_end - substep6_start, substep8_end - substep7_start)
             
         return success
     except Exception as e:
-        logger.error(f"💥 HIJACK HELPERS: Exception in hijack process for {db_type} {db_id}: {e}")
+        logger.error("%s 💥 HIJACK HELPERS: Exception in hijack process for %s %d: %s", LOG_PREFIX, db_type, db_id, e)
         import traceback
-        logger.error(f"HIJACK HELPERS: Traceback: {traceback.format_exc()}")
+        logger.error("%s HIJACK HELPERS: Traceback: %s", LOG_PREFIX, traceback.format_exc())
         return False
 
 def restore_container_after_close(orig_path: str, position_str: str, logger) -> bool:
@@ -770,13 +771,13 @@ def restore_container_after_close(orig_path: str, position_str: str, logger) -> 
     except (ValueError, TypeError):
         position = 0
 
-    _log(f"Restoring container to: {orig_path} (position: {position})")
+    _log("Restoring container to: %s (position: %s)" % (orig_path, position))
 
     # Reduced delay for faster response, but still safe
     xbmc.sleep(50)
 
     # Restore the container
-    xbmc.executebuiltin(f'Container.Update("{orig_path}",replace)')
+    xbmc.executebuiltin('Container.Update("%s",replace)' % orig_path)
 
     # Extended timeout for slower hardware, but less frequent polling
     t_start = time.perf_counter()
@@ -788,12 +789,12 @@ def restore_container_after_close(orig_path: str, position_str: str, logger) -> 
 
     if updated and position > 0:
         # Restore position with minimal delay
-        _log(f"Restoring list position to: {position}")
+        _log("Restoring list position to: %s" % position)
         xbmc.sleep(25)  # Reduced delay
-        xbmc.executebuiltin(f'Action(SelectItem,{position})')
+        xbmc.executebuiltin('Action(SelectItem,%s)' % position)
 
     t_end = time.perf_counter()
-    _log(f"Container restore completed in {t_end - t_start:.3f}s, success: {updated}")
+    _log("Container restore completed in %.3fs, success: %s" % (t_end - t_start, updated))
 
     return updated
 
@@ -831,7 +832,7 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
         bool: True if info dialog opened successfully
     """
     try:
-        _log(f"Opening movie info for dbid={dbid}, url={movie_url}")
+        _log("Opening movie info for dbid=%d, url=%s" % (dbid, movie_url))
 
         if not xsp_path:
             # Use consistent hijack file in addon userdata directory
@@ -841,23 +842,22 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
             hijack_dir = os.path.join(profile_dir, 'hijack')
             xsp_path = os.path.join(hijack_dir, "lg_hijack_temp.xsp")
 
-        _log(f"Using XSP path: {xsp_path}")
+        _log("Using XSP path: %s" % xsp_path)
 
         # -------- precise timings --------
         t_total0 = time.perf_counter()
         t1 = time.perf_counter()
-        _log(f"Opening Videos window with path: {xsp_path} "
-             f"(t+{t1 - t_total0:.3f}s)")
+        _log("Opening Videos window with path: %s (t+%.3fs)" % (xsp_path, t1 - t_total0))
 
         # Open the Videos window on the XSP and focus the list
-        xbmc.executebuiltin(f'ActivateWindow(Videos,"{xsp_path}",return)')
+        xbmc.executebuiltin('ActivateWindow(Videos,"%s",return)' % xsp_path)
 
         # Wait for control to exist & focus it
         t_focus0 = time.perf_counter()
         focused = focus_list()
         t_focus1 = time.perf_counter()
         if not focused:
-            _log(f"Failed to focus control (focus wait {(t_focus1 - t_focus0):.3f}s)", xbmc.LOGWARNING)
+            _log("Failed to focus control (focus wait %.3fs)" % (t_focus1 - t_focus0), xbmc.LOGWARNING)
             return False
 
         # We reached the point where the native dialog should pop; block until it does
@@ -866,18 +866,13 @@ def open_movie_info(dbid: int, movie_url: Optional[str] = None, xsp_path: Option
         t_dialog1 = time.perf_counter()
 
         if opened:
-            _log(f"✅ Native Info dialog opened "
-                 f"(open_window {(t_focus0 - t1):.3f}s, focus {(t_focus1 - t_focus0):.3f}s, "
-                 f"dialog_wait {(t_dialog1 - t_dialog0):.3f}s, total {(t_dialog1 - t_total0):.3f}s)")
-            _log(f"🎉 Successfully completed hijack for movie {dbid}")
+            _log("✅ Native Info dialog opened (open_window %.3fs, focus %.3fs, dialog_wait %.3fs, total %.3fs)" % (t_focus0 - t1, t_focus1 - t_focus0, t_dialog1 - t_dialog0, t_dialog1 - t_total0))
+            _log("🎉 Successfully completed hijack for movie %d" % dbid)
             return True
         else:
-            _log(f"❌ Failed to open native info for movie {dbid} "
-                 f"(open_window {(t_focus0 - t1):.3f}s, focus {(t_focus1 - t_focus0):.3f}s, "
-                 f"dialog_wait {(t_dialog1 - t_dialog0):.3f}s, total {(t_dialog1 - t_total0):.3f}s)",
-                 xbmc.LOGWARNING)
+            _log("❌ Failed to open native info for movie %d (open_window %.3fs, focus %.3fs, dialog_wait %.3fs, total %.3fs)" % (dbid, t_focus0 - t1, t_focus1 - t_focus0, t_dialog1 - t_dialog0, t_dialog1 - t_total0), xbmc.LOGWARNING)
             return False
 
     except Exception as e:
-        _log(f"Failed to open movie info: {e}", xbmc.LOGERROR)
+        _log("Failed to open movie info: %s" % e, xbmc.LOGERROR)
         return False
