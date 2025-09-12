@@ -868,7 +868,7 @@ class QueryManager:
                     self.logger.error("Failed to process batch response for episode %s: %s", kodi_id, e)
                     continue
 
-            self.logger.debug("Batch enriched %s out of %s episodes", len(enrichment_data), len(kodi_ids))
+            # Silent batch enrichment - final count reported at process end
             return enrichment_data
 
         except Exception as e:
@@ -1001,7 +1001,7 @@ class QueryManager:
                     self.logger.error("Failed to process batch response for movie %s: %s", kodi_id, e)
                     continue
 
-            self.logger.debug("Batch enriched %s out of %s movies", len(enrichment_data), len(kodi_ids))
+            # Silent batch enrichment - final count reported at process end
             return enrichment_data
 
         except Exception as e:

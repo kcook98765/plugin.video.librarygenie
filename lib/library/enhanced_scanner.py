@@ -151,7 +151,7 @@ class Phase3LibraryScanner:
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
 
-            self.logger.info("Full scan complete: %s/%s movies indexed", total_added, total_movies)
+            self.logger.info("=== ENHANCED SCAN COMPLETE: %s out of %s movies successfully indexed ===", total_added, total_movies)
 
             return {
                 "success": True,
@@ -230,7 +230,7 @@ class Phase3LibraryScanner:
             )
 
             if items_added > 0 or items_removed > 0:
-                self.logger.info("Delta scan complete: +%s -%s ~%s movies", items_added, items_removed, items_updated)
+                self.logger.info("=== ENHANCED DELTA SCAN COMPLETE: +%s new, -%s removed, ~%s updated movies ===", items_added, items_removed, items_updated)
             else:
                 self.logger.debug("Delta scan complete: no changes detected")
 
@@ -362,7 +362,7 @@ class Phase3LibraryScanner:
                     except Exception as e:
                         self.logger.warning("Failed to insert movie '%s': %s", movie.get('title', 'Unknown'), e)
 
-            self.logger.debug("Batch inserted %s/%s movies", inserted_count, len(movies))
+            # Silent batch insert - final count reported at process end
             return inserted_count
 
         except Exception as e:
