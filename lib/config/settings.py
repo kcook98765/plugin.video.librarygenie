@@ -68,6 +68,23 @@ class SettingsManager:
         """Set whether first run setup has been completed"""
         self.addon.setSettingBool('first_run_completed', completed)
 
+    def get_sync_frequency_hours(self) -> int:
+        """Get sync frequency in hours (1-48, default 1)"""
+        return max(1, min(48, self.addon.getSettingInt('sync_frequency_hours') or 1))
+
+    def set_sync_frequency_hours(self, hours: int) -> None:
+        """Set sync frequency in hours (1-48)"""
+        validated_hours = max(1, min(48, hours))
+        self.addon.setSettingInt('sync_frequency_hours', validated_hours)
+
+    def get_last_sync_time(self) -> int:
+        """Get timestamp of last sync completion"""
+        return self.addon.getSettingInt('last_sync_time')
+
+    def set_last_sync_time(self, timestamp: int) -> None:
+        """Set timestamp of last sync completion"""
+        self.addon.setSettingInt('last_sync_time', timestamp)
+
     # Lists Settings
     def get_default_list_id(self) -> Optional[str]:
         """Get default list ID for quick-add"""
