@@ -257,6 +257,6 @@ def get_remote_client(base_url: str, api_key: Optional[str] = None, **options) -
     try:
         return RemoteHTTPClient(base_url, api_key, **options)
     except Exception as e:
-        logger = get_logger(__name__)
+        logger = get_kodi_logger('lib.remote.http_client')
         logger.error("Failed to create remote client: %s", e)
         return None
