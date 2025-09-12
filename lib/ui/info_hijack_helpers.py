@@ -20,7 +20,7 @@ LOG_PREFIX = "[LG.Hijack]"
 LIST_ID = 50
 VIDEOS_WINDOW = "MyVideoNav.xml"
 
-def _log(message: str, level: int = xbmc.LOGINFO) -> None:
+def _log(message: str, level: int = xbmc.LOGDEBUG) -> None:
     """Internal logging with consistent prefix"""
     if level == xbmc.LOGWARNING:
         logger.warning(f"[InfoHijack] {message}")
