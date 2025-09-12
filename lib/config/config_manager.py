@@ -78,7 +78,7 @@ class ConfigManager:
             # Return default value if setting read fails
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.error(f"Exception getting setting '{key}': {e}")
+            logger.error("Exception getting setting '%s': %s", key, e)
             fallback = self._defaults.get(key, default)
             return fallback
 
@@ -97,7 +97,7 @@ class ConfigManager:
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.error(f"getSettingBool('{key}') failed with exception: {type(e).__name__}: {e}")
+            logger.error("getSettingBool('%s') failed with exception: %s: %s", key, type(e).__name__, e)
             
             try:
                 # Fallback to string and convert
@@ -114,7 +114,7 @@ class ConfigManager:
                 # Use defaults dict fallback if available, otherwise use provided default
                 from ..utils.logger import get_logger
                 logger = get_logger(__name__)
-                logger.error(f"String fallback also failed for '{key}': {type(e2).__name__}: {e2}")
+                logger.error("String fallback also failed for '%s': %s: %s", key, type(e2).__name__, e2)
                 fallback = self._defaults.get(key, default)
 
                 return fallback
@@ -131,7 +131,7 @@ class ConfigManager:
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.warning(f"getSettingInt('{key}') failed: {e}")
+            logger.warning("getSettingInt('%s') failed: %s", key, e)
             
             try:
                 # Fallback to string and convert
@@ -146,7 +146,7 @@ class ConfigManager:
             except (ValueError, TypeError) as e2:
                 from ..utils.logger import get_logger
                 logger = get_logger(__name__)
-                logger.error(f"String conversion failed for '{key}': {e2}")
+                logger.error("String conversion failed for '%s': %s", key, e2)
                 fallback = self._defaults.get(key, default)
 
                 return fallback
@@ -181,7 +181,7 @@ class ConfigManager:
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.error(f"Exception setting '{key}' = '{value}': {e}")
+            logger.error("Exception setting '%s' = '%s': %s", key, value, e)
             return False
 
     def _get_setting_type(self, key):
@@ -253,7 +253,7 @@ class ConfigManager:
         elif key in string_settings:
             return "string"
         else:
-            logger.warning(f"Setting '{key}' not found in any type list, defaulting to string type")
+            logger.warning("Setting '%s' not found in any type list, defaulting to string type", key)
             return "string"
 
     def get_background_interval_seconds(self) -> int:
@@ -365,7 +365,7 @@ class ConfigManager:
                     # Log but don't fail the setting change
                     from ..utils.logger import get_logger
                     logger = get_logger(__name__)
-                    logger.warning(f"Failed to trigger immediate favorites scan: {e}")
+                    logger.warning("Failed to trigger immediate favorites scan: %s", e)
 
             return success
 
@@ -387,7 +387,7 @@ class ConfigManager:
                     # Log but don't fail the setting change
                     from ..utils.logger import get_logger
                     logger = get_logger(__name__)
-                    logger.warning(f"Failed to trigger immediate TV episode sync: {e}")
+                    logger.warning("Failed to trigger immediate TV episode sync: %s", e)
 
             return success
 
@@ -422,23 +422,23 @@ class ConfigManager:
             logger.debug("CONFIG_DEBUG: Getting backup storage location")
             
             storage_type = self.get('backup_storage_type', 'local')
-            logger.debug(f"CONFIG_DEBUG: backup_storage_type = '{storage_type}'")
+            logger.debug("CONFIG_DEBUG: backup_storage_type = '%s'", storage_type)
 
             if storage_type == "custom":
                 # Use custom path set by user
                 custom_path = str(self.get('backup_local_path', ''))
-                logger.debug(f"CONFIG_DEBUG: custom backup path = '{custom_path}'")
+                logger.debug("CONFIG_DEBUG: custom backup path = '%s'", custom_path)
                 if custom_path and custom_path.strip():
                     return custom_path.strip()
 
             # Default to addon data directory
             default_path = "special://userdata/addon_data/plugin.video.librarygenie/backups/"
-            logger.debug(f"CONFIG_DEBUG: Using default backup path: {default_path}")
+            logger.debug("CONFIG_DEBUG: Using default backup path: %s", default_path)
             return default_path
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.error(f"CONFIG_DEBUG: Exception in get_backup_storage_location: {e}")
+            logger.error("CONFIG_DEBUG: Exception in get_backup_storage_location: %s", e)
             # Ultimate fallback
             return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
 
@@ -450,10 +450,10 @@ class ConfigManager:
         
         try:
             result = self.get_bool('backup_enabled', False)
-            logger.debug(f"CONFIG_DEBUG: backup_enabled = {result}")
+            logger.debug("CONFIG_DEBUG: backup_enabled = %s", result)
             return result
         except Exception as e:
-            logger.error(f"CONFIG_DEBUG: Exception getting backup_enabled: {e}")
+            logger.error("CONFIG_DEBUG: Exception getting backup_enabled: %s", e)
             return False
 
     def get_backup_include_non_library(self) -> bool:
@@ -464,10 +464,10 @@ class ConfigManager:
         
         try:
             result = self.get_bool('backup_include_non_library', False)
-            logger.debug(f"CONFIG_DEBUG: backup_include_non_library = {result}")
+            logger.debug("CONFIG_DEBUG: backup_include_non_library = %s", result)
             return result
         except Exception as e:
-            logger.error(f"CONFIG_DEBUG: Exception getting backup_include_non_library: {e}")
+            logger.error("CONFIG_DEBUG: Exception getting backup_include_non_library: %s", e)
             return False
 
     def get_backup_include_folders(self) -> bool:
@@ -478,10 +478,10 @@ class ConfigManager:
         
         try:
             result = self.get_bool('backup_include_folders', True)
-            logger.debug(f"CONFIG_DEBUG: backup_include_folders = {result}")
+            logger.debug("CONFIG_DEBUG: backup_include_folders = %s", result)
             return result
         except Exception as e:
-            logger.error(f"CONFIG_DEBUG: Exception getting backup_include_folders: {e}")
+            logger.error("CONFIG_DEBUG: Exception getting backup_include_folders: %s", e)
             return True
 
     def get_backup_retention_count(self) -> int:
@@ -492,10 +492,10 @@ class ConfigManager:
         
         try:
             result = self.get_int('backup_retention_count', 5)
-            logger.debug(f"CONFIG_DEBUG: backup_retention_count = {result}")
+            logger.debug("CONFIG_DEBUG: backup_retention_count = %s", result)
             return result
         except Exception as e:
-            logger.error(f"CONFIG_DEBUG: Exception getting backup_retention_count: {e}")
+            logger.error("CONFIG_DEBUG: Exception getting backup_retention_count: %s", e)
             return 5
 
     def get_backup_storage_type(self) -> str:
@@ -507,7 +507,7 @@ class ConfigManager:
         try:
             # This is a select setting, so get as int and map to string
             index = self.get_int('backup_storage_type', 0)
-            logger.debug(f"CONFIG_DEBUG: backup_storage_type index = {index}")
+            logger.debug("CONFIG_DEBUG: backup_storage_type index = %s", index)
             
             # Map index to storage type
             storage_types = ['local']  # Only local supported for now
@@ -516,10 +516,10 @@ class ConfigManager:
             else:
                 result = 'local'
             
-            logger.debug(f"CONFIG_DEBUG: backup_storage_type = '{result}'")
+            logger.debug("CONFIG_DEBUG: backup_storage_type = '%s'", result)
             return result
         except Exception as e:
-            logger.error(f"CONFIG_DEBUG: Exception getting backup_storage_type: {e}")
+            logger.error("CONFIG_DEBUG: Exception getting backup_storage_type: %s", e)
             return 'local'
 
     def get_backup_interval(self) -> str:
@@ -531,7 +531,7 @@ class ConfigManager:
         try:
             # This is a select setting, so get as int and map to string
             index = self.get_int('backup_interval', 0)
-            logger.debug(f"CONFIG_DEBUG: backup_interval index = {index}")
+            logger.debug("CONFIG_DEBUG: backup_interval index = %s", index)
             
             # Map index to interval string
             intervals = ['weekly', 'daily', 'monthly']  # Based on settings.xml lvalues
@@ -540,10 +540,10 @@ class ConfigManager:
             else:
                 result = 'weekly'
             
-            logger.debug(f"CONFIG_DEBUG: backup_interval = '{result}'")
+            logger.debug("CONFIG_DEBUG: backup_interval = '%s'", result)
             return result
         except Exception as e:
-            logger.error(f"CONFIG_DEBUG: Exception getting backup_interval: {e}")
+            logger.error("CONFIG_DEBUG: Exception getting backup_interval: %s", e)
             return 'weekly'
 
 
