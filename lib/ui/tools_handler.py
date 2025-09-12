@@ -1981,13 +1981,15 @@ class ToolsHandler:
             import xbmc
             xbmc.executebuiltin(f'Addon.OpenSettings({context.addon.getAddonInfo("id")})')
 
-            # Return success=False with no message to prevent immediate navigation
-            # Settings opening is asynchronous - navigation should only happen when settings closes
-            # This prevents the empty list issue by not triggering response handler navigation
-            return DialogResponse(
+            # Return success=False with special flag to prevent endOfDirectory call
+            # Settings opening is asynchronous - prevent empty directory display
+            response = DialogResponse(
                 success=False,
                 message=""  # No notification and no navigation - settings handles its own flow
             )
+            # Add special flag to indicate this is a settings operation
+            response.is_settings_operation = True
+            return response
         except Exception as e:
             context.logger.error("Error opening settings: %s", e)
             return DialogResponse(

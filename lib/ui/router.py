@@ -71,9 +71,14 @@ class Router:
                 # Use response handler to process the result - ensure we don't return anything that would cause fallthrough
                 response_handler.handle_dialog_response(result, context)
 
-                # End directory properly to prevent Kodi from trying to load this as a directory
-                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
-                return True  # Always return True to prevent fallthrough to main menu
+                # Check if this is a settings operation - if so, skip endOfDirectory to prevent empty list flash
+                if hasattr(result, 'is_settings_operation') and result.is_settings_operation:
+                    # For settings operations, don't call endOfDirectory to prevent empty directory display
+                    return True
+                else:
+                    # End directory properly to prevent Kodi from trying to load this as a directory
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                    return True  # Always return True to prevent fallthrough to main menu
             elif action == "noop":
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
