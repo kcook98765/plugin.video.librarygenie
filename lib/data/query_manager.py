@@ -688,6 +688,10 @@ class QueryManager:
             'runtime': item.get('runtime', item.get('duration', 0)),
             'resume': item.get('resume', {})
         }
+        
+        # CRITICAL: Preserve the database ID for search results that already exist in media_items
+        if item.get('id'):
+            basic_item['id'] = int(item['id'])
 
         # Collect all possible art data for version-aware storage
         art_data = {}
@@ -719,6 +723,16 @@ class QueryManager:
     def _insert_or_get_media_item(self, conn, media_data):
         """Insert or get existing media item with episode-specific matching"""
         try:
+            # CRITICAL: If this item already has a database ID (from search results), use it directly
+            if media_data.get('id'):
+                # Verify the ID exists in the database
+                existing = conn.execute("SELECT id FROM media_items WHERE id = ?", [media_data['id']]).fetchone()
+                if existing:
+                    self.logger.debug("Using existing media item ID %s for '%s'", media_data['id'], media_data.get('title', 'Unknown'))
+                    return media_data['id']
+                else:
+                    self.logger.warning("Media item ID %s not found in database, falling back to matching", media_data['id'])
+            
             # Try to find existing item by IMDb ID first (works for both movies and episodes)
             if media_data.get('imdbnumber'):
                 existing = conn.execute("""
