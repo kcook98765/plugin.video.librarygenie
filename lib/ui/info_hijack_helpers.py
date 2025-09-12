@@ -145,8 +145,85 @@ def verify_list_focus() -> bool:
         _log(f"Error in verify_list_focus: {e} - assuming we're in a list view", xbmc.LOGWARNING)
         return True
 
+def _capture_navigation_state() -> dict:
+    """Capture current navigation state for safe testing"""
+    try:
+        return {
+            'current_item': xbmc.getInfoLabel("Container.CurrentItem"),
+            'num_items': xbmc.getInfoLabel("Container.NumItems"),
+            'current_window': xbmc.getInfoLabel("System.CurrentWindow"),
+            'current_control': xbmc.getInfoLabel("System.CurrentControlId"),
+            'focused_label': xbmc.getInfoLabel("Container.ListItem().Label")
+        }
+    except Exception as e:
+        _log(f"Error capturing navigation state: {e}", xbmc.LOGWARNING)
+        return {}
+
+def _is_still_in_container(original_state: dict) -> bool:
+    """Check if we're still in the same container after navigation"""
+    try:
+        current_items = xbmc.getInfoLabel("Container.NumItems")
+        current_window = xbmc.getInfoLabel("System.CurrentWindow")
+        
+        # If window or container size changed dramatically, we probably left
+        return (current_items == original_state.get('num_items') and 
+                current_window == original_state.get('current_window'))
+    except Exception as e:
+        _log(f"Error checking container state: {e}", xbmc.LOGWARNING)
+        return True  # Assume safe if we can't check
+
+def _did_navigation_work(original_state: dict) -> bool:
+    """Check if navigation actually moved focus/position"""
+    try:
+        current_item = xbmc.getInfoLabel("Container.CurrentItem")
+        current_control = xbmc.getInfoLabel("System.CurrentControlId")
+        current_label = xbmc.getInfoLabel("Container.ListItem().Label")
+        
+        # Check if any navigation indicators changed
+        position_changed = current_item != original_state.get('current_item')
+        control_changed = current_control != original_state.get('current_control')
+        label_changed = current_label != original_state.get('focused_label')
+        
+        return position_changed or control_changed or label_changed
+    except Exception as e:
+        _log(f"Error checking navigation success: {e}", xbmc.LOGWARNING)
+        return False
+
+def _test_navigation_direction(action: str, opposite_action: str, step_ms: int = 100) -> bool:
+    """
+    Safely test a navigation direction with container validation and undo capability
+    Returns True if the direction works and keeps us in the container
+    """
+    try:
+        # Capture state before testing
+        original_state = _capture_navigation_state()
+        _log(f"Testing navigation: {action}")
+        
+        # Try the navigation action
+        xbmc.executebuiltin(action)
+        xbmc.sleep(step_ms)
+        
+        # Check if we're still in the same container
+        if not _is_still_in_container(original_state):
+            _log(f"Navigation {action} moved outside container - undoing with {opposite_action}")
+            xbmc.executebuiltin(opposite_action)
+            xbmc.sleep(step_ms)
+            return False
+        
+        # Check if navigation actually worked (focus/position changed)
+        if _did_navigation_work(original_state):
+            _log(f"Navigation {action} successful - position/focus changed")
+            return True
+        else:
+            _log(f"Navigation {action} had no effect - position unchanged")
+            return False
+            
+    except Exception as e:
+        _log(f"Error testing navigation {action}: {e}", xbmc.LOGERROR)
+        return False
+
 def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms: int = 100) -> bool:
-    """Simple list navigation using view orientation detection instead of control ID guessing"""
+    """Smart list navigation using view orientation detection with intelligent fallback"""
     t_focus_start = time.perf_counter()
 
     try:
@@ -163,22 +240,54 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
         if view_mode in VERTICAL_VIEWS or any(v in view_mode for v in VERTICAL_VIEWS):
             navigation_action = "Action(Down)"
             orientation = "vertical"
+            _log(f"focus_list_manual: Using {navigation_action} for {orientation} view")
+            
+            # Send navigation action for known vertical views
+            for attempt in range(tries):
+                _log(f"Attempt {attempt + 1}: Sending {navigation_action}")
+                xbmc.executebuiltin(navigation_action)
+                xbmc.sleep(step_ms)
+                
         elif view_mode in HORIZONTAL_VIEWS or any(v in view_mode for v in HORIZONTAL_VIEWS):
             navigation_action = "Action(Right)"
             orientation = "horizontal"
+            _log(f"focus_list_manual: Using {navigation_action} for {orientation} view")
+            
+            # Send navigation action for known horizontal views
+            for attempt in range(tries):
+                _log(f"Attempt {attempt + 1}: Sending {navigation_action}")
+                xbmc.executebuiltin(navigation_action)
+                xbmc.sleep(step_ms)
+                
         else:
-            # Unknown view mode - try Down first (most common)
-            navigation_action = "Action(Down)"
-            orientation = "unknown"
-            _log(f"Unknown viewmode '{view_mode}' - defaulting to Down navigation")
-        
-        _log(f"focus_list_manual: Using {navigation_action} for {orientation} view")
-        
-        # Send navigation action
-        for attempt in range(tries):
-            _log(f"Attempt {attempt + 1}: Sending {navigation_action}")
-            xbmc.executebuiltin(navigation_action)
-            xbmc.sleep(step_ms)
+            # Unknown view mode - intelligent fallback with safe testing
+            _log(f"Unknown viewmode '{view_mode}' - using intelligent fallback testing")
+            
+            # Test Right navigation first (horizontal)
+            if _test_navigation_direction("Action(Right)", "Action(Left)", step_ms):
+                _log("Intelligent fallback: Right navigation works - using horizontal mode")
+                navigation_action = "Action(Right)"
+                
+                # Continue with remaining navigation attempts
+                for attempt in range(tries - 1):  # -1 because we already tested once
+                    _log(f"Attempt {attempt + 2}: Sending {navigation_action}")
+                    xbmc.executebuiltin(navigation_action)
+                    xbmc.sleep(step_ms)
+                    
+            # If Right didn't work, test Down navigation (vertical)  
+            elif _test_navigation_direction("Action(Down)", "Action(Up)", step_ms):
+                _log("Intelligent fallback: Down navigation works - using vertical mode")
+                navigation_action = "Action(Down)"
+                
+                # Continue with remaining navigation attempts
+                for attempt in range(tries - 1):  # -1 because we already tested once
+                    _log(f"Attempt {attempt + 2}: Sending {navigation_action}")
+                    xbmc.executebuiltin(navigation_action)
+                    xbmc.sleep(step_ms)
+                    
+            else:
+                _log("Intelligent fallback: Neither Right nor Down navigation worked - container may be non-standard", xbmc.LOGWARNING)
+                return False
         
         t_focus_end = time.perf_counter()
         _log(f"focus_list_manual: Completed navigation in {t_focus_end - t_focus_start:.3f}s")
@@ -186,9 +295,7 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
         
     except Exception as e:
         t_focus_end = time.perf_counter()
-        _log(f"Error in focus_list_manual: {e} - trying fallback Down action (took {t_focus_end - t_focus_start:.3f}s)", xbmc.LOGERROR)
-        # Simple fallback
-        xbmc.executebuiltin("Action(Down)")
+        _log(f"Error in focus_list_manual: {e} - graceful fallback failed (took {t_focus_end - t_focus_start:.3f}s)", xbmc.LOGERROR)
         return False
 
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
