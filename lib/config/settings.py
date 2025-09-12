@@ -28,9 +28,6 @@ class SettingsManager:
         """Get confirmation for destructive actions setting"""
         return self.addon.getSettingBool('confirm_destructive')
 
-    def get_show_item_counts(self) -> bool:
-        """Get show item counts setting"""
-        return self.addon.getSettingBool('show_item_counts')
 
     # Library Settings
     def get_track_library_changes(self) -> bool:
