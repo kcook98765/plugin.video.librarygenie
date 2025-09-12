@@ -137,7 +137,6 @@ class QueryManager:
                     l.name,
                     l.created_at,
                     l.created_at as updated_at,
-                    (SELECT COUNT(*) FROM list_items WHERE list_id = l.id) as item_count,
                     f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
@@ -153,8 +152,7 @@ class QueryManager:
                 result.append({
                     "id": str(row['id']),
                     "name": row['name'],
-                    "description": f"{row['item_count']} items{folder_context}",
-                    "item_count": row['item_count'],
+                    "description": folder_context.lstrip(' ') if folder_context else '',
                     "created": row['created_at'][:10] if row['created_at'] else '',
                     "modified": row['updated_at'][:10] if row['updated_at'] else '',
                     "folder_name": row['folder_name']
@@ -383,18 +381,6 @@ class QueryManager:
             self.logger.error("Failed to add item '%s' to list %s: %s", title, list_id, e)
             return None
 
-    def count_list_items(self, list_id):
-        """Count items in a specific list using unified table"""
-        try:
-            result = self.connection_manager.execute_single("""
-                SELECT COUNT(*) as count FROM list_items WHERE list_id = ?
-            """, [int(list_id)])
-
-            return result['count'] if result else 0
-
-        except Exception as e:
-            self.logger.error("Failed to count items in list %s: %s", list_id, e)
-            return 0
 
     def delete_item_from_list(self, list_id, item_id):
         """Delete an item from a list using unified tables"""
@@ -480,13 +466,10 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT l.id, l.name, l.folder_id, l.created_at,
-                       f.name as folder_name,
-                       COUNT(li.id) as item_count
+                       f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
-                LEFT JOIN list_items li ON l.id = li.list_id
                 WHERE l.id = ?
-                GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
             """, [int(list_id)])
 
             if result:
@@ -494,8 +477,7 @@ class QueryManager:
                 return {
                     "id": str(result['id']),
                     "name": result['name'],
-                    "description": f"{result['item_count']} items{folder_context}",
-                    "item_count": result['item_count'],
+                    "description": folder_context.lstrip(' ') if folder_context else '',
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['created_at'][:10] if result['created_at'] else '',
                     "folder_name": result['folder_name']
@@ -511,13 +493,10 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT l.id, l.name, l.folder_id, l.created_at,
-                       f.name as folder_name,
-                       COUNT(li.id) as item_count
+                       f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
-                LEFT JOIN list_items li ON l.id = li.list_id
                 WHERE l.name = ?
-                GROUP BY l.id, l.name, l.folder_id, l.created_at, f.name
             """, [list_name])
 
             if result:
@@ -525,8 +504,7 @@ class QueryManager:
                 return {
                     "id": str(result['id']),
                     "name": result['name'],
-                    "description": f"{result['item_count']} items{folder_context}",
-                    "item_count": result['item_count'],
+                    "description": folder_context.lstrip(' ') if folder_context else '',
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['created_at'][:10] if result['created_at'] else '',
                     "folder_name": result['folder_name']
@@ -799,14 +777,11 @@ class QueryManager:
                 SELECT 
                     l.id,
                     l.name,
-                    COUNT(li.id) as item_count,
                     date(l.created_at) as created,
                     f.name as folder_name,
                     f.id as folder_id
                 FROM lists l
-                LEFT JOIN list_items li ON l.id = li.list_id
                 LEFT JOIN folders f ON l.folder_id = f.id
-                GROUP BY l.id, l.name, l.created_at, f.name, f.id
                 ORDER BY 
                     CASE WHEN f.name IS NULL THEN 0 ELSE 1 END,
                     f.name,
@@ -820,9 +795,9 @@ class QueryManager:
                     row_dict = dict(row)
                     # Ensure string conversion for compatibility
                     row_dict['id'] = str(row_dict['id'])
-                    # Add description based on item count and folder
+                    # Add description based on folder only
                     folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] else ""
-                    row_dict['description'] = f"{row_dict['item_count']} items{folder_context}"
+                    row_dict['description'] = folder_context.lstrip(' ') if folder_context else ""
                     formatted_results.append(row_dict)
 
                 self.logger.debug("Retrieved %s lists with folders", len(formatted_results))
@@ -1542,22 +1517,18 @@ class QueryManager:
                 # Get lists in root (no folder)
                 self.logger.debug("Querying for lists in root folder (folder_id IS NULL)")
                 results = self.connection_manager.execute_query("""
-                    SELECT l.*, COUNT(li.id) as item_count
+                    SELECT l.*
                     FROM lists l
-                    LEFT JOIN list_items li ON l.id = li.list_id
                     WHERE l.folder_id IS NULL
-                    GROUP BY l.id
                     ORDER BY l.name
                 """)
             else:
                 # Get lists in specific folder
                 self.logger.debug("Querying for lists in folder_id %s", folder_id)
                 results = self.connection_manager.execute_query("""
-                    SELECT l.*, COUNT(li.id) as item_count
+                    SELECT l.*
                     FROM lists l
-                    LEFT JOIN list_items li ON l.id = li.list_id
                     WHERE l.folder_id = ?
-                    GROUP BY l.id
                     ORDER BY l.name
                 """, [int(folder_id)])
 
@@ -1579,8 +1550,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT 
-                    f.id, f.name, f.created_at,
-                    (SELECT COUNT(*) FROM lists WHERE folder_id = f.id) as list_count
+                    f.id, f.name, f.created_at
                 FROM folders f
                 WHERE f.id = ?
             """, [int(folder_id)])
@@ -1589,8 +1559,7 @@ class QueryManager:
                 return {
                     "id": str(result['id']),
                     "name": result['name'],
-                    "created": result['created_at'][:10] if result['created_at'] else '',
-                    "item_count": result['list_count']  # For folders, this is the count of lists
+                    "created": result['created_at'][:10] if result['created_at'] else ''
                 }
 
             return None
@@ -1600,18 +1569,15 @@ class QueryManager:
             return None
 
     def get_all_folders(self, parent_id=None):
-        """Get all folders with their list counts. If parent_id is provided, get subfolders of that folder."""
+        """Get all folders. If parent_id is provided, get subfolders of that folder."""
         try:
             if parent_id is None:
                 # Get top-level folders
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at,
-                        COUNT(l.id) as list_count
+                        f.id, f.name, f.created_at
                     FROM folders f
-                    LEFT JOIN lists l ON l.folder_id = f.id
                     WHERE f.parent_id IS NULL
-                    GROUP BY f.id, f.name, f.created_at
                     ORDER BY 
                         CASE WHEN f.name = 'Search History' THEN 0 ELSE 1 END,
                         f.name
@@ -1620,12 +1586,9 @@ class QueryManager:
                 # Get subfolders of specified parent
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at,
-                        COUNT(l.id) as list_count
+                        f.id, f.name, f.created_at
                     FROM folders f
-                    LEFT JOIN lists l ON l.folder_id = f.id
                     WHERE f.parent_id = ?
-                    GROUP BY f.id, f.name, f.created_at
                     ORDER BY f.name
                 """, [parent_id])
 
@@ -1634,8 +1597,7 @@ class QueryManager:
                 result.append({
                     "id": str(row['id']),
                     "name": row['name'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                    "list_count": row['list_count']
+                    "created": row['created_at'][:10] if row['created_at'] else ''
                 })
 
             if parent_id is None:
@@ -1666,12 +1628,9 @@ class QueryManager:
         """Get information about a specific list"""
         try:
             result = self.connection_manager.execute_single("""
-                SELECT l.id, l.name, l.folder_id, l.created_at,
-                       COUNT(li.id) as item_count
+                SELECT l.id, l.name, l.folder_id, l.created_at
                 FROM lists l
-                LEFT JOIN list_items li ON l.id = li.list_id
                 WHERE l.id = ?
-                GROUP BY l.id, l.name, l.folder_id, l.created_at
             """, [list_id])
 
             if result:
@@ -1679,8 +1638,7 @@ class QueryManager:
                     'id': result['id'],
                     'name': result['name'],
                     'folder_id': result['folder_id'],
-                    'created_at': result['created_at'],
-                    'item_count': result['item_count']
+                    'created_at': result['created_at']
                 }
             return None
 
@@ -1692,14 +1650,9 @@ class QueryManager:
         """Get information about a specific folder"""
         try:
             result = self.connection_manager.execute_single("""
-                SELECT f.id, f.name, f.parent_id, f.created_at,
-                       COUNT(DISTINCT l.id) as list_count,
-                       COUNT(DISTINCT sf.id) as subfolder_count
+                SELECT f.id, f.name, f.parent_id, f.created_at
                 FROM folders f
-                LEFT JOIN lists l ON f.id = l.folder_id
-                LEFT JOIN folders sf ON f.id = sf.parent_id
                 WHERE f.id = ?
-                GROUP BY f.id, f.name, f.parent_id, f.created_at
             """, [folder_id])
 
             if result:
@@ -1707,9 +1660,7 @@ class QueryManager:
                     'id': result['id'],
                     'name': result['name'],
                     'parent_id': result['parent_id'],
-                    'created_at': result['created_at'],
-                    'list_count': result['list_count'],
-                    'subfolder_count': result['subfolder_count']
+                    'created_at': result['created_at']
                 }
             return None
 
