@@ -29,7 +29,6 @@ class ConfigManager:
             "db_batch_size": 200,  # Database write batch size
             "db_busy_timeout_ms": 3000,  # Database busy timeout
             "confirm_destructive_actions": True,
-            "show_item_counts": True,
             "track_library_changes": True,
             "soft_delete_removed_items": True,
             "default_list_id": "",
@@ -314,7 +313,6 @@ class ConfigManager:
         # Comprehensive list of all backup-related settings
         bool_settings = [
             "confirm_destructive_actions",
-            "show_item_counts",
             "track_library_changes",
             "soft_delete_removed_items",
             "quick_add_enabled",
