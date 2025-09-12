@@ -50,7 +50,7 @@ class LibraryGenieService:
         # Debug: Check initial dialog state
         initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
         initial_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        self.logger.info("🔍 SERVICE INIT: Initial dialog state - ID: %s, VideoInfo active: %s", initial_dialog_id, initial_dialog_active)
+        self.logger.debug("SERVICE INIT: Initial dialog state - ID: %s, VideoInfo active: %s", initial_dialog_id, initial_dialog_active)
 
     def _show_notification(self, message: str, icon: str = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
         """Show a Kodi notification"""
@@ -131,9 +131,9 @@ class LibraryGenieService:
             self._check_and_perform_initial_scan()
 
             # Start AI search sync if enabled  
-            self.logger.info("🔍 Checking AI Search activation status at startup...")
+            self.logger.debug("Checking AI Search activation status at startup...")
             ai_activated = self.settings.get_ai_search_activated()
-            self.logger.info("🔍 AI Search activated setting: %s", ai_activated)
+            self.logger.debug("AI Search activated setting: %s", ai_activated)
             
             if self._should_start_ai_sync():
                 self.logger.info("✅ AI Search sync conditions met - starting sync thread")
@@ -304,7 +304,7 @@ class LibraryGenieService:
         # Verify that AI search is properly configured with valid auth
         if not self.settings.get_ai_search_activated():
             if force_log:
-                self.logger.info("🔍 AI Search not activated in settings")
+                self.logger.debug("AI Search not activated in settings")
             return False
 
         # Test if AI client is properly configured and authorized
@@ -415,7 +415,7 @@ class LibraryGenieService:
             import xbmcaddon
             fresh_addon = xbmcaddon.Addon()
             initial_sync_requested = fresh_addon.getSetting('initial_sync_requested')
-            self.logger.info("🔍 Checking initial sync request: flag='%s'", initial_sync_requested)
+            self.logger.debug("Checking initial sync request: flag='%s'", initial_sync_requested)
             if initial_sync_requested != 'true':
                 return
                 

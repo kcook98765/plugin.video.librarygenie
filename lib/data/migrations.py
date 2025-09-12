@@ -366,7 +366,7 @@ class MigrationManager:
         """Migration to add tvshow_kodi_id field and index for TV episode sync"""
         try:
             with self.conn_manager.transaction() as conn:
-                self.logger.info("Running migration to version 2: Adding tvshow_kodi_id field")
+                self.logger.debug("Running migration to version 2: Adding tvshow_kodi_id field")
                 
                 # Check if column already exists (safe migration)
                 try:
@@ -411,7 +411,7 @@ class MigrationManager:
                 
                 # Update schema version
                 conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (2, datetime('now'))")
-                self.logger.info("Migration to version 2 completed successfully")
+                self.logger.debug("Migration to version 2 completed successfully")
                 
         except Exception as e:
             self.logger.error("Migration to version 2 failed: %s", e)
@@ -420,7 +420,7 @@ class MigrationManager:
     def _migrate_to_version_2_with_connection(self, conn):
         """Migration to add tvshow_kodi_id field and index using provided connection"""
         try:
-            self.logger.info("Running migration to version 2 (with connection): Adding tvshow_kodi_id field")
+            self.logger.debug("Running migration to version 2 (with connection): Adding tvshow_kodi_id field")
             
             # Ensure schema_version table exists before checking version
             try:
@@ -476,7 +476,7 @@ class MigrationManager:
             
             # Update schema version
             conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (2, datetime('now'))")
-            self.logger.info("Migration to version 2 completed successfully (with connection)")
+            self.logger.debug("Migration to version 2 completed successfully (with connection)")
             
         except Exception as e:
             self.logger.error("Migration to version 2 failed (with connection): %s", e)
