@@ -14,7 +14,7 @@ import time
 from typing import Dict, Any, Optional, List
 
 from ..config.settings import SettingsManager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..auth.state import is_authorized, get_api_key
 # Removed import of otp_auth to resolve circular dependency
 # from ..auth.otp_auth import exchange_otp_for_api_key, test_api_connection
@@ -24,7 +24,7 @@ class AISearchClient:
     """Client for AI search server integration using OTP authentication"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.remote.ai_search_client')
         self.settings = SettingsManager()
         # Initialize attributes
         self._api_key: Optional[str] = get_api_key()

@@ -7,7 +7,7 @@ import time
 import json
 import os
 from typing import Optional, Dict, Any
-from lib.utils.logger import get_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class GlobalSyncLock:
@@ -19,7 +19,7 @@ class GlobalSyncLock:
     
     def __init__(self, owner: str = "unknown"):
         self.owner = owner
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.utils.sync_lock')
         self.locked = False
         
     def acquire(self) -> bool:

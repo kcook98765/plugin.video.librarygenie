@@ -14,14 +14,14 @@ from typing import List, Dict, Any, Optional, Tuple
 from .data_schemas import ExportEnvelope
 from .storage_manager import get_storage_manager
 from ..data.connection_manager import get_connection_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class ExportEngine:
     """Handles all export operations with chunked processing"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.import_export.export_engine')
         self.conn_manager = get_connection_manager()
         self.storage_manager = get_storage_manager()
         self.chunk_size = 1000  # Process in chunks to maintain UI responsiveness

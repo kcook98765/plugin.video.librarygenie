@@ -10,14 +10,14 @@ import json
 from typing import List, Dict, Any, Optional
 
 from .connection_manager import get_connection_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class ListLibraryManager:
     """Manages library movie operations using standard connection manager"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.data.list_library_manager')
         self.conn_manager = get_connection_manager()
 
     def get_item_by_id(self, item_id: int) -> Optional[Dict[str, Any]]:

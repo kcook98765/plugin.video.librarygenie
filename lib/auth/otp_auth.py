@@ -16,11 +16,11 @@ import xbmcgui
 from typing import Dict, Any, Optional
 
 from ..config import get_config
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from .state import save_api_key, get_api_key, clear_auth_data
 # Avoid circular import - get_ai_search_client imported when needed
 
-logger = get_logger(__name__)
+logger = get_kodi_logger('lib.auth.otp_auth')
 
 # Global variables for rate limiting
 _last_otp_attempt = 0

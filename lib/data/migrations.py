@@ -7,7 +7,7 @@ Creates the complete database schema on first run
 """
 
 from .connection_manager import get_connection_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 # Global flag to track if database has been initialized
 _database_initialized = False
@@ -17,7 +17,7 @@ class MigrationManager:
     """Manages database schema initialization"""
 
     def __init__(self, conn_manager=None):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.data.migrations')
         self.conn_manager = conn_manager or get_connection_manager()
         # Migration framework for future use - currently empty as all schema is in _create_complete_schema
         self.migrations = []

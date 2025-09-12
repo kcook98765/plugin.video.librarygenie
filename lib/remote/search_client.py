@@ -9,9 +9,9 @@ All remote search functionality now uses the new OTP-based authentication system
 """
 
 import warnings
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
-logger = get_logger(__name__)
+logger = get_kodi_logger('lib.remote.search_client')
 
 # Deprecated exception kept for backward compatibility
 class RemoteError(Exception):

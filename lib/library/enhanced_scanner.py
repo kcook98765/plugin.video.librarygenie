@@ -16,7 +16,7 @@ import xbmc
 from ..data import QueryManager
 from ..data.connection_manager import get_connection_manager
 from ..kodi.json_rpc_helper import get_json_rpc_helper
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..config import get_config
 
 
@@ -24,7 +24,7 @@ class Phase3LibraryScanner:
     """Phase 3: Enhanced library scanner with robust paging, retry/backoff, and DB hardening"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.library.enhanced_scanner')
         self.query_manager = QueryManager()
         self.json_rpc = get_json_rpc_helper()
         self.conn_manager = get_connection_manager()

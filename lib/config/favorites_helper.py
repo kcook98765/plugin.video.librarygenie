@@ -7,12 +7,12 @@ LibraryGenie - Favorites Integration Helper
 Helper functions for favorites integration settings
 """
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 def on_favorites_integration_enabled():
     """Called when favorites integration is enabled via settings"""
-    logger = get_logger(__name__)
+    logger = get_kodi_logger('lib.config.favorites_helper')
     logger.info("Favorites integration enabled - folder will be visible in menu")
     
     # Ensure "Kodi Favorites" list exists in database (even if empty)

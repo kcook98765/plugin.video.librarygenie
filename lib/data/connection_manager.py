@@ -13,7 +13,7 @@ import atexit
 from typing import Optional
 from contextlib import contextmanager
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..config import get_config
 from .storage_manager import get_storage_manager
 
@@ -22,7 +22,7 @@ class ConnectionManager:
     """Manages SQLite database connections with safety and performance optimizations"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.data.connection_manager')
         self.storage_manager = get_storage_manager()
 
         self.config = get_config()

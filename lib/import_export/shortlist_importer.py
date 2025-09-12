@@ -12,14 +12,14 @@ from ..data.connection_manager import get_connection_manager
 from ..data import QueryManager
 from ..data.list_library_manager import get_list_library_manager
 from ..kodi.json_rpc_helper import get_json_rpc_helper
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class ShortListImporter:
     """Imports lists from ShortList addon"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.import_export.shortlist_importer')
         self.conn_manager = get_connection_manager()
         self.query_manager = QueryManager()
         self.list_library_manager = get_list_library_manager()

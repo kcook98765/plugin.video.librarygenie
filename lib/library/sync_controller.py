@@ -12,7 +12,7 @@ import time
 from typing import Optional, Tuple, Dict, Any
 
 from ..config.settings import SettingsManager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..ui.localization import L
 from .scanner import LibraryScanner
 
@@ -25,7 +25,7 @@ class SyncController:
 
     def __init__(self):
         self.settings = SettingsManager()
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.library.sync_controller')
         self.scanner = LibraryScanner()
 
     def is_first_run(self) -> bool:

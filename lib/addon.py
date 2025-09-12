@@ -14,7 +14,7 @@ import xbmcgui
 import xbmcaddon
 import xbmcplugin
 from typing import Dict, Any
-from .utils.logger import get_logger
+from .utils.kodi_log import get_kodi_logger
 from .config import get_config
 
 
@@ -26,7 +26,7 @@ class AddonController:
         self.handle = addon_handle
         self.base_url = addon_url
         self.params = addon_params
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.addon')
         self.cfg = get_config()
 
     def route(self):
@@ -196,7 +196,7 @@ class AddonController:
 def main():
     """Main addon entry point"""
     try:
-        logger = get_logger(__name__)
+        logger = get_kodi_logger('lib.addon.main')
 
         # Diagnose logging configuration
         _diagnose_logging(logger)
@@ -230,7 +230,7 @@ def main():
         controller.route()
 
     except Exception as e:
-        logger = get_logger(__name__)
+        logger = get_kodi_logger('lib.addon.main')
         logger.error("Fatal error in addon main: %s", e, exc_info=True)
         # Show user-friendly error
         xbmcgui.Dialog().notification("LibraryGenie", "Addon startup failed", xbmcgui.NOTIFICATION_ERROR)
@@ -243,12 +243,12 @@ def _diagnose_logging(logger):
         debug_enabled = config.get_bool("debug_logging", False)
 
         logger.info("LOGGING DIAGNOSIS: addon debug_logging setting = %s", debug_enabled)
-        logger.info("LOGGING DIAGNOSIS: logger effective level = %s", logging.getLevelName(logger.getEffectiveLevel()))
-        logger.info("LOGGING DIAGNOSIS: logger handlers count = %s", len(logger.handlers))
+        logger.info("LOGGING DIAGNOSIS: KodiLogger now routes directly to xbmc.log")
+        logger.info("LOGGING DIAGNOSIS: Using direct Kodi logging for maximum efficiency")
 
         # Test both levels
-        logger.debug("LOGGING DIAGNOSIS: This is a DEBUG message - you should only see this if debug is enabled")
-        logger.info("LOGGING DIAGNOSIS: This is an INFO message - you should always see this")
+        logger.debug("LOGGING DIAGNOSIS: This is a DEBUG message")
+        logger.info("LOGGING DIAGNOSIS: This is an INFO message")
 
     except Exception as e:
         logger.error("LOGGING DIAGNOSIS: Failed to diagnose logging: %s", e)

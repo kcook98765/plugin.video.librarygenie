@@ -13,7 +13,7 @@ from .data_schemas import ExportSchema, ImportPreview, ImportResult
 from .storage_manager import get_storage_manager
 from ..data.connection_manager import get_connection_manager
 from ..data import QueryManager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class DataMatcher:
@@ -21,7 +21,7 @@ class DataMatcher:
 
     def __init__(self, conn_manager):
         self.conn_manager = conn_manager
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.import_export.import_engine')
 
     def match_media_item(self, item_data: Dict[str, Any]) -> Optional[int]:
         """Match imported media item based on its type (movie, episode, external)"""
@@ -325,7 +325,7 @@ class ImportEngine:
     """Handles import operations with safe merging"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.import_export.import_engine')
         self.conn_manager = get_connection_manager()
         self.storage_manager = get_storage_manager()
         self.query_manager = QueryManager()

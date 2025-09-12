@@ -9,7 +9,7 @@ Maps remote search results to local library items
 from typing import Dict, Any, Optional, List
 import re
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..data.connection_manager import get_connection_manager
 
 
@@ -17,7 +17,7 @@ class RemoteMapper:
     """Maps remote items to local library using various strategies"""
     
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.remote.mapper')
         self.conn_manager = get_connection_manager()
     
     def map_to_local(self, remote_item: Dict[str, Any]) -> Optional[Dict[str, Any]]:

@@ -9,9 +9,9 @@ Centralized utility for determining Kodi version with caching
 
 import xbmc
 from typing import Optional
-from .logger import get_logger
+from .kodi_log import get_kodi_logger
 
-logger = get_logger(__name__)
+logger = get_kodi_logger('lib.utils.kodi_version')
 
 # Global cache to avoid repeated System.BuildVersion calls
 _cached_major_version: Optional[int] = None

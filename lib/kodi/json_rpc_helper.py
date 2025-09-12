@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import xbmc
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..config import get_config
 
 
@@ -38,7 +38,7 @@ class JsonRpcHelper:
     """Phase 3: Centralized JSON-RPC helper with timeout, retry/backoff, and structured error handling"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.kodi.json_rpc_helper')
         self.config = get_config()
 
         # Phase 3 settings with safe defaults
