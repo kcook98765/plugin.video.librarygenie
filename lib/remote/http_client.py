@@ -258,5 +258,5 @@ def get_remote_client(base_url: str, api_key: Optional[str] = None, **options) -
         return RemoteHTTPClient(base_url, api_key, **options)
     except Exception as e:
         logger = get_logger(__name__)
-        logger.error(f"Failed to create remote client: {e}")
+        logger.error("Failed to create remote client: %s", e)
         return None

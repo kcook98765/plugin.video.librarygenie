@@ -55,7 +55,7 @@ class DialogResponse:
         try:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.debug(f"DEBUG: DialogResponse created - success={self.success}, message='{self.message}'")
+            logger.debug("DEBUG: DialogResponse created - success=%s, message='%s'", self.success, self.message)
         except Exception:
             pass  # Don't let logging errors break the response
 

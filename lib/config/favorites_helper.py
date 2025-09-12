@@ -33,13 +33,13 @@ def on_favorites_integration_enabled():
                         VALUES ('Kodi Favorites', datetime('now'))
                     """)
                     kodi_list_id = cursor.lastrowid
-                    logger.info(f"Created empty 'Kodi Favorites' list with ID {kodi_list_id}")
+                    logger.info("Created empty 'Kodi Favorites' list with ID %s", kodi_list_id)
                 else:
-                    logger.info(f"'Kodi Favorites' list already exists with ID {kodi_list['id']}")
+                    logger.info("'Kodi Favorites' list already exists with ID %s", kodi_list['id'])
         else:
             logger.warning("Could not initialize query manager for favorites list creation")
     except Exception as e:
-        logger.error(f"Error ensuring Kodi Favorites list exists: {e}")
+        logger.error("Error ensuring Kodi Favorites list exists: %s", e)
     
     # No automatic scanning - only manual scan by user
     return True

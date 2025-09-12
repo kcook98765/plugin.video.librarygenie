@@ -28,7 +28,7 @@ class KodiLogHandler(logging.Handler):
             level = xbmc.LOGDEBUG
 
         message = self.format(record)
-        xbmc.log(f"[LibraryGenie] {message}", level)
+        xbmc.log("[LibraryGenie] %s" % message, level)
 
 
 def get_logger(name):
@@ -69,12 +69,12 @@ def _update_logger_level(logger):
             
         # Only log level changes when there's an actual change from a configured level (not NOTSET)
         if old_level != logger.level and old_level != logging.NOTSET:
-            logger.info(f"LOGGING: Logger level changed from {logging.getLevelName(old_level)} to {new_level} (debug_enabled: {debug_enabled})")
+            logger.info("LOGGING: Logger level changed from %s to %s (debug_enabled: %s)", logging.getLevelName(old_level), new_level, debug_enabled)
             
     except Exception as e:
         # Fallback to DEBUG level for troubleshooting search issues
         logger.setLevel(logging.DEBUG)
-        logger.info(f"LOGGING: Fallback to DEBUG level due to error: {e}")
+        logger.info("LOGGING: Fallback to DEBUG level due to error: %s", e)
 
 
 def update_all_loggers():
@@ -90,4 +90,4 @@ def force_debug_mode():
         if isinstance(logger, logging.Logger) and 'librarygenie' in name.lower():
             logger.setLevel(logging.DEBUG)
             # Log confirmation at INFO level so it's always visible
-            logger.info(f"LOGGING: Forced DEBUG mode for logger: {name}")
+            logger.info("LOGGING: Forced DEBUG mode for logger: %s", name)

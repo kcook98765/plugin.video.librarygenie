@@ -131,7 +131,7 @@ class ResponseHandler:
                 else:
                     # For successful responses with just a message and no navigation flags,
                     # don't do any navigation - let the tools handler's direct navigation work
-                    context.logger.debug(f"RESPONSE HANDLER: Success response with no navigation flags - letting direct navigation work")
+                    context.logger.debug("RESPONSE HANDLER: Success response with no navigation flags - letting direct navigation work")
 
         except Exception as e:
             context.logger.error("Error handling dialog response: %s", e)

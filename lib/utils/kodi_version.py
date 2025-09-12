@@ -31,18 +31,18 @@ def get_kodi_major_version() -> int:
     
     try:
         build_version = xbmc.getInfoLabel("System.BuildVersion")
-        logger.debug(f"Kodi build version string: {build_version}")
+        logger.debug("Kodi build version string: %s", build_version)
         
         # Examples: "20.2 (20.2.0) Git:...", "19.5-Matrix", "21.0-Omega"
         # Extract first numeric component before any dots or hyphens
         major_str = build_version.split('.')[0].split('-')[0]
         _cached_major_version = int(major_str)
         
-        logger.debug(f"Detected Kodi major version: {_cached_major_version}")
+        logger.debug("Detected Kodi major version: %s", _cached_major_version)
         return _cached_major_version
         
     except Exception as e:
-        logger.warning(f"Failed to parse Kodi version from '{build_version}': {e}")
+        logger.warning("Failed to parse Kodi version from '%s': %s", build_version, e)
         # Safe fallback to Matrix (19) for maximum compatibility
         _cached_major_version = 19
         return _cached_major_version
