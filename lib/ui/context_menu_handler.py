@@ -84,7 +84,7 @@ class ContextItem:
         # Add AI Search option if available
         if ai_search_available:
             menu_items.append({
-                'label': f"🤖 AI Movie Search",
+                'label': f"🤖 {L(34100)}",  # AI Movie Search
                 'action': 'ai_search',
                 'params': {
                     'query': f"Search for '{item_info.get('title', 'Unknown')}' ({item_info.get('year', '')})",

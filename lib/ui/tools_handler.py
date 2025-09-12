@@ -1320,7 +1320,7 @@ class ToolsHandler:
 
             # Main lists menu tools - enhanced with search (Kodi Favorites removed as it's now a regular list)
             tools_options = [
-                "🔍 Local Movie Search",
+                f"🔍 {L(33000)}",  # Local Movie Search
                 "📊 Search History",
                 "---",  # Separator
                 "Create New List",
@@ -1336,7 +1336,7 @@ class ToolsHandler:
             from ..remote.ai_search_client import get_ai_search_client
             ai_client = get_ai_search_client()
             if ai_client.is_activated():
-                tools_options.insert(1, "🤖 AI Movie Search")
+                tools_options.insert(1, f"🤖 {L(34100)}")  # AI Movie Search
 
 
             # Debug logging for lists main tools options
@@ -1356,9 +1356,9 @@ class ToolsHandler:
 
             # Handle main lists menu actions
             selected_option = tools_options[selected_index]
-            if selected_option == "🔍 Local Movie Search":
+            if selected_option == f"🔍 {L(33000)}":  # Local Movie Search
                 return self._handle_local_search(context)
-            elif selected_option == "🤖 AI Movie Search":
+            elif selected_option == f"🤖 {L(34100)}":  # AI Movie Search
                 return self._handle_ai_search(context)
             elif selected_option == "📊 Search History":
                 return self._handle_search_history(context)
