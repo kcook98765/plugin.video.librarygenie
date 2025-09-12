@@ -130,7 +130,7 @@ class LibraryScanner:
                 # Calculate percentage for more frequent updates
                 progress_percentage = min(int((items_processed / total_movies) * 80) + 20, 100)  # Reserve 20% for initialization
 
-                self.logger.debug("Full scan progress: %s/%s movies processed (%s%%)", items_processed, total_movies, progress_percentage)
+                # Progress tracking without spam - only log via UI progress dialog
 
                 # Call progress callback if provided
                 if progress_callback:
@@ -150,7 +150,7 @@ class LibraryScanner:
                 import time
                 time.sleep(0.05)  # Reduced from 0.1 to 0.05 seconds
 
-            self.logger.info("Movie scan complete: %s movies indexed", total_added)
+            self.logger.info("=== MOVIE SYNC COMPLETE: %s movies successfully indexed ===", total_added)
 
             # TV Episode sync (if enabled)
             total_episodes_added = 0
@@ -158,7 +158,7 @@ class LibraryScanner:
                 self.logger.info("TV episode sync enabled - starting episode scan")
                 try:
                     total_episodes_added = self._sync_tv_episodes(dialog_bg, progress_dialog, progress_callback)
-                    self.logger.info("TV episode sync complete: %s episodes indexed", total_episodes_added)
+                    self.logger.info("=== TV EPISODE SYNC COMPLETE: %s episodes successfully indexed ===", total_episodes_added)
                 except Exception as e:
                     self.logger.error("TV episode sync failed: %s", e)
                     # Continue with scan completion even if TV sync fails
@@ -168,7 +168,10 @@ class LibraryScanner:
             scan_end = datetime.now().isoformat()
             self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, total_episodes_added, scan_end)
 
-            self.logger.info("Full scan complete: %s movies, %s episodes indexed", total_added, total_episodes_added)
+            self.logger.info("=== FULL LIBRARY SYNC COMPLETE ===\n" +
+                              "  Movies: %s indexed\n" +
+                              "  Episodes: %s indexed\n" +
+                              "  Total: %s items processed", total_added, total_episodes_added, total_added + total_episodes_added)
 
             if dialog_bg:
                 if total_episodes_added > 0:
@@ -260,7 +263,7 @@ class LibraryScanner:
             )
 
             if items_added > 0 or items_removed > 0:
-                self.logger.info("Delta scan complete: +%s -%s movies", items_added, items_removed)
+                self.logger.info("=== DELTA SCAN COMPLETE: +%s new, -%s removed movies ===", items_added, items_removed)
             else:
                 self.logger.debug("Delta scan complete: no changes detected")
 
@@ -477,7 +480,7 @@ class LibraryScanner:
                     except Exception as e:
                         self.logger.warning("Failed to insert movie '%s': %s", movie.get('title', 'Unknown'), e)
 
-            self.logger.debug("Batch inserted %s/%s movies", inserted_count, len(movies))
+            # Silent batch insert - final count reported at process end
             return inserted_count
 
         except Exception as e:
@@ -546,12 +549,12 @@ class LibraryScanner:
                     progress_message = f"Processed {min(offset + len(movies), total_movies)}/{total_movies} movies"
                     progress_dialog.update(progress_percentage, "LibraryGenie", progress_message)
 
-                self.logger.debug("Page %s/%s: %s movies processed", page + 1, total_pages, len(movies))
+                # Silent page processing - final count reported at process end
 
             if progress_dialog:
                 progress_dialog.update(100, "LibraryGenie", f"Movies scan complete: {total_movies_added} movies")
 
-            self.logger.info("Movies-only scan complete: %s movies indexed", total_movies_added)
+            self.logger.info("=== MOVIES-ONLY SYNC COMPLETE: %s movies successfully indexed ===", total_movies_added)
             
             return {
                 "success": True,
@@ -677,7 +680,7 @@ class LibraryScanner:
                         self.logger.debug("Added %s episodes for show '%s'", episodes_added, tvshow_title)
                 
                 show_offset += len(tvshows)
-                self.logger.debug("Processed %s/%s TV shows", min(show_offset, total_tvshows), total_tvshows)
+                # Silent TV show processing - final count reported at process end
                 
                 # Brief pause to allow UI updates
                 import time
@@ -786,7 +789,7 @@ class LibraryScanner:
                     except Exception as e:
                         self.logger.warning("Failed to insert episode '%s': %s", episode.get('title', 'Unknown'), e)
 
-            self.logger.debug("Batch inserted %s/%s episodes", inserted_count, len(episodes))
+            # Silent batch insert - final count reported at process end
             return inserted_count
 
         except Exception as e:

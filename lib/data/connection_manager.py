@@ -210,7 +210,7 @@ class ConnectionManager:
                         if self.operation_count >= self.batch_size:
                             self.conn.commit()
                             self.operation_count = 0
-                            self.logger.debug("Committed batch of %s operations", self.batch_size)
+                            # Silent batch commit - final count reported at process end
 
                         return result
 
@@ -220,7 +220,7 @@ class ConnectionManager:
                 # Final commit for any remaining operations
                 if batched_conn.operation_count > 0:
                     conn.commit()
-                    self.logger.debug("Final commit of %s operations", batched_conn.operation_count)
+                    # Silent final commit - final count reported at process end
 
             except Exception as e:
                 self.logger.error("Batched transaction failed, rolling back: %s", e)
