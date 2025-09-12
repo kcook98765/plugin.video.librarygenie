@@ -363,19 +363,19 @@ class LibraryScanner:
             return False
 
     def _clear_library_index(self):
-        """Mark existing library items as removed instead of deleting to preserve list integrity"""
+        """Clear the existing library index"""
         try:
             with self.conn_manager.transaction() as conn:
-                conn.execute("UPDATE media_items SET is_removed = 1 WHERE media_type = 'movie'")
+                conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
                 
-                # Also mark TV episodes as removed if sync is enabled
+                # Also clear TV episodes if sync is enabled
                 if self.settings.get_sync_tv_episodes():
-                    conn.execute("UPDATE media_items SET is_removed = 1 WHERE media_type = 'episode'")
-                    self.logger.debug("Library index marked as removed for full scan (movies and episodes)")
+                    conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
+                    self.logger.debug("Library index cleared for full scan (movies and episodes)")
                 else:
-                    self.logger.debug("Library index marked as removed for full scan (movies only)")
+                    self.logger.debug("Library index cleared for full scan (movies only)")
         except Exception as e:
-            self.logger.error("Failed to mark library items as removed: %s", e)
+            self.logger.error("Failed to clear library index: %s", e)
             raise
 
     def _batch_insert_movies(self, movies: List[Dict[str, Any]]) -> int:
@@ -500,10 +500,10 @@ class LibraryScanner:
             if progress_dialog:
                 progress_dialog.update(0, "LibraryGenie", "Preparing movie scan...")
 
-            # Mark existing movies as removed instead of deleting to preserve list integrity  
+            # Clear existing movies only
             with self.conn_manager.transaction() as conn:
-                conn.execute("UPDATE media_items SET is_removed = 1 WHERE media_type = 'movie'")
-                self.logger.debug("Marked existing movies as removed for resync")
+                conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
+                self.logger.debug("Cleared existing movies for resync")
 
             # Service already shows "Starting movie sync..." when creating dialog
             # Skip redundant startup message to avoid 0% flash
@@ -585,10 +585,10 @@ class LibraryScanner:
             if progress_dialog:
                 progress_dialog.update(0, "LibraryGenie", "Preparing TV episodes scan...")
 
-            # Mark existing TV episodes as removed instead of deleting to preserve list integrity
+            # Clear existing TV episodes only
             with self.conn_manager.transaction() as conn:
-                conn.execute("UPDATE media_items SET is_removed = 1 WHERE media_type = 'episode'")
-                self.logger.debug("Marked existing TV episodes as removed for resync")
+                conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
+                self.logger.debug("Cleared existing TV episodes for resync")
 
             # Service already shows "Starting TV episodes sync..." when creating dialog  
             # Skip redundant startup message to avoid 0% flash
