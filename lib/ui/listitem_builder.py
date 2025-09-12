@@ -135,13 +135,23 @@ class ListItemBuilder:
         try:
             if is_action_item:
                 return self._create_action_item(item)
-            elif media_type in ('movie', 'episode') and isinstance(kodi_id, int):
+            elif media_type in ('movie', 'episode') and self._is_valid_library_id(kodi_id):
                 return self._create_library_listitem(item)
             else:
                 return self._create_external_item(item)
         except Exception as e:
             self.logger.error("ITEM BUILD: failed for '%s': %s", title, e)
             return None
+
+    def _is_valid_library_id(self, kodi_id) -> bool:
+        """Check if kodi_id is valid for library items (int or numeric string)"""
+        if kodi_id is None:
+            return False
+        if isinstance(kodi_id, int):
+            return True
+        if isinstance(kodi_id, str) and kodi_id.strip().isdigit():
+            return True
+        return False
 
     # ----- normalization -----
     def _normalize_item(self, src: Dict[str, Any]) -> Dict[str, Any]:
@@ -177,19 +187,15 @@ class ListItemBuilder:
         elif media_type == 'episode':
             kodi_id = src.get('kodi_id') or src.get('episodeid')
         # Do NOT infer from generic 'id' to avoid misclassification
-        # Fix: Properly handle numeric strings by trying to convert them to int
+        # Keep original logic but fix the flawed condition
         if kodi_id is not None:
             if isinstance(kodi_id, (int, float)):
                 out['kodi_id'] = int(kodi_id)
+            elif isinstance(kodi_id, str) and kodi_id.strip().isdigit():
+                # Fix: Convert numeric strings to integers 
+                out['kodi_id'] = int(kodi_id.strip())
             else:
-                # Robust conversion for strings with whitespace or numeric formats
-                try:
-                    out['kodi_id'] = int(str(kodi_id).strip())
-                except (ValueError, TypeError):
-                    # Log when a potential library item fails conversion to help with debugging
-                    if src.get('movieid') or src.get('episodeid'):
-                        self.logger.debug("NORMALIZE: Library item with invalid kodi_id '%s' downgraded to external", kodi_id)
-                    out['kodi_id'] = None
+                out['kodi_id'] = kodi_id  # Keep original value
         else:
             out['kodi_id'] = None
 
