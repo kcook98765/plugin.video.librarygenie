@@ -37,7 +37,7 @@ class ToolsHandler:
     def show_list_tools(self, context: PluginContext, list_type: str, list_id: Optional[str] = None) -> DialogResponse:
         """Show tools & options modal for different list types"""
         try:
-            self.logger.info("Showing tools & options for list_type: %s, list_id: %s", list_type, list_id)
+            self.logger.debug("Showing tools & options for list_type: %s, list_id: %s", list_type, list_id)
 
             if list_type == "favorites":
                 return self._show_favorites_tools(context)

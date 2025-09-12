@@ -77,7 +77,7 @@ class ListsHandler:
     def show_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main lists menu with folders and lists"""
         try:
-            context.logger.info("Displaying lists menu")
+            context.logger.debug("Displaying lists menu")
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -90,11 +90,11 @@ class ListsHandler:
 
             # Get all user lists and folders
             all_lists = query_manager.get_all_lists_with_folders()
-            context.logger.info("Found %s total lists", len(all_lists))
+            context.logger.debug("Found %s total lists", len(all_lists))
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
             user_lists = all_lists
-            context.logger.info("Found %s user lists (including Kodi Favorites)", len(user_lists))
+            context.logger.debug("Found %s user lists (including Kodi Favorites)", len(user_lists))
 
             if not user_lists:
                 # No lists exist - show empty state instead of dialog
@@ -780,7 +780,7 @@ class ListsHandler:
     def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
         """Display contents of a specific list"""
         try:
-            context.logger.info("Displaying list %s", list_id)
+            context.logger.debug("Displaying list %s", list_id)
 
             # Check for custom parent path to fix navigation from search results
             parent_path = context.get_param('parent_path')
@@ -812,7 +812,7 @@ class ListsHandler:
             list_items = query_manager.get_list_items(list_id)
             context.logger.debug("Query manager returned %s items", len(list_items))
 
-            context.logger.info("List '%s' has %s items", list_info['name'], len(list_items))
+            context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
             # Show breadcrumb notification and render list
             # breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action("show_list", {"list_id": list_id}, self.query_manager)
@@ -947,7 +947,7 @@ class ListsHandler:
     def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Display contents of a specific folder"""
         try:
-            context.logger.info("Displaying folder %s", folder_id)
+            context.logger.debug("Displaying folder %s", folder_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -969,11 +969,11 @@ class ListsHandler:
 
             # Get subfolders in this folder
             subfolders = query_manager.get_all_folders(folder_id)
-            context.logger.info("Folder '%s' has %s subfolders", folder_info['name'], len(subfolders))
+            context.logger.debug("Folder '%s' has %s subfolders", folder_info['name'], len(subfolders))
 
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            context.logger.info("Folder '%s' (id=%s) has %s lists", folder_info['name'], folder_id, len(lists_in_folder))
+            context.logger.debug("Folder '%s' (id=%s) has %s lists", folder_info['name'], folder_id, len(lists_in_folder))
 
             # Debug: Log each list found
             for lst in lists_in_folder:

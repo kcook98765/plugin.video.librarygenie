@@ -234,7 +234,7 @@ class InfoHijackManager:
     def _handle_native_info_closed(self):
         """Handle the native info dialog being closed - trust Kodi's automatic navigation"""
         try:
-            self._logger.info("🔄 HIJACK STEP 5: Native info dialog closed, checking navigation state")
+            self._logger.debug("HIJACK STEP 5: Native info dialog closed, checking navigation state")
             
             # Wait for dialog closing animation to complete
             self._wait_for_animations_to_complete("after dialog close")
@@ -242,7 +242,7 @@ class InfoHijackManager:
             # Check current state after dialog close
             current_path = xbmc.getInfoLabel("Container.FolderPath")
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
-            self._logger.info(f"HIJACK: Current state after dialog close - Path: '{current_path}', Window: '{current_window}'")
+            self._logger.debug(f"HIJACK: Current state after dialog close - Path: '{current_path}', Window: '{current_window}'")
             
             # Check if we're on our own LibraryGenie hijack XSP content that needs navigation
             if self._is_on_librarygenie_hijack_xsp(current_path):
@@ -250,7 +250,7 @@ class InfoHijackManager:
                 
                 # Wait for all animations to complete before executing back
                 self._wait_for_animations_to_complete("XSP navigation")
-                self._logger.info("HIJACK: Executing back command to exit XSP")
+                self._logger.debug("HIJACK: Executing back command to exit XSP")
                 
                 # Single back command when animations are complete
                 xbmc.executebuiltin('Action(Back)')
@@ -260,7 +260,7 @@ class InfoHijackManager:
                 
                 final_path = xbmc.getInfoLabel("Container.FolderPath")
                 if final_path and 'plugin.video.librarygenie' in final_path:
-                    self._logger.info(f"HIJACK: ✅ Successfully returned to plugin: '{final_path}'")
+                    self._logger.debug(f"HIJACK: ✅ Successfully returned to plugin: '{final_path}'")
             else:
                 # Already back in plugin content - Kodi's navigation history worked correctly
                 if current_path and 'plugin.video.librarygenie' in current_path:
@@ -541,16 +541,16 @@ class InfoHijackManager:
         if is_animating: initial_state.append("window animation") 
         if is_inhibited: initial_state.append("system inhibited")
         
-        self._logger.info(f"HIJACK: Animation check {context} - initial state: {', '.join(initial_state) if initial_state else 'none detected'}")
+        self._logger.debug(f"HIJACK: Animation check {context} - initial state: {', '.join(initial_state) if initial_state else 'none detected'}")
         
         # If no animations detected initially, wait a bit anyway for dialog close animations
         if not (has_modal or is_animating or is_inhibited):
             if "after dialog close" in context:
-                self._logger.info(f"HIJACK: No animations detected but waiting 400ms for dialog close animation {context}")
+                self._logger.debug(f"HIJACK: No animations detected but waiting 400ms for dialog close animation {context}")
                 xbmc.sleep(400)
                 return True
             else:
-                self._logger.info(f"HIJACK: No animations detected {context}, proceeding immediately")
+                self._logger.debug(f"HIJACK: No animations detected {context}, proceeding immediately")
                 return True
         
         # Animation loop
