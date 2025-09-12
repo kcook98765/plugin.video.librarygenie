@@ -251,7 +251,7 @@ class PlaybackContextMenuHandler:
     """Handles context menu actions for playback"""
     
     def __init__(self, base_url: str, string_getter=None):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.playback_actions')
         self.base_url = base_url
         self.playback_handler = PlaybackActionHandler()
         self._get_string = string_getter or self._fallback_string_getter

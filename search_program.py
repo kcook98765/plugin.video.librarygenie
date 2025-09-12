@@ -13,9 +13,9 @@ import xbmcaddon
 
 from lib.ui.plugin_context import PluginContext
 from lib.ui.handler_factory import get_handler_factory
-from lib.utils.logger import get_logger
+from lib.utils.kodi_log import get_kodi_logger
 
-logger = get_logger(__name__)
+logger = get_kodi_logger('search_program')
 
 def show_program_menu():
     """Show program menu with Search and tools options"""
