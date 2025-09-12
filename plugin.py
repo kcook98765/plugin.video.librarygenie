@@ -67,9 +67,8 @@ def handle_signout():
 
 
 def handle_on_select(params: dict, addon_handle: int):
-    """Handle library item selection - play or show info based on user preference"""
+    """Handle library item selection - play media directly"""
     try:
-        from lib.config.config_manager import get_select_pref
         import re
 
         log("=== ON_SELECT HANDLER CALLED ===")
@@ -93,26 +92,11 @@ def handle_on_select(params: dict, addon_handle: int):
                 vdb = f'videodb://episodes/{dbid}'
         else:
             vdb = ""
-        pref = get_select_pref()  # 'play' or 'info'
+        log(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}")
 
-        # Get Kodi version using centralized utility
-        from lib.utils.kodi_version import get_kodi_major_version
-        kodi_major = get_kodi_major_version()
-
-        log(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
-
-        if pref == "play":
-            log_info(f"Playing media: {vdb}")
-            xbmc.executebuiltin(f'PlayMedia("{vdb}")')
-        else:
-            if kodi_major <= 19:
-                log_info("Opening DialogVideoInfo for videodb item (Matrix)")
-                xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb}",return)')
-            else:
-                log("Opening info dialog for focused item (Nexus+)")
-                xbmc.executebuiltin('Action(Info)')
-                # Optionally force DB context on v20+:
-                # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
+        # Always play the media directly
+        log_info(f"Playing media: {vdb}")
+        xbmc.executebuiltin(f'PlayMedia("{vdb}")')
 
         # Don’t render a directory for this action
         try:
