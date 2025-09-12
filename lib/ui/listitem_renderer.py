@@ -58,11 +58,11 @@ class ListItemRenderer:
             if kind == 'list':
                 # For "List" folders (user lists)
                 icon_name = 'list_playlist_icon.png'
-                thumb_name = 'list_playlist.png'
+                thumb_name = 'list_playlist.jpg'
             else:
                 # For "Folder" folders (organizational folders)
                 icon_name = 'list_folder_icon.png'
-                thumb_name = 'list_folder.png'
+                thumb_name = 'list_folder.jpg'
             
             icon = self._resource_path(icon_name)
             thumb = self._resource_path(thumb_name)
