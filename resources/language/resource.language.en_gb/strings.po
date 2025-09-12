@@ -1880,19 +1880,19 @@ msgid "LibraryGenie Setup"
 msgstr ""
 
 msgctxt "#35521"
-msgid "Movies and TV Episodes (Recommended)"
+msgid "Movies and TV Episodes (Recommended)\nFull functionality - create lists for all your media\nBest for: Users with both movies and TV shows"
 msgstr ""
 
 msgctxt "#35522"
-msgid "Movies Only"
+msgid "Movies Only\nScan and manage only your movie collection\nBest for: Movie-focused libraries or performance concerns"
 msgstr ""
 
 msgctxt "#35523"
-msgid "TV Episodes Only"
+msgid "TV Episodes Only\nScan and manage only your TV show episodes\nBest for: TV-focused libraries or performance concerns"
 msgstr ""
 
 msgctxt "#35524"
-msgid "Skip Setup (Configure Later)"
+msgid "Skip Setup (Configure Later)\nDon't scan anything now - set up manually in Settings\nBest for: Advanced users who want custom configuration"
 msgstr ""
 
 msgctxt "#35525"
@@ -1925,6 +1925,15 @@ msgstr ""
 
 msgctxt "#35532"
 msgid "Setup error - using default settings"
+msgstr ""
+
+# Welcome Dialog for Fresh Install
+msgctxt "#35540"
+msgid "Welcome to LibraryGenie!"
+msgstr ""
+
+msgctxt "#35541"
+msgid "Welcome to LibraryGenie!\n\nLibraryGenie creates smart lists and folders from your Kodi library. To get started, we need to scan your media library.\n\nChoose what type of content you'd like to manage:\n• Movies - Create lists of your favorite films\n• TV Episodes - Organize episodes by show, season, or theme\n• Both - Full functionality (recommended for most users)\n\nThe initial scan may take a few minutes but runs in the background. You can change these settings later in the addon configuration.\n\nPress OK to continue to setup options."
 msgstr ""
 
 # Lists Settings Help Text

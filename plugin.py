@@ -542,15 +542,19 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
             
         log_info("First run detected - showing setup modal")
         
-        # Show fresh install setup dialog
+        # Show welcome dialog first with explanation
         dialog = xbmcgui.Dialog()
         
-        # Create setup options with localized strings
+        # Show welcome/explanation dialog
+        dialog.ok(L(35540), L(35541))  # Welcome title and detailed explanation
+        
+        # Show fresh install setup dialog with enhanced options
+        # Create setup options with enhanced descriptions
         options = [
-            L(35521),  # "Movies and TV Episodes (Recommended)"
-            L(35522),  # "Movies Only"
-            L(35523),  # "TV Episodes Only"
-            L(35524)   # "Skip Setup (Configure Later)"
+            L(35521),  # Enhanced "Movies and TV Episodes (Recommended)" with description
+            L(35522),  # Enhanced "Movies Only" with description  
+            L(35523),  # Enhanced "TV Episodes Only" with description
+            L(35524)   # Enhanced "Skip Setup (Configure Later)" with description
         ]
         
         # Use compatible dialog.select parameters

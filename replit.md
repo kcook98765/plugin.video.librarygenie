@@ -13,6 +13,10 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 **2025-09-12**: 
+- **Enhanced First-Time Setup**: Implemented user-friendly two-step setup process with welcome dialog explaining LibraryGenie's purpose and enhanced option descriptions. Users now see clear explanations of each choice (Movies Only, TV Episodes Only, Both, Skip) with guidance on which option suits their needs and use cases. Setup flow includes performance considerations and mentions background processing.
+
+- **Debug Spam Elimination**: Completely removed excessive debug logging during sync operations including "Batch inserted X/Y", "JSON-RPC request: VideoLibrary.GetMovies", "Retrieved X movies", and "Added X episodes for show" messages. Replaced with prominent final count reports like "=== MOVIE SYNC COMPLETE: X movies successfully indexed ===" for clean, professional logging.
+
 - **Performance Optimization**: Surgically removed item count functionality and "show_item_counts" setting to eliminate N+1 query performance overhead for low-power devices. Removed all COUNT(*) operations from list/folder display while preserving legitimate validation queries. UI now displays lists and folders without item counts, resulting in faster menu rendering and reduced database load.
 
 **2025-09-12**: 
