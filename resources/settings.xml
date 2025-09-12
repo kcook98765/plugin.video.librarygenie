@@ -320,7 +320,7 @@
         <setting id="ai_search_authorize_action" type="action" label="30435" help="">
           <level>3</level>
           <dependencies>
-            <dependency type="enable" setting="remote_server_url" operator="isnot"></dependency>
+            <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
           </dependencies>
           <control type="button" format="action">
             <heading>30435</heading>
@@ -331,7 +331,7 @@
           <level>3</level>
           <default>false</default>
           <dependencies>
-            <dependency type="enable" setting="remote_server_url" operator="isnot"></dependency>
+            <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
           </dependencies>
           <control type="toggle"/>
         </setting>
