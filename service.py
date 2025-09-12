@@ -52,14 +52,14 @@ class LibraryGenieService:
         initial_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         self.logger.info("🔍 SERVICE INIT: Initial dialog state - ID: %s, VideoInfo active: %s", initial_dialog_id, initial_dialog_active)
 
-    def _show_notification(self, message: str, icon: int = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
+    def _show_notification(self, message: str, icon: str = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
         """Show a Kodi notification"""
         try:
             xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                message,
-                icon,
-                time_ms
+                heading="LibraryGenie",
+                message=message,
+                icon=icon,
+                time=time_ms
             )
         except Exception as e:
             self.logger.error("Failed to show notification: %s", e)

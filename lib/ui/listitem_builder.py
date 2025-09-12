@@ -177,7 +177,21 @@ class ListItemBuilder:
         elif media_type == 'episode':
             kodi_id = src.get('kodi_id') or src.get('episodeid')
         # Do NOT infer from generic 'id' to avoid misclassification
-        out['kodi_id'] = int(kodi_id) if isinstance(kodi_id, (int, float)) else (kodi_id if isinstance(kodi_id, int) else None)
+        # Fix: Properly handle numeric strings by trying to convert them to int
+        if kodi_id is not None:
+            if isinstance(kodi_id, (int, float)):
+                out['kodi_id'] = int(kodi_id)
+            else:
+                # Robust conversion for strings with whitespace or numeric formats
+                try:
+                    out['kodi_id'] = int(str(kodi_id).strip())
+                except (ValueError, TypeError):
+                    # Log when a potential library item fails conversion to help with debugging
+                    if src.get('movieid') or src.get('episodeid'):
+                        self.logger.debug("NORMALIZE: Library item with invalid kodi_id '%s' downgraded to external", kodi_id)
+                    out['kodi_id'] = None
+        else:
+            out['kodi_id'] = None
 
         # identity / titles
         out['title'] = src.get('title') or src.get('label') or 'Unknown'
