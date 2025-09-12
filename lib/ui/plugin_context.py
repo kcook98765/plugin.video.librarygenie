@@ -104,6 +104,24 @@ class PluginContext:
 
         query = "&".join(params)
         return f"{self.base_url}?{query}"
+    
+    def build_cache_busted_url(self, action: str, **kwargs) -> str:
+        """Build plugin URL with cache-busting refresh token"""
+        from .session_state import get_session_state
+        session_state = get_session_state()
+        
+        # Add refresh token for cache busting
+        kwargs['rt'] = session_state.get_refresh_token()
+        
+        return self.build_url(action, **kwargs)
+    
+    def add_cache_buster_to_url(self, url: str) -> str:
+        """Add cache-busting parameter to existing URL"""
+        from .session_state import get_session_state
+        session_state = get_session_state()
+        
+        separator = "&" if "?" in url else "?"
+        return f"{url}{separator}rt={session_state.get_refresh_token()}"
 
     def _generate_breadcrumb(self) -> Optional[str]:
         """Generate breadcrumb path for current context"""

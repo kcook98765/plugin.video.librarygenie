@@ -22,6 +22,12 @@ class SessionState:
         self._session_start = time.time()
         self.last_search_results: Optional[Dict[str, Any]] = None
         self.last_search_query: Optional[str] = None
+        
+        # Cache-busting refresh token
+        self._refresh_token = int(time.time() * 1000)  # Use milliseconds for uniqueness
+        
+        # Tools context tracking for better navigation
+        self.tools_return_location: Optional[str] = None
 
     def should_show_notification(self, notification_key: str, cooldown_seconds: int = 300) -> bool:
         """Check if a notification should be shown based on session state"""
@@ -48,6 +54,29 @@ class SessionState:
         """Clear all notification state"""
         self._notifications_shown.clear()
         self._last_notification_times.clear()
+    
+    def bump_refresh_token(self) -> int:
+        """Increment refresh token for cache-busting after operations"""
+        self._refresh_token += 1
+        self.logger.debug("Refresh token bumped to: %s", self._refresh_token)
+        return self._refresh_token
+    
+    def get_refresh_token(self) -> int:
+        """Get current refresh token"""
+        return self._refresh_token
+    
+    def set_tools_return_location(self, location: str):
+        """Set location to return to after tools operations"""
+        self.tools_return_location = location
+        self.logger.debug("Tools return location set to: %s", location)
+    
+    def get_tools_return_location(self) -> Optional[str]:
+        """Get location to return to after tools operations"""
+        return self.tools_return_location
+    
+    def clear_tools_return_location(self):
+        """Clear tools return location"""
+        self.tools_return_location = None
 
 
 # Global session state instance
