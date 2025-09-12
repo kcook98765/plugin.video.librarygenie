@@ -469,7 +469,7 @@ class ListItemRenderer:
         """
         try:
             # Container hygiene - set content type appropriately for skin layouts/overlays
-            self.logger.info("RENDERER DIRECTORY: Starting render of %s items with content_type='%s'", len(items), content_type)
+            self.logger.debug("RENDERER DIRECTORY: Starting render of %s items with content_type='%s'", len(items), content_type)
             self.logger.debug("RENDERER DIRECTORY: Setting content type '%s' for handle %s", content_type, self.addon_handle)
             xbmcplugin.setContent(self.addon_handle, content_type)
 
@@ -511,7 +511,7 @@ class ListItemRenderer:
                 except Exception as e:
                     self.logger.error("RENDERER DIRECTORY: Error building item #%s '%s': %s", idx, item.get('title', 'Unknown'), e)
 
-            self.logger.info("RENDERER DIRECTORY: Successfully added %s/%s items to directory", success_count, len(items))
+            self.logger.debug("RENDERER DIRECTORY: Successfully added %s/%s items to directory", success_count, len(items))
             self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=True, cacheToDisc=True)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return True

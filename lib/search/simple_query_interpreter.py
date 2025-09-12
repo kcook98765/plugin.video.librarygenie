@@ -42,7 +42,7 @@ class SimpleQueryInterpreter:
                 original_input = user_input.strip()
                 # Use normalizer to get clean tokens
                 query.keywords = self.normalizer.normalize_tokens(original_input)
-                self.logger.info("DEBUG: Query parsing - original input: '%s', normalized keywords: %s", original_input, query.keywords)
+                self.logger.debug("DEBUG: Query parsing - original input: '%s', normalized keywords: %s", original_input, query.keywords)
 
             self.logger.debug("Parsed simple query: %s", query.to_dict())
             return query
