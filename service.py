@@ -591,10 +591,8 @@ class LibraryGenieService:
                 if result and result.get('success'):
                     results = result.get('results', {})
                     self.logger.info(
-                        f"Batch {batch_num} sync completed: "
-                        f"{results.get('added', 0)} added, "
-                        f"{results.get('already_present', 0)} existing, "
-                        f"{results.get('invalid', 0)} invalid"
+                        "Batch %s sync completed: %s added, %s existing, %s invalid",
+                        batch_num, results.get('added', 0), results.get('already_present', 0), results.get('invalid', 0)
                     )
 
                     # Show progress notification for significant batches
@@ -613,7 +611,7 @@ class LibraryGenieService:
 
                 # Rate limiting: 1 second wait between batches
                 if batch_num < total_batches and not self.sync_stop_event.is_set():
-                    self.logger.debug(f"Waiting 1 second before next batch...")
+                    self.logger.debug("Waiting 1 second before next batch...")
                     self.sync_stop_event.wait(1)
 
             self.logger.info("AI search synchronization completed")
