@@ -10,14 +10,14 @@ import os
 import xbmcvfs
 import xbmcaddon
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class StorageManager:
     """Manages file system paths and storage locations using Kodi addon methods"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.data.storage_manager')
         self._addon = xbmcaddon.Addon()
 
     def get_database_path(self):

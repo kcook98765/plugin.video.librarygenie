@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Tuple
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 import xbmcvfs
 import xbmcaddon
@@ -21,7 +21,7 @@ class StorageManager:
     """Manages file storage for import/export operations"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.import_export.storage_manager')
         self._profile_path = None
         self.addon = xbmcaddon.Addon() # Initialize addon here
 

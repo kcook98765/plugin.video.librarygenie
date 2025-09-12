@@ -15,7 +15,7 @@ import xbmcvfs
 
 from ..data import get_query_manager
 from ..data.connection_manager import get_connection_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..config import get_config
 from .favorites_parser import Phase4FavoritesParser
 from ..data.list_library_manager import get_list_library_manager
@@ -25,7 +25,7 @@ class Phase4FavoritesManager:
     """Phase 4: Enhanced favorites manager with reliable mapping and batch processing"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.kodi.favorites_manager')
         self.query_manager = get_query_manager()
         self.conn_manager = get_connection_manager()
         self.config = get_config()

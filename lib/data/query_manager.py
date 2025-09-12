@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 
 from .connection_manager import get_connection_manager
 from .migrations import get_migration_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class QueryManager:
@@ -20,7 +20,7 @@ class QueryManager:
     RESERVED_FOLDERS = ["Search History"]
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.data.query_manager')
         self.connection_manager = get_connection_manager()
         self.migration_manager = get_migration_manager()
         self._initialized = False

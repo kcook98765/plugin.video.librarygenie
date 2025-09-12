@@ -8,7 +8,7 @@ Handles authorization prompts and user guidance for OTP-based auth
 """
 
 import xbmcgui
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from .state import is_authorized, get_api_key, clear_auth_data
 from .otp_auth import run_otp_authorization_flow, test_api_connection, is_api_key_valid
 from ..config import get_config
@@ -18,7 +18,7 @@ class AuthorizationHelper:
     """Helper for managing OTP-based authorization UX"""
 
     def __init__(self, string_getter=None):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.auth.auth_helper')
         self._get_string = string_getter or (lambda x: f"String {x}")
 
     def check_authorization_or_prompt(self, feature_name: str = "AI search") -> bool:

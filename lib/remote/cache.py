@@ -10,7 +10,7 @@ import json
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..data.connection_manager import get_connection_manager
 
 
@@ -18,7 +18,7 @@ class RemoteCache:
     """Local cache for remote API results"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.remote.cache')
         self.conn_manager = get_connection_manager()
         self._ensure_cache_table()
 

@@ -12,7 +12,7 @@ import xbmcaddon
 from typing import Any, Dict, Optional, Union
 
 from .config_manager import get_config
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..ui.localization import L
 
 class SettingsManager:
@@ -20,7 +20,7 @@ class SettingsManager:
 
     def __init__(self):
         self.addon = xbmcaddon.Addon()
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.config.settings')
 
     # General Settings
     def get_debug_logging(self) -> bool:

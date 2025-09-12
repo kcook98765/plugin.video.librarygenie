@@ -13,7 +13,7 @@ from typing import List, Dict, Set, Any, Optional, Callable
 from ..data import QueryManager
 from ..data.connection_manager import get_connection_manager
 from ..kodi.json_rpc_client import get_kodi_client
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..utils.kodi_version import get_kodi_major_version
 from ..config.settings import SettingsManager
 
@@ -23,7 +23,7 @@ class LibraryScanner:
     """Scans and indexes Kodi's video library"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.library.scanner')
         self.query_manager = QueryManager()
         self.kodi_client = get_kodi_client()
         self.conn_manager = get_connection_manager()

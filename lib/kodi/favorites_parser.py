@@ -15,14 +15,14 @@ from urllib.parse import unquote
 
 import xbmcvfs
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class Phase4FavoritesParser:
     """Phase 4: Rock-solid favorites parser with robust XML handling and path normalization"""
     
     def __init__(self, test_file_path: Optional[str] = None):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.kodi.favorites_parser')
         self.test_file_path = test_file_path
     
     def find_favorites_file(self) -> Optional[str]:

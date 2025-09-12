@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional
 from urllib.parse import urljoin, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..config.settings import get_phase12_remote_settings
 
 
@@ -20,7 +20,7 @@ class RemoteHTTPClient:
     """Safe HTTP client for remote API integration"""
     
     def __init__(self, base_url: str, api_key: Optional[str] = None, **options):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.remote.http_client')
         self.base_url = base_url.rstrip('/')
         self.api_key = api_key
         

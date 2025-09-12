@@ -40,33 +40,45 @@ class KodiLogger:
     def __init__(self, name=None):
         self.name = name or "LibraryGenie"
     
-    def debug(self, message, *args):
+    def debug(self, message, *args, **kwargs):
         """Debug-level logging with %-style formatting support"""
         if args:
             message = message % args
         xbmc.log(f"[{self.name}] {message}", xbmc.LOGDEBUG)
     
-    def info(self, message, *args):
+    def info(self, message, *args, **kwargs):
         """Info-level logging with %-style formatting support"""
         if args:
             message = message % args
         xbmc.log(f"[{self.name}] {message}", xbmc.LOGINFO)
     
-    def warning(self, message, *args):
+    def warning(self, message, *args, **kwargs):
         """Warning-level logging with %-style formatting support"""
         if args:
             message = message % args
+        # Handle exc_info for traceback inclusion
+        if kwargs.get('exc_info'):
+            import traceback
+            message += f"\nTraceback: {traceback.format_exc()}"
         xbmc.log(f"[{self.name}] {message}", xbmc.LOGWARNING)
     
-    def error(self, message, *args):
+    def error(self, message, *args, **kwargs):
         """Error-level logging with %-style formatting support"""
         if args:
             message = message % args
+        # Handle exc_info for traceback inclusion
+        if kwargs.get('exc_info'):
+            import traceback
+            message += f"\nTraceback: {traceback.format_exc()}"
         xbmc.log(f"[{self.name}] {message}", xbmc.LOGERROR)
     
-    def exception(self, message, *args):
-        """Exception logging (same as error for Kodi)"""
-        self.error(message, *args)
+    def exception(self, message, *args, **kwargs):
+        """Exception logging - always includes traceback"""
+        if args:
+            message = message % args
+        import traceback
+        message += f"\nTraceback: {traceback.format_exc()}"
+        xbmc.log(f"[{self.name}] {message}", xbmc.LOGERROR)
     
     # Backward compatibility alias
     warn = warning

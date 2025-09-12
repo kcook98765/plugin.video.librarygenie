@@ -10,11 +10,11 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 
 from ..data.connection_manager import get_connection_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..config.settings import SettingsManager
 
 
-logger = get_logger(__name__)
+logger = get_kodi_logger('lib.auth.state')
 
 
 def is_authorized() -> bool:

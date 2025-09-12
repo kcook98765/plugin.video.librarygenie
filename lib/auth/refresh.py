@@ -9,9 +9,9 @@ OAuth2 refresh token functionality is no longer used.
 """
 
 import warnings
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
-logger = get_logger(__name__)
+logger = get_kodi_logger('lib.auth.refresh')
 
 def refresh_access_token():
     """

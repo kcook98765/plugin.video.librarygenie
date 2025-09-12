@@ -6,7 +6,7 @@ LibraryGenie - TV Episode Sync Helper
 Compatibility layer for TV episode sync with new SyncController architecture
 """
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 def on_tv_episode_sync_enabled():
@@ -14,7 +14,7 @@ def on_tv_episode_sync_enabled():
     Compatibility function for TV episode sync activation.
     Now redirects to SyncController for unified sync management.
     """
-    logger = get_logger(__name__)
+    logger = get_kodi_logger('lib.config.tv_sync_helper')
     logger.info("TV episode sync requested - using new SyncController")
     
     try:
@@ -54,7 +54,7 @@ def trigger_tv_sync():
     Note: This respects current user settings - may sync both movies and TV if both are enabled.
     Renamed from trigger_episodes_only_sync to accurately reflect behavior.
     """
-    logger = get_logger(__name__)
+    logger = get_kodi_logger('lib.config.tv_sync_helper')
     logger.info("TV sync requested - delegating to SyncController")
     
     try:
@@ -87,6 +87,6 @@ def trigger_episodes_only_sync():
     Legacy compatibility function - now delegates to trigger_tv_sync.
     DEPRECATED: Use trigger_tv_sync() which more accurately describes the behavior.
     """
-    logger = get_logger(__name__)
+    logger = get_kodi_logger('lib.config.tv_sync_helper')
     logger.warning("trigger_episodes_only_sync is deprecated - use trigger_tv_sync instead")
     return trigger_tv_sync()

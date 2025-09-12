@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Tuple
 from .simple_search_query import SimpleSearchQuery
 from .normalizer import get_text_normalizer
 from ..data import get_connection_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class SimpleSearchResult:
@@ -40,7 +40,7 @@ class SimpleSearchEngine:
     """Simple search engine with ranking based on title vs plot matches"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.search.simple_search_engine')
         self.conn_manager = get_connection_manager()
         self.normalizer = get_text_normalizer()
 

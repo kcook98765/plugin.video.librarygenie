@@ -11,14 +11,14 @@ from typing import List
 
 from .simple_search_query import SimpleSearchQuery
 from .normalizer import get_text_normalizer
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class SimpleQueryInterpreter:
     """Simple query interpreter focusing on keyword extraction"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.search.simple_query_interpreter')
         self.normalizer = get_text_normalizer()
 
     def parse_query(self, user_input: str, **kwargs) -> SimpleSearchQuery:

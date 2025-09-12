@@ -11,14 +11,14 @@ from typing import Dict, Any, Optional, List
 
 import xbmc
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class KodiJsonRpcClient:
     """Client for safely communicating with Kodi's JSON-RPC API"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.kodi.json_rpc_client')
         self.page_size = 100  # Safe page size for large libraries
 
     def get_movies(self, offset: int = 0, limit: Optional[int] = None) -> Dict[str, Any]:

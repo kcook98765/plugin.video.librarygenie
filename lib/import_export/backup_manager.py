@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 from .export_engine import get_export_engine
 from .storage_manager import get_storage_manager
 from ..config import get_config
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..config.settings import SettingsManager
 from ..data import get_query_manager
 from ..data.connection_manager import get_connection_manager
@@ -22,7 +22,7 @@ class BackupManager:
     """Manages automatic backups with scheduling and retention"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.import_export.backup_manager')
         self.export_engine = get_export_engine()
         self.storage_manager = get_storage_manager()
         self.config = get_config()
