@@ -190,7 +190,6 @@ class ConfigManager:
         
         # Comprehensive list of all backup-related settings
         bool_settings = [
-            "debug_logging",
             "background_task_enabled",
             "confirm_destructive_actions",
             "show_item_counts",
