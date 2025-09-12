@@ -1058,7 +1058,7 @@ msgid "Automatically refresh authentication tokens"
 msgstr ""
 
 msgctxt "#32087"
-msgid "Use native Kodi Info for library items"
+msgid "Use experimental Native Kodi Video Info"
 msgstr ""
 
 msgctxt "#32088"
@@ -2040,7 +2040,7 @@ msgstr ""
 
 # UI Settings Help Text  
 msgctxt "#35545"
-msgid "Replaces the default movie information screen with LibraryGenie's enhanced interface."
+msgid "Attempts to show full library information including cast. When disabled, video info will have limited content."
 msgstr ""
 
 # Export Settings
