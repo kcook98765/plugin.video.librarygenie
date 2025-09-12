@@ -5,6 +5,6 @@
 LibraryGenie - Utils Package
 """
 
-from .logger import get_logger
+from .kodi_log import get_kodi_logger
 
-__all__ = ["get_logger"]
+__all__ = ["get_kodi_logger"]
