@@ -114,9 +114,9 @@ class ConfigManager:
                 # Use defaults dict fallback if available, otherwise use provided default
                 from ..utils.logger import get_logger
                 logger = get_logger(__name__)
-                logger.error(f"CONFIG_DEBUG: String fallback also failed for '{key}': {type(e2).__name__}: {e2}")
+                logger.error(f"String fallback also failed for '{key}': {type(e2).__name__}: {e2}")
                 fallback = self._defaults.get(key, default)
-                logger.debug(f"CONFIG_DEBUG: Final fallback for '{key}': {fallback}")
+
                 return fallback
 
     def get_int(self, key, default=0):
@@ -124,36 +124,31 @@ class ConfigManager:
         try:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.debug(f"CONFIG_DEBUG: Getting int setting '{key}' (default: {default})")
             
             # First try getSettingInt
             result = self._addon.getSettingInt(key)
-            logger.debug(f"CONFIG_DEBUG: getSettingInt('{key}') returned: {result}")
             return result
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.warning(f"CONFIG_DEBUG: getSettingInt('{key}') failed: {e}")
+            logger.warning(f"getSettingInt('{key}') failed: {e}")
             
             try:
                 # Fallback to string and convert
                 str_value = self._addon.getSettingString(key)
-                logger.debug(f"CONFIG_DEBUG: String fallback for int '{key}': '{str_value}'")
                 
                 if str_value and str_value.strip():
                     result = int(str_value.strip())
-                    logger.debug(f"CONFIG_DEBUG: Converted '{str_value}' to {result} for '{key}'")
                     return result
                 else:
                     fallback = self._defaults.get(key, default)
-                    logger.debug(f"CONFIG_DEBUG: Empty string, using fallback for '{key}': {fallback}")
                     return fallback
             except (ValueError, TypeError) as e2:
                 from ..utils.logger import get_logger
                 logger = get_logger(__name__)
-                logger.error(f"CONFIG_DEBUG: String conversion failed for '{key}': {e2}")
+                logger.error(f"String conversion failed for '{key}': {e2}")
                 fallback = self._defaults.get(key, default)
-                logger.debug(f"CONFIG_DEBUG: Final fallback for '{key}': {fallback}")
+
                 return fallback
 
     def get_float(self, key, default=0.0):
@@ -170,28 +165,23 @@ class ConfigManager:
             logger = get_logger(__name__)
             
             setting_type = self._get_setting_type(key)
-            logger.debug(f"CONFIG_DEBUG: Setting '{key}' = '{value}' (type: {setting_type})")
             
             if setting_type == "bool":
                 result = self._addon.setSettingBool(key, value)
-                logger.debug(f"CONFIG_DEBUG: setSettingBool('{key}', {value}) returned: {result}")
                 return result
             elif setting_type == "int":
                 result = self._addon.setSettingInt(key, value)
-                logger.debug(f"CONFIG_DEBUG: setSettingInt('{key}', {value}) returned: {result}")
                 return result
             elif setting_type == "number":
                 result = self._addon.setSettingNumber(key, value)
-                logger.debug(f"CONFIG_DEBUG: setSettingNumber('{key}', {value}) returned: {result}")
                 return result
             else:
                 result = self._addon.setSettingString(key, str(value))
-                logger.debug(f"CONFIG_DEBUG: setSettingString('{key}', '{str(value)}') returned: {result}")
                 return result
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.error(f"CONFIG_DEBUG: Exception setting '{key}' = '{value}': {e}")
+            logger.error(f"Exception setting '{key}' = '{value}': {e}")
             return False
 
     def _get_setting_type(self, key):
@@ -251,29 +241,19 @@ class ConfigManager:
             "ai_search_server_url", "ai_search_api_key", "export_location"
         ]
 
-        logger.debug(f"CONFIG_DEBUG: Analyzing setting type for '{key}'")
-        logger.debug(f"CONFIG_DEBUG: Is '{key}' in bool_settings? {key in bool_settings}")
-        logger.debug(f"CONFIG_DEBUG: Is '{key}' in int_settings? {key in int_settings}")
-        logger.debug(f"CONFIG_DEBUG: Is '{key}' in select_settings? {key in select_settings}")
-        logger.debug(f"CONFIG_DEBUG: Is '{key}' in string_settings? {key in string_settings}")
 
         if key in bool_settings:
-            logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as bool type")
             return "bool"
         elif key in int_settings:
-            logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as int type")
             return "int"
         elif key in float_settings:
-            logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as number type")
             return "number"
         elif key in select_settings:
-            logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as int type (select)")
             return "int"  # Select controls store integer indexes
         elif key in string_settings:
-            logger.debug(f"CONFIG_DEBUG: Setting '{key}' identified as string type")
             return "string"
         else:
-            logger.warning(f"CONFIG_DEBUG: Setting '{key}' not found in any type list, defaulting to string type")
+            logger.warning(f"Setting '{key}' not found in any type list, defaulting to string type")
             return "string"
 
     def get_background_interval_seconds(self) -> int:
