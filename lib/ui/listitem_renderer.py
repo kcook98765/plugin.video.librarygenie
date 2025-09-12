@@ -11,7 +11,7 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 from .listitem_builder import ListItemBuilder
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from .localization import L
 from ..utils.kodi_version import get_kodi_major_version, is_kodi_v21_plus
 
@@ -23,7 +23,7 @@ class ListItemRenderer:
         """Initialize ListItemRenderer"""
         self.addon_handle = addon_handle
         self.addon_id = addon_id
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.listitem_renderer')
         self.builder = ListItemBuilder(addon_handle, addon_id, context)
 
     def _translate_path(self, path: str) -> str:

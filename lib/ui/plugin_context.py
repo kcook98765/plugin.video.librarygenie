@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl
 from typing import Dict, Any, Optional
 
 import xbmcaddon
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..auth.state import is_authorized
 
 
@@ -29,7 +29,7 @@ class PluginContext:
 
         # Shared resources
         self.addon = xbmcaddon.Addon()
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.plugin_context')
 
         # Cache auth state
         self._auth_state = None

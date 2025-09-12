@@ -53,8 +53,8 @@ class DialogResponse:
     def __post_init__(self):
         """Debug post-initialization"""
         try:
-            from ..utils.logger import get_logger
-            logger = get_logger(__name__)
+            from ..utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.ui.response_types')
             logger.debug("DEBUG: DialogResponse created - success=%s, message='%s'", self.success, self.message)
         except Exception:
             pass  # Don't let logging errors break the response

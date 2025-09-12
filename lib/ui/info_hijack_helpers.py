@@ -10,11 +10,11 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..utils.kodi_version import get_version_specific_control_id
 from .localization import L
 
-logger = get_logger(__name__)
+logger = get_kodi_logger('lib.ui.info_hijack_helpers')
 
 LOG_PREFIX = "[LG.Hijack]"
 LIST_ID = 50

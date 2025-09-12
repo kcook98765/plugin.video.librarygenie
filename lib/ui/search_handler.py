@@ -22,7 +22,7 @@ from ..search import get_simple_search_engine, get_simple_query_interpreter
 from ..data.query_manager import get_query_manager
 from ..data.connection_manager import get_connection_manager
 from ..search.simple_search_engine import SimpleSearchEngine
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from .localization import L
 from .menu_builder import MenuBuilder
 
@@ -37,7 +37,7 @@ class SearchHandler:
 
     def __init__(self, addon_handle: Optional[int] = None):
         self.addon_handle = addon_handle
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.search_handler')
         self.query_manager = get_query_manager()
         self.conn_manager = get_connection_manager()
         self.search_engine = SimpleSearchEngine()
