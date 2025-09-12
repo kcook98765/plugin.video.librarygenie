@@ -9,10 +9,10 @@ Renders list items with proper Kodi integration
 from typing import List, Dict, Any, Optional
 import xbmcgui
 import xbmcplugin
+import xbmcvfs
 from .listitem_builder import ListItemBuilder
 from ..utils.logger import get_logger
 from .localization import L
-from ..utils.kodi_version import get_kodi_major_version, is_kodi_v21_plus
 
 
 class ListItemRenderer:
@@ -26,23 +26,8 @@ class ListItemRenderer:
         self.builder = ListItemBuilder(addon_handle, addon_id, context)
 
     def _translate_path(self, path: str) -> str:
-        """Translate path based on Kodi version"""
-        kodi_major = get_kodi_major_version()
-        if kodi_major >= 20:
-            try:
-                import xbmcvfs
-                return xbmcvfs.translatePath(path)
-            except (ImportError, AttributeError):
-                # Fallback for older versions
-                import xbmc
-                return xbmc.translatePath(path)
-        else:
-            try:
-                import xbmc
-                return xbmc.translatePath(path)
-            except (ImportError, AttributeError):
-                # Last resort fallback
-                return path
+        """Translate path using Kodi V19+ API"""
+        return xbmcvfs.translatePath(path)
 
     def _resource_path(self, name: str) -> str:
         """Get absolute path to addon resource"""
