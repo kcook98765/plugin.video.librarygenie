@@ -952,17 +952,6 @@ msgstr ""
 
 
 # Enum Setting Options
-msgctxt "#35100"
-msgid "Select Action"
-msgstr ""
-
-msgctxt "#35101"
-msgid "Play"
-msgstr ""
-
-msgctxt "#35102"
-msgid "Information"
-msgstr ""
 
 msgctxt "#35014"
 msgid "Search"
@@ -1860,9 +1849,6 @@ msgctxt "#35503"
 msgid "Shows visual indicators for movies that are missing from your library but exist in lists."
 msgstr ""
 
-msgctxt "#35504"
-msgid "Choose the default action when selecting items from the library browser."
-msgstr ""
 
 msgctxt "#35505"
 msgid "Automatically detects when movies are added or removed from your Kodi library in the background."
