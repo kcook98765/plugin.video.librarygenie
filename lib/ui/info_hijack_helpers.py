@@ -120,125 +120,75 @@ def _wait_for_info_dialog(timeout=10.0):
     return False
 
 def verify_list_focus() -> bool:
-    """Check if list control is already focused using configured control lists"""
-    
+    """Simple check if we're in a list view using Container.Viewmode"""
     try:
-        from ..config.settings import SettingsManager
-        settings = SettingsManager()
-        down_controls, right_controls = settings.get_parsed_control_lists()
+        view_mode = xbmc.getInfoLabel("Container.Viewmode").lower().strip()
         
-        # Combine all configured controls
-        all_controls = list(set(down_controls + right_controls))
+        if not view_mode:
+            _log("No viewmode detected - assuming we're in a list view")
+            return True
+            
+        # Define view types
+        VERTICAL_VIEWS = {"list", "widelist", "lowlist", "bannerlist", "biglist", 
+                         "infolist", "detaillist", "episodes", "songs"}
+        HORIZONTAL_VIEWS = {"wall", "poster", "panel", "thumbs", "iconwall", "fanart",
+                           "shift", "showcase", "thumbnails", "icons", "grid", "wrap"}
         
-        # Fallback to common defaults if no controls configured
-        if not all_controls:
-            all_controls = [50, 55, 500, 52]
-            _log("No controls configured - using fallback defaults for focus check")
+        # Check if we're in any recognizable view type
+        in_list_view = (view_mode in VERTICAL_VIEWS or view_mode in HORIZONTAL_VIEWS or
+                       any(v in view_mode for v in VERTICAL_VIEWS | HORIZONTAL_VIEWS))
         
-        for control_id in all_controls:
-            if xbmc.getCondVisibility(f"Control.HasFocus({control_id})"):
-                _log(f"List control {control_id} already has focus (automatic)")
-                return True
-        
-        _log("No configured list control has focus - need to set focus manually")
-        return False
+        _log(f"verify_list_focus: viewmode='{view_mode}', in_list_view={in_list_view}")
+        return in_list_view
         
     except Exception as e:
-        _log(f"Error in verify_list_focus: {e} - using fallback", xbmc.LOGWARNING)
-        # Fallback to legacy behavior
-        for control_id in [50, 55, 500, 52]:
-            if xbmc.getCondVisibility(f"Control.HasFocus({control_id})"):
-                _log(f"List control {control_id} already has focus (fallback)")
-                return True
-        return False
+        _log(f"Error in verify_list_focus: {e} - assuming we're in a list view", xbmc.LOGWARNING)
+        return True
 
-def focus_list_manual(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
-    """Manually focus the main list control using intelligent skin-aware control selection"""
+def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms: int = 100) -> bool:
+    """Simple list navigation using view orientation detection instead of control ID guessing"""
     t_focus_start = time.perf_counter()
 
     try:
-        from ..config.settings import SettingsManager
-        settings = SettingsManager()
-        down_controls, right_controls = settings.get_parsed_control_lists()
+        view_mode = xbmc.getInfoLabel("Container.Viewmode").lower().strip()
+        _log(f"focus_list_manual: Detected viewmode = '{view_mode}'")
         
-        # Combine all configured controls, prioritizing down then right
-        control_ids_to_try = down_controls + right_controls
+        # Define view types
+        VERTICAL_VIEWS = {"list", "widelist", "lowlist", "bannerlist", "biglist", 
+                         "infolist", "detaillist", "episodes", "songs"}
+        HORIZONTAL_VIEWS = {"wall", "poster", "panel", "thumbs", "iconwall", "fanart",
+                           "shift", "showcase", "thumbnails", "icons", "grid", "wrap"}
         
-        # Remove duplicates while preserving order
-        seen = set()
-        deduped_controls = []
-        for cid in control_ids_to_try:
-            if cid not in seen:
-                seen.add(cid)
-                deduped_controls.append(cid)
-        control_ids_to_try = deduped_controls
-        
-        # Add specific control_id if provided and not already in list
-        if control_id and control_id not in control_ids_to_try:
-            control_ids_to_try.insert(0, control_id)
-        
-        # Fallback to common defaults if no controls configured
-        if not control_ids_to_try:
-            preset = settings.get_skin_control_preset()
-            _log(f"No controls configured for preset '{preset}' - using fallback defaults", xbmc.LOGWARNING)
-            control_ids_to_try = [55, 500, 50, 52]  # Common defaults
-        
-        # Calculate how many complete rounds we can do
-        max_rounds = max(1, tries // len(control_ids_to_try))
-        
-        preset = settings.get_skin_control_preset()
-        _log(f"focus_list_manual: Using preset '{preset}' with controls {control_ids_to_try} for up to {max_rounds} rounds")
-
-        for round_num in range(max_rounds):
-            _log(f"Starting round {round_num + 1}/{max_rounds}")
-
-            for cid in control_ids_to_try:
-                _log(f"Trying control ID {cid}")
-                xbmc.executebuiltin(f"SetFocus({cid})")
-
-                if xbmc.getCondVisibility(f"Control.HasFocus({cid})"):
-                    t_focus_end = time.perf_counter()
-                    _log(f"Successfully focused control {cid} on round {round_num + 1} (took {t_focus_end - t_focus_start:.3f}s)")
-                    return True
-
-                xbmc.sleep(step_ms)
-
-        # Provide helpful guidance on failure
-        t_focus_end = time.perf_counter()
-        preset = settings.get_skin_control_preset()
-        
-        if preset == "auto":
-            _log("Auto-detect failed - try selecting a specific skin preset in Settings > Skin Controls", xbmc.LOGWARNING)
-        elif preset == "custom":
-            _log("Custom control configuration failed - check Settings > Skin Controls and verify control IDs", xbmc.LOGWARNING)
+        # Determine navigation direction
+        if view_mode in VERTICAL_VIEWS or any(v in view_mode for v in VERTICAL_VIEWS):
+            navigation_action = "Action(Down)"
+            orientation = "vertical"
+        elif view_mode in HORIZONTAL_VIEWS or any(v in view_mode for v in HORIZONTAL_VIEWS):
+            navigation_action = "Action(Right)"
+            orientation = "horizontal"
         else:
-            _log(f"Preset '{preset}' controls failed - skin may have changed, try Auto-Detect or Custom", xbmc.LOGWARNING)
-            
-        _log(f"Failed to focus any control after {max_rounds} rounds (tried {control_ids_to_try}) - total time: {t_focus_end - t_focus_start:.3f}s", xbmc.LOGWARNING)
-        return False
+            # Unknown view mode - try Down first (most common)
+            navigation_action = "Action(Down)"
+            orientation = "unknown"
+            _log(f"Unknown viewmode '{view_mode}' - defaulting to Down navigation")
+        
+        _log(f"focus_list_manual: Using {navigation_action} for {orientation} view")
+        
+        # Send navigation action
+        for attempt in range(tries):
+            _log(f"Attempt {attempt + 1}: Sending {navigation_action}")
+            xbmc.executebuiltin(navigation_action)
+            xbmc.sleep(step_ms)
+        
+        t_focus_end = time.perf_counter()
+        _log(f"focus_list_manual: Completed navigation in {t_focus_end - t_focus_start:.3f}s")
+        return True
         
     except Exception as e:
-        _log(f"Error in focus_list_manual: {e} - falling back to legacy behavior", xbmc.LOGERROR)
-        # Fallback to legacy hardcoded approach
-        if control_id is None:
-            control_id = get_version_specific_control_id()
-        
-        control_ids_to_try = [control_id, 55, 500, 50, 52]
-        control_ids_to_try = list(dict.fromkeys(control_ids_to_try))  # Remove duplicates
-        
-        max_rounds = max(1, tries // len(control_ids_to_try))
-        
-        for round_num in range(max_rounds):
-            for cid in control_ids_to_try:
-                xbmc.executebuiltin(f"SetFocus({cid})")
-                if xbmc.getCondVisibility(f"Control.HasFocus({cid})"):
-                    t_focus_end = time.perf_counter()
-                    _log(f"Successfully focused control {cid} via fallback (took {t_focus_end - t_focus_start:.3f}s)")
-                    return True
-                xbmc.sleep(step_ms)
-                
         t_focus_end = time.perf_counter()
-        _log(f"Fallback focus failed after {max_rounds} rounds - total time: {t_focus_end - t_focus_start:.3f}s", xbmc.LOGWARNING)
+        _log(f"Error in focus_list_manual: {e} - trying fallback Down action (took {t_focus_end - t_focus_start:.3f}s)", xbmc.LOGERROR)
+        # Simple fallback
+        xbmc.executebuiltin("Action(Down)")
         return False
 
 def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
