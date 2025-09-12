@@ -45,7 +45,6 @@ class ConfigManager:
             "device_name": "Kodi",
             "auth_poll_seconds": 3,
             # UI behavior settings
-            "select_action": "0",  # Default to play action
         }
 
     def get(self, key, default=None):
@@ -350,7 +349,6 @@ class ConfigManager:
 
         # Select settings (stored as integer indexes)
         select_settings = [
-            "select_action",
             "backup_storage_type",
             "backup_interval"
         ]
@@ -441,32 +439,6 @@ class ConfigManager:
         """Get database busy timeout in milliseconds"""
         return self.get_int("db_busy_timeout_ms", 3000)
 
-    def get_select_action(self) -> str:
-        """Get the select action preference: 'play' or 'info'"""
-        try:
-            # For select type settings, try getSettingInt first (most reliable for select controls)
-            try:
-                index = self._addon.getSettingInt("select_action")
-                return "info" if index == 1 else "play"
-            except Exception:
-                # Fallback to string method
-                raw_value = self._addon.getSettingString("select_action")
-                if raw_value and raw_value.strip():
-                    try:
-                        # Convert string index to preference
-                        index = int(raw_value.strip())
-                        return "info" if index == 1 else "play"
-                    except (ValueError, TypeError):
-                        # If not a number, check string value directly
-                        if raw_value.strip().lower() in ["info", "1"]:
-                            return "info"
-
-            # Safe default if setting not found or invalid
-            return "play"
-
-        except Exception:
-            # Ultimate fallback
-            return "play"
 
     def enable_favorites_integration(self) -> bool:
         """Enable favorites integration and trigger immediate scan"""
@@ -677,7 +649,3 @@ def get_config() -> ConfigManager:
     return _CFG
 
 
-def get_select_pref() -> str:
-    """Get the select action preference: 'play' or 'info' - convenience function"""
-    config = get_config()
-    return config.get_select_action()
