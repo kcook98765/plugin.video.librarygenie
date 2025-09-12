@@ -13,6 +13,9 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes
 
 **2025-09-12**: 
+- **Performance Optimization**: Surgically removed item count functionality and "show_item_counts" setting to eliminate N+1 query performance overhead for low-power devices. Removed all COUNT(*) operations from list/folder display while preserving legitimate validation queries. UI now displays lists and folders without item counts, resulting in faster menu rendering and reduced database load.
+
+**2025-09-12**: 
 - **Complete Fresh Install Re-Architecture**: Transformed sync system from auto-trigger monitoring to user-controlled sync with professional, non-blocking experience:
   - **Fresh Install Modal**: User-friendly setup dialog with Movies/TV Episodes/Both/Skip options replacing blocking library scans
   - **Service-Orchestrated Sync**: Background service manages sync operations using GlobalSyncLock for cross-process duplicate prevention
