@@ -33,24 +33,13 @@ class SyncController:
         return not self.settings.get_first_run_completed()
 
     def complete_first_run_setup(self, sync_movies: bool = True, sync_tv_episodes: bool = False) -> None:
-        """Complete first run setup with user's sync preferences and auto-configure skin controls"""
+        """Complete first run setup with user's sync preferences"""
         try:
             self.logger.info("Completing first run setup - Movies: %s, TV: %s", sync_movies, sync_tv_episodes)
             
             # Set user preferences
             self.settings.set_sync_movies(sync_movies)
             self.settings.set_sync_tv_episodes(sync_tv_episodes)
-            
-            # NEW: Auto-detect and configure skin controls on first run
-            if not self.settings.get_skin_controls_configured():
-                self.logger.info("Auto-detecting skin for control configuration...")
-                skin_detected = self.settings.detect_and_configure_skin_controls()
-                self.settings.set_skin_controls_configured(True)
-                
-                if skin_detected:
-                    self.logger.info("Skin auto-detection successful - controls configured automatically")
-                else:
-                    self.logger.info("Unknown skin detected - using fallback control configuration")
             
             # Mark first run as completed
             self.settings.set_first_run_completed(True)
