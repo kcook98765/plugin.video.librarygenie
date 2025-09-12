@@ -136,18 +136,22 @@ class ListsHandler:
                         item['is_folder']
                     )
 
+                # Smart caching: Allow cache for navigation, fresh after operations
+                enable_caching = not context.get_param('rt')  # No cache if refresh token present
+
                 # End directory
                 xbmcplugin.endOfDirectory(
                     context.addon_handle,
                     succeeded=True,
                     updateListing=False,
-                    cacheToDisc=True
+                    cacheToDisc=enable_caching
                 )
 
                 return DirectoryResponse(
                     items=menu_items,
                     success=True,
-                    cache_to_disc=True,
+                    cache_to_disc=enable_caching,
+                    allow_caching=enable_caching,
                     content_type="files"
                 )
 
@@ -306,18 +310,22 @@ class ListsHandler:
                     item['is_folder']
                 )
 
+            # Smart caching: Allow cache for navigation, fresh after operations
+            enable_caching = not context.get_param('rt')  # No cache if refresh token present
+
             # End directory
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=True,
                 updateListing=False,
-                cacheToDisc=True
+                cacheToDisc=enable_caching
             )
 
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=True,
+                cache_to_disc=enable_caching,
+                allow_caching=enable_caching,
                 content_type="files"
             )
 
@@ -1120,18 +1128,22 @@ class ListsHandler:
                     item['is_folder']
                 )
 
+            # Smart caching: Allow cache for navigation, fresh after operations
+            enable_caching = not context.get_param('rt')  # No cache if refresh token present
+
             # End directory
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=True,
                 updateListing=False,
-                cacheToDisc=True
+                cacheToDisc=enable_caching
             )
 
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=True,
+                cache_to_disc=enable_caching,
+                allow_caching=enable_caching,
                 content_type="files"
             )
 
