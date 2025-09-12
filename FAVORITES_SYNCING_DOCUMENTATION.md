@@ -427,12 +427,6 @@ else:
 
 ### 2. Debug Information
 
-**Enable Debug Logging:**
-```python
-# In addon settings
-debug_enabled = config.get_bool("debug_logging_enabled")
-```
-
 **Key Log Messages:**
 - File location and accessibility
 - XML parsing success/failure
