@@ -120,6 +120,12 @@ class SyncController:
             message = self._format_sync_results(results, duration)
             
             success = len(results['errors']) == 0 or (results['movies'] > 0 or results['episodes'] > 0)
+            
+            # Record sync completion time for cooldown logic
+            if success:
+                self.settings.set_last_sync_time(int(time.time()))
+                self.logger.debug("Recorded sync completion time for cooldown tracking")
+            
             return success, message
 
         except Exception as e:
@@ -210,15 +216,41 @@ class SyncController:
             raise
 
     def _should_perform_periodic_sync(self) -> bool:
-        """Check if periodic sync should be performed based on library changes"""
+        """Check if periodic sync should be performed based on cooldown and library changes"""
         try:
-            # If library change tracking is disabled, always sync
-            if not self.settings.get_track_library_changes():
-                return True
+            import time
+            
+            # Get sync frequency and last sync time
+            sync_frequency_hours = self.settings.get_sync_frequency_hours()
+            last_sync_time = self.settings.get_last_sync_time()
+            current_time = int(time.time())
+            
+            # Calculate time since last sync
+            if last_sync_time > 0:
+                hours_since_last_sync = (current_time - last_sync_time) / 3600
                 
-            # Check for library changes since last scan
-            # This would integrate with existing library change detection logic
-            # For now, return True to ensure sync happens
+                if hours_since_last_sync < sync_frequency_hours:
+                    self.logger.debug(
+                        "Skipping periodic sync - only %.1f hours since last sync (frequency: %d hours)",
+                        hours_since_last_sync, sync_frequency_hours
+                    )
+                    return False
+                    
+                self.logger.debug(
+                    "Sync cooldown passed - %.1f hours since last sync (frequency: %d hours)",
+                    hours_since_last_sync, sync_frequency_hours
+                )
+            else:
+                self.logger.debug("No previous sync time recorded - allowing periodic sync")
+            
+            # If library change tracking is disabled, sync after cooldown
+            if not self.settings.get_track_library_changes():
+                self.logger.debug("Library change tracking disabled - performing periodic sync")
+                return True
+            
+            # TODO: In future, could add actual library change detection here
+            # For now, proceed with sync after cooldown period
+            self.logger.debug("Performing periodic sync after cooldown period")
             return True
             
         except Exception as e:
