@@ -10,11 +10,6 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="show_item_counts" type="boolean" label="30022" help="35502">
-          <level>0</level>
-          <default>true</default>
-          <control type="toggle"/>
-        </setting>
         <setting id="show_missing_indicators" type="boolean" label="30043" help="35503">
           <level>0</level>
           <default>true</default>
