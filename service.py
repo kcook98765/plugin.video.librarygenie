@@ -206,7 +206,7 @@ class LibraryGenieService:
                     (interval_reached and something_interesting)  # Only log intervals when something is happening
                 )
 
-                if should_log and self.settings.get_debug_logging():
+                if should_log:  # Using direct Kodi logging - no custom debug check needed
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
                     container_path = xbmc.getInfoLabel('Container.FolderPath')
                     mode_str = "HIJACK" if hijack_mode else "IDLE"

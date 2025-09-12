@@ -9,7 +9,6 @@ Entry point for plugin operations and routing
 from __future__ import annotations
 
 import sys
-import logging
 import xbmcgui
 import xbmcaddon
 import xbmcplugin
@@ -240,9 +239,9 @@ def _diagnose_logging(logger):
     """Diagnose logging configuration to help with troubleshooting"""
     try:
         config = get_config()
-        debug_enabled = config.get_bool("debug_logging", False)
+        # Using direct Kodi logging - no custom debug settings needed
 
-        logger.info("LOGGING DIAGNOSIS: addon debug_logging setting = %s", debug_enabled)
+        logger.info("LOGGING DIAGNOSIS: Using direct Kodi logging throughout")
         logger.info("LOGGING DIAGNOSIS: KodiLogger now routes directly to xbmc.log")
         logger.info("LOGGING DIAGNOSIS: Using direct Kodi logging for maximum efficiency")
 

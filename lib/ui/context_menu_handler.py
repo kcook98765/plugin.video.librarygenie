@@ -1,13 +1,13 @@
 import json
 import os
 import sys
-import logging
+from ..utils.kodi_log import get_kodi_logger
 
 # Import localization function
 from .localization import L
 
 # Set up logging
-log = logging.getLogger(__name__)
+log = get_kodi_logger('lib.ui.context_menu_handler')
 
 # Define the default plugin name
 DEFAULT_PLUGIN_NAME = "Library Genie"
