@@ -18,6 +18,7 @@
     <setting id="manual_library_sync" type="action" label="30035" help="35509" action="RunPlugin(plugin://plugin.video.librarygenie/?action=manual_library_sync)"/>
     <setting id="first_run_completed" type="bool" visible="false" default="false"/>
     <setting id="last_sync_time" type="number" visible="false" default="0" option="int"/>
+    <setting id="initial_sync_requested" type="bool" visible="false" default="false"/>
 
   </category>
 
