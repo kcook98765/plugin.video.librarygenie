@@ -7,6 +7,7 @@ Reads Kodi settings and manages addon configuration
 """
 
 import xbmcaddon
+import threading
 from typing import Optional, Dict, Any
 
 
@@ -15,6 +16,10 @@ class ConfigManager:
 
     def __init__(self):
         self._addon = xbmcaddon.Addon()
+        
+        # Thread-safe cache for settings
+        self._cache: Dict[str, Any] = {}
+        self._cache_lock = threading.RLock()
 
         # Default configuration matching Phase 2-3 requirements
         self._defaults = {
