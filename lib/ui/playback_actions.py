@@ -262,7 +262,7 @@ class PlaybackContextMenuHandler:
         try:
             kodi_id = int(kodi_id)
         except (ValueError, TypeError):
-            self.logger.error(f"Invalid kodi_id for playback action: {kodi_id}")
+            self.logger.error("Invalid kodi_id for playback action: %s", kodi_id)
             return False
         
         success = False
@@ -289,11 +289,11 @@ class PlaybackContextMenuHandler:
             success = self.playback_handler.show_movie_info(kodi_id)
         
         else:
-            self.logger.warning(f"Unknown playback action: {action}")
+            self.logger.warning("Unknown playback action: %s", action)
             return False
         
         if success:
-            self.logger.info(f"Successfully handled playback action: {action} for movie {kodi_id}")
+            self.logger.info("Successfully handled playback action: %s for movie %s", action, kodi_id)
         
         return success
     
