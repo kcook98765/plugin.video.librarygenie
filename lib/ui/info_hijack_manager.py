@@ -5,6 +5,7 @@ import xbmc
 import xbmcgui
 import time
 
+from ..utils.kodi_log import log, log_info, log_error, log_warning, get_kodi_logger
 from .info_hijack_helpers import open_native_info_fast, restore_container_after_close, _log
 
 class InfoHijackManager:
@@ -17,8 +18,9 @@ class InfoHijackManager:
     
     This prevents performance issues by not doing heavy operations during dialog opening.
     """
-    def __init__(self, logger):
-        self._logger = logger
+    def __init__(self, logger=None):
+        # Using KodiLogger compatibility adapter for seamless migration
+        self._logger = logger or get_kodi_logger('lib.ui.info_hijack_manager')
         self._in_progress = False
         self._native_info_was_open = False
         self._cooldown_until = 0.0
@@ -64,16 +66,16 @@ class InfoHijackManager:
             if (dialog_active, current_dialog_id) != self._last_dialog_state:
                 # Only log state changes involving our hijacked dialogs or when we have a native dialog open
                 if self._native_info_was_open or dialog_active or last_active:
-                    self._logger.debug("HIJACK DIALOG STATE CHANGE: active=%s, id=%s (was %s)", dialog_active, current_dialog_id, self._last_dialog_state)
+                    log(f"HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
             
             # PRIMARY DETECTION: dialog was active, now not active, and we had a native info open
             if last_active and not dialog_active and self._native_info_was_open:
-                self._logger.debug("HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
+                log("HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
                 try:
                     self._handle_native_info_closed()
-                    self._logger.debug("HIJACK STEP 5 COMPLETE: Navigation back to plugin completed")
+                    log("HIJACK STEP 5 COMPLETE: Navigation back to plugin completed")
                 except Exception as e:
-                    self._logger.error("❌ HIJACK STEP 5 FAILED: Navigation error: %s", e)
+                    log_error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
                 finally:
                     self._native_info_was_open = False
                 
@@ -86,12 +88,12 @@ class InfoHijackManager:
         
         # SECONDARY DETECTION: fallback for missed state changes (also always check)
         if not dialog_active and self._native_info_was_open:
-            self._logger.debug("HIJACK STEP 5: NATIVE INFO DIALOG CLOSED (fallback detection) - initiating navigation back to plugin")
+            log("HIJACK STEP 5: NATIVE INFO DIALOG CLOSED (fallback detection) - initiating navigation back to plugin")
             try:
                 self._handle_native_info_closed()
-                self._logger.debug("HIJACK STEP 5 COMPLETE: Navigation back to plugin completed (fallback)")
+                log("HIJACK STEP 5 COMPLETE: Navigation back to plugin completed (fallback)")
             except Exception as e:
-                self._logger.error("❌ HIJACK STEP 5 FAILED: Navigation error (fallback): %s", e)
+                log_error(f"❌ HIJACK STEP 5 FAILED: Navigation error (fallback): {e}")
             finally:
                 self._native_info_was_open = False
             
@@ -116,10 +118,10 @@ class InfoHijackManager:
                 container_path = xbmc.getInfoLabel('Container.FolderPath')
                 
                 # Debug: Always log dialog detection with armed state
-                self._logger.debug("🔍 HIJACK DIALOG DETECTED: armed=%s, label='%s', container='%s'", armed, listitem_label, (container_path[:50] + '...' if container_path else 'None'))
+                log(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}', container='{(container_path[:50] + '...' if container_path else 'None')}'")
                 
                 if armed:
-                    self._logger.debug("HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
+                    log("HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
                     
                     # Get hijack data
                     listitem_label = xbmc.getInfoLabel('ListItem.Label')
@@ -132,7 +134,7 @@ class InfoHijackManager:
                     dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
                     
                     if dbid and dbtype:
-                        self._logger.debug("HIJACK: Target - DBID=%s, DBType=%s, Label='%s'", dbid, dbtype, listitem_label)
+                        log(f"HIJACK: Target - DBID={dbid}, DBType={dbtype}, Label='{listitem_label}'")
                         
                         # Mark as in progress to prevent re-entry
                         self._in_progress = True
@@ -140,25 +142,25 @@ class InfoHijackManager:
                         
                         try:
                             # 💾 STEP 1: TRUST KODI NAVIGATION HISTORY
-                            self._logger.debug("HIJACK STEP 1: Using Kodi's navigation history (no saving needed)")
-                            self._logger.debug("HIJACK STEP 1 COMPLETE: Navigation history will handle return")
+                            log("HIJACK STEP 1: Using Kodi's navigation history (no saving needed)")
+                            log("HIJACK STEP 1 COMPLETE: Navigation history will handle return")
                             
                             # 🚪 STEP 2: CLOSE CURRENT DIALOG
-                            self._logger.debug("HIJACK STEP 2: CLOSING CURRENT DIALOG")
+                            log("HIJACK STEP 2: CLOSING CURRENT DIALOG")
                             initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
                             xbmc.executebuiltin('Action(Back)')
                             
                             # Monitor for dialog actually closing instead of fixed sleep
                             if self._wait_for_dialog_close("Step 2 dialog close", initial_dialog_id, max_wait=1.0):
-                                self._logger.debug("HIJACK STEP 2 COMPLETE: Dialog closed")
+                                log("HIJACK STEP 2 COMPLETE: Dialog closed")
                             else:
-                                self._logger.warning("⚠️ HIJACK STEP 2: Dialog close timeout, proceeding anyway")
+                                log_warning("⚠️ HIJACK STEP 2: Dialog close timeout, proceeding anyway")
                             
                             # Convert dbid to int safely
                             try:
                                 dbid_int = int(dbid)
                             except (ValueError, TypeError):
-                                self._logger.error("HIJACK: Invalid DBID '%s' - cannot convert to integer", dbid)
+                                log_error(f"HIJACK: Invalid DBID '{dbid}' - cannot convert to integer")
                                 return
                             
                             # 🚀 STEP 3: OPEN NATIVE INFO VIA XSP

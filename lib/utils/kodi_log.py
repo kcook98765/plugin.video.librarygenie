@@ -32,3 +32,46 @@ def log_info(message):
 def log_warning(message):
     """Warning logging shorthand"""
     xbmc.log(f"[LibraryGenie] {message}", xbmc.LOGWARNING)
+
+
+class KodiLogger:
+    """Compatibility adapter that mimics Python logging API but routes to direct Kodi logging"""
+    
+    def __init__(self, name=None):
+        self.name = name or "LibraryGenie"
+    
+    def debug(self, message, *args):
+        """Debug-level logging with %-style formatting support"""
+        if args:
+            message = message % args
+        xbmc.log(f"[{self.name}] {message}", xbmc.LOGDEBUG)
+    
+    def info(self, message, *args):
+        """Info-level logging with %-style formatting support"""
+        if args:
+            message = message % args
+        xbmc.log(f"[{self.name}] {message}", xbmc.LOGINFO)
+    
+    def warning(self, message, *args):
+        """Warning-level logging with %-style formatting support"""
+        if args:
+            message = message % args
+        xbmc.log(f"[{self.name}] {message}", xbmc.LOGWARNING)
+    
+    def error(self, message, *args):
+        """Error-level logging with %-style formatting support"""
+        if args:
+            message = message % args
+        xbmc.log(f"[{self.name}] {message}", xbmc.LOGERROR)
+    
+    def exception(self, message, *args):
+        """Exception logging (same as error for Kodi)"""
+        self.error(message, *args)
+    
+    # Backward compatibility alias
+    warn = warning
+
+
+def get_kodi_logger(name=None):
+    """Factory function to create KodiLogger instances"""
+    return KodiLogger(name)

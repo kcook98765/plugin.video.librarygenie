@@ -7,14 +7,14 @@ Provides lazy instantiation of handlers to improve plugin startup performance
 """
 
 from typing import Dict, Optional, Any, Callable
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class HandlerFactory:
     """Factory class for lazy handler instantiation"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.handler_factory')
         self._handler_cache: Dict[str, Any] = {}
         # Added context attribute, assuming it will be set elsewhere or passed during initialization
         self.context: Optional[Any] = None

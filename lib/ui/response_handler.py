@@ -12,14 +12,14 @@ import xbmcplugin
 from typing import Any
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class ResponseHandler:
     """Handles standardized processing of response types"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.response_handler')
 
     def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> None:
         """Handle DialogResponse by showing messages and performing actions"""

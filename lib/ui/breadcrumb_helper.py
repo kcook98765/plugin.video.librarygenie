@@ -7,14 +7,14 @@ Generates breadcrumb navigation paths for UI context
 """
 
 from typing import Optional
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class BreadcrumbHelper:
     """Helper class for generating breadcrumb navigation paths"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.breadcrumb_helper')
 
 
     def get_breadcrumb_for_action(self, action: str, context_params: dict, query_manager=None) -> Optional[str]:
