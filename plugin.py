@@ -17,13 +17,12 @@ import xbmcplugin
 from lib.ui.plugin_context import PluginContext
 from lib.ui.router import Router
 from lib.ui.handler_factory import get_handler_factory
-from lib.utils.logger import get_logger
+from lib.utils.kodi_log import log, log_info, log_error, log_warning
 
 # Import required functions
 from lib.auth.auth_helper import get_auth_helper
 
-# Get logger instance
-logger = get_logger(__name__)
+# Using direct Kodi logging via lib.utils.kodi_log
 
 
 def handle_authorize():
@@ -73,9 +72,9 @@ def handle_on_select(params: dict, addon_handle: int):
         from lib.config.config_manager import get_select_pref
         import re
 
-        logger.debug("=== ON_SELECT HANDLER CALLED ===")
-        logger.debug("Handling on_select with params: %s", params)
-        logger.debug("Addon handle: %s", addon_handle)
+        log("=== ON_SELECT HANDLER CALLED ===")
+        log(f"Handling on_select with params: {params}")
+        log(f"Addon handle: {addon_handle}")
 
         dbtype = params.get("dbtype", "movie")
         dbid = int(params.get("dbid", "0"))
@@ -100,17 +99,17 @@ def handle_on_select(params: dict, addon_handle: int):
         from lib.utils.kodi_version import get_kodi_major_version
         kodi_major = get_kodi_major_version()
 
-        logger.debug("on_select: dbtype=%s, dbid=%s, videodb_path=%s, preference=%s, kodi_major=%s", dbtype, dbid, vdb, pref, kodi_major)
+        log(f"on_select: dbtype={dbtype}, dbid={dbid}, videodb_path={vdb}, preference={pref}, kodi_major={kodi_major}")
 
         if pref == "play":
-            logger.info("Playing media: %s", vdb)
+            log_info(f"Playing media: {vdb}")
             xbmc.executebuiltin(f'PlayMedia("{vdb}")')
         else:
             if kodi_major <= 19:
-                logger.info("Opening DialogVideoInfo for videodb item (Matrix)")
+                log_info("Opening DialogVideoInfo for videodb item (Matrix)")
                 xbmc.executebuiltin(f'ActivateWindow(DialogVideoInfo,"{vdb}",return)')
             else:
-                logger.debug("Opening info dialog for focused item (Nexus+)")
+                log("Opening info dialog for focused item (Nexus+)")
                 xbmc.executebuiltin('Action(Info)')
                 # Optionally force DB context on v20+:
                 # xbmc.executebuiltin(f'ActivateWindow(VideoInformation,"{vdb}",return)')
@@ -122,9 +121,9 @@ def handle_on_select(params: dict, addon_handle: int):
             pass
 
     except Exception as e:
-        logger.error("Error in handle_on_select: %s", e)
+        log_error(f"Error in handle_on_select: {e}")
         import traceback
-        logger.error("on_select error traceback: %s", traceback.format_exc())
+        log_error(f"on_select error traceback: {traceback.format_exc()}")
         try:
             xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
         except Exception:
@@ -140,14 +139,14 @@ def handle_on_select(params: dict, addon_handle: int):
 
 def handle_settings():
     """Handle settings menu"""
-    logger.info("Opening addon settings")
+    log_info("Opening addon settings")
     xbmcaddon.Addon().openSettings()
 
 
 def _handle_test_backup(context: PluginContext):
     """Handle backup configuration test from settings"""
     try:
-        logger.info("Testing backup configuration from settings")
+        log_info("Testing backup configuration from settings")
 
         from lib.import_export import get_timestamp_backup_manager
         backup_manager = get_timestamp_backup_manager()
@@ -164,7 +163,7 @@ def _handle_test_backup(context: PluginContext):
             xbmcgui.Dialog().ok("Backup Test Failed", f"Test failed:\n{error_msg}")
 
     except Exception as e:
-        logger.error("Error in test backup handler: %s", e)
+        log_error(f"Error in test backup handler: {e}")
         xbmcgui.Dialog().ok("Backup Test Error", f"Test error: {str(e)}")
 
     # Don't render directory for settings actions
@@ -178,7 +177,7 @@ def _handle_test_backup(context: PluginContext):
 def _handle_manual_backup(context: PluginContext):
     """Handle manual backup from settings"""
     try:
-        logger.info("Running manual backup from settings")
+        log_info("Running manual backup from settings")
 
         from lib.import_export import get_timestamp_backup_manager
         backup_manager = get_timestamp_backup_manager()
@@ -200,7 +199,7 @@ def _handle_manual_backup(context: PluginContext):
             xbmcgui.Dialog().ok("Manual Backup Failed", f"Backup failed:\n{error_msg}")
 
     except Exception as e:
-        logger.error("Error in manual backup handler: %s", e)
+        log_error(f"Error in manual backup handler: {e}")
         xbmcgui.Dialog().ok("Manual Backup Error", f"Backup error: {str(e)}")
 
     # Don't render directory for settings actions
@@ -229,7 +228,7 @@ def _handle_restore_backup(context: PluginContext):
             response_handler.handle_dialog_response(response, context)
 
     except Exception as e:
-        logger.error("Error in restore backup handler: %s", e)
+        log_error(f"Error in restore backup handler: {e}")
         xbmcgui.Dialog().ok("Restore Backup Error", f"An error occurred: {str(e)}")
 
     # Don't render directory for settings actions
@@ -244,45 +243,45 @@ def handle_shortlist_import():
     """Handle ShortList import action from settings"""
     import xbmcgui
 
-    logger.info("=== SHORTLIST IMPORT HANDLER CALLED ===")
+    log_info("=== SHORTLIST IMPORT HANDLER CALLED ===")
 
     try:
-        logger.info("Starting ShortList import process")
+        log_info("Starting ShortList import process")
 
         # Show confirmation dialog
         dialog = xbmcgui.Dialog()
 
         from lib.ui.localization import L
 
-        logger.info("Showing confirmation dialog")
+        log_info("Showing confirmation dialog")
         if not dialog.yesno(
             L(30071),  # "Import from ShortList addon"
             L(37000) + "\n" + L(37001),  # Combined message
             nolabel=L(36003),  # "Cancel"
             yeslabel=L(37002)  # "Continue"
         ):
-            logger.info("User cancelled ShortList import")
+            log_info("User cancelled ShortList import")
             return
 
-        logger.info("User confirmed import, proceeding...")
+        log_info("User confirmed import, proceeding...")
 
         # Show progress dialog
         progress = xbmcgui.DialogProgress()
         progress.create("ShortList Import", "Checking ShortList addon...")
         progress.update(10)
 
-        logger.info("Attempting to get ShortList importer instance...")
+        log_info("Attempting to get ShortList importer instance...")
         try:
             from lib.import_export.shortlist_importer import get_shortlist_importer
-            logger.info("Successfully imported get_shortlist_importer function")
+            log_info("Successfully imported get_shortlist_importer function")
 
             importer = get_shortlist_importer()
-            logger.info("Successfully got importer instance: %s", type(importer))
+            log_info(f"Successfully got importer instance: {type(importer)}")
 
         except Exception as import_e:
-            logger.error("Error importing or getting ShortList importer: %s", import_e)
+            log_error(f"Error importing or getting ShortList importer: {import_e}")
             import traceback
-            logger.error("Import error traceback: %s", traceback.format_exc())
+            log_error(f"Import error traceback: {traceback.format_exc()}")
             progress.close()
             dialog.notification(
                 "LibraryGenie",
@@ -293,10 +292,10 @@ def handle_shortlist_import():
             return
 
         # Check if ShortList is available
-        logger.info("Checking if ShortList addon is installed...")
+        log_info("Checking if ShortList addon is installed...")
         try:
             is_installed = importer.is_shortlist_installed()
-            logger.info("ShortList installed check result: %s", is_installed)
+            log_info(f"ShortList installed check result: {is_installed}")
 
             if not is_installed:
                 progress.close()
@@ -308,9 +307,9 @@ def handle_shortlist_import():
                 )
                 return
         except Exception as check_e:
-            logger.error("Error checking ShortList installation: %s", check_e)
+            log_error(f"Error checking ShortList installation: {check_e}")
             import traceback
-            logger.error("Check error traceback: %s", traceback.format_exc())
+            log_error(f"Check error traceback: {traceback.format_exc()}")
             progress.close()
             dialog.notification(
                 "LibraryGenie",
@@ -322,16 +321,16 @@ def handle_shortlist_import():
 
         progress.update(30, "Scanning ShortList data...")
 
-        logger.info("About to call importer.import_shortlist_items()")
-        logger.info("Importer type: %s", type(importer))
-        logger.info("Importer instance: %s", importer)
+        log_info("About to call importer.import_shortlist_items()")
+        log_info(f"Importer type: {type(importer)}")
+        log_info(f"Importer instance: {importer}")
 
         # Check if the method exists
         if hasattr(importer, 'import_shortlist_items'):
-            logger.info("import_shortlist_items method exists: %s", importer.import_shortlist_items)
-            logger.info("import_shortlist_items callable: %s", callable(importer.import_shortlist_items))
+            log_info(f"import_shortlist_items method exists: {importer.import_shortlist_items}")
+            log_info(f"import_shortlist_items callable: {callable(importer.import_shortlist_items)}")
         else:
-            logger.error("import_shortlist_items method does not exist on importer!")
+            log_error("import_shortlist_items method does not exist on importer!")
             progress.close()
             dialog.notification(
                 "LibraryGenie",
@@ -342,39 +341,39 @@ def handle_shortlist_import():
             return
 
         # Perform the import
-        logger.info("=== CALLING IMPORT METHOD ===")
+        log_info("=== CALLING IMPORT METHOD ===")
         try:
-            logger.info("Calling import_shortlist_items method...")
+            log_info("Calling import_shortlist_items method...")
             result = importer.import_shortlist_items()
-            logger.info("=== IMPORT METHOD COMPLETED ===")
-            logger.info("Import result type: %s", type(result))
-            logger.info("Import result: %s", result)
+            log_info("=== IMPORT METHOD COMPLETED ===")
+            log_info(f"Import result type: {type(result)}")
+            log_info(f"Import result: {result}")
         except TypeError as te:
-            logger.error("=== IMPORT METHOD TYPEERROR ===")
-            logger.error("TypeError calling import_shortlist_items: %s", te)
+            log_error("=== IMPORT METHOD TYPEERROR ===")
+            log_error(f"TypeError calling import_shortlist_items: {te}")
             import traceback
-            logger.error("TypeError traceback: %s", traceback.format_exc())
+            log_error(f"TypeError traceback: {traceback.format_exc()}")
 
             # Try to get more info about the method signature
             import inspect
             try:
                 sig = inspect.signature(importer.import_shortlist_items)
-                logger.error("Method signature: %s", sig)
+                log_error(f"Method signature: {sig}")
             except Exception as sig_e:
-                logger.error("Could not get method signature: %s", sig_e)
+                log_error(f"Could not get method signature: {sig_e}")
 
             raise
         except Exception as e:
-            logger.error("=== IMPORT METHOD ERROR ===")
-            logger.error("Error calling import_shortlist_items: %s", e)
+            log_error("=== IMPORT METHOD ERROR ===")
+            log_error(f"Error calling import_shortlist_items: {e}")
             import traceback
-            logger.error("Import method traceback: %s", traceback.format_exc())
+            log_error(f"Import method traceback: {traceback.format_exc()}")
             raise
 
         progress.update(100, "Import complete!")
         progress.close()
 
-        logger.info("Processing import results...")
+        log_info("Processing import results...")
         if result.get("success"):
             message = (
                 f"Import completed!\n"
@@ -383,17 +382,17 @@ def handle_shortlist_import():
                 f"Unmapped: {result.get('items_unmapped', 0)} items"
             )
             dialog.ok("ShortList Import", message)
-            logger.info("ShortList import completed successfully")
+            log_info("ShortList import completed successfully")
         else:
             error_msg = result.get("error", "Unknown error occurred")
             dialog.ok("ShortList Import", f"Import failed: {error_msg}")
-            logger.error("ShortList import failed: %s", error_msg)
+            log_error(f"ShortList import failed: {error_msg}")
 
     except Exception as e:
-        logger.error("=== SHORTLIST HANDLER EXCEPTION ===")
-        logger.error("ShortList import handler error: %s", e)
+        log_error("=== SHORTLIST HANDLER EXCEPTION ===")
+        log_error(f"ShortList import handler error: {e}")
         import traceback
-        logger.error("Handler exception traceback: %s", traceback.format_exc())
+        log_error(f"Handler exception traceback: {traceback.format_exc()}")
 
         try:
             progress.close()
@@ -421,14 +420,14 @@ def handle_noop():
 def _ensure_startup_initialization(context: PluginContext):
     """Ensure critical startup initialization is completed"""
     try:
-        logger.debug("=== STARTUP INITIALIZATION ===")
+        log("=== STARTUP INITIALIZATION ===")
         
         # Check if favorites integration is enabled
         favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
-        logger.debug("Favorites integration enabled: %s", favorites_enabled)
+        log(f"Favorites integration enabled: {favorites_enabled}")
         
         if favorites_enabled:
-            logger.debug("Favorites integration is enabled - ensuring Kodi Favorites list exists")
+            log("Favorites integration is enabled - ensuring Kodi Favorites list exists")
             
             # Use context query manager for consistency
             query_manager = context.query_manager
@@ -442,27 +441,27 @@ def _ensure_startup_initialization(context: PluginContext):
                     
                     if not kodi_list:
                         # Create the Kodi Favorites list since it doesn't exist
-                        logger.info("STARTUP: Creating 'Kodi Favorites' list - setting is enabled but list doesn't exist")
+                        log_info("STARTUP: Creating 'Kodi Favorites' list - setting is enabled but list doesn't exist")
                         
                         try:
                             from lib.config.favorites_helper import on_favorites_integration_enabled
                             on_favorites_integration_enabled()
-                            logger.info("STARTUP: Successfully ensured 'Kodi Favorites' list exists")
+                            log_info("STARTUP: Successfully ensured 'Kodi Favorites' list exists")
                         except Exception as e:
-                            logger.error("STARTUP: Failed to create 'Kodi Favorites' list: %s", e)
+                            log_error(f"STARTUP: Failed to create 'Kodi Favorites' list: {e}")
                     else:
-                        logger.debug("STARTUP: 'Kodi Favorites' list already exists with ID %s", kodi_list['id'])
+                        log(f"STARTUP: 'Kodi Favorites' list already exists with ID {kodi_list['id']}")
             else:
-                logger.warning("STARTUP: Could not initialize query manager for startup check")
+                log_warning("STARTUP: Could not initialize query manager for startup check")
         else:
-            logger.debug("STARTUP: Favorites integration is disabled - skipping Kodi Favorites list check")
+            log("STARTUP: Favorites integration is disabled - skipping Kodi Favorites list check")
             
-        logger.debug("=== STARTUP INITIALIZATION COMPLETE ===")
+        log("=== STARTUP INITIALIZATION COMPLETE ===")
         
     except Exception as e:
-        logger.error("STARTUP: Error during startup initialization: %s", e)
+        log_error(f"STARTUP: Error during startup initialization: {e}")
         import traceback
-        logger.error("STARTUP: Initialization error traceback: %s", traceback.format_exc())
+        log_error(f"STARTUP: Initialization error traceback: {traceback.format_exc()}")
         # Don't fail the plugin startup for initialization issues
         pass
 
@@ -470,9 +469,9 @@ def _ensure_startup_initialization(context: PluginContext):
 def main():
     """Main plugin entry point using new modular architecture"""
 
-    logger.debug("=== PLUGIN INVOCATION (REFACTORED) ===")
-    logger.debug("Full sys.argv: %s", sys.argv)
-    logger.debug("Using modular handler architecture")
+    log("=== PLUGIN INVOCATION (REFACTORED) ===")
+    log(f"Full sys.argv: {sys.argv}")
+    log("Using modular handler architecture")
 
     try:
         # Create plugin context from request
@@ -500,9 +499,9 @@ def main():
             main_menu_handler.show_main_menu(context)
 
     except Exception as e:
-        logger.error("Fatal error in plugin main: %s", e)
+        log_error(f"Fatal error in plugin main: {e}")
         import traceback
-        logger.error("Main error traceback: %s", traceback.format_exc())
+        log_error(f"Main error traceback: {traceback.format_exc()}")
 
         # Try to show error to user if possible
         try:
@@ -524,11 +523,11 @@ def _log_window_state(context: PluginContext):
         container_path = xbmc.getInfoLabel("Container.FolderPath")
         container_label = xbmc.getInfoLabel("Container.FolderName")
 
-        context.logger.debug("Window state at plugin entry:")
-        context.logger.debug("  Current window: %s", current_window)
-        context.logger.debug("  Current control: %s", current_control)
-        context.logger.debug("  Container path: %s", container_path)
-        context.logger.debug("  Container label: %s", container_label)
+        log("Window state at plugin entry:")
+        log(f"  Current window: {current_window}")
+        log(f"  Current control: {current_control}")
+        log(f"  Container path: {container_path}")
+        log(f"  Container label: {container_label}")
 
         # Check specific window visibility states
         myvideo_nav_visible = xbmc.getCondVisibility("Window.IsVisible(MyVideoNav.xml)")
@@ -536,13 +535,13 @@ def _log_window_state(context: PluginContext):
         dialog_video_info_active = xbmc.getCondVisibility("Window.IsActive(DialogVideoInfo.xml)")
         keyboard_visible = xbmc.getCondVisibility("Window.IsVisible(DialogKeyboard.xml)")
 
-        context.logger.debug("  MyVideoNav.xml visible: %s", myvideo_nav_visible)
-        context.logger.debug("  DialogVideoInfo.xml visible: %s", dialog_video_info_visible)
-        context.logger.debug("  DialogVideoInfo.xml active: %s", dialog_video_info_active)
-        context.logger.debug("  DialogKeyboard.xml visible: %s", keyboard_visible)
+        log(f"  MyVideoNav.xml visible: {myvideo_nav_visible}")
+        log(f"  DialogVideoInfo.xml visible: {dialog_video_info_visible}")
+        log(f"  DialogVideoInfo.xml active: {dialog_video_info_active}")
+        log(f"  DialogKeyboard.xml visible: {keyboard_visible}")
 
     except Exception as e:
-        context.logger.warning("Failed to log window state at plugin entry: %s", e)
+        log_warning(f"Failed to log window state at plugin entry: {e}")
 
 
 def _check_and_handle_fresh_install(context: PluginContext) -> bool:
@@ -557,7 +556,7 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
         if not sync_controller.is_first_run():
             return False
             
-        logger.info("First run detected - showing setup modal")
+        log_info("First run detected - showing setup modal")
         
         # Show fresh install setup dialog
         dialog = xbmcgui.Dialog()
@@ -575,29 +574,29 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
         
         # Handle user selection
         if selected == -1:  # User canceled or pressed back
-            logger.info("Fresh install setup canceled by user")
+            log_info("Fresh install setup canceled by user")
             return True  # Handled cancellation, continue to main menu
             
         elif selected == 0:  # Both movies and TV episodes
-            logger.info("User selected: Movies and TV Episodes")
+            log_info("User selected: Movies and TV Episodes")
             _show_setup_progress(L(35525))  # "Setting up Movies and TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=True)
             _show_setup_complete(L(35528))  # "Setup complete! Both movies and TV episodes will be synced."
             
         elif selected == 1:  # Movies only
-            logger.info("User selected: Movies Only")
+            log_info("User selected: Movies Only")
             _show_setup_progress(L(35526))  # "Setting up Movies sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
             _show_setup_complete(L(35529))  # "Setup complete! Movies will be synced."
             
         elif selected == 2:  # TV Episodes only
-            logger.info("User selected: TV Episodes Only")
+            log_info("User selected: TV Episodes Only")
             _show_setup_progress(L(35527))  # "Setting up TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=True)
             _show_setup_complete(L(35530))  # "Setup complete! TV episodes will be synced."
             
         elif selected == 3:  # Skip setup
-            logger.info("User selected: Skip Setup")
+            log_info("User selected: Skip Setup")
             # Mark first run complete but don't enable any syncing
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=False)
             xbmcgui.Dialog().notification(
@@ -610,7 +609,7 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
         return True  # Handled fresh install, continue to main menu
         
     except Exception as e:
-        logger.error("Error during fresh install setup: %s", e)
+        log_error(f"Error during fresh install setup: {e}")
         # On error, mark first run complete to avoid infinite loops
         try:
             from lib.library.sync_controller import SyncController
@@ -658,7 +657,7 @@ def _handle_manual_library_sync(context: PluginContext):
     try:
         from lib.library.sync_controller import SyncController
         
-        logger.info("Manual library sync triggered from settings")
+        log_info("Manual library sync triggered from settings")
         
         # Show initial notification
         xbmcgui.Dialog().notification(
@@ -680,7 +679,7 @@ def _handle_manual_library_sync(context: PluginContext):
                 xbmcgui.NOTIFICATION_INFO,
                 6000
             )
-            logger.info("Manual library sync completed successfully: %s", message)
+            log_info(f"Manual library sync completed successfully: {message}")
         else:
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
@@ -688,11 +687,11 @@ def _handle_manual_library_sync(context: PluginContext):
                 xbmcgui.NOTIFICATION_ERROR,
                 8000
             )
-            logger.warning("Manual library sync failed: %s", message)
+            log_warning(f"Manual library sync failed: {message}")
             
     except Exception as e:
         error_msg = f"Manual sync error: {str(e)}"
-        logger.error(error_msg)
+        log_error(error_msg)
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             error_msg,
@@ -817,7 +816,7 @@ def _handle_remove_from_list(context: PluginContext, lists_handler):
                         message="Could not find item in list"
                     )
             except Exception as e:
-                logger.error("Error finding item for removal: %s", e)
+                log_error(f"Error finding item for removal: {e}")
                 from lib.ui.response_types import DialogResponse
                 response = DialogResponse(
                     success=False,

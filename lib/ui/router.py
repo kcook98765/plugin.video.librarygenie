@@ -10,14 +10,14 @@ from typing import Dict, Callable, Any
 from .plugin_context import PluginContext
 import xbmcgui
 import xbmcplugin
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class Router:
     """Routes actions to appropriate handler functions"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.router')
         self._handlers: Dict[str, Callable] = {}
 
     def register_handler(self, action: str, handler: Callable):

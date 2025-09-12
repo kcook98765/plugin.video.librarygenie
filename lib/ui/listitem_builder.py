@@ -10,7 +10,7 @@ import json
 from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
 import xbmcplugin
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
 
 
@@ -22,7 +22,7 @@ class ListItemBuilder:
         self.addon_handle = addon_handle
         self.addon_id = addon_id
         self.context = context
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.listitem_builder')
 
     # -------- public API --------
     def build_directory(self, items: List[Dict[str, Any]], content_type: Optional[str] = None) -> bool:

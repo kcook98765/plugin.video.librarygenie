@@ -9,14 +9,14 @@ Tracks UI state to prevent notification spam and manage user experience
 import time
 from typing import Dict, Any, List, Optional
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class SessionState:
     """Manages session-specific UI state"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.session_state')
         self._notifications_shown = set()
         self._last_notification_times = {}
         self._session_start = time.time()

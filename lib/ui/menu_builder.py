@@ -12,7 +12,7 @@ from typing import List, Tuple, Dict, Any, Optional, Callable
 import xbmcgui
 import xbmcplugin
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..utils.kodi_version import get_kodi_major_version
 from .listitem_renderer import get_listitem_renderer
 from .localization import L
@@ -22,7 +22,7 @@ class MenuBuilder:
     """Builds menus and directory listings for Kodi with Phase 11 enhancements"""
 
     def __init__(self, string_getter: Optional[Callable[[int], str]] = None):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.menu_builder')
         self.renderer = get_listitem_renderer()
 
     def build_menu(self, items, addon_handle, base_url, breadcrumb_path=None):

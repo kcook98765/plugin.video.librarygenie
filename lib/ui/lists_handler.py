@@ -13,7 +13,7 @@ from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from .localization import L
 from .breadcrumb_helper import get_breadcrumb_helper
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..data.query_manager import get_query_manager
 from .listitem_renderer import get_listitem_renderer
 from ..utils.kodi_version import get_kodi_major_version
@@ -25,7 +25,7 @@ class ListsHandler:
 
     def __init__(self, context: PluginContext):
         self.context = context
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.lists_handler')
         self.query_manager = context.query_manager
         self.storage_manager = context.storage_manager
         self.breadcrumb_helper = get_breadcrumb_helper()

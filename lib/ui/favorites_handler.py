@@ -13,14 +13,14 @@ from typing import Dict, Any, List
 from .plugin_context import PluginContext
 from .response_types import DirectoryResponse, DialogResponse
 from .localization import L
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 
 
 class FavoritesHandler:
     """Handles Kodi favorites operations"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.favorites_handler')
 
     def show_favorites_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main Kodi favorites menu"""
