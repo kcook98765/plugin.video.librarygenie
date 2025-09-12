@@ -223,7 +223,7 @@ def main():
             addon_url = ""
             params = {}
 
-        logger.debug(f"Addon parameters: handle={addon_handle}, url={addon_url}, params={params}")
+        logger.debug("Addon parameters: handle=%s, url=%s, params=%s", addon_handle, addon_url, params)
 
         # Initialize controller and route
         controller = AddonController(addon_handle, addon_url, params)
@@ -231,7 +231,7 @@ def main():
 
     except Exception as e:
         logger = get_logger(__name__)
-        logger.error(f"Fatal error in addon main: {e}", exc_info=True)
+        logger.error("Fatal error in addon main: %s", e, exc_info=True)
         # Show user-friendly error
         xbmcgui.Dialog().notification("LibraryGenie", "Addon startup failed", xbmcgui.NOTIFICATION_ERROR)
 
@@ -242,13 +242,13 @@ def _diagnose_logging(logger):
         config = get_config()
         debug_enabled = config.get_bool("debug_logging", False)
 
-        logger.info(f"LOGGING DIAGNOSIS: addon debug_logging setting = {debug_enabled}")
-        logger.info(f"LOGGING DIAGNOSIS: logger effective level = {logging.getLevelName(logger.getEffectiveLevel())}")
-        logger.info(f"LOGGING DIAGNOSIS: logger handlers count = {len(logger.handlers)}")
+        logger.info("LOGGING DIAGNOSIS: addon debug_logging setting = %s", debug_enabled)
+        logger.info("LOGGING DIAGNOSIS: logger effective level = %s", logging.getLevelName(logger.getEffectiveLevel()))
+        logger.info("LOGGING DIAGNOSIS: logger handlers count = %s", len(logger.handlers))
 
         # Test both levels
         logger.debug("LOGGING DIAGNOSIS: This is a DEBUG message - you should only see this if debug is enabled")
         logger.info("LOGGING DIAGNOSIS: This is an INFO message - you should always see this")
 
     except Exception as e:
-        logger.error(f"LOGGING DIAGNOSIS: Failed to diagnose logging: {e}")
+        logger.error("LOGGING DIAGNOSIS: Failed to diagnose logging: %s", e)
