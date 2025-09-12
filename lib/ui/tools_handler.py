@@ -1969,11 +1969,12 @@ class ToolsHandler:
             import xbmc
             xbmc.executebuiltin(f'Addon.OpenSettings({context.addon.getAddonInfo("id")})')
 
-            # Return success=True with no navigation flags so tools return location logic activates
-            # This ensures user returns to their original location after settings
+            # Return success=False with no message to prevent immediate navigation
+            # Settings opening is asynchronous - navigation should only happen when settings closes
+            # This prevents the empty list issue by not triggering response handler navigation
             return DialogResponse(
-                success=True,
-                message=""  # No notification needed for settings - tools return will handle navigation
+                success=False,
+                message=""  # No notification and no navigation - settings handles its own flow
             )
         except Exception as e:
             context.logger.error("Error opening settings: %s", e)
