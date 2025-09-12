@@ -346,11 +346,11 @@ def handle_shortlist_import():
         try:
             logger.info("Calling import_shortlist_items method...")
             result = importer.import_shortlist_items()
-            logger.info(f"=== IMPORT METHOD COMPLETED ===")
+            logger.info("=== IMPORT METHOD COMPLETED ===")
             logger.info("Import result type: %s", type(result))
             logger.info("Import result: %s", result)
         except TypeError as te:
-            logger.error(f"=== IMPORT METHOD TYPEERROR ===")
+            logger.error("=== IMPORT METHOD TYPEERROR ===")
             logger.error("TypeError calling import_shortlist_items: %s", te)
             import traceback
             logger.error("TypeError traceback: %s", traceback.format_exc())
@@ -365,7 +365,7 @@ def handle_shortlist_import():
 
             raise
         except Exception as e:
-            logger.error(f"=== IMPORT METHOD ERROR ===")
+            logger.error("=== IMPORT METHOD ERROR ===")
             logger.error("Error calling import_shortlist_items: %s", e)
             import traceback
             logger.error("Import method traceback: %s", traceback.format_exc())
@@ -390,7 +390,7 @@ def handle_shortlist_import():
             logger.error("ShortList import failed: %s", error_msg)
 
     except Exception as e:
-        logger.error(f"=== SHORTLIST HANDLER EXCEPTION ===")
+        logger.error("=== SHORTLIST HANDLER EXCEPTION ===")
         logger.error("ShortList import handler error: %s", e)
         import traceback
         logger.error("Handler exception traceback: %s", traceback.format_exc())
@@ -470,9 +470,9 @@ def _ensure_startup_initialization(context: PluginContext):
 def main():
     """Main plugin entry point using new modular architecture"""
 
-    logger.debug(f"=== PLUGIN INVOCATION (REFACTORED) ===")
+    logger.debug("=== PLUGIN INVOCATION (REFACTORED) ===")
     logger.debug("Full sys.argv: %s", sys.argv)
-    logger.debug(f"Using modular handler architecture")
+    logger.debug("Using modular handler architecture")
 
     try:
         # Create plugin context from request
@@ -524,7 +524,7 @@ def _log_window_state(context: PluginContext):
         container_path = xbmc.getInfoLabel("Container.FolderPath")
         container_label = xbmc.getInfoLabel("Container.FolderName")
 
-        context.logger.debug(f"Window state at plugin entry:")
+        context.logger.debug("Window state at plugin entry:")
         context.logger.debug("  Current window: %s", current_window)
         context.logger.debug("  Current control: %s", current_control)
         context.logger.debug("  Container path: %s", container_path)
@@ -817,7 +817,7 @@ def _handle_remove_from_list(context: PluginContext, lists_handler):
                         message="Could not find item in list"
                     )
             except Exception as e:
-                logger.error(f"Error finding item for removal: {e}")
+                logger.error("Error finding item for removal: %s", e)
                 from lib.ui.response_types import DialogResponse
                 response = DialogResponse(
                     success=False,
