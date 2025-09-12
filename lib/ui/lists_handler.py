@@ -456,7 +456,7 @@ class ListsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Deleted list: {list_name}", # This string should also be localized
-                    refresh_needed=True
+                    navigate_to_lists=True  # Navigate away from deleted list to prevent stale view
                 )
 
         except Exception as e:
@@ -767,15 +767,11 @@ class ListsHandler:
             else:
                 context.logger.info("Successfully deleted folder: %s", folder_name)
 
-                # If deletion was successful, navigate back to lists menu
-                # since the current folder no longer exists
-                import xbmc
-                xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
-
+                # Navigation handled by response handler with proper cache-busting
                 return DialogResponse(
                     success=True,
                     message=f"Deleted folder: {folder_name}", # This string should also be localized
-                    refresh_needed=True
+                    navigate_to_lists=True  # Navigate away from deleted folder to prevent stale view
                 )
 
         except Exception as e:
