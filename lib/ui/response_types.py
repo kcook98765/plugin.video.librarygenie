@@ -97,8 +97,23 @@ class ActionResponse:
 
         if self.refresh_needed and self.success:
             try:
+                from .session_state import get_session_state
+                
+                # Use cache-busted refresh instead of Container.Refresh
+                session_state = get_session_state()
+                session_state.bump_refresh_token()
+                
+                # Get current container path and refresh with cache-busting
                 import xbmc
-                xbmc.executebuiltin("Container.Refresh")
+                current_path = xbmc.getInfoLabel('Container.FolderPath')
+                if current_path:
+                    # Use context helper for consistent cache-busted URL construction
+                    refresh_url = context.add_cache_buster_to_url(current_path)
+                    xbmc.executebuiltin(f'Container.Update("{refresh_url}",replace)')
+                else:
+                    # Safe fallback to lists menu instead of Container.Refresh
+                    refresh_url = context.build_cache_busted_url("lists")
+                    xbmc.executebuiltin(f'Container.Update("{refresh_url}",replace)')
             except Exception:
                 pass
 

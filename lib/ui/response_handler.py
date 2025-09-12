@@ -84,7 +84,7 @@ class ResponseHandler:
                     session_state = get_session_state()
                     session_state.bump_refresh_token()
                     
-                    main_url = context.build_cache_busted_url("main")
+                    main_url = context.build_cache_busted_url("main_menu")
                     context.logger.debug("RESPONSE HANDLER: Navigating to main with cache-busted URL: %s", main_url)
                     xbmc.executebuiltin(f'Container.Update("{main_url}",replace)')
                     return
@@ -188,34 +188,64 @@ class ResponseHandler:
     def _handle_success_navigation(self, response: DialogResponse, context: PluginContext) -> bool:
         """Handle navigation for successful dialog responses"""
         try:
+            # Check for tools return location first - if set, navigate back there after tools operations
+            from .session_state import get_session_state
+            session_state = get_session_state()
+            tools_return_location = session_state.get_tools_return_location()
+            
+            if tools_return_location:
+                # Clear the return location and navigate back with cache busting
+                session_state.clear_tools_return_location()
+                session_state.bump_refresh_token()  # Ensure fresh content for tools return
+                cache_busted_url = context.add_cache_buster_to_url(tools_return_location)
+                xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                return True
+            # Always bump refresh token for all navigation operations
+            session_state.bump_refresh_token()
+            
             # Navigate to specific folder
             if hasattr(response, 'navigate_to_folder') and response.navigate_to_folder:
                 folder_id = response.navigate_to_folder
-                xbmc.executebuiltin(f'Container.Update({context.build_url("show_folder", folder_id=folder_id)},replace)')
+                cache_busted_url = context.build_cache_busted_url("show_folder", folder_id=folder_id)
+                xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
             # Navigate to main lists menu
             elif hasattr(response, 'navigate_to_lists') and response.navigate_to_lists:
-                xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                cache_busted_url = context.build_cache_busted_url("lists")
+                xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
             # Navigate to main menu
             elif hasattr(response, 'navigate_to_main') and response.navigate_to_main:
-                xbmc.executebuiltin(f'Container.Update({context.build_url("main_menu")},replace)')
+                cache_busted_url = context.build_cache_busted_url("main_menu")
+                xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
             # Navigate to favorites view
             elif hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites:
-                xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
+                cache_busted_url = context.build_cache_busted_url("kodi_favorites")
+                xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
-            # Just refresh current directory
+            # Just refresh current directory with cache-busting
             elif hasattr(response, 'refresh_needed') and response.refresh_needed:
-                xbmc.executebuiltin('Container.Refresh')
+                # Token already bumped at start of method
+                
+                # Get current path and refresh with cache buster
+                current_path = xbmc.getInfoLabel('Container.FolderPath')
+                if current_path:
+                    cache_busted_url = context.add_cache_buster_to_url(current_path)
+                    xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
+                else:
+                    # Safe fallback to lists menu instead of Container.Refresh
+                    cache_busted_url = context.build_cache_busted_url("lists")
+                    xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
@@ -235,11 +265,14 @@ class ResponseHandler:
             if hasattr(response, 'navigate_on_failure'):
                 navigation_target = getattr(response, 'navigate_on_failure', None)
                 if navigation_target == 'lists':
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("lists")},replace)')
+                    cache_busted_url = context.build_cache_busted_url("lists")
+                    xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 elif navigation_target == 'main':
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("main_menu")},replace)')
+                    cache_busted_url = context.build_cache_busted_url("main_menu")
+                    xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 elif navigation_target == 'favorites':
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
+                    cache_busted_url = context.build_cache_busted_url("kodi_favorites")
+                    xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
 
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
