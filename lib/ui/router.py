@@ -50,6 +50,13 @@ class Router:
             if action == "show_list_tools":
                 from .handler_factory import get_handler_factory
                 from .response_handler import get_response_handler
+                from .session_state import get_session_state
+
+                # Store current location for returning after tools operations
+                import xbmc
+                current_path = xbmc.getInfoLabel('Container.FolderPath')
+                session_state = get_session_state()
+                session_state.set_tools_return_location(current_path)
 
                 factory = get_handler_factory()
                 factory.context = context # Set context before using factory
