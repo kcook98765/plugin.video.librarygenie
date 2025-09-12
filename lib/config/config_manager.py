@@ -23,8 +23,6 @@ class ConfigManager:
 
         # Default configuration matching Phase 2-3 requirements
         self._defaults = {
-            "background_task_enabled": True,
-            "background_interval_seconds": 120,  # 120 seconds (safer default)
             # Phase 3: Advanced settings with safe defaults
             "jsonrpc_page_size": 200,  # Items per JSON-RPC page
             "jsonrpc_timeout_seconds": 10,  # JSON-RPC request timeout
@@ -316,7 +314,6 @@ class ConfigManager:
         
         # Comprehensive list of all backup-related settings
         bool_settings = [
-            "background_task_enabled",
             "confirm_destructive_actions",
             "show_item_counts",
             "track_library_changes",
@@ -338,7 +335,7 @@ class ConfigManager:
             "ai_search_activated",
         ]
         int_settings = [
-            "background_interval_seconds", "favorites_scan_interval_minutes",
+            "favorites_scan_interval_minutes",
             "search_page_size", "search_history_days",
             # Phase 3: Advanced settings
             "jsonrpc_page_size", "jsonrpc_timeout_seconds",
@@ -380,9 +377,6 @@ class ConfigManager:
             logger.warning("Setting '%s' not found in any type list, defaulting to string type", key)
             return "string"
 
-    def get_background_interval_seconds(self) -> int:
-        """Get background service interval in seconds"""
-        return self.get_int("background_interval_seconds", 1800)
 
     def get_default_list_id(self):
         """Get default list ID with fallback logic (Phase 2)"""
