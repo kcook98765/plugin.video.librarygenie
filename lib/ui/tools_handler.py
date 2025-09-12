@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional
 from .plugin_context import PluginContext
 from .response_types import DialogResponse
 from .localization_helper import L
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..import_export.export_engine import get_export_engine
 from ..kodi.favorites_manager import get_phase4_favorites_manager
 
@@ -21,7 +21,7 @@ class ToolsHandler:
     """Modular tools and options handler"""
 
     def __init__(self, context: Optional[PluginContext] = None):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.tools_handler')
         try:
             from .listitem_builder import ListItemBuilder
             if context:

@@ -12,21 +12,21 @@ from typing import Optional, List, Dict, Any
 
 from ..remote.ai_search_client import get_ai_search_client
 from ..data.query_manager import get_query_manager
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from .localization import L
 
 # Import PluginContext if it's defined elsewhere and needed for type hinting
 # For now, assuming it's a placeholder or defined in a broader context
 class PluginContext:
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.ai_search_handler')
         self.params = {}
 
 class AISearchHandler:
     """Handler for AI search functionality with IMDb list matching"""
 
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.ai_search_handler')
         self.ai_client = get_ai_search_client()
         self.query_manager = get_query_manager()
 

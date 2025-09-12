@@ -9,7 +9,7 @@ Handles the main menu display and navigation
 from typing import Optional
 from .menu_builder import MenuBuilder
 from .plugin_context import PluginContext
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from ..utils.kodi_version import get_kodi_major_version
 import xbmcplugin
 import xbmcaddon

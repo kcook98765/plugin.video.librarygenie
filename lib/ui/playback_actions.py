@@ -12,7 +12,7 @@ import xbmcgui
 import json
 from typing import Optional, Dict, Any
 
-from ..utils.logger import get_logger
+from ..utils.kodi_log import get_kodi_logger
 from .localization import L
 
 
@@ -20,7 +20,7 @@ class PlaybackActionHandler:
     """Handles movie playback actions using Kodi's native mechanisms"""
     
     def __init__(self):
-        self.logger = get_logger(__name__)
+        self.logger = get_kodi_logger('lib.ui.playback_actions')
     
     def play_movie(self, kodi_id: int, resume: bool = False) -> bool:
         """Play a movie by Kodi ID, optionally resuming from last position"""
