@@ -665,10 +665,6 @@ class LibraryScanner:
                     elif progress_dialog:
                         progress_dialog.update(progress_percentage, "LibraryGenie", progress_msg)
                     
-                    # Debug logging for first few shows to verify smooth progress
-                    if shows_processed <= 5:
-                        # Silent TV progress tracking - final count reported at process end
-                    
                     # Get all episodes for this TV show
                     episodes = self.kodi_client.get_episodes_for_tvshow(tvshow_id)
                     
