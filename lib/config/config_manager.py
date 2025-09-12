@@ -51,43 +51,64 @@ class ConfigManager:
         }
 
     def get(self, key, default=None):
-        """Get configuration value with safe fallback"""
+        """Get configuration value with safe fallback and caching"""
+        # Use specific backup methods for backup settings to ensure proper type handling
+        if key == 'backup_enabled':
+            return self.get_backup_enabled()
+        elif key == 'backup_storage_type':
+            return self.get_backup_storage_type()
+        elif key == 'backup_interval':
+            return self.get_backup_interval()
+        elif key == 'backup_include_non_library':
+            return self.get_backup_include_non_library()
+        elif key == 'backup_include_folders':
+            return self.get_backup_include_folders()
+        elif key == 'backup_retention_count':
+            return self.get_backup_retention_count()
+        
+        # Check cache first
+        with self._cache_lock:
+            if key in self._cache:
+                return self._cache[key]
+        
         try:
             from ..utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
-            
-            # Use specific backup methods for backup settings to ensure proper type handling
-            if key == 'backup_enabled':
-                return self.get_backup_enabled()
-            elif key == 'backup_storage_type':
-                return self.get_backup_storage_type()
-            elif key == 'backup_interval':
-                return self.get_backup_interval()
-            elif key == 'backup_include_non_library':
-                return self.get_backup_include_non_library()
-            elif key == 'backup_include_folders':
-                return self.get_backup_include_folders()
-            elif key == 'backup_retention_count':
-                return self.get_backup_retention_count()
             
             # Always try string first as it's most compatible
             value = self._addon.getSettingString(key)
             
             if value:
-                return value
+                result = value
             else:
-                fallback = self._defaults.get(key, default)
-                return fallback
+                result = self._defaults.get(key, default)
+            
+            # Cache the result
+            with self._cache_lock:
+                self._cache[key] = result
+            
+            return result
         except Exception as e:
             # Return default value if setting read fails
             from ..utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             logger.error("Exception getting setting '%s': %s", key, e)
             fallback = self._defaults.get(key, default)
+            
+            # Cache the fallback to prevent repeated exceptions
+            with self._cache_lock:
+                self._cache[key] = fallback
+            
             return fallback
 
     def get_bool(self, key: str, default: bool = False) -> bool:
-        """Get boolean configuration value"""
+        """Get boolean configuration value with caching"""
+        # Check cache first
+        cache_key = f"bool:{key}"
+        with self._cache_lock:
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+        
         try:
             from ..utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
@@ -97,6 +118,11 @@ class ConfigManager:
             
             # First try getSettingBool
             result = self._addon.getSettingBool(key)
+            
+            # Cache the result
+            with self._cache_lock:
+                self._cache[cache_key] = result
+            
             return result
         except Exception as e:
             from ..utils.kodi_log import get_kodi_logger
@@ -108,12 +134,17 @@ class ConfigManager:
                 str_value = self._addon.getSettingString(key)
                 
                 if str_value.lower() in ('true', '1', 'yes'):
-                    return True
+                    result = True
                 elif str_value.lower() in ('false', '0', 'no', ''):
-                    return False
+                    result = False
                 else:
-                    fallback = self._defaults.get(key, default)
-                    return fallback
+                    result = self._defaults.get(key, default)
+                
+                # Cache the result
+                with self._cache_lock:
+                    self._cache[cache_key] = result
+                
+                return result
             except Exception as e2:
                 # Use defaults dict fallback if available, otherwise use provided default
                 from ..utils.kodi_log import get_kodi_logger
@@ -121,16 +152,31 @@ class ConfigManager:
                 logger.error("String fallback also failed for '%s': %s: %s", key, type(e2).__name__, e2)
                 fallback = self._defaults.get(key, default)
 
+                # Cache the fallback
+                with self._cache_lock:
+                    self._cache[cache_key] = fallback
+
                 return fallback
 
     def get_int(self, key, default=0):
-        """Get integer setting with safe fallback"""
+        """Get integer setting with safe fallback and caching"""
+        # Check cache first
+        cache_key = f"int:{key}"
+        with self._cache_lock:
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+        
         try:
             from ..utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             
             # First try getSettingInt
             result = self._addon.getSettingInt(key)
+            
+            # Cache the result
+            with self._cache_lock:
+                self._cache[cache_key] = result
+            
             return result
         except Exception as e:
             from ..utils.kodi_log import get_kodi_logger
@@ -143,27 +189,53 @@ class ConfigManager:
                 
                 if str_value and str_value.strip():
                     result = int(str_value.strip())
-                    return result
                 else:
-                    fallback = self._defaults.get(key, default)
-                    return fallback
+                    result = self._defaults.get(key, default)
+                
+                # Cache the result
+                with self._cache_lock:
+                    self._cache[cache_key] = result
+                
+                return result
             except (ValueError, TypeError) as e2:
                 from ..utils.kodi_log import get_kodi_logger
                 logger = get_kodi_logger('lib.config.config_manager')
                 logger.error("String conversion failed for '%s': %s", key, e2)
                 fallback = self._defaults.get(key, default)
 
+                # Cache the fallback
+                with self._cache_lock:
+                    self._cache[cache_key] = fallback
+
                 return fallback
 
     def get_float(self, key, default=0.0):
-        """Get float setting with safe fallback"""
+        """Get float setting with safe fallback and caching"""
+        # Check cache first
+        cache_key = f"float:{key}"
+        with self._cache_lock:
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+        
         try:
-            return self._addon.getSettingNumber(key)
+            result = self._addon.getSettingNumber(key)
+            
+            # Cache the result
+            with self._cache_lock:
+                self._cache[cache_key] = result
+            
+            return result
         except Exception:
-            return self._defaults.get(key, default)
+            fallback = self._defaults.get(key, default)
+            
+            # Cache the fallback
+            with self._cache_lock:
+                self._cache[cache_key] = fallback
+            
+            return fallback
 
     def set(self, key, value):
-        """Set configuration value"""
+        """Set configuration value with write-through caching"""
         try:
             from ..utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
@@ -172,15 +244,37 @@ class ConfigManager:
             
             if setting_type == "bool":
                 result = self._addon.setSettingBool(key, value)
+                if result:
+                    # Update cache with the typed value
+                    with self._cache_lock:
+                        self._cache[f"bool:{key}"] = bool(value)
+                        # Also update string cache for get() method
+                        self._cache[key] = str(value).lower()
                 return result
             elif setting_type == "int":
                 result = self._addon.setSettingInt(key, value)
+                if result:
+                    # Update cache with the typed value
+                    with self._cache_lock:
+                        self._cache[f"int:{key}"] = int(value)
+                        # Also update string cache for get() method
+                        self._cache[key] = str(value)
                 return result
             elif setting_type == "number":
                 result = self._addon.setSettingNumber(key, value)
+                if result:
+                    # Update cache with the typed value
+                    with self._cache_lock:
+                        self._cache[f"float:{key}"] = float(value)
+                        # Also update string cache for get() method
+                        self._cache[key] = str(value)
                 return result
             else:
                 result = self._addon.setSettingString(key, str(value))
+                if result:
+                    # Update cache with the string value
+                    with self._cache_lock:
+                        self._cache[key] = str(value)
                 return result
         except Exception as e:
             from ..utils.kodi_log import get_kodi_logger
