@@ -29,7 +29,7 @@
               <option label="35102">1</option>
             </options>
           </constraints>
-          <control type="list" format="string">
+          <control type="list" format="integer">
             <heading>35100</heading>
           </control>
         </setting>
@@ -105,11 +105,7 @@
           <level>1</level>
           <default>false</default>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="eq" setting="favorites_integration_enabled">true</condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="favorites_integration_enabled" operator="is">true</dependency>
           </dependencies>
           <control type="toggle"/>
         </setting>
@@ -117,11 +113,7 @@
           <level>1</level>
           <default>true</default>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="eq" setting="favorites_integration_enabled">true</condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="favorites_integration_enabled" operator="is">true</dependency>
           </dependencies>
           <control type="toggle"/>
         </setting>
@@ -151,7 +143,7 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="background_interval_seconds" type="integer" label="30112" help="35521">
+        <setting id="background_interval_seconds" type="integer" label="30471" help="35521">
           <level>1</level>
           <default>60</default>
           <constraints>
@@ -160,11 +152,7 @@
             <maximum>3600</maximum>
           </constraints>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="eq" setting="background_task_enabled">true</condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="background_task_enabled" operator="is">true</dependency>
           </dependencies>
           <control type="slider" format="integer">
             <popup>false</popup>
@@ -207,13 +195,9 @@
             </options>
           </constraints>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="eq" setting="backup_enabled">true</condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="backup_enabled" operator="is">true</dependency>
           </dependencies>
-          <control type="list" format="string">
+          <control type="list" format="integer">
             <heading>30512</heading>
           </control>
         </setting>
@@ -258,7 +242,7 @@
               <option label="30565">0</option>
             </options>
           </constraints>
-          <control type="list" format="string">
+          <control type="list" format="integer">
             <heading>30531</heading>
           </control>
         </setting>
@@ -374,11 +358,7 @@
         <setting id="ai_search_authorize_action" type="action" label="30435" help="">
           <level>3</level>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="!eq" setting="remote_server_url"></condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="remote_server_url" operator="isnot"></dependency>
           </dependencies>
           <control type="button" format="action">
             <heading>30435</heading>
@@ -389,11 +369,7 @@
           <level>3</level>
           <default>false</default>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="!eq" setting="remote_server_url"></condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="remote_server_url" operator="isnot"></dependency>
           </dependencies>
           <control type="toggle"/>
         </setting>
@@ -408,24 +384,16 @@
             </options>
           </constraints>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="eq" setting="ai_search_activated">true</condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
-          <control type="list" format="string">
+          <control type="list" format="integer">
             <heading>30425</heading>
           </control>
         </setting>
         <setting id="ai_search_replace_sync_action" type="action" label="30449" help="">
           <level>3</level>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="eq" setting="ai_search_activated">true</condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
           <control type="button" format="action">
             <heading>30449</heading>
@@ -435,11 +403,7 @@
         <setting id="ai_search_regular_sync_action" type="action" label="30464" help="">
           <level>3</level>
           <dependencies>
-            <dependency type="enable">
-              <condition name="and">
-                <condition type="eq" setting="ai_search_activated">true</condition>
-              </condition>
-            </dependency>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
           <control type="button" format="action">
             <heading>30464</heading>
