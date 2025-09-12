@@ -45,7 +45,7 @@ class SearchHandler:
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
 
-    def prompt_and_search(self, context: PluginContext) -> bool:
+    def prompt_and_search(self, context: PluginContext, media_scope: str = "movie") -> bool:
         """Main entry point for simple search"""
         self._ensure_handle_from_context(context)
 
@@ -57,7 +57,7 @@ class SearchHandler:
             return False
 
         # Step 2: Use default search options (always search both title and plot)
-        search_options = {"search_scope": "both", "match_logic": "all"}
+        search_options = {"search_scope": "both", "match_logic": "all", "media_scope": media_scope}
 
         # Step 3: Execute search
         results = self._execute_simple_search(search_terms, search_options, context)
@@ -92,10 +92,18 @@ class SearchHandler:
     def _execute_simple_search(self, search_terms: str, options: Dict[str, str], context=None):
         """Execute the simplified search"""
         try:
+            # Map media scope to media types
+            media_scope = options.get("media_scope", "movie")
+            if media_scope == "episode":
+                media_types = ["episode", "tvshow"]
+            else:  # default to movie
+                media_types = ["movie"]
+
             # Parse query
             query_params = {
                 "search_scope": options["search_scope"],
-                "match_logic": options["match_logic"]
+                "match_logic": options["match_logic"],
+                "media_types": media_types
             }
 
             # Add scope info if searching within a list
@@ -127,12 +135,18 @@ class SearchHandler:
 
             self._debug(f"Saving search history for '{search_terms}' with {results.total_count} results")
 
-            # Create search history list with simplified description
-            query_desc = f"{search_terms}"
+            # Create search history list with simplified description and media scope prefix
+            media_scope = options.get("media_scope", "movie")
+            if media_scope == "episode":
+                query_desc = f"Episodes: {search_terms}"
+                search_type = "episode_simple"
+            else:
+                query_desc = f"{search_terms}"
+                search_type = "simple"
 
             list_id = self.query_manager.create_search_history_list(
                 query=query_desc,
-                search_type="simple",
+                search_type=search_type,
                 result_count=results.total_count
             )
 
