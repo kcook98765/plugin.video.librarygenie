@@ -33,6 +33,9 @@ class SimpleQueryInterpreter:
             query.page_size = max(25, min(kwargs.get("page_size", 50), 200))
             query.page_offset = max(kwargs.get("page_offset", 0), 0)
             
+            # Set media types to search (defaults to movies for backward compatibility)
+            query.media_types = kwargs.get("media_types", ["movie"])
+            
             # Always search both title and plot with all keywords
             query.search_scope = "both"
             query.match_logic = "all"

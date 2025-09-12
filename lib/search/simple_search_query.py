@@ -20,6 +20,7 @@ class SimpleSearchQuery:
         self.match_logic: str = "all"        # "any", "all" 
         self.scope_type: str = "library"     # "library" or "list"
         self.scope_id: Optional[int] = None  # list_id if searching within list
+        self.media_types: List[str] = ["movie"]  # Media types to search: ["movie"], ["episode", "tvshow"], etc.
         self.page_size: int = 50
         self.page_offset: int = 0
 
@@ -32,6 +33,7 @@ class SimpleSearchQuery:
             "match_logic": self.match_logic,
             "scope_type": self.scope_type,
             "scope_id": self.scope_id,
+            "media_types": self.media_types,
             "page_size": self.page_size,
             "page_offset": self.page_offset
         }
