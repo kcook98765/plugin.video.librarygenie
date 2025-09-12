@@ -616,7 +616,7 @@ msgstr ""
 
 # Search UI and Operations
 msgctxt "#33000"
-msgid "Local Search"
+msgid "Local Movie Search"
 msgstr ""
 
 msgctxt "#33001"
@@ -1152,7 +1152,7 @@ msgstr ""
 
 # Sync & Remote Services
 msgctxt "#34100"
-msgid "AI Search"
+msgid "AI Movie Search"
 msgstr ""
 
 msgctxt "#34101"
