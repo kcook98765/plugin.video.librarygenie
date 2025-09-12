@@ -1248,13 +1248,6 @@ class QueryManager:
             self.logger.error("Failed to add library item to list %s: %s", list_id, e)
             return None
 
-    def _row_to_dict(self, cursor, row):
-        """Convert SQLite row to dictionary using cursor description"""
-        if not row:
-            return {}
-
-        columns = [description[0] for description in cursor.description]
-        return dict(zip(columns, row))
 
     def _normalize_kodi_episode_details(self, episode_details: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize Kodi JSON-RPC episode details to canonical format"""
