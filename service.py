@@ -391,29 +391,19 @@ class LibraryGenieService:
         """Check if periodic library sync should be performed based on user settings"""
         try:
             # Import here to avoid circular imports
-            from lib.utils.sync_lock import GlobalSyncLock
             from lib.library.sync_controller import SyncController
             
-            # Check if sync is already in progress using global lock
-            lock = GlobalSyncLock("service-periodic-sync")
-            if not lock.acquire():
-                # Another process is already syncing
-                self.logger.debug("Skipping periodic sync - sync already in progress")
-                return
-                
-            try:
-                # Initialize sync controller
-                sync_controller = SyncController()
-                
-                # Perform periodic sync (returns True if sync was performed)
-                if sync_controller.perform_periodic_sync():
-                    self.logger.info("📚 Periodic library sync completed")
-                    self._show_notification(
-                        "Library sync completed - content updated",
-                        time_ms=6000
-                    )
-            finally:
-                lock.release()
+            # Initialize sync controller - it handles its own GlobalSyncLock
+            sync_controller = SyncController()
+            
+            # Perform periodic sync (returns True if sync was performed)
+            # SyncController.perform_periodic_sync() handles locking internally
+            if sync_controller.perform_periodic_sync():
+                self.logger.info("📚 Periodic library sync completed")
+                self._show_notification(
+                    "Library sync completed - content updated",
+                    time_ms=6000
+                )
                 
         except Exception as e:
             self.logger.error("Error during periodic library sync: %s", e)
