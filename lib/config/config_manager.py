@@ -51,7 +51,6 @@ class ConfigManager:
         try:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.debug(f"CONFIG_DEBUG: Getting setting '{key}' (default: {default})")
             
             # Use specific backup methods for backup settings to ensure proper type handling
             if key == 'backup_enabled':
@@ -69,22 +68,18 @@ class ConfigManager:
             
             # Always try string first as it's most compatible
             value = self._addon.getSettingString(key)
-            logger.debug(f"CONFIG_DEBUG: getSettingString('{key}') returned: '{value}' (type: {type(value)})")
             
             if value:
-                logger.debug(f"CONFIG_DEBUG: Using string value for '{key}': '{value}'")
                 return value
             else:
                 fallback = self._defaults.get(key, default)
-                logger.debug(f"CONFIG_DEBUG: Using fallback for '{key}': '{fallback}' (from defaults: {key in self._defaults})")
                 return fallback
         except Exception as e:
             # Return default value if setting read fails
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.error(f"CONFIG_DEBUG: Exception getting setting '{key}': {e}")
+            logger.error(f"Exception getting setting '{key}': {e}")
             fallback = self._defaults.get(key, default)
-            logger.debug(f"CONFIG_DEBUG: Exception fallback for '{key}': '{fallback}'")
             return fallback
 
     def get_bool(self, key: str, default: bool = False) -> bool:
@@ -92,35 +87,28 @@ class ConfigManager:
         try:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.debug(f"CONFIG_DEBUG: Getting bool setting '{key}' (default: {default})")
             
             # Check what type we think this setting should be
             expected_type = self._get_setting_type(key)
-            logger.debug(f"CONFIG_DEBUG: Expected type for '{key}': {expected_type}")
             
             # First try getSettingBool
             result = self._addon.getSettingBool(key)
-            logger.debug(f"CONFIG_DEBUG: getSettingBool('{key}') returned: {result}")
             return result
         except Exception as e:
             from ..utils.logger import get_logger
             logger = get_logger(__name__)
-            logger.error(f"CONFIG_DEBUG: getSettingBool('{key}') failed with exception: {type(e).__name__}: {e}")
+            logger.error(f"getSettingBool('{key}') failed with exception: {type(e).__name__}: {e}")
             
             try:
                 # Fallback to string and convert
                 str_value = self._addon.getSettingString(key)
-                logger.debug(f"CONFIG_DEBUG: String fallback for '{key}': '{str_value}'")
                 
                 if str_value.lower() in ('true', '1', 'yes'):
-                    logger.debug(f"CONFIG_DEBUG: Converting '{str_value}' to True for '{key}'")
                     return True
                 elif str_value.lower() in ('false', '0', 'no', ''):
-                    logger.debug(f"CONFIG_DEBUG: Converting '{str_value}' to False for '{key}'")
                     return False
                 else:
                     fallback = self._defaults.get(key, default)
-                    logger.debug(f"CONFIG_DEBUG: Using defaults fallback for '{key}': {fallback}")
                     return fallback
             except Exception as e2:
                 # Use defaults dict fallback if available, otherwise use provided default
