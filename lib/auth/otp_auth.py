@@ -26,6 +26,61 @@ logger = get_logger(__name__)
 _last_otp_attempt = 0
 _otp_attempt_count = 0
 
+def _sanitize_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Sanitize headers by redacting Authorization values"""
+    if not headers:
+        return headers
+    
+    sanitized = headers.copy()
+    for key, value in sanitized.items():
+        if key.lower() == 'authorization' and value:
+            if value.startswith('ApiKey '):
+                sanitized[key] = 'ApiKey *****'
+            else:
+                sanitized[key] = '*****'
+    return sanitized
+
+def _sanitize_response_data(response_data: str) -> str:
+    """Sanitize response data by redacting API keys and sensitive fields"""
+    if not response_data:
+        return response_data
+    
+    try:
+        data = json.loads(response_data)
+        sanitized = data.copy()
+        
+        # Redact sensitive fields
+        if 'api_key' in sanitized:
+            sanitized['api_key'] = '*****'
+        if 'pairing_code' in sanitized:
+            sanitized['pairing_code'] = '*****'
+        if 'access_token' in sanitized:
+            sanitized['access_token'] = '*****'
+        if 'refresh_token' in sanitized:
+            sanitized['refresh_token'] = '*****'
+            
+        return json.dumps(sanitized, indent=2)
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        # If not JSON or other error, return truncated version
+        return response_data[:200] + '...' if len(response_data) > 200 else response_data
+
+def _sanitize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Sanitize request payload by redacting sensitive fields"""
+    if not payload:
+        return payload
+        
+    sanitized = payload.copy()
+    if 'pairing_code' in sanitized:
+        sanitized['pairing_code'] = '*****'
+    if 'api_key' in sanitized:
+        sanitized['api_key'] = '*****'
+    if 'access_token' in sanitized:
+        sanitized['access_token'] = '*****'
+    if 'refresh_token' in sanitized:
+        sanitized['refresh_token'] = '*****'
+    
+    return sanitized
+
 def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
     """
     Exchange OTP code for API key using the /pairing-code/exchange endpoint
@@ -71,11 +126,11 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
         sanitized_otp = otp_code.strip()
         payload = {"pairing_code": sanitized_otp}
 
-        logger.info(f"=== OTP EXCHANGE REQUEST ===")
-        logger.info(f"URL: {exchange_url}")
-        logger.info(f"Method: POST")
-        logger.info(f"Headers: {{'Content-Type': 'application/json'}}")
-        logger.info(f"Request payload: {json.dumps(payload, indent=2)}")
+        logger.info("=== OTP EXCHANGE REQUEST ===")
+        logger.info("URL: %s", exchange_url)
+        logger.info("Method: POST")
+        logger.info("Headers: {'Content-Type': 'application/json'}")
+        logger.info("Request payload: %s", json.dumps(_sanitize_payload(payload), indent=2))
 
         # Prepare request
         json_data = json.dumps(payload).encode('utf-8')
@@ -90,10 +145,10 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
             response_code = response.getcode()
             response_data = response.read().decode('utf-8')
 
-            logger.info(f"=== OTP EXCHANGE RESPONSE ===")
-            logger.info(f"Status Code: {response_code}")
-            logger.info(f"Response Headers: {dict(response.headers)}")
-            logger.info(f"Response Body: {response_data}")
+            logger.info("=== OTP EXCHANGE RESPONSE ===")
+            logger.info("Status Code: %s", response_code)
+            logger.info("Response Headers: %s", _sanitize_headers(dict(response.headers)))
+            logger.info("Response Body: %s", _sanitize_response_data(response_data))
 
             if response_code == 200:
                 data = json.loads(response_data)
@@ -105,8 +160,8 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
 
                     if api_key:
                         save_api_key(api_key)
-                        logger.info(f"API key obtained and saved successfully for user: {user_email}")
-                        logger.info(f"=== OTP EXCHANGE SUCCESS ===")
+                        logger.info("API key obtained and saved successfully for user: %s", user_email)
+                        logger.info("=== OTP EXCHANGE SUCCESS ===")
 
                         return {
                             'success': True,
@@ -122,13 +177,13 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
                         }
                 else:
                     error_msg = data.get('error', 'Unknown error')
-                    logger.error(f"Server rejected OTP: {error_msg}")
+                    logger.error("Server rejected OTP: %s", error_msg)
                     return {
                         'success': False,
                         'error': f'Server rejected OTP: {error_msg}'
                     }
             else:
-                logger.error(f"HTTP error response: {response_code}")
+                logger.error("HTTP error response: %s", response_code)
                 return {
                     'success': False,
                     'error': f'Server error: HTTP {response_code}'
@@ -137,38 +192,38 @@ def exchange_otp_for_api_key(otp_code: str, server_url: str) -> Dict[str, Any]:
     except urllib.error.HTTPError as e:
         try:
             error_body = e.read().decode('utf-8')
-            logger.info(f"=== OTP EXCHANGE HTTP ERROR ===")
-            logger.info(f"Status Code: {e.code}")
-            logger.info(f"Error Headers: {dict(e.headers) if hasattr(e, 'headers') else 'N/A'}")
-            logger.info(f"Error Body: {error_body}")
+            logger.info("=== OTP EXCHANGE HTTP ERROR ===")
+            logger.info("Status Code: %s", e.code)
+            logger.info("Error Headers: %s", _sanitize_headers(dict(e.headers) if hasattr(e, 'headers') else {}))
+            logger.info("Error Body: %s", _sanitize_response_data(error_body))
 
             error_data = json.loads(error_body)
             error_msg = error_data.get('error', f'HTTP {e.code} error')
         except Exception:
             error_msg = f'HTTP {e.code} error'
 
-        logger.error(f"HTTP error during OTP exchange: {error_msg}")
+        logger.error("HTTP error during OTP exchange: %s", error_msg)
         return {
             'success': False,
             'error': error_msg
         }
 
     except urllib.error.URLError as e:
-        logger.error(f"Network error during OTP exchange: {e}")
+        logger.error("Network error during OTP exchange: %s", e)
         return {
             'success': False,
             'error': f'Connection failed: {str(e)}'
         }
 
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON response: {e}")
+        logger.error("Invalid JSON response: %s", e)
         return {
             'success': False,
             'error': 'Invalid server response format'
         }
 
     except Exception as e:
-        logger.error(f"Unexpected error during OTP exchange: {e}")
+        logger.error("Unexpected error during OTP exchange: %s", e)
         return {
             'success': False,
             'error': f'Unexpected error: {str(e)}'
@@ -205,10 +260,10 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
         test_url = f"{server_url.rstrip('/')}/kodi/test"
         headers = {'Authorization': f'ApiKey {api_key}'}
 
-        logger.info(f"=== API CONNECTION TEST REQUEST ===")
-        logger.info(f"URL: {test_url}")
-        logger.info(f"Method: GET")
-        logger.info(f"Headers: {headers}")
+        logger.info("=== API CONNECTION TEST REQUEST ===")
+        logger.info("URL: %s", test_url)
+        logger.info("Method: GET")
+        logger.info("Headers: %s", _sanitize_headers(headers))
 
         req = urllib.request.Request(test_url)
         req.add_header('Authorization', f'ApiKey {api_key}')
@@ -217,19 +272,19 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
             response_code = response.getcode()
             response_data = response.read().decode('utf-8')
 
-            logger.info(f"=== API CONNECTION TEST RESPONSE ===")
-            logger.info(f"Status Code: {response_code}")
-            logger.info(f"Response Headers: {dict(response.headers)}")
-            logger.info(f"Response Body: {response_data}")
+            logger.info("=== API CONNECTION TEST RESPONSE ===")
+            logger.info("Status Code: %s", response_code)
+            logger.info("Response Headers: %s", _sanitize_headers(dict(response.headers)))
+            logger.info("Response Body: %s", _sanitize_response_data(response_data))
 
             if response_code == 200:
                 data = json.loads(response_data)
 
                 if data.get('status') == 'success':
                     user_info = data.get('user', {})
-                    logger.info(f"=== API CONNECTION TEST SUCCESS ===")
-                    logger.info(f"User: {user_info.get('email', 'Unknown')}")
-                    logger.info(f"Role: {user_info.get('role', 'Unknown')}")
+                    logger.info("=== API CONNECTION TEST SUCCESS ===")
+                    logger.info("User: %s", user_info.get('email', 'Unknown'))
+                    logger.info("Role: %s", user_info.get('role', 'Unknown'))
                     return {
                         'success': True,
                         'message': data.get('message', 'Connection successful'),
@@ -237,13 +292,13 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
                         'user_role': user_info.get('role', 'Unknown')
                     }
                 else:
-                    logger.error(f"Server returned unsuccessful status: {data}")
+                    logger.error("Server returned unsuccessful status: %s", data)
                     return {
                         'success': False,
                         'error': 'Server returned unsuccessful status'
                     }
             else:
-                logger.error(f"HTTP error response: {response_code}")
+                logger.error("HTTP error response: %s", response_code)
                 return {
                     'success': False,
                     'error': f'Server error: HTTP {response_code}'
@@ -252,10 +307,10 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
     except urllib.error.HTTPError as e:
         try:
             error_body = e.read().decode('utf-8')
-            logger.info(f"=== API CONNECTION TEST HTTP ERROR ===")
-            logger.info(f"Status Code: {e.code}")
-            logger.info(f"Error Headers: {dict(e.headers) if hasattr(e, 'headers') else 'N/A'}")
-            logger.info(f"Error Body: {error_body}")
+            logger.info("=== API CONNECTION TEST HTTP ERROR ===")
+            logger.info("Status Code: %s", e.code)
+            logger.info("Error Headers: %s", _sanitize_headers(dict(e.headers) if hasattr(e, 'headers') else {}))
+            logger.info("Error Body: %s", _sanitize_response_data(error_body))
         except Exception:
             error_body = 'Unable to read error body'
 
@@ -264,14 +319,14 @@ def test_api_connection(server_url: str, api_key: Optional[str] = None) -> Dict[
         else:
             error_msg = f'HTTP {e.code} error'
 
-        logger.error(f"HTTP error during API test: {error_msg}")
+        logger.error("HTTP error during API test: %s", error_msg)
         return {
             'success': False,
             'error': error_msg
         }
 
     except Exception as e:
-        logger.error(f"Error during API test: {e}")
+        logger.error("Error during API test: %s", e)
         return {
             'success': False,
             'error': f'Connection test failed: {str(e)}'
@@ -330,14 +385,14 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                         ai_client = get_ai_search_client()
                         sync_result = ai_client.sync_after_otp(media_items)
                         if sync_result and sync_result.get('success'):
-                            logger.info(f"Post-OTP authoritative sync completed: {sync_result.get('results', {})}")
+                            logger.info("Post-OTP authoritative sync completed: %s", sync_result.get('results', {}))
                         else:
                             logger.warning("Post-OTP sync failed, but authentication was successful")
                     else:
                         logger.info("No media items found, skipping post-OTP sync")
 
                 except Exception as e:
-                    logger.warning(f"Post-OTP sync failed but authentication succeeded: {e}")
+                    logger.warning("Post-OTP sync failed but authentication succeeded: %s", e)
 
                 logger.info("OTP authorization flow completed successfully")
                 return True
@@ -348,7 +403,7 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                     f"Failed to activate AI Search:\n\n{result['error']}"
                 )
 
-                logger.warning(f"OTP authorization failed: {result['error']}")
+                logger.warning("OTP authorization failed: %s", result['error'])
                 return False
 
         finally:
@@ -356,7 +411,7 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                 progress.close()
 
     except Exception as e:
-        logger.error(f"Error in OTP authorization flow: {e}")
+        logger.error("Error in OTP authorization flow: %s", e)
         xbmcgui.Dialog().ok(
             "Authorization Error",
             f"An unexpected error occurred:\n\n{str(e)[:100]}..."
@@ -387,5 +442,5 @@ def is_api_key_valid(server_url: Optional[str] = None, api_key: Optional[str] = 
         return result.get('success', False)
 
     except Exception as e:
-        logger.debug(f"API key validation failed: {e}")
+        logger.debug("API key validation failed: %s", e)
         return False
