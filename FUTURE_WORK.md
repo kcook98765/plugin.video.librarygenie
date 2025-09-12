@@ -47,11 +47,11 @@ This document outlines potential future enhancements and features for LibraryGen
 ## Medium Priority Features
 
 ### 6. Advanced Search Enhancements
-**Status**: Basic engine exists, some advanced features unused  
-**Files**: `lib/search/enhanced_query_interpreter.py`, `lib/search/enhanced_search_engine.py`  
+**Status**: Not implemented - only simple search engine exists  
+**Files**: Would need new enhanced search modules  
 **Description**: Decade parsing, complex query operators, saved searches  
 **Benefits**: Power user search capabilities  
-**Effort**: Low - Features exist but not fully utilized  
+**Effort**: Medium - Would require new implementation beyond current simple search  
 
 ### 7. Backup System Improvements
 **Status**: ✅ COMPLETE - Full backup system with automation implemented  

@@ -29,22 +29,22 @@ LibraryGenie's search system consists of several key components:
 
 1. **Simple Search Engine** (`lib/search/simple_search_engine.py`)
    - Main search interface with database-backed keyword matching
-   - Supports configurable search scope (title, plot, both)
-   - Implements intelligent result ranking and filtering
+   - Supports title and plot searching with intelligent ranking
+   - Implements SQL-based ranking for result prioritization
 
-2. **Query Interpreter** (`lib/search/simple_query_interpreter.py`)
+2. **Simple Query Interpreter** (`lib/search/simple_query_interpreter.py`)
    - Processes user input into structured search queries
    - Handles keyword extraction and normalization
-   - Supports match logic configuration (all/any keywords)
+   - Uses "all keywords" matching logic
 
 3. **Text Normalizer** (`lib/search/normalizer.py`)
    - Unicode normalization and diacritic handling
    - Punctuation and whitespace cleaning
    - Case-insensitive matching support
 
-4. **Search Query Object** (`lib/search/simple_search_query.py`)
+4. **Simple Search Query** (`lib/search/simple_search_query.py`)
    - Encapsulates search parameters and configuration
-   - Manages scope, keywords, and match logic settings
+   - Manages scope, keywords, and pagination settings
 
 ### Database Integration
 
