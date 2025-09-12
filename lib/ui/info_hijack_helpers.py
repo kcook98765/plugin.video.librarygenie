@@ -119,14 +119,29 @@ def _wait_for_info_dialog(timeout=10.0):
     _log(f"_wait_for_info_dialog: TIMEOUT ({t_end - t_start:.3f}s)", xbmc.LOGWARNING)
     return False
 
-def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
-    """Focus the main list control, trying version-specific control IDs"""
+def verify_list_focus() -> bool:
+    """Check if list control is already focused (should be automatic after XSP navigation)"""
+    
+    # Check if any of the expected controls already has focus
+    # Most common first: 50 (default), 55 (widelist), 500 (panel), 52 (alt)
+    expected_controls = [50, 55, 500, 52]
+    
+    for control_id in expected_controls:
+        if xbmc.getCondVisibility(f"Control.HasFocus({control_id})"):
+            _log(f"List control {control_id} already has focus (automatic)")
+            return True
+    
+    _log("No list control has focus - need to set focus manually")
+    return False
+
+def focus_list_manual(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
+    """Manually focus the main list control, trying version-specific control IDs"""
     t_focus_start = time.perf_counter()
 
     if control_id is None:
         control_id = get_version_specific_control_id()
 
-    _log(f"focus_list: Starting with control_id={control_id}, tries={tries}")
+    _log(f"focus_list_manual: Starting with control_id={control_id}, tries={tries}")
 
     # Build list of control IDs to try in order
     # 55: v20/v21 Estuary default, 500: grid/panel views, 50/52: v19 compatibility
@@ -159,6 +174,19 @@ def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int =
     t_focus_end = time.perf_counter()
     _log(f"Failed to focus any control after {max_rounds} rounds (tried {control_ids_to_try}) - total time: {t_focus_end - t_focus_start:.3f}s", xbmc.LOGWARNING)
     return False
+
+def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
+    """Optimized list focusing: check if already focused, then fallback to manual focus"""
+    t_focus_start = time.perf_counter()
+    
+    # First check if list control is already focused (should be automatic after XSP navigation)
+    if verify_list_focus():
+        t_focus_end = time.perf_counter()
+        _log(f"focus_list: List already focused - substep 5 complete ({t_focus_end - t_focus_start:.3f}s)")
+        return True
+    else:
+        _log("focus_list: Manual focus needed - using focus_list_manual()")
+        return focus_list_manual(control_id, tries, step_ms)
 
 def _write_text(path_special: str, text: str) -> bool:
     try:
