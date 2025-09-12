@@ -672,7 +672,7 @@ class LibraryScanner:
                         # Insert episodes for this show
                         episodes_added = self._batch_insert_episodes(episodes, tvshow)
                         total_episodes_added += episodes_added
-                        self.logger.debug("Added %s episodes for show '%s'", episodes_added, tvshow_title)
+                        # Silent episode insertion - final count reported at process end
                 
                 show_offset += len(tvshows)
                 # Silent TV show processing - final count reported at process end
