@@ -123,7 +123,7 @@ class PluginContext:
     def display_folder(self, folder_id: str):
         """Display folder contents with proper breadcrumb"""
         try:
-            self.logger.info("Displaying folder %s", folder_id)
+            self.logger.debug("Displaying folder %s", folder_id)
 
             query_manager = get_query_manager()
             folder_info = query_manager.get_folder_info(folder_id)
@@ -143,15 +143,15 @@ class PluginContext:
                 {'folder_id': folder_id}, 
                 query_manager
             )
-            self.logger.info("Generated folder breadcrumb: '%s'", breadcrumb_path)
+            self.logger.debug("Generated folder breadcrumb: '%s'", breadcrumb_path)
 
             # Get subfolders
             subfolders = query_manager.get_all_folders(parent_id=folder_id)
-            self.logger.info("Folder '%s' has %s subfolders", folder_name, len(subfolders))
+            self.logger.debug("Folder '%s' has %s subfolders", folder_name, len(subfolders))
 
             # Get lists in this folder
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            self.logger.info("Folder '%s' has %s lists", folder_name, len(lists_in_folder))
+            self.logger.debug("Folder '%s' has %s lists", folder_name, len(lists_in_folder))
 
             # Build menu items
             menu_items = []
