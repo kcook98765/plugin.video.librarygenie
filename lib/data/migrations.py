@@ -6,11 +6,12 @@ LibraryGenie - Database Schema Setup
 Creates the complete database schema on first run
 """
 
+import time
 from .connection_manager import get_connection_manager
 from ..utils.kodi_log import get_kodi_logger
 
-# Global flag to track if database has been initialized
-_database_initialized = False
+# Current target schema version
+TARGET_SCHEMA_VERSION = 2
 
 
 class MigrationManager:
@@ -24,24 +25,10 @@ class MigrationManager:
 
     def ensure_initialized(self):
         """Ensure database is initialized with complete schema"""
-        global _database_initialized
-        
-        # Check if already initialized to avoid redundant checks
-        if _database_initialized:
-            return
-            
         try:
-            if self._is_database_empty():
-                self.logger.info("Initializing complete database schema")
-                self._create_complete_schema()
-                self.logger.info("Database initialized successfully")
-            else:
-                self.logger.debug("Database already initialized")
-                # Run any pending migrations for existing databases
-                self._run_migrations()
-            
-            # Mark as initialized to prevent future redundant checks
-            _database_initialized = True
+            # Delegate to the connection-based method for proper locking
+            with self.conn_manager.transaction() as conn:
+                self.ensure_initialized_with_connection(conn)
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
@@ -49,28 +36,36 @@ class MigrationManager:
 
     def ensure_initialized_with_connection(self, conn):
         """Ensure database is initialized with complete schema using provided connection"""
-        global _database_initialized
-        
-        # Check if already initialized to avoid redundant checks
-        if _database_initialized:
-            return
-            
+        # Use application-level locking to prevent concurrent initialization
         try:
-            if self._is_database_empty_with_connection(conn):
-                self.logger.info("Initializing complete database schema")
-                self._create_tables(conn)  # Use connection directly
-                self.logger.info("Database initialized successfully")
-            else:
-                self.logger.debug("Database already initialized")
-                # Run any pending migrations for existing databases
-                self._run_migrations_with_connection(conn)
+            # First, try to acquire an exclusive lock on the database
+            self._acquire_init_lock(conn)
             
-            # Mark as initialized to prevent future redundant checks
-            _database_initialized = True
+            # Re-check version after acquiring lock (another process might have initialized)
+            current_version = self._get_current_version_with_connection(conn)
+            
+            if current_version == 0:  # No schema_version table or empty database
+                # Check if this is truly an empty database or an upgraded database missing schema_version
+                if self._is_database_empty_with_connection(conn):
+                    self.logger.info("Initializing complete database schema for new database")
+                    self._create_tables(conn)
+                    self.logger.info("Database initialized successfully")
+                else:
+                    self.logger.info("Upgraded database detected - creating schema_version table and setting to target version")
+                    self._create_schema_version_table(conn)
+                    self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
+                    self.logger.info("Schema version tracking added to existing database")
+            elif current_version < TARGET_SCHEMA_VERSION:
+                self.logger.debug("Database exists but needs migration from version %s to %s", current_version, TARGET_SCHEMA_VERSION)
+                self._run_migrations_with_connection(conn)
+            else:
+                self.logger.debug("Database already at target version %s", current_version)
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
             raise
+        finally:
+            self._release_init_lock(conn)
 
     def _is_database_empty(self):
         """Check if database is empty (no tables exist)"""
@@ -102,13 +97,15 @@ class MigrationManager:
         """Create all database tables"""
         # Execute complete schema as a single script to avoid indentation issues
         schema_sql = """
-        -- Schema version tracking
-        CREATE TABLE schema_version (
-            version INTEGER PRIMARY KEY,
+        -- Schema version tracking (single-row table)
+        CREATE TABLE IF NOT EXISTS schema_version (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            version INTEGER NOT NULL,
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (version, applied_at) VALUES (1, datetime('now'));
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 2, datetime('now')) 
+        ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
         CREATE TABLE auth_state (
@@ -340,7 +337,7 @@ class MigrationManager:
         """Get the current schema version"""
         try:
             with self.conn_manager.transaction() as conn:
-                cursor = conn.execute("SELECT version FROM schema_version")
+                cursor = conn.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version")
                 result = cursor.fetchone()
                 if result:
                     # Ensure we return an integer, not a Row object
@@ -354,7 +351,7 @@ class MigrationManager:
     def _get_current_version_with_connection(self, conn):
         """Get the current schema version using provided connection"""
         try:
-            cursor = conn.execute("SELECT version FROM schema_version")
+            cursor = conn.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version")
             result = cursor.fetchone()
             if result:
                 # Ensure we return an integer, not a Row object
@@ -379,6 +376,11 @@ class MigrationManager:
         current_version = self._get_current_version_with_connection(conn)
         self.logger.debug("Current database version: %s", current_version)
         
+        # Only run migrations if actually needed
+        if current_version >= TARGET_SCHEMA_VERSION:
+            self.logger.debug("No migrations needed - database already at version %s", current_version)
+            return
+            
         # Migration 1: Add tvshow_kodi_id field for TV episode sync feature
         if current_version < 2:
             self._migrate_to_version_2_with_connection(conn)
@@ -441,18 +443,26 @@ class MigrationManager:
     def _migrate_to_version_2_with_connection(self, conn):
         """Migration to add tvshow_kodi_id field and index using provided connection"""
         try:
+            # Skip if already at version 2 or higher
+            current_version = self._get_current_version_with_connection(conn)
+            if current_version >= 2:
+                self.logger.debug("Migration to version 2 already completed, skipping")
+                return
+                
             self.logger.debug("Running migration to version 2 (with connection): Adding tvshow_kodi_id field")
             
-            # Ensure schema_version table exists before checking version
+            # Ensure schema_version table exists with single-row semantics
             try:
+                # Try new single-row format first
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS schema_version (
-                        version INTEGER PRIMARY KEY,
+                        id INTEGER PRIMARY KEY CHECK (id = 1),
+                        version INTEGER NOT NULL,
                         applied_at TEXT NOT NULL
                     )
                 """)
             except Exception as e:
-                self.logger.debug("Schema version table already exists or creation failed: %s", e)
+                self.logger.debug("Schema version table creation failed, may exist in old format: %s", e)
             
             # Check if column already exists (safe migration)
             try:
@@ -487,7 +497,7 @@ class MigrationManager:
                 index_exists = cursor.fetchone() is not None
                 
                 if not index_exists:
-                    conn.execute("CREATE INDEX idx_media_items_tvshow_episode ON media_items (tvshow_kodi_id, season, episode)")
+                    conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_tvshow_episode ON media_items (tvshow_kodi_id, season, episode)")
                     self.logger.info("Created index idx_media_items_tvshow_episode")
                 else:
                     self.logger.debug("Index idx_media_items_tvshow_episode already exists")
@@ -495,8 +505,8 @@ class MigrationManager:
             except Exception as e:
                 self.logger.warning("Could not create index: %s", e)
             
-            # Update schema version
-            conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (2, datetime('now'))")
+            # Update schema version using safe upsert semantics
+            self._set_schema_version(conn, 2)
             self.logger.debug("Migration to version 2 completed successfully (with connection)")
             
         except Exception as e:
@@ -507,6 +517,89 @@ class MigrationManager:
         """Run all pending migrations"""
         # No migrations needed for pre-release - fresh database only
         self.logger.debug("No migrations to apply for pre-release version")
+        
+    def _acquire_init_lock(self, conn):
+        """Acquire an application-level lock for database initialization"""
+        # Check if we're already in a transaction (avoid nested BEGIN)
+        try:
+            # Test if we can execute a simple query without starting a transaction
+            conn.execute("SELECT 1")
+            in_transaction = conn.in_transaction
+        except Exception:
+            in_transaction = False
+            
+        if in_transaction:
+            self.logger.debug("Already in transaction, skipping lock acquisition")
+            return
+            
+        max_retries = 5
+        retry_delay = 0.2
+        
+        for attempt in range(max_retries):
+            try:
+                # Use BEGIN IMMEDIATE to get an exclusive write lock
+                conn.execute("BEGIN IMMEDIATE")
+                self.logger.debug("Acquired database initialization lock on attempt %d", attempt + 1)
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    self.logger.debug("Could not acquire initialization lock on attempt %d: %s, retrying...", attempt + 1, e)
+                    time.sleep(retry_delay)
+                    retry_delay *= 1.5  # Exponential backoff
+                else:
+                    self.logger.error("Could not acquire initialization lock after %d attempts: %s", max_retries, e)
+                    raise Exception(f"Failed to acquire database lock after {max_retries} attempts: {e}")
+                
+    def _release_init_lock(self, conn):
+        """Release the application-level initialization lock"""
+        try:
+            # Only commit if we're in a transaction
+            if conn.in_transaction:
+                conn.commit()
+                self.logger.debug("Released database initialization lock")
+            else:
+                self.logger.debug("No transaction to commit, lock already released")
+        except Exception as e:
+            self.logger.debug("Lock release failed (may have been auto-released): %s", e)
+            
+    def _create_schema_version_table(self, conn):
+        """Create schema_version table with single-row semantics"""
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS schema_version (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    version INTEGER NOT NULL,
+                    applied_at TEXT NOT NULL
+                )
+            """)
+            self.logger.debug("Schema version table created or verified")
+        except Exception as e:
+            self.logger.error("Failed to create schema_version table: %s", e)
+            raise
+            
+    def _set_schema_version(self, conn, version):
+        """Set schema version using safe upsert semantics"""
+        try:
+            # Ensure schema_version table exists first
+            self._create_schema_version_table(conn)
+            
+            # Try new single-row format first
+            try:
+                conn.execute("""
+                    INSERT INTO schema_version (id, version, applied_at) 
+                    VALUES (1, ?, datetime('now')) 
+                    ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at
+                """, (version,))
+                self.logger.debug("Set schema version to %s using single-row format", version)
+            except Exception as e:
+                # Fallback for old schema_version table format
+                self.logger.debug("Single-row format failed, trying legacy format: %s", e)
+                conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (?, datetime('now'))", (version,))
+                self.logger.debug("Set schema version to %s using legacy format", version)
+                
+        except Exception as e:
+            self.logger.error("Failed to set schema version to %s: %s", version, e)
+            raise
 
 
 # Global migration manager instance
