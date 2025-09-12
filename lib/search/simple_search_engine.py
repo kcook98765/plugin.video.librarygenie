@@ -96,38 +96,46 @@ class SimpleSearchEngine:
         """Build SQL query with ranking logic"""
         params = []
 
-        # Base SELECT with ranking calculation
+        # Build media type filter
+        media_type_placeholders = ",".join(["?" for _ in query.media_types])
+        media_type_filter = f"mi.media_type IN ({media_type_placeholders})"
+
+        # Base SELECT with ranking calculation - include TV-specific fields
         if query.scope_type == "list":
             select_clause = """
                 SELECT DISTINCT mi.id, mi.kodi_id, mi.title, mi.year, mi.play as file_path, 
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.created_at, 
-                       mi.poster, mi.fanart, mi.plot, mi.rating, mi.duration as runtime,
-                       mi.genre, mi.director, 0 as playcount, mi.kodi_id as movieid,
+                       mi.art, mi.plot, mi.rating, mi.duration as runtime,
+                       mi.genre, mi.director, mi.media_type, mi.tvshowtitle, 
+                       mi.season, mi.episode, 0 as playcount, mi.kodi_id as itemid,
                        {ranking_expression} as search_rank
                 FROM media_items mi
                 INNER JOIN list_items li ON li.media_item_id = mi.id
             """
             where_clauses = [
                 "li.list_id = ?",
-                "mi.media_type = 'movie'",
+                media_type_filter,
                 "mi.source = 'lib'", 
                 "mi.is_removed = 0"
             ]
             params.append(query.scope_id)
+            params.extend(query.media_types)
         else:
             select_clause = """
                 SELECT mi.id, mi.kodi_id, mi.title, mi.year, mi.play as file_path, 
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.created_at, 
                        mi.art, mi.plot, mi.rating, mi.duration as runtime,
-                       mi.genre, mi.director, 0 as playcount, mi.kodi_id as movieid,
+                       mi.genre, mi.director, mi.media_type, mi.tvshowtitle,
+                       mi.season, mi.episode, 0 as playcount, mi.kodi_id as itemid,
                        {ranking_expression} as search_rank
                 FROM media_items mi
             """
             where_clauses = [
-                "mi.media_type = 'movie'",
+                media_type_filter,
                 "mi.source = 'lib'",
                 "mi.is_removed = 0"
             ]
+            params.extend(query.media_types)
 
         # Build search conditions and ranking expression
         search_conditions, ranking_expr, search_params = self._build_search_conditions(query)
@@ -160,6 +168,7 @@ class SimpleSearchEngine:
 
         # Build conditions based on search scope
         title_conditions = []
+        tvshowtitle_conditions = []
         plot_conditions = []
 
         for keyword in query.keywords:
@@ -168,6 +177,11 @@ class SimpleSearchEngine:
             if query.search_scope in ["title", "both"]:
                 title_conditions.append("LOWER(mi.title) LIKE ?")
                 params.append(f"%{normalized_keyword}%")
+                
+                # Also search tvshowtitle for episodes
+                if "episode" in query.media_types:
+                    tvshowtitle_conditions.append("LOWER(mi.tvshowtitle) LIKE ?")
+                    params.append(f"%{normalized_keyword}%")
 
             if query.search_scope in ["plot", "both"]:
                 plot_conditions.append("LOWER(mi.plot) LIKE ?")
@@ -176,11 +190,13 @@ class SimpleSearchEngine:
         # Combine conditions based on match logic
         field_conditions = []
 
-        if title_conditions:
+        # Combine title and tvshowtitle conditions for title matching
+        all_title_conditions = title_conditions + tvshowtitle_conditions
+        if all_title_conditions:
             if query.match_logic == "all":
-                field_conditions.append(f"({' AND '.join(title_conditions)})")
+                field_conditions.append(f"({' AND '.join(all_title_conditions)})")
             else:  # any
-                field_conditions.append(f"({' OR '.join(title_conditions)})")
+                field_conditions.append(f"({' OR '.join(all_title_conditions)})")
 
         if plot_conditions:
             if query.match_logic == "all":
@@ -206,33 +222,59 @@ class SimpleSearchEngine:
         if not query.keywords:
             return "999"  # Default low rank
 
-        # Count keyword matches in title and plot
+        # Count keyword matches in title, tvshowtitle, and plot
         title_matches = []
+        tvshowtitle_matches = []
         plot_matches = []
 
         for i, keyword in enumerate(query.keywords):
             # Using CASE WHEN for each keyword
             title_matches.append(f"CASE WHEN LOWER(mi.title) LIKE '%{self.normalizer.normalize(keyword)}%' THEN 1 ELSE 0 END")
             plot_matches.append(f"CASE WHEN LOWER(mi.plot) LIKE '%{self.normalizer.normalize(keyword)}%' THEN 1 ELSE 0 END")
+            
+            # Include tvshowtitle for episodes
+            if "episode" in query.media_types:
+                tvshowtitle_matches.append(f"CASE WHEN LOWER(mi.tvshowtitle) LIKE '%{self.normalizer.normalize(keyword)}%' THEN 1 ELSE 0 END")
 
         title_count = " + ".join(title_matches)
         plot_count = " + ".join(plot_matches)
         total_keywords = len(query.keywords)
 
-        # Ranking logic:
-        # 1. All keywords in title
-        # 2. Some keywords in title  
-        # 3. All keywords in plot
-        # 4. Some keywords in plot
-        ranking_expr = f"""
-            CASE 
-                WHEN ({title_count}) = {total_keywords} THEN 1
-                WHEN ({title_count}) > 0 THEN 2
-                WHEN ({plot_count}) = {total_keywords} THEN 3
-                WHEN ({plot_count}) > 0 THEN 4
-                ELSE 5
-            END
-        """
+        # Build ranking logic based on whether we're searching episodes
+        if "episode" in query.media_types and tvshowtitle_matches:
+            tvshowtitle_count = " + ".join(tvshowtitle_matches)
+            # Combined title and tvshowtitle count for episodes
+            combined_title_count = f"({title_count}) + ({tvshowtitle_count})"
+            
+            # Ranking logic for episodes:
+            # 1. All keywords in title or tvshowtitle
+            # 2. Some keywords in title or tvshowtitle  
+            # 3. All keywords in plot
+            # 4. Some keywords in plot
+            ranking_expr = f"""
+                CASE 
+                    WHEN ({combined_title_count}) >= {total_keywords} THEN 1
+                    WHEN ({combined_title_count}) > 0 THEN 2
+                    WHEN ({plot_count}) = {total_keywords} THEN 3
+                    WHEN ({plot_count}) > 0 THEN 4
+                    ELSE 5
+                END
+            """
+        else:
+            # Original ranking logic for movies:
+            # 1. All keywords in title
+            # 2. Some keywords in title  
+            # 3. All keywords in plot
+            # 4. Some keywords in plot
+            ranking_expr = f"""
+                CASE 
+                    WHEN ({title_count}) = {total_keywords} THEN 1
+                    WHEN ({title_count}) > 0 THEN 2
+                    WHEN ({plot_count}) = {total_keywords} THEN 3
+                    WHEN ({plot_count}) > 0 THEN 4
+                    ELSE 5
+                END
+            """
 
         return ranking_expr
 
