@@ -23,9 +23,6 @@ class SettingsManager:
         self.logger = get_kodi_logger('lib.config.settings')
 
     # General Settings
-    def get_debug_logging(self) -> bool:
-        """Get debug logging setting"""
-        return self.addon.getSettingBool('debug_logging')
 
     def get_confirm_destructive(self) -> bool:
         """Get confirmation for destructive actions setting"""

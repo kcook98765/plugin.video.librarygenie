@@ -3,7 +3,6 @@
   <!-- General Settings -->
   <category label="30000">
     <setting label="30010" type="lsep"/>
-    <setting id="debug_logging" type="bool" label="30011" help="35500" default="false"/>
     <setting label="30020" type="lsep"/>
     <setting id="confirm_destructive_actions" type="bool" label="30021" help="35501" default="true"/>
     <setting id="show_item_counts" type="bool" label="30022" help="35502" default="true"/>

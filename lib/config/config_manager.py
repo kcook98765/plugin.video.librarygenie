@@ -18,7 +18,6 @@ class ConfigManager:
 
         # Default configuration matching Phase 2-3 requirements
         self._defaults = {
-            "debug_logging": False,
             "background_task_enabled": True,
             "background_interval_seconds": 120,  # 120 seconds (safer default)
             # Phase 3: Advanced settings with safe defaults
