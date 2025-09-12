@@ -282,6 +282,33 @@ class ConfigManager:
             logger.error("Exception setting '%s' = '%s': %s", key, value, e)
             return False
 
+    def invalidate(self, key: Optional[str] = None):
+        """Invalidate cache entries
+        
+        Args:
+            key: Specific key to invalidate, or None to clear all cache
+        """
+        with self._cache_lock:
+            if key is None:
+                # Clear all cache
+                self._cache.clear()
+            else:
+                # Remove specific key and its typed variants
+                keys_to_remove = []
+                for cache_key in self._cache:
+                    if cache_key == key or cache_key.endswith(f":{key}"):
+                        keys_to_remove.append(cache_key)
+                
+                for cache_key in keys_to_remove:
+                    self._cache.pop(cache_key, None)
+
+    def reload(self):
+        """Reload all settings by clearing cache completely"""
+        from ..utils.kodi_log import get_kodi_logger
+        logger = get_kodi_logger('lib.config.config_manager')
+        logger.debug("Reloading all settings cache")
+        self.invalidate()
+
     def _get_setting_type(self, key):
         """Determine setting type based on key name"""
         from ..utils.kodi_log import get_kodi_logger
