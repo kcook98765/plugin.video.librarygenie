@@ -67,6 +67,9 @@ class Router:
                 # End directory properly to prevent Kodi from trying to load this as a directory
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True  # Always return True to prevent fallthrough to main menu
+            elif action == "apply_skin_preset":
+                # Handle skin preset application from settings
+                return self._handle_apply_skin_preset(context)
             elif action == "noop":
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
@@ -293,6 +296,70 @@ class Router:
             return True
         except Exception as e:
             self.logger.error("Error in noop handler: %s", e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+    def _handle_apply_skin_preset(self, context: PluginContext) -> bool:
+        """Handle applying skin preset from settings"""
+        try:
+            from ..config.settings import SettingsManager
+            from ..database.skin_mappings import SkinMappingsManager
+            from ..database.manager import DatabaseManager
+            import xbmcgui
+            
+            settings = SettingsManager()
+            
+            # Get current skin preset selection
+            preset_key = settings.get_skin_control_preset()
+            self.logger.info(f"Applying skin preset: {preset_key}")
+            
+            # Initialize database managers
+            db_manager = DatabaseManager()
+            skin_manager = SkinMappingsManager(db_manager)
+            
+            if preset_key == "auto":
+                # Re-run auto-detection
+                success = settings.detect_and_configure_skin_controls()
+                if success:
+                    # Get the detected mapping to show user what was configured
+                    current_down = settings.get_down_control_list()
+                    current_right = settings.get_right_control_list()
+                    
+                    dialog = xbmcgui.Dialog()
+                    dialog.ok("LibraryGenie", 
+                             f"Auto-detection successful!\nDown controls: {current_down}\nRight controls: {current_right}")
+                else:
+                    dialog = xbmcgui.Dialog()
+                    dialog.ok("LibraryGenie", "Auto-detection failed. Unknown skin - using fallback defaults.")
+            else:
+                # Apply specific preset mapping
+                mapping = skin_manager.get_mapping_by_preset_key(preset_key)
+                if mapping:
+                    settings.set_down_control_list(mapping['down_controls'])
+                    settings.set_right_control_list(mapping['right_controls'])
+                    
+                    dialog = xbmcgui.Dialog()
+                    dialog.ok("LibraryGenie", 
+                             f"Applied preset: {mapping['display_name']}\nDown: {mapping['down_controls']}\nRight: {mapping['right_controls']}")
+                else:
+                    dialog = xbmcgui.Dialog()
+                    dialog.ok("LibraryGenie", f"Error: Preset '{preset_key}' not found.")
+                    
+            # Mark as configured
+            settings.set_skin_controls_configured(True)
+            
+            # End directory properly
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error applying skin preset: {e}")
+            try:
+                dialog = xbmcgui.Dialog()
+                dialog.ok("LibraryGenie", f"Error applying skin preset: {str(e)}")
+            except:
+                pass
+            
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
 

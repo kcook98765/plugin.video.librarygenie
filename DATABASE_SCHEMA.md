@@ -285,6 +285,33 @@ Indexes:
 
 ---
 
+### `skin_mappings`
+Maps Kodi skin identifiers to control configurations for UI navigation.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INTEGER PK | Unique identifier |
+| `skin_id` | TEXT UNIQUE | Kodi skin identifier (e.g., 'skin.estuary') |
+| `preset_key` | TEXT UNIQUE | Internal preset key (e.g., 'estuary') |
+| `display_name` | TEXT | User-friendly name (e.g., 'Estuary (Default)') |
+| `down_controls` | TEXT | Comma-separated down navigation control IDs |
+| `right_controls` | TEXT | Comma-separated right navigation control IDs |
+| `is_builtin` | INTEGER | Whether this is a built-in mapping (0/1) |
+| `is_active` | INTEGER | Whether this mapping is currently active (0/1) |
+| `created_at` | TEXT | Creation timestamp |
+| `updated_at` | TEXT | Last update timestamp |
+
+Constraints:
+- UNIQUE(skin_id)
+- UNIQUE(preset_key)
+
+Indexes:
+- INDEX on `skin_id`.
+- INDEX on `preset_key`.
+- INDEX on `is_active`.
+
+---
+
 ### `schema_version`
 Tracks database schema version for migrations.
 

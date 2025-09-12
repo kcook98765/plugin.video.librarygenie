@@ -97,4 +97,16 @@
   <category label="30020">
     <setting id="info_hijack_enabled" type="bool" label="32087" help="35545" default="true"/>
   </category>
+
+  <!-- Skin Control Settings -->
+  <category label="30600">
+    <setting label="30610" type="lsep"/>
+    <setting id="skin_control_preset" type="select" label="30611" help="35600" default="0" lvalues="30621|30627|30624|30623|30626|30622|30625"/>
+    <setting label="30615" type="lsep"/>
+    <setting id="down_control_list" type="text" label="30612" help="35601" default="50,55"/>
+    <setting id="right_control_list" type="text" label="30613" help="35602" default="500,501,502"/>
+    <setting label="30620" type="lsep"/>
+    <setting id="apply_skin_preset_action" type="action" label="30614" action="RunPlugin(plugin://plugin.video.librarygenie/?action=apply_skin_preset)" enable="!eq(-4,1)"/>
+    <setting id="skin_controls_configured" type="bool" visible="false" default="false"/>
+  </category>
 </settings>
