@@ -9,6 +9,9 @@ Creates the complete database schema on first run
 from .connection_manager import get_connection_manager
 from ..utils.logger import get_logger
 
+# Global flag to track if database has been initialized
+_database_initialized = False
+
 
 class MigrationManager:
     """Manages database schema initialization"""
@@ -21,6 +24,12 @@ class MigrationManager:
 
     def ensure_initialized(self):
         """Ensure database is initialized with complete schema"""
+        global _database_initialized
+        
+        # Check if already initialized to avoid redundant checks
+        if _database_initialized:
+            return
+            
         try:
             if self._is_database_empty():
                 self.logger.info("Initializing complete database schema")
@@ -30,6 +39,9 @@ class MigrationManager:
                 self.logger.debug("Database already initialized")
                 # Run any pending migrations for existing databases
                 self._run_migrations()
+            
+            # Mark as initialized to prevent future redundant checks
+            _database_initialized = True
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
@@ -37,6 +49,12 @@ class MigrationManager:
 
     def ensure_initialized_with_connection(self, conn):
         """Ensure database is initialized with complete schema using provided connection"""
+        global _database_initialized
+        
+        # Check if already initialized to avoid redundant checks
+        if _database_initialized:
+            return
+            
         try:
             if self._is_database_empty_with_connection(conn):
                 self.logger.info("Initializing complete database schema")
@@ -46,6 +64,9 @@ class MigrationManager:
                 self.logger.debug("Database already initialized")
                 # Run any pending migrations for existing databases
                 self._run_migrations_with_connection(conn)
+            
+            # Mark as initialized to prevent future redundant checks
+            _database_initialized = True
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)

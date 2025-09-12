@@ -112,8 +112,8 @@ class QueryManager:
         try:
             self.logger.debug("Initializing SQLite data layer")
 
-            # Apply migrations to ensure schema is up to date
-            self.migration_manager.ensure_initialized()
+            # Database schema is already initialized by connection manager
+            # No need to call migration_manager.ensure_initialized() here
 
             # Ensure default list exists
             self._ensure_default_list()
