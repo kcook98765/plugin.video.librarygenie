@@ -89,6 +89,20 @@ class ResponseHandler:
                     xbmc.executebuiltin(f'Container.Update("{main_url}",replace)')
                     return
 
+                elif getattr(response, 'navigate_to_favorites', None):
+                    # Navigate to favorites view
+                    import xbmc
+                    from .session_state import get_session_state
+                    
+                    # Bump refresh token for cache-busting
+                    session_state = get_session_state()
+                    session_state.bump_refresh_token()
+                    
+                    favorites_url = context.build_cache_busted_url("kodi_favorites")
+                    context.logger.debug("RESPONSE HANDLER: Navigating to favorites with cache-busted URL: %s", favorites_url)
+                    xbmc.executebuiltin(f'Container.Update("{favorites_url}",replace)')
+                    return
+
                 elif getattr(response, 'refresh_needed', None):
                     # Only refresh if no specific navigation was requested
                     # Use cache-busted Container.Update instead of Container.Refresh for reliable fresh content

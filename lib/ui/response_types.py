@@ -16,16 +16,20 @@ class DirectoryResponse:
     """Response for directory listing handlers"""
     items: List[Dict[str, Any]]
     success: bool = True
-    cache_to_disc: bool = True
+    cache_to_disc: bool = False  # Default to no caching for dynamic content
     update_listing: bool = False
     sort_methods: Optional[List[int]] = None
     content_type: str = "movies"
+    allow_caching: bool = False  # Explicit flag to enable caching for truly static content
 
     def to_kodi_params(self) -> Dict[str, Union[bool, List[int], None]]:
         """Convert to parameters for xbmcplugin.endOfDirectory"""
+        # Use smart caching logic: allow_caching overrides cache_to_disc
+        cache_enabled = self.allow_caching if hasattr(self, 'allow_caching') else self.cache_to_disc
+        
         params: Dict[str, Union[bool, List[int], None]] = {
             'succeeded': self.success,
-            'cacheToDisc': self.cache_to_disc,
+            'cacheToDisc': cache_enabled,
             'updateListing': self.update_listing,
             'sortMethods': None
         }
