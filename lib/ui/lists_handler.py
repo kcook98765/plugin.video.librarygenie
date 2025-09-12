@@ -211,7 +211,6 @@ class ListsHandler:
                 list_id = kodi_favorites_item.get('id')
                 name = kodi_favorites_item.get('name', 'Kodi Favorites')
                 description = kodi_favorites_item.get('description', '')
-                item_count = kodi_favorites_item.get('item_count', 0)
 
                 context_menu = [
                     (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})")
@@ -221,7 +220,7 @@ class ListsHandler:
                     'label': f"[COLOR yellow]{name}[/COLOR]",
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
-                    'description': f"{item_count} items - {description}" if description else f"{item_count} items",
+                    'description': description,
                     'icon': "DefaultPlaylist.png",
                     'context_menu': context_menu
                 })
@@ -233,7 +232,6 @@ class ListsHandler:
             for folder_info in all_folders:
                 folder_id = folder_info['id']
                 folder_name = folder_info['name']
-                list_count = folder_info['list_count']
 
                 # Skip the reserved "Search History" folder since it's now shown at root level
                 if folder_name == 'Search History':
@@ -247,7 +245,7 @@ class ListsHandler:
                     'label': f"[COLOR cyan]{folder_name}[/COLOR]",
                     'url': context.build_url('show_folder', folder_id=folder_id),
                     'is_folder': True,
-                    'description': f"Folder with {list_count} lists",
+                    'description': f"Folder",
                     'context_menu': context_menu
                 })
 
@@ -259,7 +257,6 @@ class ListsHandler:
                 list_id = list_item.get('id')
                 name = list_item.get('name', 'Unnamed List')
                 description = list_item.get('description', '')
-                item_count = list_item.get('item_count', 0)
 
                 # Special handling for Kodi Favorites - limited context menu
                 if name == 'Kodi Favorites':
@@ -278,7 +275,7 @@ class ListsHandler:
                     'label': f"[COLOR yellow]{name}[/COLOR]",
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
-                    'description': f"{item_count} items - {description}" if description else f"{item_count} items",
+                    'description': description,
                     'icon': "DefaultPlaylist.png",
                     'context_menu': context_menu
                 })
@@ -1040,7 +1037,6 @@ class ListsHandler:
             for subfolder in subfolders:
                 subfolder_id = subfolder.get('id')
                 subfolder_name = subfolder.get('name', 'Unnamed Folder')
-                list_count = subfolder.get('list_count', 0)
 
                 context_menu = [
                     (f"Rename '{subfolder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=subfolder_id)})"),
@@ -1052,7 +1048,7 @@ class ListsHandler:
                     'label': f"[COLOR cyan]📁 {subfolder_name}[/COLOR]",
                     'url': context.build_url('show_folder', folder_id=subfolder_id),
                     'is_folder': True,
-                    'description': f"Subfolder with {list_count} lists",
+                    'description': f"Subfolder",
                     'context_menu': context_menu,
                     'icon': "DefaultFolder.png"
                 })
@@ -1062,7 +1058,6 @@ class ListsHandler:
                 list_id = list_item.get('id')
                 name = list_item.get('name', 'Unnamed List')
                 description = list_item.get('description', '')
-                item_count = list_item.get('item_count', 0)
 
                 context_menu = [
                     (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
@@ -1075,7 +1070,7 @@ class ListsHandler:
                     'label': f"[COLOR yellow]{name}[/COLOR]",
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
-                    'description': f"{item_count} items - {description}" if description else f"{item_count} items",
+                    'description': description,
                     'icon': "DefaultPlaylist.png",
                     'context_menu': context_menu
                 })
@@ -1199,7 +1194,7 @@ class ListsHandler:
                     display_name = lst['name']
                 else:
                     display_name = f"{folder_name}/{lst['name']}"
-                list_options.append(f"{display_name} ({lst['item_count']} items)")
+                list_options.append(display_name)
                 list_ids.append(lst['id'])
 
             # Add option to create new list
@@ -1296,9 +1291,9 @@ class ListsHandler:
             for lst in available_lists:
                 folder_name = lst.get('folder_name', 'Root')
                 if folder_name == 'Root' or not folder_name:
-                    list_options.append(f"{lst['name']} ({lst['item_count']} items)")
+                    list_options.append(lst['name'])
                 else:
-                    list_options.append(f"{folder_name}/{lst['name']} ({lst['item_count']} items)")
+                    list_options.append(f"{folder_name}/{lst['name']}")
 
             # Add option to create new list
             list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
@@ -1398,9 +1393,9 @@ class ListsHandler:
             for lst in available_lists:
                 folder_name = lst.get('folder_name', 'Root')
                 if folder_name == 'Root' or not folder_name:
-                    list_options.append(f"{lst['name']} ({lst['item_count']} items)")
+                    list_options.append(lst['name'])
                 else:
-                    list_options.append(f"{folder_name}/{lst['name']} ({lst['item_count']} items)")
+                    list_options.append(f"{folder_name}/{lst['name']}")
 
             # Add option to create new list
             list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
@@ -1544,9 +1539,9 @@ class ListsHandler:
             for lst in all_lists:
                 folder_name = lst.get('folder_name', 'Root')
                 if folder_name == 'Root' or not folder_name:
-                    list_options.append(f"{lst['name']} ({lst['item_count']} items)")
+                    list_options.append(lst['name'])
                 else:
-                    list_options.append(f"{folder_name}/{lst['name']} ({lst['item_count']} items)")
+                    list_options.append(f"{folder_name}/{lst['name']}")
 
             # Add option to create new list
             list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string

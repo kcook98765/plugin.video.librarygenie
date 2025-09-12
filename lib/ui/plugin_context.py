@@ -178,7 +178,6 @@ class PluginContext:
             for subfolder in subfolders:
                 subfolder_id = subfolder['id']
                 subfolder_name = subfolder['name']
-                list_count = subfolder.get('list_count', 0)
 
                 context_menu = [
                     (f"Tools & Options for '{subfolder_name}'", f"RunPlugin({self.build_url('show_tools', list_type='folder', list_id=subfolder_id)})")
@@ -188,7 +187,7 @@ class PluginContext:
                     'label': f"[COLOR cyan]{subfolder_name}[/COLOR]",
                     'url': self.build_url('show_folder', folder_id=subfolder_id),
                     'is_folder': True,
-                    'description': f"Folder with {list_count} lists",
+                    'description': f"Folder",
                     'context_menu': context_menu
                 })
 
@@ -196,7 +195,7 @@ class PluginContext:
             for list_item in lists_in_folder:
                 list_id = list_item['id']
                 name = list_item['name']
-                item_count = list_item.get('item_count', 0)
+                description = list_item.get('description', '')
 
                 context_menu = [
                     (f"Tools & Options for '{name}'", f"RunPlugin({self.build_url('show_tools', list_type='user_list', list_id=list_id)})")
@@ -206,7 +205,7 @@ class PluginContext:
                     'label': name,
                     'url': self.build_url('show_list', list_id=list_id),
                     'is_folder': True,
-                    'description': f"{item_count} items",
+                    'description': description,
                     'context_menu': context_menu
                 })
 

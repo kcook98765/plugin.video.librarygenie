@@ -464,7 +464,7 @@ class ToolsHandler:
                 return DialogResponse(success=False, message="No other lists available to merge")
 
             # Build list options
-            list_options = [f"{list_item['name']} ({list_item['item_count']} items)" for list_item in source_lists]
+            list_options = [list_item['name'] for list_item in source_lists]
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
@@ -479,7 +479,6 @@ class ToolsHandler:
             if not dialog.yesno(
                 L(36021),  # "Confirm Merge"
                 L(36022) % source_list['name'],  # "Merge '%s' into target list?"
-                L(36023) % source_list['item_count'],  # "This will add %d items."
                 L(36024)  # "The source list will remain unchanged."
             ):
                 return DialogResponse(success=False)
@@ -1659,8 +1658,6 @@ class ToolsHandler:
 
                 self.logger.info("Successfully converted search history list %s to '%s' in %s", search_list_id, new_name.strip(), destination_name)
 
-                item_count = search_list_info.get('item_count', 0)
-
                 # Check if this was the last list in the search history folder
                 search_folder_id = query_manager.get_or_create_search_history_folder()
                 remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
@@ -1670,14 +1667,14 @@ class ToolsHandler:
                     # Still have search history lists, navigate back to folder
                     return DialogResponse(
                         success=True,
-                        message=f"Moved '{new_name.strip()}' to {destination_name} with {item_count} items",
+                        message=f"Moved '{new_name.strip()}' to {destination_name}",
                         navigate_to_folder=search_folder_id
                     )
                 else:
                     # No more search history lists, navigate back to main menu
                     return DialogResponse(
                         success=True,
-                        message=f"Moved '{new_name.strip()}' to {destination_name} with {item_count} items",
+                        message=f"Moved '{new_name.strip()}' to {destination_name}",
                         navigate_to_main=True
                     )
 
