@@ -23,7 +23,7 @@ def is_authorized() -> bool:
         api_key = get_api_key()
         return bool(api_key and api_key.strip())
     except Exception as e:
-        logger.debug(f"Authorization check failed: {e}")
+        logger.debug("Authorization check failed: %s", e)
         return False
 
 
@@ -47,7 +47,7 @@ def get_api_key() -> Optional[str]:
             return None
 
     except Exception as e:
-        logger.error(f"Failed to get API key: {e}")
+        logger.error("Failed to get API key: %s", e)
         return None
 
 
@@ -117,7 +117,7 @@ def save_api_key(api_key: str) -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Failed to save API key: {e}")
+        logger.error("Failed to save API key: %s", e)
         return False
 
 
@@ -139,7 +139,7 @@ def save_tokens(api_key: Optional[str] = None, access_token: Optional[str] = Non
         return True
 
     except Exception as e:
-        logger.error(f"Error saving tokens: {e}")
+        logger.error("Error saving tokens: %s", e)
         return False
 
 
@@ -156,7 +156,7 @@ def get_tokens() -> Dict[str, str]:
         }
 
     except Exception as e:
-        logger.error(f"Error getting tokens: {e}")
+        logger.error("Error getting tokens: %s", e)
         return {
             'api_key': '',
             'access_token': '',
@@ -178,7 +178,7 @@ def clear_tokens() -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Error clearing tokens: {e}")
+        logger.error("Error clearing tokens: %s", e)
         return False
 
 
@@ -194,7 +194,7 @@ def clear_auth_data() -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Error clearing auth data: {e}")
+        logger.error("Error clearing auth data: %s", e)
         return False
 
 
@@ -229,7 +229,7 @@ def get_auth_info() -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Failed to get auth info: {e}")
+        logger.error("Failed to get auth info: %s", e)
         return {
             "has_api_key": False,
             "is_authorized": False,

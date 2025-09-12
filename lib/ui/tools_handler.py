@@ -565,7 +565,7 @@ class ToolsHandler:
             )
 
             if not new_name or not new_name.strip():
-                self.logger.debug(f"TOOLS DEBUG: User cancelled list creation or entered empty name")
+                self.logger.debug("TOOLS DEBUG: User cancelled list creation or entered empty name")
                 return DialogResponse(success=False)
 
             query_manager = context.query_manager
@@ -609,7 +609,7 @@ class ToolsHandler:
             )
 
             if not folder_name or not folder_name.strip():
-                self.logger.debug(f"TOOLS DEBUG: User cancelled subfolder creation or entered empty name")
+                self.logger.debug("TOOLS DEBUG: User cancelled subfolder creation or entered empty name")
                 return DialogResponse(success=False)
 
             query_manager = context.query_manager
@@ -1300,7 +1300,7 @@ class ToolsHandler:
                         self.logger.warning("TOOLS DEBUG: Could not find folder info for folder_id: %s", current_folder_id)
                         current_folder_id = None  # Reset to None if folder not found
                 else:
-                    self.logger.warning(f"TOOLS DEBUG: Query manager not available for folder resolution")
+                    self.logger.warning("TOOLS DEBUG: Query manager not available for folder resolution")
                     current_folder_id = None
 
             # Main lists menu tools - enhanced with search (Kodi Favorites removed as it's now a regular list)
@@ -1871,7 +1871,7 @@ class ToolsHandler:
     def _handle_create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new top-level folder from main lists menu"""
         try:
-            self.logger.debug(f"TOOLS DEBUG: _handle_create_folder called for top-level folder")
+            self.logger.debug("TOOLS DEBUG: _handle_create_folder called for top-level folder")
 
             # Get folder name from user
             folder_name = xbmcgui.Dialog().input(
@@ -1880,7 +1880,7 @@ class ToolsHandler:
             )
 
             if not folder_name or not folder_name.strip():
-                self.logger.debug(f"TOOLS DEBUG: User cancelled folder creation or entered empty name")
+                self.logger.debug("TOOLS DEBUG: User cancelled folder creation or entered empty name")
                 return DialogResponse(success=False)
 
             query_manager = context.query_manager
