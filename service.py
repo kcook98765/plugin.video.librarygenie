@@ -438,11 +438,11 @@ class LibraryGenieService:
                 # Clear the request flag immediately to prevent retriggering
                 fresh_addon.setSetting('initial_sync_requested', 'false')
                 
-                # Get sync preferences
-                sync_movies_str = fresh_addon.getSetting('initial_sync_movies')
-                sync_tv_str = fresh_addon.getSetting('initial_sync_tv_episodes')
-                sync_movies = sync_movies_str == 'true'
-                sync_tv_episodes = sync_tv_str == 'true'
+                # Get sync preferences from user settings
+                from lib.config.settings import SettingsManager
+                settings_manager = SettingsManager()
+                sync_movies = settings_manager.get_sync_movies()
+                sync_tv_episodes = settings_manager.get_sync_tv_episodes()
                 
                 self.logger.info("Starting initial sync - Movies: %s, TV: %s", sync_movies, sync_tv_episodes)
                 
