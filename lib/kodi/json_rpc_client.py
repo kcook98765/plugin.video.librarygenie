@@ -68,7 +68,7 @@ class KodiJsonRpcClient:
         }
 
         try:
-            self.logger.debug("JSON-RPC request: VideoLibrary.GetMovies offset=%s limit=%s", offset, actual_limit)
+            # Silent JSON-RPC request - final count reported at process end
             response_str = xbmc.executeJSONRPC(json.dumps(request))
             response = json.loads(response_str)
 
@@ -80,7 +80,7 @@ class KodiJsonRpcClient:
             movies = result.get("movies", [])
             limits = result.get("limits", {"total": 0})
 
-            self.logger.debug("Retrieved %s movies, total: %s", len(movies), limits.get('total', 0))
+            # Silent retrieval - final count reported at process end
 
             # Normalize the movie data
             normalized_movies = []
@@ -256,7 +256,7 @@ class KodiJsonRpcClient:
         }
 
         try:
-            self.logger.debug("JSON-RPC request: VideoLibrary.GetTVShows offset=%s limit=%s", offset, actual_limit)
+            # Silent JSON-RPC request - final count reported at process end
             response_str = xbmc.executeJSONRPC(json.dumps(request))
             response = json.loads(response_str)
 
@@ -268,7 +268,7 @@ class KodiJsonRpcClient:
             tvshows = result.get("tvshows", [])
             limits = result.get("limits", {"total": 0})
 
-            self.logger.debug("Retrieved %s TV shows, total: %s", len(tvshows), limits.get('total', 0))
+            # Silent retrieval - final count reported at process end
 
             # Normalize the TV show data
             normalized_tvshows = []
@@ -330,7 +330,7 @@ class KodiJsonRpcClient:
         }
 
         try:
-            self.logger.debug("JSON-RPC request: VideoLibrary.GetEpisodes for tvshow %s", tvshow_id)
+            # Silent JSON-RPC request - final count reported at process end
             response_str = xbmc.executeJSONRPC(json.dumps(request))
             response = json.loads(response_str)
 
@@ -341,7 +341,7 @@ class KodiJsonRpcClient:
             result = response.get("result", {})
             episodes = result.get("episodes", [])
 
-            self.logger.debug("Retrieved %s episodes for TV show %s", len(episodes), tvshow_id)
+            # Silent retrieval - final count reported at process end
 
             # Normalize episode data
             normalized_episodes = []

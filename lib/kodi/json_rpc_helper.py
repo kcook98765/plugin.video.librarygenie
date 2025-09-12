@@ -71,7 +71,7 @@ class JsonRpcHelper:
         # Retry loop with exponential backoff
         for attempt in range(self._retry_count + 1):
             try:
-                self.logger.debug("JSON-RPC request (attempt %s): %s", attempt + 1, method)
+                # Silent JSON-RPC request attempt - final count reported at process end
 
                 # Execute request with timeout handling
                 response_str = xbmc.executeJSONRPC(json.dumps(request))
@@ -102,7 +102,7 @@ class JsonRpcHelper:
 
                 # Success - return result
                 result = response.get("result", {})
-                self.logger.debug("JSON-RPC request successful: %s", method)
+                # Silent JSON-RPC success - final count reported at process end
                 return JsonRpcResponse(success=True, data=result)
 
             except Exception as e:
