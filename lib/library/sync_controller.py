@@ -166,8 +166,8 @@ class SyncController:
                 self.logger.debug("Skipping periodic sync - no library changes detected")
                 return False
 
-            self.logger.info("Starting periodic library sync")
-            success, message = self.perform_manual_sync()
+            self.logger.info("Starting periodic library sync (delta scan)")
+            success, message = self._perform_periodic_delta_sync()
             
             if success:
                 self.logger.info("Periodic sync completed: %s", message)
@@ -214,6 +214,79 @@ class SyncController:
         except Exception as e:
             self.logger.error("Error syncing TV episodes: %s", e)
             raise
+
+    def _perform_periodic_delta_sync(self) -> Tuple[bool, str]:
+        """
+        Perform delta sync for periodic operations (non-destructive, incremental updates only)
+        Returns: (success, status_message)
+        """
+        # Import global lock
+        from lib.utils.sync_lock import GlobalSyncLock
+        
+        # Try to acquire global cross-process lock
+        lock = GlobalSyncLock("periodic-sync")
+        if not lock.acquire():
+            lock_info = lock.get_lock_info()
+            owner = lock_info.get('owner', 'unknown') if lock_info else 'unknown'
+            message = f"Periodic sync already in progress by {owner} - skipping duplicate sync"
+            self.logger.info(message)
+            return False, message
+            
+        try:
+            sync_movies = self.settings.get_sync_movies()
+            sync_tv_episodes = self.settings.get_sync_tv_episodes()
+            
+            if not sync_movies and not sync_tv_episodes:
+                message = "No sync options enabled. Enable Movies or TV Episodes sync in settings."
+                self.logger.info(message)
+                return False, message
+
+            self.logger.info("Starting periodic delta sync - Movies: %s, TV: %s", sync_movies, sync_tv_episodes)
+            
+            start_time = time.time()
+            results = {'movies': 0, 'episodes': 0, 'errors': []}
+            
+            # Use delta scan for movies (non-destructive)
+            if sync_movies:
+                try:
+                    delta_result = self.scanner.perform_delta_scan()
+                    if delta_result.get("success", False):
+                        results['movies'] = delta_result.get("items_added", 0)
+                        self.logger.info("Delta scan: %d movies added", results['movies'])
+                    else:
+                        error_msg = f"Movie delta scan failed: {delta_result.get('error', 'Unknown error')}"
+                        results['errors'].append(error_msg)
+                        self.logger.error(error_msg)
+                except Exception as e:
+                    error_msg = f"Movie delta scan failed: {str(e)}"
+                    results['errors'].append(error_msg)
+                    self.logger.error(error_msg)
+
+            # For TV episodes, skip for now in periodic sync (can be added later if needed)
+            # TV episode delta scans are more complex due to show-episode relationships
+            if sync_tv_episodes:
+                self.logger.debug("TV episode delta sync not implemented yet - skipping for periodic sync")
+
+            # Calculate duration and create status message
+            duration = time.time() - start_time
+            message = self._format_sync_results(results, duration)
+            
+            success = len(results['errors']) == 0 or results['movies'] > 0
+            
+            # Record sync completion time for cooldown logic
+            if success:
+                self.settings.set_last_sync_time(int(time.time()))
+                self.logger.debug("Recorded periodic sync completion time for cooldown tracking")
+            
+            return success, message
+
+        except Exception as e:
+            error_msg = f"Periodic delta sync failed: {str(e)}"
+            self.logger.error(error_msg)
+            return False, error_msg
+        finally:
+            # Always release global lock when done
+            lock.release()
 
     def _should_perform_periodic_sync(self) -> bool:
         """Check if periodic sync should be performed based on cooldown and library changes"""
