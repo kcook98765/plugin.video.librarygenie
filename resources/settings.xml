@@ -135,31 +135,6 @@
       </group>
     </category>
 
-    <!-- BACKGROUND SETTINGS (Level 1) - Background processing -->
-    <category id="background" label="30100" help="">
-      <group id="6" label="30110">
-        <setting id="background_task_enabled" type="boolean" label="30111" help="35520">
-          <level>1</level>
-          <default>true</default>
-          <control type="toggle"/>
-        </setting>
-        <setting id="background_interval_seconds" type="integer" label="30471" help="35521">
-          <level>1</level>
-          <default>60</default>
-          <constraints>
-            <minimum>30</minimum>
-            <step>5</step>
-            <maximum>3600</maximum>
-          </constraints>
-          <dependencies>
-            <dependency type="enable" setting="background_task_enabled" operator="is">true</dependency>
-          </dependencies>
-          <control type="slider" format="integer">
-            <popup>false</popup>
-          </control>
-        </setting>
-      </group>
-    </category>
 
     <!-- BACKUP & STORAGE SETTINGS (Level 2) - Advanced backup features -->
     <category id="backup" label="30500" help="">
