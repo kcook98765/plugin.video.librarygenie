@@ -20,19 +20,6 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="select_action" type="integer" label="35100" help="35504">
-          <level>0</level>
-          <default>0</default>
-          <constraints>
-            <options>
-              <option label="35101">0</option>
-              <option label="35102">1</option>
-            </options>
-          </constraints>
-          <control type="list" format="integer">
-            <heading>35100</heading>
-          </control>
-        </setting>
         <setting id="info_hijack_enabled" type="boolean" label="32087" help="35545">
           <level>0</level>
           <default>true</default>
