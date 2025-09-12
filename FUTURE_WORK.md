@@ -22,11 +22,11 @@ This document outlines potential future enhancements and features for LibraryGen
 **Effort**: Medium - Schema ready, needs scanning logic and UI handlers  
 
 ### 3. TV Episode Support
-**Status**: Database schema supports episodes, missing UI flows  
-**Files**: Database schema with show/season/episode mapping  
-**Description**: Episode-level list management with show context  
-**Benefits**: Granular TV content organization  
-**Effort**: High - Complex UI flows and metadata handling required  
+**Status**: ✅ SYNC SYSTEM COMPLETE - Database schema, scanning, and sync implemented  
+**Files**: Database schema with show/season/episode mapping, `lib/library/scanner.py`, service-orchestrated sync  
+**Description**: Episode-level synchronization with user-controlled sync, separate progress dialogs, and non-blocking UI. Missing: Full episode list UI flows and management interfaces  
+**Benefits**: Granular TV content organization with professional sync experience  
+**Effort**: Medium - Core sync system complete, needs remaining UI flows for episode list management  
 
 ### 4. External Service Integration
 **Status**: Framework exists, currently just placeholder  
