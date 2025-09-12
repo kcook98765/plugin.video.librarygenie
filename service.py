@@ -189,12 +189,12 @@ class LibraryGenieService:
                     hijack_mode = needs_hijack
                     if hijack_mode:
                         if in_extended_monitoring:
-                            self.logger.info("🎯 Entering hijack mode - extended monitoring for XSP auto-navigation (120s)")
+                            self.logger.debug("Entering hijack mode - extended monitoring for XSP auto-navigation (120s)")
                         else:
-                            self.logger.info("🎯 Entering hijack mode - frequent ticking enabled")
+                            self.logger.debug("Entering hijack mode - frequent ticking enabled")
                         log_interval = 600  # 60 seconds in hijack mode (reduced from 10 seconds)
                     else:
-                        self.logger.info("😴 Exiting hijack mode - entering idle mode")
+                        self.logger.debug("Exiting hijack mode - entering idle mode")
                         log_interval = 1800  # 180 seconds (3 minutes) in normal mode (reduced from 30 seconds)
 
                 # Conditional debug logging - only when state changes or at very long intervals
@@ -214,10 +214,10 @@ class LibraryGenieService:
                     mode_str = "HIJACK" if hijack_mode else "IDLE"
                     
                     if state_changed:
-                        self.logger.info("🔍 SERVICE STATE CHANGE [%s]: dialog_active=%s, dialog_id=%s, armed=%s", mode_str, dialog_active, dialog_id, armed_state)
+                        self.logger.debug("SERVICE STATE CHANGE [%s]: dialog_active=%s, dialog_id=%s, armed=%s", mode_str, dialog_active, dialog_id, armed_state)
                     else:
                         # Only log periodic ticks when in hijack mode and something is active
-                        self.logger.info("🔍 SERVICE [%s] PERIODIC CHECK %s: dialog_active=%s, armed=%s", mode_str, tick_count, dialog_active, armed_state)
+                        self.logger.debug("SERVICE [%s] PERIODIC CHECK %s: dialog_active=%s, armed=%s", mode_str, tick_count, dialog_active, armed_state)
 
                 # Store state for next comparison
                 last_dialog_active = dialog_active
@@ -251,7 +251,7 @@ class LibraryGenieService:
                         # Force hijack mode to stay active for next iteration
                         needs_hijack = True
                         if not dialog_active and dialog_active != last_dialog_active:  # Log when dialog closes but still on XSP
-                            self.logger.info(f"🔄 HIJACK: Dialog closed but staying in hijack mode - user on LibraryGenie XSP")
+                            self.logger.debug("HIJACK: Dialog closed but staying in hijack mode - user on LibraryGenie XSP")
                     # Normal hijack mode detection will handle other cases
 
                 # Adaptive sleep timing based on mode
@@ -327,13 +327,13 @@ class LibraryGenieService:
         
         # Only log detailed info if state changed or forced
         if force_log or current_state != self._last_ai_sync_state:
-            self.logger.info("🔍 Server URL: '%s' (exists: %s)", server_url, current_state['server_url_exists'])
-            self.logger.info("🔍 API Key (from settings): %s (length: %s)", '[PRESENT]' if api_key else '[MISSING]', len(api_key) if api_key else 0)
-            self.logger.info("🔍 is_authorized() result: %s", auth_status)
-            self.logger.info("🔍 API Key (from database): %s (length: %s)", '[PRESENT]' if db_api_key else '[MISSING]', len(db_api_key) if db_api_key else 0)
+            self.logger.debug("Server URL: '%s' (exists: %s)", server_url, current_state['server_url_exists'])
+            self.logger.debug("API Key (from settings): %s (length: %s)", '[PRESENT]' if api_key else '[MISSING]', len(api_key) if api_key else 0)
+            self.logger.debug("is_authorized() result: %s", auth_status)
+            self.logger.debug("API Key (from database): %s (length: %s)", '[PRESENT]' if db_api_key else '[MISSING]', len(db_api_key) if db_api_key else 0)
             
             if not current_state['client_configured']:
-                self.logger.info("🔍 AI client not configured, skipping sync")
+                self.logger.debug("AI client not configured, skipping sync")
             else:
                 self.logger.info("✅ AI Search configuration verified")
             
