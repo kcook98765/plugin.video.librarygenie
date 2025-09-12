@@ -667,8 +667,7 @@ class LibraryScanner:
                     
                     # Debug logging for first few shows to verify smooth progress
                     if shows_processed <= 5:
-                        self.logger.debug("TV Progress Debug: show_offset=%d, idx=%d, shows_processed=%d, total=%d, percent=%d", 
-                                        show_offset, idx, shows_processed, total_tvshows, progress_percentage)
+                        # Silent TV progress tracking - final count reported at process end
                     
                     # Get all episodes for this TV show
                     episodes = self.kodi_client.get_episodes_for_tvshow(tvshow_id)

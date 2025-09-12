@@ -1053,9 +1053,9 @@ class QueryManager:
                         "id": 1
                     }
 
-                    self.logger.debug("JSON-RPC request for movie %s: %s", kodi_id, json.dumps(request))
+                    # Silent JSON-RPC request - final count reported at process end
                     response_str = xbmc.executeJSONRPC(json.dumps(request))
-                    self.logger.debug("JSON-RPC response for movie %s: %s...", kodi_id, response_str[:200])
+                    # Silent JSON-RPC response - final count reported at process end
                     response = json.loads(response_str)
 
                     if "error" in response:
@@ -1064,12 +1064,12 @@ class QueryManager:
 
                     movie_details = response.get("result", {}).get("moviedetails")
                     if movie_details:
-                        self.logger.debug("Got movie details for %s: %s", kodi_id, movie_details.get('title', 'Unknown'))
+                        # Silent movie details retrieval - final count reported at process end
                         # Normalize the movie data similar to how json_rpc_client does it
                         normalized = self._normalize_kodi_movie_details(movie_details)
                         if normalized:
                             enrichment_data[kodi_id] = normalized
-                            self.logger.info("Successfully enriched movie %s: %s", kodi_id, normalized.get('title'))
+                            # Silent enrichment - final count reported at process end
                         else:
                             self.logger.warning("Failed to normalize movie details for %s", kodi_id)
                     else:
