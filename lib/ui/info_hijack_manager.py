@@ -246,7 +246,7 @@ class InfoHijackManager:
             
             # Check if we're on our own LibraryGenie hijack XSP content that needs navigation
             if self._is_on_librarygenie_hijack_xsp(current_path):
-                self._logger.info(f"HIJACK: ✋ Detected XSP path: '{current_path}', executing back to return to plugin")
+                self._logger.debug(f"HIJACK: ✋ Detected XSP path: '{current_path}', executing back to return to plugin")
                 
                 # Wait for all animations to complete before executing back
                 self._wait_for_animations_to_complete("XSP navigation")

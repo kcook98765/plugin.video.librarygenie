@@ -283,7 +283,7 @@ class LibraryGenieService:
                                  (current_time - self._last_ai_sync_check_time) > 300)  # 5 minutes
             
             if should_log_periodic:
-                self.logger.info("🔄 Periodic AI sync check (tick %s)", tick_count)
+                self.logger.debug("🔄 Periodic AI sync check (tick %s)", tick_count)
                 self._last_ai_sync_check_time = current_time
                 
             # Check if AI sync should start and isn't already running
