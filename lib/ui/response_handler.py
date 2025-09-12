@@ -49,40 +49,71 @@ class ResponseHandler:
                 if getattr(response, 'navigate_to_folder', None):
                     # Navigate to specific folder (highest priority for folder operations)
                     import xbmc
+                    from .session_state import get_session_state
+                    
+                    # Bump refresh token for cache-busting
+                    session_state = get_session_state()
+                    session_state.bump_refresh_token()
+                    
                     folder_id = response.navigate_to_folder
-                    folder_url = context.build_url("show_folder", folder_id=folder_id)
-                    context.logger.debug("RESPONSE HANDLER: Navigating to folder %s with URL: %s", folder_id, folder_url)
+                    folder_url = context.build_cache_busted_url("show_folder", folder_id=folder_id)
+                    context.logger.debug("RESPONSE HANDLER: Navigating to folder %s with cache-busted URL: %s", folder_id, folder_url)
                     xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
                     return
 
                 elif getattr(response, 'navigate_to_lists', None):
                     # Navigate to lists menu
                     import xbmc
-                    lists_url = context.build_url("lists")
-                    context.logger.debug("RESPONSE HANDLER: Navigating to lists with URL: %s", lists_url)
+                    from .session_state import get_session_state
+                    
+                    # Bump refresh token for cache-busting
+                    session_state = get_session_state()
+                    session_state.bump_refresh_token()
+                    
+                    lists_url = context.build_cache_busted_url("lists")
+                    context.logger.debug("RESPONSE HANDLER: Navigating to lists with cache-busted URL: %s", lists_url)
                     xbmc.executebuiltin(f'Container.Update("{lists_url}",replace)')
                     return
 
                 elif getattr(response, 'navigate_to_main', None):
                     # Navigate to main menu
                     import xbmc
-                    main_url = context.build_url("main")
-                    context.logger.debug("RESPONSE HANDLER: Navigating to main with URL: %s", main_url)
+                    from .session_state import get_session_state
+                    
+                    # Bump refresh token for cache-busting
+                    session_state = get_session_state()
+                    session_state.bump_refresh_token()
+                    
+                    main_url = context.build_cache_busted_url("main")
+                    context.logger.debug("RESPONSE HANDLER: Navigating to main with cache-busted URL: %s", main_url)
                     xbmc.executebuiltin(f'Container.Update("{main_url}",replace)')
                     return
 
                 elif getattr(response, 'refresh_needed', None):
                     # Only refresh if no specific navigation was requested
-                    # For tools operations, we should navigate back to the current view instead of refreshing
-                    # to prevent tools dialog from reopening
+                    # Use cache-busted Container.Update instead of Container.Refresh for reliable fresh content
                     import xbmc
+                    from .session_state import get_session_state
+                    
+                    session_state = get_session_state()
+                    
+                    # Check if we're in tools context and need to return to previous location
+                    tools_return_location = session_state.get_tools_return_location()
                     current_path = xbmc.getInfoLabel('Container.FolderPath')
+                    
                     context.logger.debug("RESPONSE HANDLER: Refreshing current path: %s", current_path)
-                    if 'show_list_tools' in current_path:
-                        # If we're in tools context, navigate to parent instead of refreshing
-                        xbmc.executebuiltin('Action(ParentDir)')
+                    
+                    if tools_return_location and 'show_list_tools' in current_path:
+                        # Return to stored location with fresh content
+                        cache_busted_url = context.add_cache_buster_to_url(tools_return_location)
+                        context.logger.debug("RESPONSE HANDLER: Returning to tools origin: %s", cache_busted_url)
+                        xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
+                        session_state.clear_tools_return_location()
                     else:
-                        xbmc.executebuiltin('Container.Refresh')
+                        # Use cache-busted refresh of current location
+                        cache_busted_url = context.add_cache_buster_to_url(current_path)
+                        context.logger.debug("RESPONSE HANDLER: Cache-busted refresh: %s", cache_busted_url)
+                        xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
                 else:
                     # For successful responses with just a message and no navigation flags,
                     # don't do any navigation - let the tools handler's direct navigation work
