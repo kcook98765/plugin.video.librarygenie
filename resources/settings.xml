@@ -33,6 +33,11 @@
             <heading>35100</heading>
           </control>
         </setting>
+        <setting id="info_hijack_enabled" type="boolean" label="32087" help="35545">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
       </group>
       
       <group id="2" label="30030">
@@ -432,11 +437,7 @@
     <!-- UI SETTINGS (Level 3) - Interface customization -->
     <category id="ui" label="30020" help="">
       <group id="16" label="30020">
-        <setting id="info_hijack_enabled" type="boolean" label="32087" help="35545">
-          <level>3</level>
-          <default>true</default>
-          <control type="toggle"/>
-        </setting>
+        <!-- No settings currently in this category -->
       </group>
     </category>
 
