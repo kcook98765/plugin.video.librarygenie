@@ -187,6 +187,18 @@ class BreadcrumbHelper:
             self.logger.error("Error generating tools description breadcrumb: %s", e)
             return "Lists • "
 
+    def get_breadcrumb_for_tools_label_raw(self, breadcrumb_path: str) -> str:
+        """Get breadcrumb label text for Tools & Options integration from raw breadcrumb path"""
+        if breadcrumb_path and breadcrumb_path.strip():
+            return f"[COLOR gray]• {breadcrumb_path}[/COLOR]"
+        return ""
+
+    def get_breadcrumb_for_tools_description_raw(self, breadcrumb_path: str) -> str:
+        """Get breadcrumb description text for Tools & Options integration from raw breadcrumb path"""
+        if breadcrumb_path and breadcrumb_path.strip():
+            return f"{breadcrumb_path} • "  # Match format used by action-based method
+        return "Lists • "
+
     def show_breadcrumb_notification(self, title: str):
         """[DEPRECATED] Show breadcrumb as notification - replaced by Tools integration"""
         # Keeping method for backward compatibility but making it no-op

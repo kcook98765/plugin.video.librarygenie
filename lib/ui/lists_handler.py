@@ -635,7 +635,21 @@ class ListsHandler:
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
-            # Breadcrumb context now integrated into Tools & Options labels
+            # Add Tools & Options with breadcrumb context for this list view
+            breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label("show_list", {"list_id": list_id}, query_manager)
+            description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description("show_list", {"list_id": list_id}, query_manager)
+            
+            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
+            tools_item.setInfo('video', {'plot': description_text})
+            tools_item.setProperty('IsPlayable', 'false')
+            tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+            
+            xbmcplugin.addDirectoryItem(
+                context.addon_handle,
+                context.build_url('show_list_tools', list_type='user_list', list_id=list_id),
+                tools_item,
+                True
+            )
 
             # Handle empty lists
             if not list_items:
