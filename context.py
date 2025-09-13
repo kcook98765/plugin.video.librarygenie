@@ -60,7 +60,6 @@ def _show_librarygenie_menu(addon):
             'container_content': xbmc.getInfoLabel('Container.Content'),
             'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
             'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
-            'is_musicvideos': xbmc.getCondVisibility('Container.Content(musicvideos)'),
             # Try InfoHijack properties as fallback
             'hijack_dbid': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)'),
             'hijack_dbtype': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)'),
@@ -126,13 +125,6 @@ def _show_librarygenie_menu(addon):
                 # External/plugin episode - add external item options
                 _add_external_item_options(options, actions, addon)
 
-        elif dbtype == 'musicvideo':
-            if dbid and dbid != '0':
-                # Library music video - add list management options
-                _add_library_musicvideo_options(options, actions, addon, dbtype, dbid)
-            else:
-                # External/plugin music video - add external item options
-                _add_external_item_options(options, actions, addon)
 
         # THIRD: Fallback to container context checks for items without explicit dbtype
         elif item_info['is_movies'] and not dbtype:
@@ -141,8 +133,6 @@ def _show_librarygenie_menu(addon):
         elif item_info['is_episodes'] and not dbtype:
             _add_external_item_options(options, actions, addon)
 
-        elif item_info['is_musicvideos'] and not dbtype:
-            _add_external_item_options(options, actions, addon)
 
         elif file_path and file_path.startswith('plugin://'):
             # Other plugin item - add external item options
@@ -273,62 +263,6 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
     actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.TVShowTitle')} {xbmc.getInfoLabel('ListItem.Title')}")
 
 
-def _add_library_musicvideo_options(options, actions, addon, dbtype, dbid):
-    """Add context menu options for library music videos"""
-    xbmc.log(f"_add_library_musicvideo_options called with dbtype={dbtype}, dbid={dbid}", level=xbmc.LOGINFO)
-
-    # Get current context information
-    container_path = xbmc.getInfoLabel('Container.FolderPath') or ''
-    list_id = xbmc.getInfoLabel('ListItem.Property(list_id)') or ''
-
-    # Extract list_id from URL if not in property
-    if not list_id and 'action=show_list' in container_path and 'list_id=' in container_path:
-        import re
-        match = re.search(r'list_id=(\d+)', container_path)
-        if match:
-            list_id = match.group(1)
-
-    # Remove from list option (only when in a list context and not Search History)
-    if list_id and 'action=show_list' in container_path:
-        if 'Search History' not in container_path:
-            media_item_id = xbmc.getInfoLabel('ListItem.Property(media_item_id)') or ''
-            if not media_item_id:
-                media_item_id = f"musicvideo_{dbid}"
-
-            options.append("Remove from List")
-            actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})")
-
-    # Quick add functionality
-    try:
-        if SettingsManager:
-            settings = SettingsManager()
-            quick_add_enabled = settings.get_enable_quick_add()
-            default_list_id = settings.get_default_list_id()
-        else:
-            # Fallback to addon settings if SettingsManager not available
-            quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-            default_list_id = addon.getSetting('default_list_id')
-    except Exception:
-        # Fallback to addon settings
-        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-        default_list_id = addon.getSetting('default_list_id')
-
-    if quick_add_enabled and default_list_id:
-        # Quick add option
-        options.append("Quick Add to Default List")
-        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=quick_add_library_item&dbtype={dbtype}&dbid={dbid})")
-
-        # Regular add to list option
-        options.append("Add to List...")
-        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
-    else:
-        # Only regular add to list option
-        options.append("Add to List...")
-        actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list&dbtype={dbtype}&dbid={dbid})")
-
-    # Search option
-    options.append("Search")
-    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.Artist')} {xbmc.getInfoLabel('ListItem.Title')}")
 
 
 def _add_external_item_options(options, actions, addon):
@@ -398,7 +332,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
             xbmc.log(f"LibraryGenie: Added remove option for list {target_list_id}", xbmc.LOGINFO)
 
     # Second priority: library items with valid dbtype and dbid in LibraryGenie context
-    elif dbtype in ('movie', 'episode', 'musicvideo') and dbid and dbid not in ('0', ''):
+    elif dbtype in ('movie', 'episode') and dbid and dbid not in ('0', ''):
         xbmc.log(f"LibraryGenie: Using library item path for {dbtype} {dbid}", xbmc.LOGINFO)
 
         # If we're in a list context, add remove option first
@@ -518,8 +452,6 @@ def _handle_external_item_add(addon):
             item_data['season'] = xbmc.getInfoLabel('ListItem.Season')
             item_data['episode'] = xbmc.getInfoLabel('ListItem.Episode')
             item_data['aired'] = xbmc.getInfoLabel('ListItem.Aired')
-        elif xbmc.getCondVisibility('Container.Content(musicvideos)'):
-            item_data['media_type'] = 'musicvideo'
             item_data['artist'] = xbmc.getInfoLabel('ListItem.Artist')
             item_data['album'] = xbmc.getInfoLabel('ListItem.Album')
 
