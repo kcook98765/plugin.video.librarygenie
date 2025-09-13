@@ -13,9 +13,6 @@ from ..utils.kodi_log import get_kodi_logger
 # Current target schema version
 TARGET_SCHEMA_VERSION = 2
 
-# Pre-release flag - when True, always reset to fresh schema
-PRE_RELEASE_FRESH_RESET = True
-
 
 class MigrationManager:
     """Manages database schema initialization"""
@@ -44,33 +41,23 @@ class MigrationManager:
             # First, try to acquire an exclusive lock on the database
             self._acquire_init_lock(conn)
             
-            # Check if we should do a fresh reset for pre-release
-            if PRE_RELEASE_FRESH_RESET and not self._is_database_empty_with_connection(conn):
-                self.logger.info("Pre-release mode: Performing fresh database reset")
-                self._reset_to_fresh_schema_with_connection(conn)
-                self.logger.info("Fresh database reset completed successfully")
-                return
-            
             # Re-check version after acquiring lock (another process might have initialized)
             current_version = self._get_current_version_with_connection(conn)
             
             if current_version == 0:  # No schema_version table or empty database
-                # Check if this is truly an empty database or an upgraded database missing schema_version
+                # Check if this is truly an empty database
                 if self._is_database_empty_with_connection(conn):
                     self.logger.info("Initializing complete database schema for new database")
                     self._create_tables(conn)
                     self.logger.info("Database initialized successfully")
                 else:
-                    self.logger.info("Upgraded database detected - creating schema_version table and setting to target version")
+                    # Database has tables but no schema_version - likely an old version
+                    self.logger.info("Existing database without schema version detected")
                     self._create_schema_version_table(conn)
                     self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
                     self.logger.info("Schema version tracking added to existing database")
-            elif current_version < TARGET_SCHEMA_VERSION:
-                self.logger.debug("Database exists but needs migration from version %s to %s", current_version, TARGET_SCHEMA_VERSION)
-                # For pre-release, we skip incremental migrations and recommend fresh reset
-                self.logger.warning("Incremental migrations disabled for pre-release. Consider setting PRE_RELEASE_FRESH_RESET=True for clean schema.")
             else:
-                self.logger.debug("Database already at target version %s", current_version)
+                self.logger.debug("Database already at version %s", current_version)
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
@@ -329,69 +316,6 @@ class MigrationManager:
         
         self.logger.info("Complete database schema created successfully")
 
-    def _reset_to_fresh_schema_with_connection(self, conn):
-        """Drop all existing tables and recreate complete schema - for pre-release use only"""
-        try:
-            self.logger.info("Starting fresh database schema reset")
-            
-            # Get all existing table names (excluding sqlite internal tables)
-            cursor = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-            )
-            existing_tables = [row[0] for row in cursor.fetchall()]
-            
-            if existing_tables:
-                self.logger.info("Found %d existing tables to drop: %s", len(existing_tables), existing_tables)
-                
-                # Disable foreign key constraints during drop operation
-                conn.execute("PRAGMA foreign_keys=OFF")
-                
-                # Drop all existing tables in reverse dependency order to avoid foreign key issues
-                # First drop tables that reference other tables, then the main tables
-                tables_to_drop = ['list_items', 'kodi_favorite', 'media_items', 'lists', 'folders'] + existing_tables
-                
-                for table_name in tables_to_drop:
-                    if table_name in existing_tables:
-                        try:
-                            conn.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-                            self.logger.debug("Dropped table: %s", table_name)
-                        except Exception as e:
-                            self.logger.warning("Failed to drop table %s: %s", table_name, e)
-                
-                # Drop any remaining tables
-                for table_name in existing_tables:
-                    try:
-                        conn.execute(f"DROP TABLE IF EXISTS `{table_name}`")
-                        self.logger.debug("Dropped table: %s", table_name)
-                    except Exception as e:
-                        self.logger.warning("Failed to drop table %s: %s", table_name, e)
-                
-                # Commit the drop operations
-                conn.commit()
-                
-                # Re-enable foreign key constraints
-                conn.execute("PRAGMA foreign_keys=ON")
-                
-                # Verify all tables are dropped
-                cursor = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-                )
-                remaining_tables = [row[0] for row in cursor.fetchall()]
-                
-                if remaining_tables:
-                    self.logger.warning("Some tables still exist after drop: %s", remaining_tables)
-                else:
-                    self.logger.info("All existing tables dropped successfully")
-            else:
-                self.logger.info("No existing tables found to drop")
-            
-            # Create fresh schema
-            self._create_tables(conn)
-            self.logger.info("Fresh database schema reset completed successfully")
-            
-        except Exception as e:
-            self.logger.error("Fresh database schema reset failed: %s", e)
-            raise
 
     def _get_current_version(self):
         """Get the current schema version"""
