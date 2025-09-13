@@ -427,9 +427,9 @@ class LibraryGenieService:
         """Check for initial sync requests from fresh install setup"""
         try:
             # Create fresh addon instance to avoid settings caching issues between processes
-            import xbmcaddon
-            fresh_addon = xbmcaddon.Addon()
-            initial_sync_requested = fresh_addon.getSetting('initial_sync_requested')
+            from lib.config.config_manager import get_config
+            config = get_config()
+            initial_sync_requested = config.get('initial_sync_requested', 'false')
             log(f"Checking initial sync request: flag='{initial_sync_requested}'")
             if initial_sync_requested != 'true':
                 return
@@ -451,7 +451,7 @@ class LibraryGenieService:
                 
             try:
                 # Clear the request flag immediately to prevent retriggering
-                fresh_addon.setSetting('initial_sync_requested', 'false')
+                config.set('initial_sync_requested', 'false')
                 
                 # Get sync preferences from user settings
                 from lib.config.settings import SettingsManager

@@ -407,7 +407,9 @@ def _ensure_startup_initialization(context: PluginContext):
         log("=== STARTUP INITIALIZATION ===")
         
         # Check if favorites integration is enabled
-        favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
+        from lib.config.config_manager import get_config
+        config = get_config()
+        favorites_enabled = config.get_bool('favorites_integration_enabled', False)
         log(f"Favorites integration enabled: {favorites_enabled}")
         
         if favorites_enabled:
