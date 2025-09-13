@@ -163,16 +163,35 @@ class BreadcrumbHelper:
         else:
             return "Tools"
 
-    def show_breadcrumb_notification(self, title: str):
-        """Show breadcrumb as a notification to the user"""
+    def get_breadcrumb_for_tools_label(self, action: str, context_params: dict, query_manager=None) -> str:
+        """Generate breadcrumb text for Tools & Options label integration"""
         try:
-            if title and title.strip():
-                import xbmcgui
-                self.logger.debug("BREADCRUMB: Showing notification for '%s'", title)
-                xbmcgui.Dialog().notification("Navigation", title, xbmcgui.NOTIFICATION_INFO, 3000)
-                self.logger.debug("BREADCRUMB: Successfully displayed breadcrumb notification")
+            breadcrumb = self.get_breadcrumb_for_action(action, context_params, query_manager)
+            if breadcrumb:
+                return f"[COLOR gray]• {breadcrumb}[/COLOR]"
+            else:
+                return "[COLOR gray]• Lists[/COLOR]"  # Default fallback
         except Exception as e:
-            self.logger.error("BREADCRUMB: Failed to display breadcrumb notification: %s", e)
+            self.logger.error("Error generating tools breadcrumb: %s", e)
+            return "[COLOR gray]• Lists[/COLOR]"
+
+    def get_breadcrumb_for_tools_description(self, action: str, context_params: dict, query_manager=None) -> str:
+        """Generate breadcrumb text for Tools & Options description integration"""
+        try:
+            breadcrumb = self.get_breadcrumb_for_action(action, context_params, query_manager)
+            if breadcrumb:
+                return f"{breadcrumb} • "  # Add separator for description prefix
+            else:
+                return "Lists • "  # Default fallback
+        except Exception as e:
+            self.logger.error("Error generating tools description breadcrumb: %s", e)
+            return "Lists • "
+
+    def show_breadcrumb_notification(self, title: str):
+        """[DEPRECATED] Show breadcrumb as notification - replaced by Tools integration"""
+        # Keeping method for backward compatibility but making it no-op
+        self.logger.debug("BREADCRUMB: Notification display disabled - using Tools integration instead")
+        pass
 
 
 # Global instance

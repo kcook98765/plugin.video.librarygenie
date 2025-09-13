@@ -210,13 +210,16 @@ class ListsHandler:
                 # This prevents confusing dialogs when navigating back from deletions
                 menu_items = []
 
-                # Add "Tools & Options" even when empty
+                # Add "Tools & Options" with breadcrumb context
+                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, query_manager)
+                description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, query_manager)
+                
                 menu_items.append({
-                    'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
+                    'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
                     'url': context.build_url('show_list_tools', list_type='lists_main'),
                     'is_folder': True,
                     'icon': "DefaultAddonProgram.png",
-                    'description': L(36018)  # "Access lists tools and options"
+                    'description': f"{description_prefix}{L(36018)}"  # Breadcrumb + "Access lists tools and options"
                 })
 
                 # Add "Create First List" option
@@ -267,19 +270,28 @@ class ListsHandler:
             # Build menu items for lists and folders
             menu_items = []
 
-            # Add "Tools & Options" at the top - always pass current folder context
-            current_folder_id = context.get_param('folder_id')  # Get current folder context
+            # Add "Tools & Options" with breadcrumb context
+            current_folder_id = context.get_param('folder_id')
+            
+            # Determine breadcrumb context based on current location
             if current_folder_id:
                 tools_url = context.build_url('show_list_tools', list_type='lists_main', folder_id=current_folder_id)
+                breadcrumb_params = {'folder_id': current_folder_id}
+                breadcrumb_action = 'show_folder'
             else:
                 tools_url = context.build_url('show_list_tools', list_type='lists_main')
+                breadcrumb_params = {}
+                breadcrumb_action = 'lists'
+                
+            breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(breadcrumb_action, breadcrumb_params, query_manager)
+            description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description(breadcrumb_action, breadcrumb_params, query_manager)
 
             menu_items.append({
-                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR]",  # "Tools & Options"
+                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
                 'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': "Search, Favorites, Import/Export & Settings"  # Enhanced description
+                'description': f"{description_prefix}Search, Favorites, Import/Export & Settings"
             })
 
             # Search and other tools are now accessible via Tools & Options menu
@@ -391,12 +403,7 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Show breadcrumb notification for Lists menu (now main interface)
-            try:
-                self.breadcrumb_helper.show_breadcrumb_notification("LibraryGenie")
-                context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: 'LibraryGenie' (main interface)")
-            except Exception as e:
-                context.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
+            # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
             for item in menu_items:
@@ -543,14 +550,7 @@ class ListsHandler:
                     False
                 )
 
-            # Show breadcrumb notification for folder view with proper hierarchy
-            breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action('show_folder', {'folder_id': folder_id}, query_manager)
-            if breadcrumb_path:
-                try:
-                    self.breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
-                    context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: '%s'", breadcrumb_path)
-                except Exception as e:
-                    context.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
+            # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
             for item in menu_items:
@@ -635,15 +635,7 @@ class ListsHandler:
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
-            # Show breadcrumb notification and render list
-            breadcrumb_path = self.breadcrumb_helper.get_breadcrumb_for_action("show_list", {"list_id": list_id}, query_manager)
-
-            if breadcrumb_path:
-                try:
-                    self.breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
-                    context.logger.debug("LISTS HANDLER: Showed breadcrumb notification: '%s'", breadcrumb_path)
-                except Exception as e:
-                    context.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
+            # Breadcrumb context now integrated into Tools & Options labels
 
             # Handle empty lists
             if not list_items:
@@ -804,12 +796,7 @@ class ListsHandler:
                     False
                 )
 
-            # Show breadcrumb notification
-            try:
-                self.breadcrumb_helper.show_breadcrumb_notification("LibraryGenie > Search History")
-                context.logger.debug("LISTS HANDLER: Showed breadcrumb notification for search history")
-            except Exception as e:
-                context.logger.error("LISTS HANDLER: Failed to show breadcrumb notification: %s", e)
+            # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
             for item in menu_items:
