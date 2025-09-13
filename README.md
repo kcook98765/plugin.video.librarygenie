@@ -7,7 +7,7 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 
 ## Overview
 
-- Mixed content lists (movies, TV episodes, music videos, external plugin items).
+- Mixed content lists (movies, TV episodes, external plugin items).
 - IMDb-first architecture with multiple fallback strategies.
 - Robust export/import system with disaster recovery support.
 - SQLite backend with safe transaction handling and optimized indexing.
@@ -20,7 +20,6 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 ### Media Types
 - **Movies**: Full Kodi movie library support.
 - **TV Episodes**: Episode-level handling with show/season/episode mapping.
-- **Music Videos**: Database schema ready for artist/track/album matching (UI and scanning not yet implemented).
 - **External Items**: Playable plugin items from any addon, with context menu integration for easy list management.
 
 ### Lists & Folders
@@ -28,7 +27,7 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - **Tools & Options Menu**: Context-aware tools for list and folder management.
 - Create, rename, move, and delete lists and folders with color-coded actions.
 - Add/remove items via context menus from anywhere in Kodi.
-- **Universal Context Menu**: Add any playable media to lists - movies, episodes, music videos, and plugin content.
+- **Universal Context Menu**: Add any playable media to lists - movies, episodes, and plugin content.
 - **Quick Save Feature**: Optional quick-add functionality to a configured default list with single-click access.
 - **Dual Context Options**: When quick save is enabled, context menu shows both "Quick Add to Default List" and "Add to List..." options.
 - Export functionality integrated into tools menu.
@@ -43,7 +42,7 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - **Tools Integration**: Export and backup accessible via Tools & Options menu with context-aware options.
 - **IMDb-First Matching**: Highest-confidence mapping across systems for import/restore operations.
 - **Enhanced Metadata**: Additional identifiers (TMDb, Kodi IDs, file paths) for robust fallback matching.
-- **Fallbacks**: TMDb IDs, title/year, season/episode, or artist/track when IMDb is missing.
+- **Fallbacks**: TMDb IDs, title/year, season/episode when IMDb is missing.
 - **Safe Import**: Validation and preview before import, with duplicate detection and error handling.
 - **Batch Operations**: Efficient chunked import/export of large lists.
 
@@ -68,7 +67,6 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 ### Metadata Matching
 - **Movies**: IMDb → TMDb (optional) → title/year/runtime fallback.
 - **Episodes**: Episode IMDb → show IMDb + season/episode → show title fallback.
-- **Music Videos**: IMDb (rare) → artist+track(+year).
 - **External Items**: Plugin identifiers and routes.
 
 ### Backup & Recovery
@@ -104,7 +102,7 @@ Uses NDJSON (newline-delimited JSON) format with separate metadata file:
 
 | Field           | Type    | Required | Notes                                      |
 |-----------------|---------|----------|--------------------------------------------|
-| media_type      | string  | yes      | `movie`, `episode`, `musicvideo`, `external` |
+| media_type      | string  | yes      | `movie`, `episode`, `external` |
 | imdb_id         | string  | no       | `tt…` identifier if available              |
 | title           | string  | yes      | Title of item                              |
 | year            | integer | no       | Release or air year                        |
@@ -116,8 +114,6 @@ Uses NDJSON (newline-delimited JSON) format with separate metadata file:
 #### Episodes
 - `show_imdb_id`, `show_title`, `season`, `episode`, `air_date`, `episode_title`.
 
-#### Music Videos
-- `artist`, `artist_mbid`, `track`, `album`, `album_year`, `duration_seconds` (schema ready, full UI/scanning implementation pending).
 
 #### External Items
 - `plugin_id`, `plugin_version`, `plugin_route`.

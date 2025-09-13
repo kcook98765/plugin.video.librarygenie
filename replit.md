@@ -2,7 +2,7 @@
 
 ## Overview
 
-LibraryGenie is a comprehensive Kodi addon that provides advanced list and folder management capabilities for media libraries. The addon enables users to create, organize, and manage custom lists of movies, TV episodes, music videos, and external plugin content with robust backup/restore functionality and intelligent media matching.
+LibraryGenie is a comprehensive Kodi addon that provides advanced list and folder management capabilities for media libraries. The addon enables users to create, organize, and manage custom lists of movies, TV episodes, and external plugin content with robust backup/restore functionality and intelligent media matching.
 
 The addon follows a modular architecture with clear separation between UI handling, data management, and feature-specific functionality. It uses SQLite for local storage with transaction-safe operations and includes optional integration with external services for enhanced metadata and search capabilities.
 
