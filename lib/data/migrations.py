@@ -235,14 +235,6 @@ class MigrationManager:
         
         CREATE INDEX idx_search_history_query_created ON search_history (query_text, created_at);
         
-        CREATE TABLE search_preferences (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            preference_key TEXT NOT NULL UNIQUE,
-            preference_value TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        
         CREATE TABLE ui_preferences (
             id INTEGER PRIMARY KEY,
             ui_density TEXT NOT NULL DEFAULT 'compact',
@@ -290,13 +282,6 @@ class MigrationManager:
         -- Insert default data
         INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
         VALUES (1, 'compact', 'poster', 1, 1);
-        
-        INSERT INTO search_preferences (preference_key, preference_value) 
-        VALUES 
-            ('match_mode', 'contains'),
-            ('include_file_path', 'false'),
-            ('page_size', '50'),
-            ('enable_decade_shorthand', 'false');
         
         INSERT INTO folders (name, parent_id)
         VALUES ('Search History', NULL);
