@@ -109,7 +109,7 @@ This document outlines potential future enhancements and features for LibraryGen
 
 ### Code Quality Improvements
 - Consolidate duplicate storage management classes
-- Remove unused import modules (e.g., `shortlist_importer.py`)
+- Remove legacy import modules (e.g., `shortlist_importer.py` - exists but unused in current implementation)
 - Standardize error handling patterns across modules
 - Improve test coverage for complex features
 
