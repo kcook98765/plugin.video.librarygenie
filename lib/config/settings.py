@@ -125,6 +125,11 @@ class SettingsManager:
 
 
 
+    # Search Settings
+    def get_search_page_size(self) -> int:
+        """Get search results page size"""
+        return max(50, min(500, self.addon.getSettingInt('search_page_size')))
+
     # Advanced Settings
     def get_jsonrpc_page_size(self) -> int:
         """Get JSON-RPC page size"""

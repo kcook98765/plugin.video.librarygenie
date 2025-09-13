@@ -20,6 +20,18 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="search_page_size" type="integer" label="30025" help="35502">
+          <level>0</level>
+          <default>200</default>
+          <constraints>
+            <minimum>50</minimum>
+            <step>50</step>
+            <maximum>500</maximum>
+          </constraints>
+          <control type="slider" format="integer">
+            <popup>false</popup>
+          </control>
+        </setting>
       </group>
       
       <group id="2" label="30030">
