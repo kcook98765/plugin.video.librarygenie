@@ -148,11 +148,13 @@ def get_tokens() -> Dict[str, str]:
     try:
         settings = SettingsManager()
         
+        from lib.config.config_manager import get_config
+        config = get_config()
         return {
             'api_key': settings.get_ai_search_api_key() or '',
-            'access_token': settings.addon.getSetting('access_token'),
-            'refresh_token': settings.addon.getSetting('refresh_token'),
-            'expires_at': settings.addon.getSetting('token_expires_at')
+            'access_token': config.get('access_token', ''),
+            'refresh_token': config.get('refresh_token', ''),
+            'expires_at': config.get('token_expires_at', '')
         }
 
     except Exception as e:

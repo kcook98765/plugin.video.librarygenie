@@ -232,6 +232,7 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
 
     # Quick add functionality
     try:
+        from lib.config.settings import SettingsManager
         if SettingsManager:
             settings = SettingsManager()
             quick_add_enabled = settings.get_enable_quick_add()

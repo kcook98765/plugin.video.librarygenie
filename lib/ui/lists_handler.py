@@ -176,7 +176,9 @@ class ListsHandler:
             # Search and other tools are now accessible via Tools & Options menu
 
             # Check if favorites integration is enabled and ensure "Kodi Favorites" appears FIRST
-            favorites_enabled = context.addon.getSettingBool('favorites_integration_enabled')
+            from lib.config.config_manager import get_config
+            config = get_config()
+            favorites_enabled = config.get_bool('favorites_integration_enabled', False)
             kodi_favorites_item = None
             
             # Find existing Kodi Favorites or create if needed
