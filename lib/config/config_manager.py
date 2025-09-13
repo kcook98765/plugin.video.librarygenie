@@ -89,6 +89,9 @@ class ConfigManager:
             # ShortList integration settings
             "import_from_shortlist": False,
             "clear_before_import": False,
+            
+            # Initialization state
+            "initial_sync_requested": "false",
         }
 
     def get(self, key, default=None):

@@ -237,13 +237,17 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
             quick_add_enabled = settings.get_enable_quick_add()
             default_list_id = settings.get_default_list_id()
         else:
-            # Fallback to addon settings if SettingsManager not available
-            quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-            default_list_id = addon.getSetting('default_list_id')
+            # Fallback to ConfigManager if SettingsManager not available
+            from lib.config.config_manager import get_config
+            config = get_config()
+            quick_add_enabled = config.get_bool('quick_add_enabled', False)
+            default_list_id = config.get('default_list_id', "")
     except Exception:
-        # Fallback to addon settings
-        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-        default_list_id = addon.getSetting('default_list_id')
+        # Fallback to ConfigManager
+        from lib.config.config_manager import get_config
+        config = get_config()
+        quick_add_enabled = config.get_bool('quick_add_enabled', False)
+        default_list_id = config.get('default_list_id', "")
 
     if quick_add_enabled and default_list_id:
         # Quick add option
@@ -311,8 +315,10 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     if media_item_id and media_item_id != '':
         xbmc.log(f"LibraryGenie: Using media_item_id path for {media_item_id}", xbmc.LOGINFO)
         # Check if quick-add is enabled and has a default list configured
-        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-        default_list_id = addon.getSetting('default_list_id')
+        from lib.config.config_manager import get_config
+        config = get_config()
+        quick_add_enabled = config.get_bool('quick_add_enabled', False)
+        default_list_id = config.get('default_list_id', "")
 
         if quick_add_enabled and default_list_id:
             quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
@@ -346,8 +352,10 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
 
         # Add LibraryGenie-specific add options (not the full library options to avoid duplicates)
         # Check if quick-add is enabled and has a default list configured
-        quick_add_enabled = addon.getSettingBool('quick_add_enabled')
-        default_list_id = addon.getSetting('default_list_id')
+        from lib.config.config_manager import get_config
+        config = get_config()
+        quick_add_enabled = config.get_bool('quick_add_enabled', False)
+        default_list_id = config.get('default_list_id', "")
 
         if quick_add_enabled and default_list_id:
             quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
