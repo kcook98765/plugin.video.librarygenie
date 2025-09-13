@@ -38,6 +38,15 @@ class ConfigManager:
             "favorites_scan_interval_minutes": 30,
             "show_unmapped_favorites": False,
             "sync_tv_episodes": False,  # Sync TV episodes during library scan
+            
+            # Library sync settings
+            "sync_movies": True,
+            "first_run_completed": False,
+            "sync_frequency_hours": 1,
+            "last_sync_time": 0,
+            
+            # Search settings
+            "search_page_size": 200,
 
             # Remote service settings
             "remote_base_url": "",  # Blank by default for repo safety
