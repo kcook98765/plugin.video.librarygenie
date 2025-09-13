@@ -255,21 +255,6 @@ class MigrationManager:
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         
-        CREATE TABLE library_scan_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            scan_type TEXT NOT NULL,
-            kodi_version INTEGER,
-            start_time TEXT NOT NULL,
-            end_time TEXT,
-            total_items INTEGER DEFAULT 0,
-            items_added INTEGER DEFAULT 0,
-            items_updated INTEGER DEFAULT 0,
-            items_removed INTEGER DEFAULT 0,
-            error TEXT,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        
-        CREATE INDEX idx_library_scan_log_type_time ON library_scan_log (scan_type, start_time);
         
         CREATE TABLE kodi_favorite (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
