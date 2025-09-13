@@ -20,7 +20,7 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 ### Media Types
 - **Movies**: Full Kodi movie library support.
 - **TV Episodes**: Episode-level handling with show/season/episode mapping.
-- **Music Videos**: Artist/track/album matching and metadata support.
+- **Music Videos**: Database schema ready for artist/track/album matching (UI and scanning not yet implemented).
 - **External Items**: Playable plugin items from any addon, with context menu integration for easy list management.
 
 ### Lists & Folders
@@ -36,8 +36,8 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - Transaction-safe modifications to prevent corruption.
 
 ### Import & Export
-- **Unified Format**: Backup, export, and import all use the same JSON envelope format with versioned schemas.
-- **Universal Compatibility**: Single format supports manual export, automated backup, and restore operations.
+- **Unified Format**: Backup, export, and import all use NDJSON format with consistent field schemas.
+- **Universal Compatibility**: NDJSON format supports manual export, automated backup, and restore operations.
 - **Manual Backups**: On-demand backup creation via Tools menu with timestamp-based naming.
 - **Local & Network Storage**: Support for local paths and network shares configured in Kodi.
 - **Tools Integration**: Export and backup accessible via Tools & Options menu with context-aware options.
@@ -47,12 +47,23 @@ LibraryGenie is a Kodi addon that provides advanced, flexible list and folder ma
 - **Safe Import**: Validation and preview before import, with duplicate detection and error handling.
 - **Batch Operations**: Efficient chunked import/export of large lists.
 
-#### Format Structure
-All export/backup files use a versioned JSON envelope containing:
-- **Metadata**: Addon version, schema version, generation timestamp
-- **Export Types**: Lists of included data types (lists, list_items, folders, library_snapshot, non_library_snapshot)
-- **Payload**: Actual data organized by type with consistent field names
-- **Validation**: Required fields and format validation for safe import/restore
+#### Example Files
+
+**export.ndjson:**
+```
+{"media_type": "movie", "imdb_id": "tt0111161", "title": "The Shawshank Redemption", "year": 1994, "list_name": "My Favorites"}
+{"media_type": "episode", "show_title": "Breaking Bad", "season": 1, "episode": 1, "episode_title": "Pilot", "list_name": "TV Shows"}
+```
+
+**export.meta.json:**
+```json
+{
+  "addon_version": "2.1.0",
+  "schema_version": 3,
+  "export_types": ["lists", "list_items"],
+  "generated_at": "2025-09-12T15:30:00Z"
+}
+```
 
 ### Metadata Matching
 - **Movies**: IMDb → TMDb (optional) → title/year/runtime fallback.
@@ -82,8 +93,14 @@ All export/backup files use a versioned JSON envelope containing:
 
 ## Export/Import Specification
 
-### JSON Format
-Uses versioned JSON envelope format with the following structure:
+### NDJSON Format
+Uses NDJSON (newline-delimited JSON) format with separate metadata file:
+
+**Export Structure:**
+- `export.ndjson` - One JSON object per line for each media item
+- `export.meta.json` - Metadata file with schema version and export info
+
+**Media Item Fields:**
 
 | Field           | Type    | Required | Notes                                      |
 |-----------------|---------|----------|--------------------------------------------|
@@ -92,7 +109,6 @@ Uses versioned JSON envelope format with the following structure:
 | title           | string  | yes      | Title of item                              |
 | year            | integer | no       | Release or air year                        |
 | list_name       | string  | yes      | Context list name                          |
-| schema_version  | integer | yes      | Current schema version                     |
 
 #### Movies
 - `tmdb_id`, `runtime_minutes`.
@@ -101,7 +117,7 @@ Uses versioned JSON envelope format with the following structure:
 - `show_imdb_id`, `show_title`, `season`, `episode`, `air_date`, `episode_title`.
 
 #### Music Videos
-- `artist`, `artist_mbid`, `track`, `album`, `album_year`, `duration_seconds`.
+- `artist`, `artist_mbid`, `track`, `album`, `album_year`, `duration_seconds` (schema ready, full UI/scanning implementation pending).
 
 #### External Items
 - `plugin_id`, `plugin_version`, `plugin_route`.
@@ -204,26 +220,29 @@ LibraryGenie provides manual integration with Kodi's built-in Favorites system:
 
 ### Local Development Setup
 
-1. **Install Development Dependencies**:
-   ```bash
-   make install-dev
-   ```
-   This installs linting tools (flake8), type checker (mypy), test runner (pytest), and formatting tools (black, isort).
+This project uses Python with `uv` for dependency management.
 
-2. **Run Quality Checks**:
+1. **Install Dependencies**:
    ```bash
-   make lint        # Run linter with import order checking
-   make typecheck   # Run type checker in warn mode
-   make test        # Run test suite
-   make format      # Format code with black and isort
+   uv sync
    ```
 
-3. **Build and Package**:
+2. **Development Commands**:
    ```bash
-   make build       # Run all quality checks (lint + typecheck + test)
-   make package     # Create clean addon zip
-   make all         # Full workflow: clean + build + package
+   # Install dependencies
+   uv add --dev flake8 mypy pytest black isort
+   
+   # Run linting and type checking
+   uv run flake8 lib/
+   uv run mypy lib/ --ignore-missing-imports
+   
+   # Format code
+   uv run black lib/
+   uv run isort lib/
    ```
+
+3. **Package for Distribution**:
+   Create a zip file with all necessary addon files excluding development dependencies.
 
 ### Testing Environment
 

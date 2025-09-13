@@ -26,7 +26,7 @@ LibraryGenie consists of three main layers:
    - Schema centers around `media_items` as the unified media table, with supporting tables: `lists`, `folders`, `list_items`, `kodi_favorite`, `search_history`, `search_preferences`, `ui_preferences`, `library_scan_log`, auth/sync tables, and various cache tables
 
 3. **Feature Layer**
-   - **Import/Export** (`lib/import_export/`): NDJSON format engines, backup management, ShortList integration
+   - **Import/Export** (`lib/import_export/`): NDJSON format engines, backup management, legacy ShortList importer (unused)
    - **Library Management** (`lib/library/`): Service-orchestrated sync system with separate movie-only and TV episode-only scanning methods. User-controlled sync operations with GlobalSyncLock coordination (`enhanced_scanner.py`, `scanner.py`, `sync_controller.py`)
    - **Search** (`lib/search/`): Simple keyword-based search engine with ranking, query interpretation, text normalization
    - **Kodi Integration** (`lib/kodi/`): JSON-RPC client, favorites parsing and management
@@ -127,7 +127,7 @@ LibraryGenie consists of three main layers:
 ## File Structure
 
 - `plugin.py`: main plugin entry point using modular architecture with handlers and router
-- `service.py`: background service for periodic tasks (library scanning, favorites sync, token refresh)
+- `service.py`: background service for periodic tasks (library scanning, token refresh, automated backups)
 - `lib/ui/`: UI layer - modular handlers, router, response types, builders, context menus, session management
 - `lib/data/`: Data layer - database connection, queries, migrations, storage management
 - `lib/import_export/`: Unified import/export/backup engines, timestamp management, storage handling
