@@ -64,7 +64,6 @@ class LibraryScanner:
             current_version = None
 
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("full", scan_start, current_version or 0)
 
         try:
             # Reset abort flag
@@ -85,7 +84,6 @@ class LibraryScanner:
                 if dialog_bg:
                     dialog_bg.update(100, "LibraryGenie", "No movies found")
                     dialog_bg.close()
-                self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0)
                 return {"success": True, "items_found": 0, "items_added": 0}
 
             # Calculate paging
@@ -111,7 +109,6 @@ class LibraryScanner:
                     if dialog_bg:
                         dialog_bg.update(100, "LibraryGenie", "Scan aborted")
                         dialog_bg.close()
-                    self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error="Aborted by user")
                     return {"success": False, "error": "Scan aborted by user", "items_added": total_added}
 
                 response = self.kodi_client.get_movies(offset, self.batch_size)
@@ -166,7 +163,6 @@ class LibraryScanner:
                 self.logger.debug("TV episode sync disabled - skipping")
 
             scan_end = datetime.now().isoformat()
-            self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, total_episodes_added, scan_end)
 
             self.logger.info("=== FULL LIBRARY SYNC COMPLETE ===\n" +
                               "  Movies: %s indexed\n" +
@@ -197,7 +193,6 @@ class LibraryScanner:
                 dialog_bg.close()
             elif progress_dialog:
                 progress_dialog.update(100, "LibraryGenie", f"Scan failed: {e}")
-            self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
     def perform_delta_scan(self) -> Dict[str, Any]:
@@ -221,7 +216,6 @@ class LibraryScanner:
             return self.perform_full_scan()
 
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("delta", scan_start, current_version)
 
         try:
             # Get current Kodi library state (quick check)
@@ -257,10 +251,6 @@ class LibraryScanner:
                 items_updated = self._update_last_seen(existing_ids)
 
             scan_end = datetime.now().isoformat()
-            self._log_scan_complete(
-                scan_id, scan_start, len(current_movies),
-                items_added, items_updated, items_removed, scan_end
-            )
 
             if items_added > 0 or items_removed > 0:
                 self.logger.info("=== DELTA SCAN COMPLETE: +%s new, -%s removed movies ===", items_added, items_removed)
@@ -278,7 +268,6 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error("Delta scan failed: %s", e)
-            self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
     def get_library_stats(self) -> Dict[str, Any]:
@@ -295,23 +284,12 @@ class LibraryScanner:
             # Removed movies don't exist in new schema - set to 0
             stats["removed_movies"] = 0
 
-            # Last scan info
-            last_scan = self.conn_manager.execute_single("""
-                SELECT scan_type, end_time, total_items, items_added, items_removed
-                FROM library_scan_log
-                WHERE end_time IS NOT NULL
-                ORDER BY id DESC LIMIT 1
-            """)
-
-            if last_scan:
-                stats["last_scan_type"] = last_scan["scan_type"]
-                stats["last_scan_time"] = last_scan["end_time"]
-                stats["last_scan_found"] = last_scan["total_items"]
-                stats["last_scan_added"] = last_scan["items_added"]
-                stats["last_scan_removed"] = last_scan["items_removed"]
-            else:
-                stats["last_scan_type"] = None
-                stats["last_scan_time"] = None
+            # Last scan info - removed scan logging
+            stats["last_scan_type"] = None
+            stats["last_scan_time"] = None
+            stats["last_scan_found"] = None
+            stats["last_scan_added"] = None
+            stats["last_scan_removed"] = None
 
             return stats
 
@@ -868,64 +846,11 @@ class LibraryScanner:
             self.logger.error("Failed to update last_seen: %s", e)
             return 0
 
-    def _log_scan_start(self, scan_type: str, started_at: str, kodi_version: Optional[int] = None) -> Optional[int]:
-        """Log the start of a scan"""
-        try:
-            with self.conn_manager.transaction() as conn:
-                cursor = conn.execute("""
-                    INSERT INTO library_scan_log (scan_type, kodi_version, start_time)
-                    VALUES (?, ?, ?)
-                """, [scan_type, kodi_version or 0, started_at])
-                return cursor.lastrowid
-        except Exception as e:
-            self.logger.error("Failed to log scan start: %s", e)
-            return None
-
-    def _log_scan_complete(self, scan_id: Optional[int], started_at: str,
-                          items_found: int, items_added: int, items_updated: int, items_removed: int,
-                          completed_at: Optional[str] = None, error: Optional[str] = None):
-        """Log the completion of a scan"""
-        if not scan_id:
-            return
-
-        try:
-            completed_at = completed_at or datetime.now().isoformat()
-
-            with self.conn_manager.transaction() as conn:
-                conn.execute("""
-                    UPDATE library_scan_log
-                    SET end_time = ?, total_items = ?, items_added = ?,
-                        items_updated = ?, items_removed = ?, error = ?
-                    WHERE id = ?
-                """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
-        except Exception as e:
-            self.logger.error("Failed to log scan completion: %s", e)
 
     def _has_kodi_version_changed(self, current_version: int) -> bool:
         """Check if Kodi version has changed since last scan"""
-        try:
-            last_scan = self.conn_manager.execute_single("""
-                SELECT kodi_version
-                FROM library_scan_log
-                WHERE end_time IS NOT NULL AND kodi_version IS NOT NULL
-                ORDER BY id DESC LIMIT 1
-            """)
-
-            if not last_scan:
-                # No previous successful scan with version info
-                return False
-
-            last_version = last_scan['kodi_version']
-            if last_version != current_version:
-                self.logger.info("Kodi version changed from %s to %s", last_version, current_version)
-                return True
-
-            return False
-
-        except Exception as e:
-            self.logger.warning("Failed to check Kodi version change: %s", e)
-            # Assume no change on error to avoid unnecessary full scans
-            return False
+        # Without scan logging, assume version hasn't changed
+        return False
 
 
 # Global scanner instance
