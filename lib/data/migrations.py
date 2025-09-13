@@ -13,6 +13,9 @@ from ..utils.kodi_log import get_kodi_logger
 # Current target schema version
 TARGET_SCHEMA_VERSION = 2
 
+# Pre-release flag - when True, always reset to fresh schema
+PRE_RELEASE_FRESH_RESET = True
+
 
 class MigrationManager:
     """Manages database schema initialization"""
@@ -41,6 +44,13 @@ class MigrationManager:
             # First, try to acquire an exclusive lock on the database
             self._acquire_init_lock(conn)
             
+            # Check if we should do a fresh reset for pre-release
+            if PRE_RELEASE_FRESH_RESET and not self._is_database_empty_with_connection(conn):
+                self.logger.info("Pre-release mode: Performing fresh database reset")
+                self._reset_to_fresh_schema_with_connection(conn)
+                self.logger.info("Fresh database reset completed successfully")
+                return
+            
             # Re-check version after acquiring lock (another process might have initialized)
             current_version = self._get_current_version_with_connection(conn)
             
@@ -57,7 +67,8 @@ class MigrationManager:
                     self.logger.info("Schema version tracking added to existing database")
             elif current_version < TARGET_SCHEMA_VERSION:
                 self.logger.debug("Database exists but needs migration from version %s to %s", current_version, TARGET_SCHEMA_VERSION)
-                self._run_migrations_with_connection(conn)
+                # For pre-release, we skip incremental migrations and recommend fresh reset
+                self.logger.warning("Incremental migrations disabled for pre-release. Consider setting PRE_RELEASE_FRESH_RESET=True for clean schema.")
             else:
                 self.logger.debug("Database already at target version %s", current_version)
 
@@ -318,6 +329,70 @@ class MigrationManager:
         
         self.logger.info("Complete database schema created successfully")
 
+    def _reset_to_fresh_schema_with_connection(self, conn):
+        """Drop all existing tables and recreate complete schema - for pre-release use only"""
+        try:
+            self.logger.info("Starting fresh database schema reset")
+            
+            # Get all existing table names (excluding sqlite internal tables)
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+            existing_tables = [row[0] for row in cursor.fetchall()]
+            
+            if existing_tables:
+                self.logger.info("Found %d existing tables to drop: %s", len(existing_tables), existing_tables)
+                
+                # Disable foreign key constraints during drop operation
+                conn.execute("PRAGMA foreign_keys=OFF")
+                
+                # Drop all existing tables in reverse dependency order to avoid foreign key issues
+                # First drop tables that reference other tables, then the main tables
+                tables_to_drop = ['list_items', 'kodi_favorite', 'media_items', 'lists', 'folders'] + existing_tables
+                
+                for table_name in tables_to_drop:
+                    if table_name in existing_tables:
+                        try:
+                            conn.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                            self.logger.debug("Dropped table: %s", table_name)
+                        except Exception as e:
+                            self.logger.warning("Failed to drop table %s: %s", table_name, e)
+                
+                # Drop any remaining tables
+                for table_name in existing_tables:
+                    try:
+                        conn.execute(f"DROP TABLE IF EXISTS `{table_name}`")
+                        self.logger.debug("Dropped table: %s", table_name)
+                    except Exception as e:
+                        self.logger.warning("Failed to drop table %s: %s", table_name, e)
+                
+                # Commit the drop operations
+                conn.commit()
+                
+                # Re-enable foreign key constraints
+                conn.execute("PRAGMA foreign_keys=ON")
+                
+                # Verify all tables are dropped
+                cursor = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                )
+                remaining_tables = [row[0] for row in cursor.fetchall()]
+                
+                if remaining_tables:
+                    self.logger.warning("Some tables still exist after drop: %s", remaining_tables)
+                else:
+                    self.logger.info("All existing tables dropped successfully")
+            else:
+                self.logger.info("No existing tables found to drop")
+            
+            # Create fresh schema
+            self._create_tables(conn)
+            self.logger.info("Fresh database schema reset completed successfully")
+            
+        except Exception as e:
+            self.logger.error("Fresh database schema reset failed: %s", e)
+            raise
+
     def _get_current_version(self):
         """Get the current schema version"""
         try:
@@ -347,161 +422,23 @@ class MigrationManager:
             # If schema_version table doesn't exist, assume version 0
             return 0
 
-    def _run_migrations(self):
-        """Run all pending migrations for existing databases"""
-        current_version = self._get_current_version()
-        self.logger.debug("Current database version: %s", current_version)
-        
-        # Migration 1: Add tvshow_kodi_id field for TV episode sync feature
-        if current_version < 2:
-            self._migrate_to_version_2()
             
-    def _run_migrations_with_connection(self, conn):
-        """Run all pending migrations using provided connection"""
-        current_version = self._get_current_version_with_connection(conn)
-        self.logger.debug("Current database version: %s", current_version)
-        
-        # Only run migrations if actually needed
-        if current_version >= TARGET_SCHEMA_VERSION:
-            self.logger.debug("No migrations needed - database already at version %s", current_version)
-            return
             
-        # Migration 1: Add tvshow_kodi_id field for TV episode sync feature
-        if current_version < 2:
-            self._migrate_to_version_2_with_connection(conn)
-            
-    def _migrate_to_version_2(self):
-        """Migration to add tvshow_kodi_id field and index for TV episode sync"""
-        try:
-            with self.conn_manager.transaction() as conn:
-                self.logger.debug("Running migration to version 2: Adding tvshow_kodi_id field")
-                
-                # Check if column already exists (safe migration)
-                try:
-                    cursor = conn.execute("PRAGMA table_info(media_items)")
-                    columns = [row[1] for row in cursor.fetchall()]  # row[1] is column name
-                    
-                    if 'tvshow_kodi_id' not in columns:
-                        # Add the tvshow_kodi_id column
-                        conn.execute("ALTER TABLE media_items ADD COLUMN tvshow_kodi_id INTEGER")
-                        self.logger.info("Added tvshow_kodi_id column to media_items table")
-                    else:
-                        self.logger.debug("tvshow_kodi_id column already exists")
-                        
-                except Exception as e:
-                    self.logger.warning("Could not check existing columns: %s", e)
-                    # Try to add column anyway - SQLite will ignore if it exists
-                    try:
-                        conn.execute("ALTER TABLE media_items ADD COLUMN tvshow_kodi_id INTEGER")
-                        self.logger.info("Added tvshow_kodi_id column to media_items table")
-                    except Exception as add_error:
-                        if "duplicate column name" in str(add_error).lower():
-                            self.logger.debug("tvshow_kodi_id column already exists")
-                        else:
-                            raise add_error
-                
-                # Check if index exists before creating
-                try:
-                    cursor = conn.execute("""
-                        SELECT name FROM sqlite_master 
-                        WHERE type='index' AND name='idx_media_items_tvshow_episode'
-                    """)
-                    index_exists = cursor.fetchone() is not None
-                    
-                    if not index_exists:
-                        conn.execute("CREATE INDEX idx_media_items_tvshow_episode ON media_items (tvshow_kodi_id, season, episode)")
-                        self.logger.info("Created index idx_media_items_tvshow_episode")
-                    else:
-                        self.logger.debug("Index idx_media_items_tvshow_episode already exists")
-                        
-                except Exception as e:
-                    self.logger.warning("Could not create index: %s", e)
-                
-                # Update schema version
-                conn.execute("INSERT OR REPLACE INTO schema_version (version, applied_at) VALUES (2, datetime('now'))")
-                self.logger.debug("Migration to version 2 completed successfully")
-                
-        except Exception as e:
-            self.logger.error("Migration to version 2 failed: %s", e)
-            raise
 
-    def _migrate_to_version_2_with_connection(self, conn):
-        """Migration to add tvshow_kodi_id field and index using provided connection"""
-        try:
-            # Skip if already at version 2 or higher
-            current_version = self._get_current_version_with_connection(conn)
-            if current_version >= 2:
-                self.logger.debug("Migration to version 2 already completed, skipping")
-                return
-                
-            self.logger.debug("Running migration to version 2 (with connection): Adding tvshow_kodi_id field")
-            
-            # Ensure schema_version table exists with single-row semantics
-            try:
-                # Try new single-row format first
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS schema_version (
-                        id INTEGER PRIMARY KEY CHECK (id = 1),
-                        version INTEGER NOT NULL,
-                        applied_at TEXT NOT NULL
-                    )
-                """)
-            except Exception as e:
-                self.logger.debug("Schema version table creation failed, may exist in old format: %s", e)
-            
-            # Check if column already exists (safe migration)
-            try:
-                cursor = conn.execute("PRAGMA table_info(media_items)")
-                columns = [row[1] for row in cursor.fetchall()]  # row[1] is column name
-                
-                if 'tvshow_kodi_id' not in columns:
-                    # Add the tvshow_kodi_id column
-                    conn.execute("ALTER TABLE media_items ADD COLUMN tvshow_kodi_id INTEGER")
-                    self.logger.info("Added tvshow_kodi_id column to media_items table")
-                else:
-                    self.logger.debug("tvshow_kodi_id column already exists")
-                    
-            except Exception as e:
-                self.logger.warning("Could not check existing columns: %s", e)
-                # Try to add column anyway - SQLite will ignore if it exists
-                try:
-                    conn.execute("ALTER TABLE media_items ADD COLUMN tvshow_kodi_id INTEGER")
-                    self.logger.info("Added tvshow_kodi_id column to media_items table")
-                except Exception as add_error:
-                    if "duplicate column name" in str(add_error).lower():
-                        self.logger.debug("tvshow_kodi_id column already exists")
-                    else:
-                        raise add_error
-            
-            # Check if index exists before creating
-            try:
-                cursor = conn.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='index' AND name='idx_media_items_tvshow_episode'
-                """)
-                index_exists = cursor.fetchone() is not None
-                
-                if not index_exists:
-                    conn.execute("CREATE INDEX IF NOT EXISTS idx_media_items_tvshow_episode ON media_items (tvshow_kodi_id, season, episode)")
-                    self.logger.info("Created index idx_media_items_tvshow_episode")
-                else:
-                    self.logger.debug("Index idx_media_items_tvshow_episode already exists")
-                    
-            except Exception as e:
-                self.logger.warning("Could not create index: %s", e)
-            
-            # Update schema version using safe upsert semantics
-            self._set_schema_version(conn, 2)
-            self.logger.debug("Migration to version 2 completed successfully (with connection)")
-            
-        except Exception as e:
-            self.logger.error("Migration to version 2 failed (with connection): %s", e)
-            raise
 
     def run_migrations(self):
-        """Run all pending migrations"""
-        # No migrations needed for pre-release - fresh database only
-        self.logger.debug("No migrations to apply for pre-release version")
+        """Run all pending migrations - framework preserved for future use"""
+        # Migrations removed for pre-release - using fresh schema reset instead
+        # Framework preserved for future incremental migrations
+        self.logger.debug("Migration framework available but no migrations defined for current version")
+        
+        # Future migrations can be added to self.migrations list and executed here
+        current_version = self._get_current_version()
+        if len(self.migrations) > 0:
+            self.logger.info("Running %d pending migrations from version %d", len(self.migrations), current_version)
+            # Migration execution logic would go here
+        else:
+            self.logger.debug("No migrations to apply - using fresh schema initialization")
         
     def _acquire_init_lock(self, conn):
         """Acquire an application-level lock for database initialization"""
