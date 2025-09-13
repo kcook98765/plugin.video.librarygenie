@@ -257,78 +257,59 @@ class SettingsManager:
     # Backup Settings
     def get_enable_automatic_backups(self) -> bool:
         """Get enable automatic backups setting"""
-        return self.addon.getSettingBool('enable_automatic_backups')
+        config = get_config()
+        return config.get_bool('enable_automatic_backups', False)
 
     def get_backup_interval(self) -> str:
         """Get backup interval setting"""
-        return self.addon.getSetting('backup_interval')
+        config = get_config()
+        return config.get('backup_interval', 'weekly')
 
     def get_backup_storage_location(self) -> str:
         """Get backup storage location with safe fallbacks"""
-        try:
-            storage_type = self.addon.getSetting('backup_storage_type')
+        config = get_config()
+        storage_type = config.get('backup_storage_type', 'local')
 
-            if storage_type == "custom":
-                # Use custom path set by user
-                custom_path = self.addon.getSetting('backup_local_path')
-                if custom_path and custom_path.strip():
-                    return custom_path.strip()
+        if storage_type == "custom":
+            # Use custom path set by user
+            custom_path = config.get('backup_local_path', "")
+            if custom_path and custom_path.strip():
+                return custom_path.strip()
 
-            # Default to addon data directory
-            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
-        except Exception as e:
-            self.logger.warning("Error reading backup storage location: %s", e)
-            return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
+        # Default to addon data directory
+        return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
 
     def get_backup_storage_type(self) -> str:
         """Get backup storage type with safe fallback"""
-        try:
-            return self.addon.getSetting('backup_storage_type') or 'local'
-        except Exception as e:
-            self.logger.warning("Error reading backup storage type: %s", e)
-            return 'local'
+        config = get_config()
+        return config.get('backup_storage_type', 'local')
 
     def get_backup_enabled(self) -> bool:
         """Get backup enabled setting with safe fallback"""
-        try:
-            return self.addon.getSettingBool('backup_enabled')
-        except Exception as e:
-            try:
-                # Try as string fallback
-                str_val = self.addon.getSettingString('backup_enabled')
-                return str_val.lower() in ('true', '1', 'yes')
-            except Exception:
-                self.logger.warning("Error reading backup_enabled setting: %s", e)
-                return False
+        config = get_config()
+        return config.get_bool('backup_enabled', False)
 
     def get_backup_retention_count(self) -> int:
         """Get backup retention count with safe fallback"""
-        try:
-            return max(1, min(50, self.addon.getSettingInt('backup_retention_count')))
-        except Exception as e:
-            try:
-                # Try as string fallback
-                str_val = self.addon.getSettingString('backup_retention_count')
-                if str_val and str_val.strip():
-                    return max(1, min(50, int(str_val.strip())))
-                else:
-                    return 5
-            except (ValueError, TypeError):
-                self.logger.warning("Error reading backup retention count: %s", e)
-                return 5
+        config = get_config()
+        value = config.get_int('backup_retention_count', 5)
+        return max(1, min(50, value))
 
     def get_backup_retention_policy(self) -> str:
         """Get backup retention policy"""
-        return self.addon.getSetting('backup_retention_policy')
+        config = get_config()
+        return config.get('backup_retention_policy', 'count')
 
     # ShortList Integration Settings
     def get_import_from_shortlist(self) -> bool:
         """Get import from ShortList addon setting"""
-        return self.addon.getSettingBool('import_from_shortlist')
+        config = get_config()
+        return config.get_bool('import_from_shortlist', False)
 
     def get_clear_before_import(self) -> bool:
         """Get clear list before importing setting"""
-        return self.addon.getSettingBool('clear_before_import')
+        config = get_config()
+        return config.get_bool('clear_before_import', False)
 
     # Settings Helper Methods
     def set_setting(self, setting_id: str, value: Union[str, bool, int]) -> None:
@@ -383,13 +364,12 @@ class SettingsManager:
         """Get backup-related preferences with defaults"""
         try:
             config = get_config()
-
             return {
-                'enabled': config.get_bool('backup_enabled', False),
-                'schedule_interval': config.get('backup_interval', 'weekly'),
-                'retention_days': config.get_int('backup_retention_count', 5),
-                'storage_path': config.get('backup_storage_location', ''),
-                'storage_type': config.get('backup_storage_type', 'local'),
+                'enabled': self.get_backup_enabled(),
+                'schedule_interval': self.get_backup_interval(),
+                'retention_days': self.get_backup_retention_count(),
+                'storage_path': self.get_backup_storage_location(),
+                'storage_type': self.get_backup_storage_type(),
                 'include_settings': config.get_bool('backup_include_settings', True),
                 'include_non_library': config.get_bool('backup_include_non_library', False)
             }
@@ -407,13 +387,14 @@ class SettingsManager:
 
     def get_phase12_remote_settings(self) -> Dict[str, Any]:
         """Get remote service settings for Phase 1.2 integration"""
+        config = get_config()
         return {
-            'enabled': self.addon.getSettingBool('remote_enabled'),
+            'enabled': config.get_bool('remote_enabled', False),
             'server_url': self.get_remote_server_url(),
-            'timeout': self.addon.getSettingInt('remote_timeout'),
-            'max_retries': self.addon.getSettingInt('remote_max_retries'),
-            'fallback_to_local': self.addon.getSettingBool('remote_fallback_to_local'),
-            'cache_duration': self.addon.getSettingInt('remote_cache_duration')
+            'timeout': config.get_int('remote_timeout', 30),
+            'max_retries': config.get_int('remote_max_retries', 3),
+            'fallback_to_local': config.get_bool('remote_fallback_to_local', True),
+            'cache_duration': config.get_int('remote_cache_duration', 300)
         }
 
 

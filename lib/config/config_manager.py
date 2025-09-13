@@ -23,19 +23,13 @@ class ConfigManager:
 
         # Default configuration matching Phase 2-3 requirements
         self._defaults = {
-            # Phase 3: Advanced settings with safe defaults
-            "jsonrpc_page_size": 200,  # Items per JSON-RPC page
-            "jsonrpc_timeout_seconds": 10,  # JSON-RPC request timeout
-            "db_batch_size": 200,  # Database write batch size
-            "db_busy_timeout_ms": 3000,  # Database busy timeout
+            # General settings
             "confirm_destructive_actions": True,
             "track_library_changes": True,
             "soft_delete_removed_items": True,
             "default_list_id": "",
             "quick_add_enabled": False,
             "show_missing_indicators": True,
-            "favorites_integration_enabled": False,
-            "favorites_scan_interval_minutes": 30,
             "show_unmapped_favorites": False,
             "sync_tv_episodes": False,  # Sync TV episodes during library scan
             
@@ -58,6 +52,7 @@ class ConfigManager:
             "enable_batch_processing": True,
             
             # Advanced settings
+            "jsonrpc_page_size": 200,  # Items per JSON-RPC page
             "jsonrpc_timeout": 10,
             "database_batch_size": 200,
             "database_busy_timeout": 3000,
@@ -65,16 +60,35 @@ class ConfigManager:
             # Remote service settings
             "remote_server_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",
-            "auth_polling_interval": 3,
+            "auth_polling_interval": 5,  # Align with minimum clamp value
             "enable_auto_token_refresh": True,
             "use_native_kodi_info": True,
             "enable_background_token_refresh": True,
+            "remote_enabled": False,
+            "remote_timeout": 30,
+            "remote_max_retries": 3,
+            "remote_fallback_to_local": True,
+            "remote_cache_duration": 300,
             
             # AI Search settings
             "ai_search_api_key": "",
             "ai_search_activated": False,
             "ai_search_sync_interval": 1,
-            # UI behavior settings
+            
+            # Backup settings
+            "enable_automatic_backups": False,
+            "backup_interval": "weekly",
+            "backup_storage_type": "local",
+            "backup_local_path": "",
+            "backup_enabled": False,
+            "backup_retention_count": 5,
+            "backup_retention_policy": "count",
+            "backup_include_settings": True,
+            "backup_include_non_library": False,
+            
+            # ShortList integration settings
+            "import_from_shortlist": False,
+            "clear_before_import": False,
         }
 
     def get(self, key, default=None):
