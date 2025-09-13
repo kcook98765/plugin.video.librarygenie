@@ -21,10 +21,10 @@ Based on the addon architecture, these are the main navigational directory entry
 - **Purpose**: Organize lists in folder structure
 - **Current Art**: `DefaultFolder.png`
 
-### 3. **Media Items** (Movies/Episodes/Music Videos)
+### 3. **Media Items** (Movies/Episodes)
 - **Location**: `lib/ui/listitem_builder.py` → `_create_library_listitem()` and `_create_external_item()`
 - **Navigation**: Direct playback or info display
-- **Purpose**: Individual movie/episode/music video entries
+- **Purpose**: Individual movie/episode entries
 - **Current Art**: Database-driven (poster, fanart, thumb from media metadata)
 
 ### 4. **Action Items** (Menu actions/tools)
@@ -71,7 +71,6 @@ Based on the addon architecture, these are the main navigational directory entry
 'DefaultTVShows.png'          # TV Shows category
 'DefaultEpisodes.png'         # Episodes
 'DefaultSeason.png'           # TV Season
-'DefaultMusicVideos.png'      # Music videos
 'DefaultRecentlyAdded.png'    # Recently added content
 'DefaultInProgressShows.png'  # In-progress content
 ```
@@ -203,7 +202,6 @@ art = self._build_art_dict(item)  # Includes poster, fanart, thumb, etc.
 ### **Media Type Specific Icons**
 - **Movie Lists**: `DefaultMovies.png`
 - **TV Episode Lists**: `DefaultTVShows.png`
-- **Music Video Lists**: `DefaultMusicVideos.png`
 - **Mixed Content Lists**: `DefaultVideo.png`
 
 ### **Dynamic Art Selection**
