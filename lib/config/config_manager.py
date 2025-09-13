@@ -92,6 +92,11 @@ class ConfigManager:
             
             # Initialization state
             "initial_sync_requested": "false",
+            
+            # Authentication tokens
+            "access_token": "",
+            "refresh_token": "",
+            "token_expires_at": "",
         }
 
     def get(self, key, default=None):
