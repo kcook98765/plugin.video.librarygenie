@@ -26,178 +26,226 @@ class SettingsManager:
 
     def get_confirm_destructive(self) -> bool:
         """Get confirmation for destructive actions setting"""
-        return self.addon.getSettingBool('confirm_destructive')
+        config = get_config()
+        return config.get_bool('confirm_destructive_actions', True)
 
 
     # Library Settings
     def get_track_library_changes(self) -> bool:
         """Get track library changes setting"""
-        return self.addon.getSettingBool('track_library_changes')
+        config = get_config()
+        return config.get_bool('track_library_changes', True)
 
     def get_soft_delete_removed(self) -> bool:
         """Get soft delete removed items setting"""
-        return self.addon.getSettingBool('soft_delete_removed')
+        config = get_config()
+        return config.get_bool('soft_delete_removed_items', True)
 
     def get_sync_movies(self) -> bool:
         """Get sync movies during library scan setting"""
-        return self.addon.getSettingBool('sync_movies')
+        config = get_config()
+        return config.get_bool('sync_movies', True)
 
     def set_sync_movies(self, enabled: bool) -> None:
         """Set sync movies during library scan setting"""
-        self.addon.setSettingBool('sync_movies', enabled)
+        config = get_config()
+        config.set('sync_movies', enabled)
 
     def get_sync_tv_episodes(self) -> bool:
         """Get sync TV episodes during library scan setting"""
-        return self.addon.getSettingBool('sync_tv_episodes')
+        config = get_config()
+        return config.get_bool('sync_tv_episodes', False)
 
     def set_sync_tv_episodes(self, enabled: bool) -> None:
         """Set sync TV episodes during library scan setting"""
-        self.addon.setSettingBool('sync_tv_episodes', enabled)
+        config = get_config()
+        config.set('sync_tv_episodes', enabled)
 
     def get_first_run_completed(self) -> bool:
         """Get whether first run setup has been completed"""
-        return self.addon.getSettingBool('first_run_completed')
+        config = get_config()
+        return config.get_bool('first_run_completed', False)
 
     def set_first_run_completed(self, completed: bool) -> None:
         """Set whether first run setup has been completed"""
-        self.addon.setSettingBool('first_run_completed', completed)
+        config = get_config()
+        config.set('first_run_completed', completed)
 
     def get_sync_frequency_hours(self) -> int:
         """Get sync frequency in hours (1-48, default 1)"""
-        return max(1, min(48, self.addon.getSettingInt('sync_frequency_hours') or 1))
+        config = get_config()
+        value = config.get_int('sync_frequency_hours', 1)
+        return max(1, min(48, value or 1))
 
     def set_sync_frequency_hours(self, hours: int) -> None:
         """Set sync frequency in hours (1-48)"""
         validated_hours = max(1, min(48, hours))
-        self.addon.setSettingInt('sync_frequency_hours', validated_hours)
+        config = get_config()
+        config.set('sync_frequency_hours', validated_hours)
 
     def get_last_sync_time(self) -> int:
         """Get timestamp of last sync completion"""
-        return self.addon.getSettingInt('last_sync_time')
+        config = get_config()
+        return config.get_int('last_sync_time', 0)
 
     def set_last_sync_time(self, timestamp: int) -> None:
         """Set timestamp of last sync completion"""
-        self.addon.setSettingInt('last_sync_time', timestamp)
+        config = get_config()
+        config.set('last_sync_time', timestamp)
 
     # Lists Settings
     def get_default_list_id(self) -> Optional[str]:
         """Get default list ID for quick-add"""
-        value = self.addon.getSetting('default_list_id')
+        config = get_config()
+        value = config.get('default_list_id', "")
         return value if value else None
 
     def set_default_list_id(self, list_id: str) -> None:
         """Set default list ID for quick-add"""
-        self.addon.setSetting('default_list_id', str(list_id) if list_id else "")
+        config = get_config()
+        config.set('default_list_id', str(list_id) if list_id else "")
 
     def get_enable_quick_add(self) -> bool:
         """Get enable quick-add setting"""
-        return self.addon.getSettingBool('quick_add_enabled')
+        config = get_config()
+        return config.get_bool('quick_add_enabled', False)
 
     def get_show_missing_indicators(self) -> bool:
         """Get show missing movie indicators setting"""
-        return self.addon.getSettingBool('show_missing_indicators')
+        config = get_config()
+        return config.get_bool('show_missing_indicators', True)
 
     # Background Service Settings
     def get_enable_background_service(self) -> bool:
         """Get enable background service setting"""
-        return self.addon.getSettingBool('enable_background_service')
+        config = get_config()
+        return config.get_bool('enable_background_service', True)
 
     def get_background_interval(self) -> int:
         """Get background service interval in minutes"""
-        return max(5, min(720, self.addon.getSettingInt('background_interval')))
+        config = get_config()
+        value = config.get_int('background_interval', 5)
+        return max(5, min(720, value))
 
     # Favorites Settings
     def get_enable_favorites_integration(self) -> bool:
         """Get enable favorites integration setting"""
-        return self.addon.getSettingBool('favorites_integration_enabled')
+        config = get_config()
+        return config.get_bool('favorites_integration_enabled', False)
 
     def get_favorites_scan_interval(self) -> int:
         """Get favorites scan interval in minutes"""
-        return max(5, min(1440, self.addon.getSettingInt('favorites_scan_interval')))
+        config = get_config()
+        value = config.get_int('favorites_scan_interval', 30)
+        return max(5, min(1440, value))
 
     def get_show_unmapped_favorites(self) -> bool:
         """Get show unmapped favorites setting"""
-        return self.addon.getSettingBool('show_unmapped_favorites')
+        config = get_config()
+        return config.get_bool('show_unmapped_favorites', False)
 
     def get_enable_batch_processing(self) -> bool:
         """Get enable batch processing for large favorites files"""
-        return self.addon.getSettingBool('enable_batch_processing')
+        config = get_config()
+        return config.get_bool('enable_batch_processing', True)
 
 
 
     # Search Settings
     def get_search_page_size(self) -> int:
         """Get search results page size"""
-        return max(50, min(500, self.addon.getSettingInt('search_page_size')))
+        config = get_config()
+        value = config.get_int('search_page_size', 200)
+        return max(50, min(500, value))
 
     # Advanced Settings
     def get_jsonrpc_page_size(self) -> int:
         """Get JSON-RPC page size"""
-        return max(50, min(500, self.addon.getSettingInt('jsonrpc_page_size')))
+        config = get_config()
+        value = config.get_int('jsonrpc_page_size', 200)
+        return max(50, min(500, value))
 
     def get_jsonrpc_timeout(self) -> int:
         """Get JSON-RPC timeout in seconds"""
-        return max(5, min(60, self.addon.getSettingInt('jsonrpc_timeout')))
+        config = get_config()
+        value = config.get_int('jsonrpc_timeout', 10)
+        return max(5, min(60, value))
 
     def get_database_batch_size(self) -> int:
         """Get database batch size"""
-        return max(100, min(1000, self.addon.getSettingInt('database_batch_size')))
+        config = get_config()
+        value = config.get_int('database_batch_size', 200)
+        return max(100, min(1000, value))
 
     def get_database_busy_timeout(self) -> int:
         """Get database busy timeout in milliseconds"""
-        return max(1000, min(30000, self.addon.getSettingInt('database_busy_timeout')))
+        config = get_config()
+        value = config.get_int('database_busy_timeout', 3000)
+        return max(1000, min(30000, value))
 
     # Remote Service Settings
     def get_remote_server_url(self) -> Optional[str]:
         """Get remote server URL"""
-        value = self.addon.getSetting('remote_server_url')
+        config = get_config()
+        value = config.get('remote_server_url', "")
         return value.strip() if value else None
 
     def get_device_name(self) -> str:
         """Get device name for authentication"""
-        value = self.addon.getSetting('device_name')
+        config = get_config()
+        value = config.get('device_name', "Kodi")
         return value if value else L(30412)  # "Device name"
 
     def get_auth_polling_interval(self) -> int:
         """Get authentication polling interval in seconds"""
-        return max(5, min(60, self.addon.getSettingInt('auth_polling_interval')))
+        config = get_config()
+        value = config.get_int('auth_polling_interval', 3)
+        return max(5, min(60, value))
 
     def get_enable_auto_token_refresh(self) -> bool:
         """Get enable automatic token refresh setting"""
-        return self.addon.getSettingBool('enable_auto_token_refresh')
+        config = get_config()
+        return config.get_bool('enable_auto_token_refresh', True)
 
     def get_use_native_kodi_info(self) -> bool:
         """Get use native Kodi info for library items setting"""
-        return self.addon.getSettingBool('use_native_kodi_info')
+        config = get_config()
+        return config.get_bool('use_native_kodi_info', True)
 
     def get_enable_background_token_refresh(self) -> bool:
         """Get enable automatic token refresh in background service setting"""
-        return self.addon.getSettingBool('enable_background_token_refresh')
+        config = get_config()
+        return config.get_bool('enable_background_token_refresh', True)
 
     # AI Search Server Settings
 
     def get_ai_search_api_key(self) -> Optional[str]:
         """Get AI search API key"""
-        value = self.addon.getSetting('ai_search_api_key')
+        config = get_config()
+        value = config.get('ai_search_api_key', "")
         return value.strip() if value else None
 
     def set_ai_search_api_key(self, api_key: str) -> None:
         """Set AI search API key"""
-        self.addon.setSetting('ai_search_api_key', api_key if api_key else "")
+        config = get_config()
+        config.set('ai_search_api_key', api_key if api_key else "")
 
     def get_ai_search_activated(self) -> bool:
         """Get AI search activated status"""
-        return self.addon.getSettingBool('ai_search_activated')
+        config = get_config()
+        return config.get_bool('ai_search_activated', False)
 
 
     def set_ai_search_activated(self, activated: bool) -> None:
         """Set AI search activated status"""
-        self.addon.setSettingBool('ai_search_activated', activated)
+        config = get_config()
+        config.set('ai_search_activated', activated)
 
 
     def get_ai_search_sync_interval(self) -> int:
         """Get AI search sync interval in seconds"""
-        selector_value = self.addon.getSettingInt('ai_search_sync_interval')
+        config = get_config()
+        selector_value = config.get_int('ai_search_sync_interval', 1)
         # Map selector values to seconds: 0=1hr, 1=12hr, 2=24hr
         interval_map = {
             0: 3600,    # 1 Hour
