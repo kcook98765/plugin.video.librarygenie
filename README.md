@@ -141,12 +141,12 @@ Confidence scoring: 100% (IMDb) → 95% (TMDb) → 75–90% (title/year) → fal
 - **Organized Categories**: Settings grouped into General, Lists, Background, and Backup sections.
 - **Privacy-First**: External features disabled by default, require explicit user authorization.
 
-## External Integration (Optional)
+## External Integration (Optional and not yet open to public)
 
 - Disabled by default; requires user authorization.
-- **Remote Search**: Free-text queries → IMDb ID lists returned.
-- **Similarity**: Given IMDb, request server for similar items → IMDb IDs.
-- **Sync**: Optional mirroring of user's list with server (IMDb only).
+- **Remote Search**: Free-text queries → AI RAG search → IMDb ID lists returned.
+- **Similarity**: Given IMDb → AI RAG similarity search →  IMDb IDs.
+- **Sync**: Required mirroring of user's IMDB list with server (IMDb only).
 - **Privacy**: Only IMDb IDs and user queries transmitted; no file paths or playback data.
 
 ---
@@ -212,41 +212,6 @@ LibraryGenie provides manual integration with Kodi's built-in Favorites system:
 
 ---
 
-## Development Workflow
-
-### Local Development Setup
-
-This project uses Python with `uv` for dependency management.
-
-1. **Install Dependencies**:
-   ```bash
-   uv sync
-   ```
-
-2. **Development Commands**:
-   ```bash
-   # Install dependencies
-   uv add --dev flake8 mypy pytest black isort
-   
-   # Run linting and type checking
-   uv run flake8 lib/
-   uv run mypy lib/ --ignore-missing-imports
-   
-   # Format code
-   uv run black lib/
-   uv run isort lib/
-   ```
-
-3. **Package for Distribution**:
-   Create a zip file with all necessary addon files excluding development dependencies.
-
-### Testing Environment
-
-- **Kodi API Stubs**: Test-only stubs in `tests/stubs/` provide minimal Kodi API implementations for running tests without Kodi.
-- **Import Safety Tests**: Verify all modules can be imported without Kodi dependencies.
-- **Smoke Tests**: Basic functionality tests for plugin/service entry points and routing.
-- **Clean Testing**: Stubs are excluded from the packaged addon and exist only for development.
-
 ### Plugin Architecture
 
 The plugin uses a modular handler-based architecture:
@@ -254,18 +219,6 @@ The plugin uses a modular handler-based architecture:
 - **Handlers**: Specialized UI handlers for different functionality
 - **Response Types**: Structured response objects for consistent UI handling
 - **Context**: Request context object for parameter access
-
-### Quality Gates
-
-All changes must pass:
-- **Linting**: Basic code style, import order, unused code detection
-- **Type Checking**: Gradual typing with warnings (ignores missing Kodi types)
-- **Import Safety**: All modules import without Kodi runtime
-- **Smoke Tests**: Core functionality works in test environment
-
----
-
-## Installation
 
 ### From Zip Package
 
@@ -310,15 +263,6 @@ If you experience slow scans or timeouts with large movie libraries (1000+ movie
 - Enable debug logging and check logs for details
 - Backup userdata and reinstall addon if issues persist
 
-### Debug Information
-
-Enable debug logging in addon settings → General → Debug & Logging to get detailed information for troubleshooting. Debug logs will show:
-
-- JSON-RPC request timing and paging details
-- Database operation performance metrics
-- Library scan progress and error details
-- Configuration validation and fallback behavior
-
 ### Reset and Recovery
 
 If the addon stops working correctly:
@@ -331,9 +275,9 @@ If the addon stops working correctly:
 
 Expected performance for reference systems:
 
-- **Small library** (< 500 movies): Full scan 30-60 seconds, Delta scan 5-10 seconds
-- **Medium library** (500-2000 movies): Full scan 2-5 minutes, Delta scan 10-30 seconds
-- **Large library** (2000+ movies): Full scan 5-15 minutes, Delta scan 30-60 seconds
+- **Small library** (< 500 movies): Full scan in seconds, Delta scan in seconds
+- **Medium library** (500-2000 movies): Full scan seconds to minutes, Delta scan 10-30 seconds
+- **Large library** (2000+ movies): Full scan 1-15 minutes, Delta scan 30-60 seconds
 
 Times may vary significantly based on network storage, system performance, and library metadata complexity.
 
@@ -341,8 +285,7 @@ Times may vary significantly based on network storage, system performance, and l
 
 ## Status
 
-**Phase 5 - Full List Management**: Complete local-only list management functionality with CRUD operations, user interface flows, and persistent SQLite storage. Create, rename, and delete lists with confirmation dialogs and item counts. All operations are fully localized and work both in Kodi and standalone testing environments.
+**Phase 5 - Full List Management**: Complete local-only list management functionality with CRUD operations, user interface flows, and persistent SQLite storage. Create, rename, and delete lists with confirmation dialogs and item counts. All operations are fully localized.
 
 - **Stable Core**: Local lists, folders, import/export, search, favorites integration.
 - **Alpha**: External server search/similarity/sync (invite-only, opt-in).
-- **Optional**: TMDb enrichment with user-supplied API key.

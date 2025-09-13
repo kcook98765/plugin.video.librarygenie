@@ -53,7 +53,6 @@ class Phase3LibraryScanner:
             return {"success": False, "error": "Database initialization failed"}
 
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("full", scan_start)
 
         try:
             # Reset abort flag
@@ -67,7 +66,6 @@ class Phase3LibraryScanner:
                 else:
                     error_msg = "Failed to get movie count: Unknown error"
                 self.logger.error(error_msg)
-                self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=error_msg)
                 return {"success": False, "error": error_msg}
 
             if count_response.data:
@@ -77,7 +75,6 @@ class Phase3LibraryScanner:
             self.logger.info("Full scan: %s movies to process", total_movies)
 
             if total_movies == 0:
-                self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0)
                 return {"success": True, "items_found": 0, "items_added": 0}
 
             # Clear existing data for full refresh
@@ -98,7 +95,6 @@ class Phase3LibraryScanner:
                 # Check for abort between pages
                 if self._should_abort():
                     self.logger.info("Full scan aborted by user at page %s/%s", page_num, total_pages)
-                    self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error="Aborted by user")
                     return {"success": False, "error": "Scan aborted by user", "items_added": total_added}
 
                 self.logger.info("Processing page %s/%s (offset %s)", page_num, total_pages, offset)
@@ -119,7 +115,6 @@ class Phase3LibraryScanner:
                     else:
                         self.logger.error("%s - stopping scan", error_msg)
 
-                    self._log_scan_complete(scan_id, scan_start, offset, total_added, 0, 0, error=error_msg)
                     return {"success": False, "error": error_msg, "items_added": total_added}
 
                 movies = page_response.data.get("movies", []) if page_response.data else []
@@ -149,7 +144,6 @@ class Phase3LibraryScanner:
                 time.sleep(0.1)
 
             scan_end = datetime.now().isoformat()
-            self._log_scan_complete(scan_id, scan_start, total_movies, total_added, 0, 0, scan_end)
 
             self.logger.info("=== ENHANCED SCAN COMPLETE: %s out of %s movies successfully indexed ===", total_added, total_movies)
 
@@ -163,7 +157,6 @@ class Phase3LibraryScanner:
 
         except Exception as e:
             self.logger.error("Full scan failed: %s", e, exc_info=True)
-            self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
     def perform_delta_scan(self) -> Dict[str, Any]:
@@ -175,7 +168,6 @@ class Phase3LibraryScanner:
             return {"success": False, "error": "Database initialization failed"}
 
         scan_start = datetime.now().isoformat()
-        scan_id = self._log_scan_start("delta", scan_start)
 
         try:
             # Reset abort flag
@@ -187,7 +179,6 @@ class Phase3LibraryScanner:
             if current_movies is None:
                 # Error occurred during fetch
                 error_msg = "Failed to fetch current movie state"
-                self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=error_msg)
                 return {"success": False, "error": error_msg}
 
             current_ids = {movie["movieid"] for movie in current_movies}
@@ -224,10 +215,6 @@ class Phase3LibraryScanner:
                 items_updated = self._update_last_seen_batch(existing_ids)
 
             scan_end = datetime.now().isoformat()
-            self._log_scan_complete(
-                scan_id, scan_start, len(current_movies),
-                items_added, items_updated, items_removed, scan_end
-            )
 
             if items_added > 0 or items_removed > 0:
                 self.logger.info("=== ENHANCED DELTA SCAN COMPLETE: +%s new, -%s removed, ~%s updated movies ===", items_added, items_removed, items_updated)
@@ -245,7 +232,6 @@ class Phase3LibraryScanner:
 
         except Exception as e:
             self.logger.error("Delta scan failed: %s", e, exc_info=True)
-            self._log_scan_complete(scan_id, scan_start, 0, 0, 0, 0, error=str(e))
             return {"success": False, "error": str(e)}
 
     def request_abort(self):
@@ -482,38 +468,6 @@ class Phase3LibraryScanner:
             self.logger.error("Failed to update last_seen: %s", e)
             return 0
 
-    def _log_scan_start(self, scan_type: str, started_at: str) -> Optional[int]:
-        """Log the start of a scan"""
-        try:
-            with self.conn_manager.transaction() as conn:
-                cursor = conn.execute("""
-                    INSERT INTO library_scan_log (scan_type, started_at)
-                    VALUES (?, ?)
-                """, [scan_type, started_at])
-                return cursor.lastrowid
-        except Exception as e:
-            self.logger.error("Failed to log scan start: %s", e)
-            return None
-
-    def _log_scan_complete(self, scan_id: Optional[int], started_at: str,
-                          items_found: int, items_added: int, items_updated: int, items_removed: int,
-                          completed_at: Optional[str] = None, error: Optional[str] = None):
-        """Log the completion of a scan"""
-        if not scan_id:
-            return
-
-        try:
-            completed_at = completed_at or datetime.now().isoformat()
-
-            with self.conn_manager.transaction() as conn:
-                conn.execute("""
-                    UPDATE library_scan_log
-                    SET end_time = ?, total_items = ?, items_added = ?,
-                        items_updated = ?, items_removed = ?, error = ?
-                    WHERE id = ?
-                """, [completed_at, items_found, items_added, items_updated, items_removed, error, scan_id])
-        except Exception as e:
-            self.logger.error("Failed to log scan completion: %s", e)
 
 
 # Global enhanced scanner instance

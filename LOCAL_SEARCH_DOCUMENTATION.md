@@ -15,8 +15,6 @@ LibraryGenie's local search system provides fast, offline search capabilities ac
 - **Keyword-Based Matching**: Simple, predictable keyword search across title and plot fields
 - **Intelligent Ranking**: Prioritizes title matches over plot matches for better relevance
 - **Text Normalization**: Handles diacritics, punctuation, case, and Unicode consistently
-- **Flexible Search Scope**: Search titles only, plots only, or both fields
-- **Match Logic Options**: "All keywords" or "any keyword" matching
 - **Search History**: Automatic saving of search results to browsable lists
 
 ---
@@ -68,17 +66,6 @@ ORDER BY (CASE WHEN title LIKE ? THEN 1 ELSE 2 END), title
 ---
 
 ## Implementation Details
-
-### Search Scope Options
-
-- **Title Only**: Search only in media title fields
-- **Plot Only**: Search only in plot/description fields  
-- **Both**: Search across both title and plot fields (default)
-
-### Match Logic
-
-- **All Keywords**: All keywords must be present (AND logic)
-- **Any Keyword**: Any keyword match returns result (OR logic)
 
 ### Result Ranking
 
@@ -234,47 +221,6 @@ def normalize(text: str) -> str:
 
 ---
 
-## Search Algorithms
-
-### Keyword Matching
-
-Each keyword must match in at least one configured field:
-
-**Search Scope "both" with Match Logic "all":**
-```sql
-WHERE (LOWER(title) LIKE '%keyword1%' OR LOWER(plot) LIKE '%keyword1%')
-  AND (LOWER(title) LIKE '%keyword2%' OR LOWER(plot) LIKE '%keyword2%')
-```
-
-**Search Scope "title" with Match Logic "any":**
-```sql
-WHERE (LOWER(title) LIKE '%keyword1%' OR LOWER(title) LIKE '%keyword2%')
-```
-
-### Result Ranking
-
-Results are ranked by match quality using SQL CASE expressions:
-
-1. **Rank 1**: All keywords match in title
-2. **Rank 2**: Some keywords match in title
-3. **Rank 3**: All keywords match in plot
-4. **Rank 4**: Some keywords match in plot
-5. **Rank 5**: Default (should not occur with proper WHERE clauses)
-
-```sql
-ORDER BY 
-    CASE 
-        WHEN (title_match_count) = total_keywords THEN 1
-        WHEN (title_match_count) > 0 THEN 2
-        WHEN (plot_match_count) = total_keywords THEN 3
-        WHEN (plot_match_count) > 0 THEN 4
-        ELSE 5
-    END ASC,
-    LOWER(title) ASC
-```
-
----
-
 ## Search Configuration
 
 ### Query Parameters
@@ -287,19 +233,6 @@ ORDER BY
 | `scope_id` | `int` | `None` | List ID when scope_type is "list" |
 | `page_size` | `int` | `50` | Results per page |
 | `page_offset` | `int` | `0` | Pagination offset |
-
-### Search Scope Options
-
-- **"title"**: Search only in movie/episode titles
-- **"plot"**: Search only in plot summaries
-- **"both"**: Search across both title and plot fields (default)
-
-### Match Logic Options
-
-- **"all"**: All keywords must be found (AND logic)
-- **"any"**: Any keyword can match (OR logic)
-
----
 
 ## Search History
 
@@ -394,52 +327,6 @@ except Exception as e:
 
 ---
 
-## Current Limitations
-
-### Removed Features
-
-The following features were present in earlier versions but have been removed for simplification:
-
-- **Year Filtering**: No special year parsing or filtering
-- **File Path Search**: No searching within file paths
-- **Advanced Query Syntax**: No special operators or prefixes
-- **Pagination Controls**: Results are saved to lists instead of paginated views
-- **Search Analytics**: No detailed search performance tracking
-- **Multiple Search Engines**: Only the simplified engine is available
-
-### Design Decisions
-
-- **Simplicity Over Features**: Focus on reliable, predictable keyword search
-- **List-Based Results**: Search results saved as browsable lists rather than temporary views
-- **Automatic History**: All searches automatically saved for later browsing
-- **Fixed Configuration**: Minimal user configuration options
-
----
-
-## Testing and Debugging
-
-### Debug Logging
-
-Search operations include comprehensive logging:
-
-```python
-self.logger.debug(f"Executing search SQL: {sql}")
-self.logger.debug(f"Search SQL parameters: {params}")
-self.logger.debug(f"Simple search completed: {result.total_count} results in {result.search_duration_ms}ms")
-```
-
-### Test Scenarios
-
-Key scenarios to test:
-
-1. **Unicode Handling**: Movies with accented characters
-2. **Keyword Combinations**: Multiple keyword searches
-3. **Empty Results**: Searches that return no matches
-4. **Large Libraries**: Performance with thousands of movies
-5. **Special Characters**: Searches containing punctuation
-
----
-
 ## Best Practices
 
 ### For Users
@@ -447,13 +334,6 @@ Key scenarios to test:
 1. **Use Simple Keywords**: Enter movie titles or plot keywords directly
 2. **Try Different Combinations**: If no results, try fewer or different keywords
 3. **Browse Search History**: Previous searches are saved as browsable lists
-
-### For Developers
-
-1. **Parameterized Queries**: Always use parameter binding for user input
-2. **Error Handling**: Fail gracefully with useful error messages
-3. **Performance Monitoring**: Log search execution times
-4. **Input Validation**: Sanitize user input before processing
 
 ---
 
