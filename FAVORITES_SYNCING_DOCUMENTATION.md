@@ -436,31 +436,4 @@ else:
 
 ---
 
-## Future Enhancements
-
-### 1. Planned Features
-
-**Enhanced Mapping:**
-- Support for TV episode favorites
-- Plugin content integration
-
-**Performance Improvements:**
-- Background scanning optimization
-- Incremental update support
-- Cache warming strategies
-
-### 2. Extension Points
-
-**Plugin Support:**
-- Generic plugin favorite handling
-- Metadata enrichment for known plugins
-- Cross-addon integration APIs
-
-**Export/Import:**
-- Include favorites in NDJSON exports
-- Portable favorite list creation
-- Backup/restore functionality
-
----
-
 This documentation provides a complete technical overview of LibraryGenie's favorites syncing functionality, covering all aspects from database schema to user experience.
