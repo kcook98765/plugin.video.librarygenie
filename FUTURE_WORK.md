@@ -14,12 +14,7 @@ This document outlines potential future enhancements and features for LibraryGen
 **Benefits**: Users get full native Kodi info dialogs with complete metadata for plugin items  
 **Implementation**: 5-step hijack process with proper state management, cooldowns, and error handling  
 
-### 2. Music Video Support  
-**Status**: Database schema complete, missing UI and scanning  
-**Files**: Database `media_items` table, export/import engine  
-**Description**: Full music video library integration with artist/track matching  
-**Benefits**: Complete media type coverage beyond just movies  
-**Effort**: Medium - Schema ready, needs scanning logic and UI handlers  
+  
 
 ### 3. TV Episode Support
 **Status**: ✅ SYNC SYSTEM COMPLETE - Database schema, scanning, and sync implemented  
