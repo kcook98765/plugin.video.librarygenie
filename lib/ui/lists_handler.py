@@ -484,13 +484,16 @@ class ListsHandler:
 
             menu_items = []
 
-            # Add Tools & Options for this folder - ensure folder_id is passed for context
+            # Add Tools & Options for this folder with breadcrumb context
+            breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label("show_folder", {"folder_id": folder_id}, query_manager)
+            description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description("show_folder", {"folder_id": folder_id}, query_manager)
+            
             menu_items.append({
-                'label': f"[COLOR yellow]{L(36000)}[/COLOR]",  # "Tools & Options"
+                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
                 'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id, folder_id=folder_id),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': L(36017) % folder_info['name']  # "Access tools and options for '%s'"
+                'description': f"{description_text}Tools and options for this folder"
             })
 
             # Add subfolders in this folder
