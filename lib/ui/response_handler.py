@@ -105,7 +105,7 @@ class ResponseHandler:
 
                 elif getattr(response, 'refresh_needed', None):
                     # Only refresh if no specific navigation was requested
-                    # Use cache-busted Container.Update instead of Container.Refresh for reliable fresh content
+                    # Use Container.Refresh to force Kodi to rebuild directory from scratch
                     import xbmc
                     from .session_state import get_session_state
                     
@@ -118,16 +118,17 @@ class ResponseHandler:
                     context.logger.debug("RESPONSE HANDLER: Refreshing current path: %s", current_path)
                     
                     if tools_return_location and 'show_list_tools' in current_path:
-                        # Return to stored location with fresh content
-                        cache_busted_url = context.add_cache_buster_to_url(tools_return_location)
-                        context.logger.debug("RESPONSE HANDLER: Returning to tools origin: %s", cache_busted_url)
-                        xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
+                        # Return to stored location and force refresh
+                        context.logger.debug("RESPONSE HANDLER: Returning to tools origin and refreshing")
+                        xbmc.executebuiltin(f'Container.Update("{tools_return_location}",replace)')
                         session_state.clear_tools_return_location()
+                        # Give Kodi a moment to update, then force refresh
+                        xbmc.sleep(100)
+                        xbmc.executebuiltin('Container.Refresh')
                     else:
-                        # Use cache-busted refresh of current location
-                        cache_busted_url = context.add_cache_buster_to_url(current_path)
-                        context.logger.debug("RESPONSE HANDLER: Cache-busted refresh: %s", cache_busted_url)
-                        xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
+                        # Force complete refresh of current directory to clear Kodi's cache
+                        context.logger.debug("RESPONSE HANDLER: Using Container.Refresh to clear Kodi cache")
+                        xbmc.executebuiltin('Container.Refresh')
                 else:
                     # For successful responses with just a message and no navigation flags,
                     # don't do any navigation - let the tools handler's direct navigation work
@@ -233,19 +234,11 @@ class ResponseHandler:
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
-            # Just refresh current directory with cache-busting
+            # Just refresh current directory to clear Kodi's cache
             elif hasattr(response, 'refresh_needed') and response.refresh_needed:
-                # Token already bumped at start of method
-                
-                # Get current path and refresh with cache buster
-                current_path = xbmc.getInfoLabel('Container.FolderPath')
-                if current_path:
-                    cache_busted_url = context.add_cache_buster_to_url(current_path)
-                    xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
-                else:
-                    # Safe fallback to lists menu instead of Container.Refresh
-                    cache_busted_url = context.build_cache_busted_url("lists")
-                    xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
+                # Use Container.Refresh to force Kodi to rebuild directory from scratch
+                context.logger.debug("RESPONSE HANDLER: Using Container.Refresh to clear Kodi cache")
+                xbmc.executebuiltin('Container.Refresh')
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True
 
