@@ -16,6 +16,10 @@ attached_assets/
 attached_assets/*
 
 # Replit specific
+.replit
+.gitignore
+pyproject.toml
+uv.lock
 .upm/
 .config/
 .cache/
