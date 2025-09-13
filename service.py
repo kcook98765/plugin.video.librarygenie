@@ -80,17 +80,171 @@ class LibraryGenieService:
             log_error(f"Failed to show notification: {e}")
 
     def _initialize_database(self):
-        """Initialize database schema if needed"""
+        """Initialize database schema and handle critical setup like Favorites"""
         try:
-            log_info("Checking database initialization...")
+            log_info("Service: Initializing database with metadata caching...")
+            
+            # Perform the expensive database initialization
             initialize_database()
-            log_info("Database initialization completed")
+            
+            # Handle Favorites list creation if needed (moved from plugin startup)
+            self._ensure_favorites_list()
+            
+            # Calculate and cache database optimization parameters for plugin reuse
+            self._cache_database_metadata()
+            
+            log_info("Service: Database ready with cached optimization parameters")
         except Exception as e:
-            log_error(f"Database initialization failed: {e}")
+            log_error(f"Service database initialization failed: {e}")
+            # Don't set cache on failure - plugin will use fallback
             self._show_notification(
                 f"Database initialization failed: {str(e)[:50]}...",
                 xbmcgui.NOTIFICATION_ERROR
             )
+
+    def _ensure_favorites_list(self):
+        """Ensure Kodi Favorites list exists if favorites integration is enabled"""
+        try:
+            from lib.config.config_manager import get_config
+            config = get_config()
+            
+            favorites_enabled = config.get_bool('favorites_integration_enabled', False)
+            if not favorites_enabled:
+                log("Service: Favorites integration disabled - skipping list check")
+                return
+                
+            log("Service: Ensuring Kodi Favorites list exists")
+            
+            # Use singleton connection manager for database access  
+            from lib.data import get_connection_manager
+            connection_manager = get_connection_manager()
+            with connection_manager.transaction() as conn:
+                # Check if Kodi Favorites list exists
+                kodi_list = conn.execute("""
+                    SELECT id FROM lists WHERE name = 'Kodi Favorites'
+                """).fetchone()
+                
+                if not kodi_list:
+                    log_info("Service: Creating 'Kodi Favorites' list")
+                    try:
+                        from lib.config.favorites_helper import on_favorites_integration_enabled
+                        on_favorites_integration_enabled()
+                        log_info("Service: Successfully ensured 'Kodi Favorites' list exists")
+                    except Exception as e:
+                        log_error(f"Service: Failed to create 'Kodi Favorites' list: {e}")
+                else:
+                    log(f"Service: 'Kodi Favorites' list already exists with ID {kodi_list['id']}")
+                    
+        except Exception as e:
+            log_error(f"Service: Error ensuring Favorites list: {e}")
+            # Don't fail initialization for this
+
+    def _cache_database_metadata(self):
+        """Calculate database optimization metadata with schema validation"""
+        try:
+            import os
+            import json
+            
+            db_path = self.storage_manager.get_database_path()
+            
+            # Get current schema version for validation
+            try:
+                from lib.data.migrations import TARGET_SCHEMA_VERSION
+            except ImportError:
+                TARGET_SCHEMA_VERSION = 0  # Fallback if import fails
+                
+            try:
+                from lib.data import get_connection_manager
+                connection_manager = get_connection_manager()
+                with connection_manager.transaction() as conn:
+                    schema_version_result = conn.execute(
+                        "SELECT version FROM schema_version ORDER BY id DESC LIMIT 1"
+                    ).fetchone()
+                    current_schema_version = schema_version_result['version'] if schema_version_result else 0
+            except Exception as e:
+                log_error(f"Could not determine schema version: {e}")
+                current_schema_version = 0
+            
+            # Calculate optimization parameters (same logic as ConnectionManager)
+            metadata = {
+                'db_path': db_path,
+                'service_initialized': True,
+                'schema_version': current_schema_version,
+                'target_schema_version': TARGET_SCHEMA_VERSION
+            }
+            
+            if os.path.exists(db_path):
+                db_size_bytes = os.path.getsize(db_path)
+                db_size_mb = db_size_bytes / (1024 * 1024)
+                
+                # Same mmap calculation logic from ConnectionManager
+                if db_size_mb < 16:
+                    mmap_size = 33554432  # 32MB minimum
+                    cache_pages = 500     # 2MB cache
+                elif db_size_mb < 64:
+                    mmap_size = int(db_size_bytes * 2)
+                    cache_pages = min(1500, int(db_size_mb * 75))
+                else:
+                    mmap_size = min(int(db_size_bytes * 1.5), 134217728)
+                    cache_pages = 2000
+                    
+                metadata.update({
+                    'mmap_size': mmap_size,
+                    'cache_pages': cache_pages,
+                    'db_size_mb': db_size_mb
+                })
+            else:
+                # New database defaults
+                metadata.update({
+                    'mmap_size': 33554432,  # 32MB
+                    'cache_pages': 500      # 2MB cache
+                })
+            
+            # Cache in Window property for plugin access
+            window = xbmcgui.Window(10000)
+            window.setProperty('librarygenie.db.optimized', json.dumps(metadata))
+            
+            log_info(f"Service: Cached DB metadata - {metadata.get('db_size_mb', 0):.1f}MB, "
+                    f"mmap={metadata['mmap_size']//1048576}MB, "
+                    f"cache={metadata['cache_pages']} pages")
+            
+        except Exception as e:
+            log_error(f"Failed to cache database metadata: {e}")
+
+    def _invalidate_and_refresh_db_cache(self):
+        """Invalidate database cache and recalculate after initial scan"""
+        try:
+            log_info("Invalidating database cache after initial scan - recalculating optimization parameters")
+            
+            # Clear existing cache
+            window = xbmcgui.Window(10000)
+            window.clearProperty('librarygenie.db.optimized')
+            
+            # Recalculate with new database size
+            self._cache_database_metadata()
+            
+            log_info("Database cache refreshed with new optimization parameters")
+            
+        except Exception as e:
+            log_error(f"Failed to refresh database cache: {e}")
+
+    def _check_cache_refresh_request(self):
+        """Check if database cache refresh has been requested"""
+        try:
+            window = xbmcgui.Window(10000)
+            refresh_needed = window.getProperty('librarygenie.db.refresh_needed')
+            
+            if refresh_needed == 'true':
+                log_info("Database cache refresh requested - recalculating optimization parameters")
+                
+                # Clear the refresh request flag
+                window.clearProperty('librarygenie.db.refresh_needed')
+                
+                # Refresh the cache
+                self._invalidate_and_refresh_db_cache()
+                
+        except Exception as e:
+            log_error(f"Error checking cache refresh request: {e}")
 
     def _check_and_perform_initial_scan(self):
         """Check if library has been scanned and perform initial scan if needed"""
@@ -244,6 +398,10 @@ class LibraryGenieService:
                     
                 # Check for initial sync requests first (higher priority)
                 self._check_initial_sync_request()
+                
+                # Check for cache refresh requests (every 5 seconds)
+                if tick_count % 50 == 0:  # Every 5 seconds
+                    self._check_cache_refresh_request()
                 
                 # Check for periodic library sync based on user settings
                 if tick_count % tv_sync_check_interval == 0:
@@ -514,6 +672,13 @@ class LibraryGenieService:
                     # Show final notification
                     if success:
                         log_info(f"Initial sync completed: {message}")
+                        
+                        # INVALIDATE DATABASE CACHE - database size changed dramatically after initial scan
+                        total_items = results['movies'] + results['episodes']
+                        if total_items > 100:  # Substantial content added, likely fresh install
+                            log_info(f"Fresh install sync added {total_items} items - invalidating database cache")
+                            self._invalidate_and_refresh_db_cache()
+                        
                         self._show_notification(
                             f"Initial sync complete: {message}",
                             xbmcgui.NOTIFICATION_INFO,
