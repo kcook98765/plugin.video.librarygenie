@@ -1679,11 +1679,6 @@ class ListsHandler:
                     if key in external_data:
                         media_item[key] = external_data[key]
 
-            # Music video-specific fields
-            elif external_data.get('media_type') == 'musicvideo':
-                for key in ['artist', 'album']:
-                    if key in external_data:
-                        media_item[key] = external_data[key]
 
             context.logger.info("Processing external item: %s (type: %s)", media_item['title'], media_item['media_type'])
 

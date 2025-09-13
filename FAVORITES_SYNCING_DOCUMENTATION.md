@@ -442,7 +442,6 @@ else:
 
 **Enhanced Mapping:**
 - Support for TV episode favorites
-- Music video favorite mapping
 - Plugin content integration
 
 **Performance Improvements:**

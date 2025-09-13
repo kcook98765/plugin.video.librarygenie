@@ -216,6 +216,6 @@ The system includes anti-spam debugging with `_debug_log_interval` (10 seconds) 
 ## Future Enhancements
 
 - **Custom Button Integration**: Add LibraryGenie-specific buttons to hijacked dialogs
-- **Multiple Media Types**: Extend support to music videos and TV shows
+- **Multiple Media Types**: Extend support to TV shows
 - **Context Menu Actions**: Hijack context menu "Information" selections
 - **Keyboard Shortcuts**: Detect 'i' key presses for info actions

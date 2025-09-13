@@ -335,12 +335,6 @@ def _get_file_for_dbitem(dbtype: str, dbid: int) -> Optional[str]:
         file_path = md.get("file")
         _log("Episode %d file path: %s", xbmc.LOGDEBUG, dbid, file_path)
         return file_path
-    elif dbtype == "musicvideo":
-        data = jsonrpc("VideoLibrary.GetMusicVideoDetails", {"musicvideoid": int(dbid), "properties": ["file"]})
-        md = (data.get("result") or {}).get("musicvideodetails") or {}
-        file_path = md.get("file")
-        _log("MusicVideo %d file path: %s", xbmc.LOGDEBUG, dbid, file_path)
-        return file_path
     elif dbtype == "tvshow":
         # tvshow has multiple files; we'll still open its videodb node below.
         return None

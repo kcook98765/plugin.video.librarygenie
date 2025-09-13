@@ -174,7 +174,7 @@ class ListItemBuilder:
         elif src.get('episodeid') or src.get('episode') is not None:
             media_type = 'episode'
             out['media_type'] = media_type
-        elif media_type not in ('movie', 'episode', 'tvshow', 'musicvideo', 'none'):
+        elif media_type not in ('movie', 'episode', 'tvshow', 'none'):
             media_type = 'movie'
             out['media_type'] = media_type
         else:
@@ -936,8 +936,6 @@ class ListItemBuilder:
             return 'tvshow'
         elif media_type == 'episode':
             return 'episode'
-        elif media_type == 'musicvideo':
-            return 'musicvideo'
         else:
             return 'movie' # Default to movie if unknown
 

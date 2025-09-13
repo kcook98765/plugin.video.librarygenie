@@ -17,7 +17,7 @@ The context menu logic prioritizes contexts in this hierarchical order:
 
 1. **LibraryGenie context** (highest priority)
 2. **Library context** (Kodi database items)
-3. **Container context** (movies/episodes/musicvideos containers)
+3. **Container context** (movies/episodes containers)
 4. **Plugin context** (plugin:// file paths)
 5. **Unknown context** (search only - lowest priority)
 
@@ -81,7 +81,6 @@ When NOT in LibraryGenie context but item has valid library metadata (`dbtype` +
 - **Quick Add to Default List** (if enabled)
 - **Add to List...**
 
-#### C. Library Music Videos (`dbtype='musicvideo'` + valid `dbid`)
 **Available Actions:**
 - **Search**
 - **Remove from List** (if in list context, excluding Search History)
@@ -102,7 +101,6 @@ Items without library metadata but in recognizable containers.
 - **Search**
 - **Add to List...** (external item handling)
 
-#### C. Items in Music Video Containers (`Container.Content(musicvideos)`)
 **Available Actions:**
 - **Search**
 - **Add to List...** (external item handling)
@@ -154,7 +152,7 @@ Unknown or unsupported items receive minimal functionality.
 #### External Item Actions
 - Gather metadata from Kodi InfoLabels
 - Collect comprehensive artwork information
-- Support for various media types (movies, episodes, music videos)
+- Support for various media types (movies, episodes)
 
 #### Media Item Actions
 - Use LibraryGenie's internal `media_item_id`
@@ -203,7 +201,7 @@ When regular properties are unavailable, the system uses InfoHijack properties:
 ### External Item Metadata Gathering
 When adding external items, the system collects:
 - Basic metadata (title, year, plot, rating, etc.)
-- Media type detection (movie, episode, music video)
+- Media type detection (movie, episode)
 - Comprehensive artwork collection
 - Unique identifiers (IMDb, TMDb when available)
 
