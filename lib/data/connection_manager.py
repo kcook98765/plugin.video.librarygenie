@@ -42,9 +42,105 @@ class ConnectionManager:
         return self._connection
 
     def _create_connection(self):
-        """Create and configure database connection"""
+        """Create database connection with service optimization"""
+        # Check if service already initialized database with cached metadata
+        service_metadata = self._get_service_metadata()
+        
+        if service_metadata:
+            return self._create_optimized_connection(service_metadata)
+        else:
+            return self._create_standard_connection()
+
+    def _get_service_metadata(self):
+        """Get database optimization metadata from service"""
+        try:
+            import xbmcgui
+            import json
+            
+            window = xbmcgui.Window(10000)
+            metadata_str = window.getProperty('librarygenie.db.optimized')
+            
+            if metadata_str:
+                metadata = json.loads(metadata_str)
+                self.logger.debug("Found service database optimization metadata")
+                return metadata
+            
+            return None
+            
+        except Exception as e:
+            self.logger.debug(f"No service metadata available: {e}")
+            return None
+
+    def _create_optimized_connection(self, metadata):
+        """Create connection using service-calculated optimization parameters with schema validation"""
+        # Validate schema version before using optimized path
+        if not self._validate_schema_version(metadata):
+            self.logger.debug("Schema version mismatch - falling back to standard connection")
+            return self._create_standard_connection()
+            
+        db_path = metadata['db_path']
+        mmap_size = metadata['mmap_size']
+        cache_pages = metadata['cache_pages']
+        
+        self.logger.debug(f"Optimized connection: {db_path}, "
+                         f"mmap={mmap_size//1048576}MB, cache={cache_pages} pages")
+        
+        try:
+            busy_timeout_ms = self.config.get_db_busy_timeout_ms()
+            busy_timeout_seconds = busy_timeout_ms / 1000.0
+            
+            # Direct connection with service-optimized parameters
+            conn = sqlite3.connect(
+                db_path,
+                timeout=busy_timeout_seconds,
+                check_same_thread=False
+            )
+            
+            # Apply pre-calculated optimizations
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute(f"PRAGMA cache_size={cache_pages}")
+            conn.execute("PRAGMA temp_store=memory")
+            conn.execute("PRAGMA foreign_keys=ON")
+            conn.execute("PRAGMA page_size=4096")
+            conn.execute(f"PRAGMA mmap_size={mmap_size}")
+            
+            conn.row_factory = sqlite3.Row
+            
+            # Skip schema initialization - service already handled it
+            self.logger.debug("Optimized database connection established (service-optimized)")
+            return conn
+            
+        except Exception as e:
+            self.logger.error(f"Optimized connection failed: {e}")
+            raise
+
+    def _validate_schema_version(self, metadata):
+        """Validate that cached schema version matches current target"""
+        try:
+            cached_schema_version = metadata.get('schema_version', 0)
+            cached_target_version = metadata.get('target_schema_version', 0)
+            
+            # Import current target version
+            from .migrations import TARGET_SCHEMA_VERSION
+            
+            # Schema versions must match for safe optimization
+            if cached_schema_version == cached_target_version == TARGET_SCHEMA_VERSION:
+                return True
+            
+            self.logger.debug(f"Schema validation failed: cached={cached_schema_version}, "
+                            f"cached_target={cached_target_version}, current_target={TARGET_SCHEMA_VERSION}")
+            return False
+            
+        except Exception as e:
+            self.logger.debug(f"Schema validation error: {e}")
+            return False
+
+    def _create_standard_connection(self):
+        """Standard connection creation (current full implementation)"""
         db_path = self.storage_manager.get_database_path()
-        self.logger.debug("Creating database connection to: %s", db_path)
+        self.logger.debug("Standard connection: Creating database connection to: %s", db_path)
         
         # Log the absolute path for debugging
         try:

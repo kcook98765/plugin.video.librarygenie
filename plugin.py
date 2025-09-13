@@ -402,54 +402,85 @@ def handle_noop():
 
 
 def _ensure_startup_initialization(context: PluginContext):
-    """Ensure critical startup initialization is completed"""
+    """Optimized startup initialization - leverage service initialization"""
     try:
-        log("=== STARTUP INITIALIZATION ===")
+        log("=== OPTIMIZED STARTUP INITIALIZATION ===")
         
-        # Check if favorites integration is enabled
-        from lib.config.config_manager import get_config
-        config = get_config()
-        favorites_enabled = config.get_bool('favorites_integration_enabled', False)
-        log(f"Favorites integration enabled: {favorites_enabled}")
-        
-        if favorites_enabled:
-            log("Favorites integration is enabled - ensuring Kodi Favorites list exists")
-            
-            # Use context query manager for consistency
-            query_manager = context.query_manager
-            
-            if query_manager.initialize():
-                with query_manager.connection_manager.transaction() as conn:
-                    # Check if Kodi Favorites list exists
-                    kodi_list = conn.execute("""
-                        SELECT id FROM lists WHERE name = 'Kodi Favorites'
-                    """).fetchone()
-                    
-                    if not kodi_list:
-                        # Create the Kodi Favorites list since it doesn't exist
-                        log_info("STARTUP: Creating 'Kodi Favorites' list - setting is enabled but list doesn't exist")
-                        
-                        try:
-                            from lib.config.favorites_helper import on_favorites_integration_enabled
-                            on_favorites_integration_enabled()
-                            log_info("STARTUP: Successfully ensured 'Kodi Favorites' list exists")
-                        except Exception as e:
-                            log_error(f"STARTUP: Failed to create 'Kodi Favorites' list: {e}")
-                    else:
-                        log(f"STARTUP: 'Kodi Favorites' list already exists with ID {kodi_list['id']}")
-            else:
-                log_warning("STARTUP: Could not initialize query manager for startup check")
+        if _is_service_database_ready():
+            log("Service database ready - using fast startup path")
+            _fast_startup_check(context)
         else:
-            log("STARTUP: Favorites integration is disabled - skipping Kodi Favorites list check")
+            log("Service not ready - using standard startup path")
+            _standard_startup_initialization(context)
             
-        log("=== STARTUP INITIALIZATION COMPLETE ===")
-        
     except Exception as e:
-        log_error(f"STARTUP: Error during startup initialization: {e}")
+        log_error(f"Startup initialization error: {e}")
         import traceback
-        log_error(f"STARTUP: Initialization error traceback: {traceback.format_exc()}")
+        log_error(f"Initialization error traceback: {traceback.format_exc()}")
         # Don't fail the plugin startup for initialization issues
         pass
+
+def _is_service_database_ready():
+    """Check if service has database optimization ready"""
+    try:
+        import xbmcgui
+        window = xbmcgui.Window(10000)
+        return bool(window.getProperty('librarygenie.db.optimized'))
+    except:
+        return False
+
+def _fast_startup_check(context):
+    """Minimal startup checks when service has done heavy lifting"""
+    # Only check settings that don't require database operations
+    from lib.config.config_manager import get_config
+    config = get_config()
+    
+    favorites_enabled = config.get_bool('favorites_integration_enabled', False)
+    log(f"Fast startup: favorites_enabled={favorites_enabled}")
+    
+    # Skip database verification - trust service initialization
+
+def _standard_startup_initialization(context: PluginContext):
+    """Standard startup when service optimization not available"""
+    log("=== STANDARD STARTUP INITIALIZATION ===")
+    
+    # Check if favorites integration is enabled
+    from lib.config.config_manager import get_config
+    config = get_config()
+    favorites_enabled = config.get_bool('favorites_integration_enabled', False)
+    log(f"Favorites integration enabled: {favorites_enabled}")
+    
+    if favorites_enabled:
+        log("Favorites integration is enabled - ensuring Kodi Favorites list exists")
+        
+        # Use context query manager for consistency
+        query_manager = context.query_manager
+        
+        if query_manager.initialize():
+            with query_manager.connection_manager.transaction() as conn:
+                # Check if Kodi Favorites list exists
+                kodi_list = conn.execute("""
+                    SELECT id FROM lists WHERE name = 'Kodi Favorites'
+                """).fetchone()
+                
+                if not kodi_list:
+                    # Create the Kodi Favorites list since it doesn't exist
+                    log_info("STARTUP: Creating 'Kodi Favorites' list - setting is enabled but list doesn't exist")
+                    
+                    try:
+                        from lib.config.favorites_helper import on_favorites_integration_enabled
+                        on_favorites_integration_enabled()
+                        log_info("STARTUP: Successfully ensured 'Kodi Favorites' list exists")
+                    except Exception as e:
+                        log_error(f"STARTUP: Failed to create 'Kodi Favorites' list: {e}")
+                else:
+                    log(f"STARTUP: 'Kodi Favorites' list already exists with ID {kodi_list['id']}")
+        else:
+            log_warning("STARTUP: Could not initialize query manager for startup check")
+    else:
+        log("STARTUP: Favorites integration is disabled - skipping Kodi Favorites list check")
+        
+    log("=== STANDARD STARTUP INITIALIZATION COMPLETE ===")
 
 
 def main():
