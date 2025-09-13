@@ -128,14 +128,9 @@ class MenuBuilder:
         self.logger.debug("MENU ITEM: Successfully added '%s' to directory", title)
 
     def _show_breadcrumb_if_needed(self, breadcrumb_path: str):
-        """Show breadcrumb notification for non-root views using BreadcrumbHelper"""
-        if breadcrumb_path and breadcrumb_path.strip():
-            try:
-                from .breadcrumb_helper import get_breadcrumb_helper
-                breadcrumb_helper = get_breadcrumb_helper()
-                breadcrumb_helper.show_breadcrumb_notification(breadcrumb_path)
-            except Exception as e:
-                self.logger.error("BREADCRUMB: Failed to display breadcrumb notification: %s", e)
+        """[DEPRECATED] Breadcrumb context now integrated into Tools & Options labels"""
+        # Keeping method for backward compatibility but making it no-op
+        pass
 
 
     def build_movie_menu(self, movies: List[Dict[str, Any]], addon_handle, base_url, **options):

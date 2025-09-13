@@ -40,14 +40,7 @@ class FavoritesHandler:
             favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
             self.logger.info("Found %s favorites to display", len(favorites))
 
-            # Show breadcrumb notification for Kodi Favorites
-            from .menu_builder import MenuBuilder
-            menu_builder = MenuBuilder()
-            try:
-                menu_builder._add_breadcrumb_notification("Kodi Favorites")
-                context.logger.debug("FAVORITES HANDLER: Showed breadcrumb notification: 'Kodi Favorites'")
-            except Exception as e:
-                context.logger.error("FAVORITES HANDLER: Failed to show breadcrumb notification: %s", e)
+            # Breadcrumb context now integrated into Tools & Options labels
 
             menu_items = []
 
