@@ -12,6 +12,7 @@ from typing import List
 from .simple_search_query import SimpleSearchQuery
 from .normalizer import get_text_normalizer
 from ..utils.kodi_log import get_kodi_logger
+from ..config.settings import SettingsManager
 
 
 class SimpleQueryInterpreter:
@@ -20,6 +21,7 @@ class SimpleQueryInterpreter:
     def __init__(self):
         self.logger = get_kodi_logger('lib.search.simple_query_interpreter')
         self.normalizer = get_text_normalizer()
+        self.settings = SettingsManager()
 
     def parse_query(self, user_input: str, **kwargs) -> SimpleSearchQuery:
         """Parse user input into simplified search query"""
@@ -30,7 +32,8 @@ class SimpleQueryInterpreter:
             # Set scope parameters
             query.scope_type = kwargs.get("scope_type", "library")
             query.scope_id = kwargs.get("scope_id")
-            query.page_size = max(25, min(kwargs.get("page_size", 50), 200))
+            default_page_size = self.settings.get_search_page_size()
+            query.page_size = max(25, min(kwargs.get("page_size", default_page_size), 500))
             query.page_offset = max(kwargs.get("page_offset", 0), 0)
             
             # Set media types to search (defaults to movies for backward compatibility)

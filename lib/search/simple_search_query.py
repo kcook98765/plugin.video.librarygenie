@@ -9,6 +9,8 @@ Simplified search query class focusing on keyword-based search across title and 
 from __future__ import annotations
 from typing import List, Optional, Dict, Any
 
+from ..config.settings import SettingsManager
+
 
 class SimpleSearchQuery:
     """Simplified search query object for keyword-based search"""
@@ -21,7 +23,7 @@ class SimpleSearchQuery:
         self.scope_type: str = "library"     # "library" or "list"
         self.scope_id: Optional[int] = None  # list_id if searching within list
         self.media_types: List[str] = ["movie"]  # Media types to search: ["movie"], ["episode", "tvshow"], etc.
-        self.page_size: int = 50
+        self.page_size: int = SettingsManager().get_search_page_size()
         self.page_offset: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
