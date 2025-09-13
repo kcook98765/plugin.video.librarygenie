@@ -47,30 +47,38 @@ class ConfigManager:
             
             # Search settings
             "search_page_size": 200,
+            
+            # Background service settings
+            "enable_background_service": True,
+            "background_interval": 5,
+            
+            # Favorites settings
+            "favorites_integration_enabled": False,
+            "favorites_scan_interval": 30,
+            "enable_batch_processing": True,
+            
+            # Advanced settings
+            "jsonrpc_timeout": 10,
+            "database_batch_size": 200,
+            "database_busy_timeout": 3000,
 
             # Remote service settings
-            "remote_base_url": "",  # Blank by default for repo safety
+            "remote_server_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",
-            "auth_poll_seconds": 3,
+            "auth_polling_interval": 3,
+            "enable_auto_token_refresh": True,
+            "use_native_kodi_info": True,
+            "enable_background_token_refresh": True,
+            
+            # AI Search settings
+            "ai_search_api_key": "",
+            "ai_search_activated": False,
+            "ai_search_sync_interval": 1,
             # UI behavior settings
         }
 
     def get(self, key, default=None):
         """Get configuration value with safe fallback and caching"""
-        # Use specific backup methods for backup settings to ensure proper type handling
-        if key == 'backup_enabled':
-            return self.get_backup_enabled()
-        elif key == 'backup_storage_type':
-            return self.get_backup_storage_type()
-        elif key == 'backup_interval':
-            return self.get_backup_interval()
-        elif key == 'backup_include_non_library':
-            return self.get_backup_include_non_library()
-        elif key == 'backup_include_folders':
-            return self.get_backup_include_folders()
-        elif key == 'backup_retention_count':
-            return self.get_backup_retention_count()
-        
         # Check cache first
         with self._cache_lock:
             if key in self._cache:
