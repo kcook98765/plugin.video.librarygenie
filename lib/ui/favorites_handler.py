@@ -40,11 +40,26 @@ class FavoritesHandler:
             favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
             self.logger.info("Found %s favorites to display", len(favorites))
 
-            # Breadcrumb context now integrated into Tools & Options labels
+            # Add Tools & Options with breadcrumb context for Kodi Favorites view
+            from .breadcrumb_helper import get_breadcrumb_helper
+            breadcrumb_helper = get_breadcrumb_helper()
+            
+            breadcrumb_text = breadcrumb_helper.get_breadcrumb_for_tools_label("kodi_favorites", {}, None)
+            description_text = breadcrumb_helper.get_breadcrumb_for_tools_description("kodi_favorites", {}, None)
+            
+            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
+            tools_item.setInfo('video', {'plot': description_text})
+            tools_item.setProperty('IsPlayable', 'false')
+            tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+            
+            xbmcplugin.addDirectoryItem(
+                context.addon_handle,
+                context.build_url('show_list_tools', list_type='favorites'),
+                tools_item,
+                True
+            )
 
             menu_items = []
-
-            # Tools & Options removed - Kodi Favorites now accessed as regular list
 
             favorites_items = favorites  # No conversion needed - data is already in standard list format
 

@@ -33,8 +33,52 @@ class MenuBuilder:
         successful_items = 0
         failed_items = 0
 
-        # Show breadcrumb notification for non-root views
-        self._show_breadcrumb_if_needed(breadcrumb_path)
+        # Breadcrumb notifications deprecated - replaced by Tools & Options integration
+
+        # Add Tools & Options with breadcrumb context for non-root views
+        if breadcrumb_path and breadcrumb_path.strip():
+            try:
+                from .breadcrumb_helper import get_breadcrumb_helper
+                breadcrumb_helper = get_breadcrumb_helper()
+                
+                breadcrumb_text = breadcrumb_helper.get_breadcrumb_for_tools_label_raw(breadcrumb_path)
+                description_text = breadcrumb_helper.get_breadcrumb_for_tools_description_raw(breadcrumb_path)
+                
+                tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
+                tools_item.setInfo('video', {'plot': description_text})
+                tools_item.setProperty('IsPlayable', 'false')
+                tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+                
+                # Build context-appropriate tools URL based on breadcrumb path
+                if " > " in breadcrumb_path:
+                    # Parse breadcrumb to determine context
+                    parts = breadcrumb_path.split(" > ")
+                    if len(parts) == 2 and parts[0] == "Lists":
+                        # Format: "Lists > Folder Name" = folder context
+                        tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+                    elif len(parts) >= 3 and parts[0] == "Lists":
+                        # Format: "Lists > Folder > List Name" = list context, but we need list_id
+                        # For now, default to lists_main since we don't have list_id context
+                        tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"  
+                    else:
+                        # Other contexts (e.g., "Kodi Favorites", "Search History")
+                        tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+                else:
+                    # Single-level breadcrumb
+                    if breadcrumb_path == "Kodi Favorites":
+                        tools_url = f"{base_url}?action=show_list_tools&list_type=favorites"
+                    else:
+                        tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+                
+                xbmcplugin.addDirectoryItem(
+                    addon_handle,
+                    tools_url,
+                    tools_item,
+                    True
+                )
+                self.logger.debug("MENU BUILD: Added Tools & Options with breadcrumb: %s", breadcrumb_text)
+            except Exception as e:
+                self.logger.error("MENU BUILD: Failed to add Tools & Options: %s", e)
 
         for idx, item in enumerate(items):
             try:
