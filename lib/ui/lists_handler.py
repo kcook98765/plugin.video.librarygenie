@@ -651,10 +651,34 @@ class ListsHandler:
                     success=False
                 )
 
-            # Get list items
-            context.logger.debug("Getting list items from query_manager for list_id=%s", list_id)
-            list_items = query_manager.get_list_items(list_id)
-            context.logger.debug("Query manager returned %s items", len(list_items))
+            # Get pagination parameters
+            current_page = int(context.get_param('page', '1'))
+            
+            # Import pagination manager 
+            from .pagination_manager import get_pagination_manager
+            pagination_manager = get_pagination_manager()
+            
+            # Get total count first for pagination calculation
+            total_items = query_manager.get_list_item_count(list_id)
+            
+            # Calculate pagination
+            pagination_info = pagination_manager.calculate_pagination(
+                total_items=total_items,
+                current_page=current_page,
+                base_page_size=100  # Base size for auto mode calculation
+            )
+            
+            # Get list items with pagination
+            context.logger.debug("Getting list items from query_manager for list_id=%s (page %d/%d)", 
+                               list_id, pagination_info.current_page, pagination_info.total_pages)
+            list_items = query_manager.get_list_items(
+                list_id,
+                limit=pagination_info.page_size,
+                offset=pagination_info.start_index
+            )
+            context.logger.debug("Query manager returned %s items (showing %d-%d of %d total)", 
+                               len(list_items), pagination_info.start_index + 1, 
+                               pagination_info.end_index, pagination_info.total_items)
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
@@ -714,13 +738,38 @@ class ListsHandler:
                     content_type="files"
                 )
 
+            # Add pagination controls if needed
+            if pagination_info.total_pages > 1:
+                # Build current page URL parameters
+                base_url = context.build_url('show_list', list_id=list_id)
+                url_params = {}  # Don't duplicate list_id since it's already in base_url
+                
+                # Insert pagination controls into list_items
+                list_items = pagination_manager.insert_pagination_items(
+                    items=list_items,
+                    pagination_info=pagination_info,
+                    base_url=base_url,
+                    url_params=url_params,
+                    placement='both'
+                )
+                context.logger.debug("Added pagination controls to list (page %d/%d)", 
+                                   pagination_info.current_page, pagination_info.total_pages)
+
             # Build media items using ListItemBuilder
             try:
                 from .listitem_builder import ListItemBuilder
-                builder = ListItemBuilder(context)
-                for item in list_items:
-                    builder.build_list_item(item, list_id)
-                context.logger.debug("Successfully built %s list items", len(list_items))
+                builder = ListItemBuilder(context.addon_handle, context.addon_id, context)
+                # Use auto-detect for content type (None) instead of hardcoding "movies"
+                success = builder.build_directory(list_items, None)
+                if success:
+                    context.logger.debug("Successfully built directory with %s items", len(list_items))
+                    
+                    # Return proper DirectoryResponse
+                    return DirectoryResponse(
+                        items=list_items,
+                        success=True,
+                        content_type="movies" if list_items and list_items[0].get('media_type') == 'movie' else "files"
+                    )
             except Exception as e:
                 context.logger.error("Error building list items: %s", e)
                 return DirectoryResponse(
