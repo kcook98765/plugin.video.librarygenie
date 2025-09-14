@@ -40,15 +40,25 @@ class FavoritesHandler:
             favorites = favorites_manager.get_mapped_favorites(show_unmapped=True)
             self.logger.info("Found %s favorites to display", len(favorites))
 
-            # Add Tools & Options with breadcrumb context for Kodi Favorites view
+            # Set directory title with breadcrumb context
             from .breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
             
-            breadcrumb_text = breadcrumb_helper.get_breadcrumb_for_tools_label("kodi_favorites", {}, None)
-            description_text = breadcrumb_helper.get_breadcrumb_for_tools_description("kodi_favorites", {}, None)
+            directory_title = breadcrumb_helper.get_directory_title_breadcrumb("kodi_favorites", {}, None)
+            if directory_title:
+                try:
+                    # Set the directory title in Kodi
+                    import xbmc
+                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    context.logger.debug("Set directory title: '%s'", directory_title)
+                except Exception as e:
+                    context.logger.debug("Could not set directory title: %s", e)
+            
+            # Add Tools & Options with unified breadcrumb approach
+            breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
             
             tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
-            tools_item.setInfo('video', {'plot': description_text})
+            tools_item.setInfo('video', {'plot': description_text + "Tools and options for favorites"})
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
             

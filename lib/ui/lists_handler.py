@@ -267,24 +267,34 @@ class ListsHandler:
                     content_type="files"
                 )
 
-            # Build menu items for lists and folders
-            menu_items = []
-
-            # Add "Tools & Options" with breadcrumb context
+            # Set directory title with breadcrumb context
             current_folder_id = context.get_param('folder_id')
             
             # Determine breadcrumb context based on current location
             if current_folder_id:
-                tools_url = context.build_url('show_list_tools', list_type='lists_main', folder_id=current_folder_id)
                 breadcrumb_params = {'folder_id': current_folder_id}
                 breadcrumb_action = 'show_folder'
+                tools_url = context.build_url('show_list_tools', list_type='lists_main', folder_id=current_folder_id)
             else:
-                tools_url = context.build_url('show_list_tools', list_type='lists_main')
                 breadcrumb_params = {}
                 breadcrumb_action = 'lists'
-                
-            breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(breadcrumb_action, breadcrumb_params, query_manager)
-            description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description(breadcrumb_action, breadcrumb_params, query_manager)
+                tools_url = context.build_url('show_list_tools', list_type='lists_main')
+
+            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb(breadcrumb_action, breadcrumb_params, query_manager)
+            if directory_title:
+                try:
+                    # Set the directory title in Kodi
+                    import xbmc
+                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    context.logger.debug("Set directory title: '%s'", directory_title)
+                except Exception as e:
+                    context.logger.debug("Could not set directory title: %s", e)
+
+            # Build menu items for lists and folders
+            menu_items = []
+
+            # Add "Tools & Options" with unified breadcrumb approach
+            breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
 
             menu_items.append({
                 'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
@@ -482,11 +492,21 @@ class ListsHandler:
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
             context.logger.debug("Folder '%s' (id=%s) has %s lists", folder_info['name'], folder_id, len(lists_in_folder))
 
+            # Set directory title with breadcrumb context
+            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, query_manager)
+            if directory_title:
+                try:
+                    # Set the directory title in Kodi
+                    import xbmc
+                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    context.logger.debug("Set directory title: '%s'", directory_title)
+                except Exception as e:
+                    context.logger.debug("Could not set directory title: %s", e)
+
             menu_items = []
 
-            # Add Tools & Options for this folder with breadcrumb context
-            breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label("show_folder", {"folder_id": folder_id}, query_manager)
-            description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description("show_folder", {"folder_id": folder_id}, query_manager)
+            # Add Tools & Options for this folder with unified breadcrumb approach
+            breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_folder", {"folder_id": folder_id}, query_manager)
             
             menu_items.append({
                 'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
@@ -638,12 +658,22 @@ class ListsHandler:
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
-            # Add Tools & Options with breadcrumb context for this list view
-            breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label("show_list", {"list_id": list_id}, query_manager)
-            description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description("show_list", {"list_id": list_id}, query_manager)
+            # Set directory title with breadcrumb context
+            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_list", {"list_id": list_id}, query_manager)
+            if directory_title:
+                try:
+                    # Set the directory title in Kodi
+                    import xbmc
+                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    context.logger.debug("Set directory title: '%s'", directory_title)
+                except Exception as e:
+                    context.logger.debug("Could not set directory title: %s", e)
+            
+            # Add Tools & Options with unified breadcrumb approach
+            breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
             
             tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
-            tools_item.setInfo('video', {'plot': description_text})
+            tools_item.setInfo('video', {'plot': description_text + "Tools and options for this list"})
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
             

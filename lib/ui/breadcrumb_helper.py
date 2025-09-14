@@ -167,10 +167,8 @@ class BreadcrumbHelper:
         """Generate breadcrumb text for Tools & Options label integration"""
         try:
             breadcrumb = self.get_breadcrumb_for_action(action, context_params, query_manager)
-            if breadcrumb:
-                return f"[COLOR gray]• {breadcrumb}[/COLOR]"
-            else:
-                return "[COLOR gray]• Lists[/COLOR]"  # Default fallback
+            breadcrumb_str = breadcrumb or ""  # Handle None case
+            return self.format_breadcrumb_for_tools_label(breadcrumb_str)
         except Exception as e:
             self.logger.error("Error generating tools breadcrumb: %s", e)
             return "[COLOR gray]• Lists[/COLOR]"
@@ -179,25 +177,89 @@ class BreadcrumbHelper:
         """Generate breadcrumb text for Tools & Options description integration"""
         try:
             breadcrumb = self.get_breadcrumb_for_action(action, context_params, query_manager)
-            if breadcrumb:
-                return f"{breadcrumb} • "  # Add separator for description prefix
-            else:
-                return "Lists • "  # Default fallback
+            breadcrumb_str = breadcrumb or ""  # Handle None case
+            return self.format_breadcrumb_for_tools_description(breadcrumb_str)
         except Exception as e:
             self.logger.error("Error generating tools description breadcrumb: %s", e)
             return "Lists • "
 
     def get_breadcrumb_for_tools_label_raw(self, breadcrumb_path: str) -> str:
-        """Get breadcrumb label text for Tools & Options integration from raw breadcrumb path"""
-        if breadcrumb_path and breadcrumb_path.strip():
-            return f"[COLOR gray]• {breadcrumb_path}[/COLOR]"
-        return ""
+        """[LEGACY] Get breadcrumb label text - use format_breadcrumb_for_tools_label instead"""
+        return self.format_breadcrumb_for_tools_label(breadcrumb_path)
 
     def get_breadcrumb_for_tools_description_raw(self, breadcrumb_path: str) -> str:
-        """Get breadcrumb description text for Tools & Options integration from raw breadcrumb path"""
+        """[LEGACY] Get breadcrumb description text - use format_breadcrumb_for_tools_description instead"""
+        return self.format_breadcrumb_for_tools_description(breadcrumb_path)
+
+    # ==========================================
+    # UNIFIED BREADCRUMB FORMATTING METHODS
+    # ==========================================
+
+    def format_breadcrumb_for_tools_label(self, breadcrumb_path: str) -> str:
+        """Format breadcrumb for Tools & Options label: '• path'"""
         if breadcrumb_path and breadcrumb_path.strip():
-            return f"{breadcrumb_path} • "  # Match format used by action-based method
+            return f"[COLOR gray]• {breadcrumb_path}[/COLOR]"
+        return "[COLOR gray]• Lists[/COLOR]"
+
+    def format_breadcrumb_for_tools_description(self, breadcrumb_path: str) -> str:
+        """Format breadcrumb for Tools & Options description: 'path • '"""
+        if breadcrumb_path and breadcrumb_path.strip():
+            return f"{breadcrumb_path} • "
         return "Lists • "
+
+    def format_breadcrumb_for_directory_title(self, breadcrumb_path: str, max_length: int = 50) -> str:
+        """Format breadcrumb for directory title with smart truncation"""
+        if not breadcrumb_path or not breadcrumb_path.strip():
+            return ""
+            
+        # Apply smart truncation for long paths
+        if len(breadcrumb_path) <= max_length:
+            return breadcrumb_path
+            
+        # Smart middle truncation: "Lists > ... > Final Item"
+        parts = breadcrumb_path.split(" > ")
+        if len(parts) <= 2:
+            # For short paths, just truncate at max length
+            return breadcrumb_path[:max_length-3] + "..." if len(breadcrumb_path) > max_length else breadcrumb_path
+            
+        first = parts[0]
+        last = parts[-1] 
+        middle_placeholder = " > ... > "
+        
+        target_length = len(first) + len(middle_placeholder) + len(last)
+        if target_length <= max_length:
+            return f"{first}{middle_placeholder}{last}"
+        else:
+            # Truncate last segment if needed
+            available_for_last = max_length - len(first) - len(middle_placeholder) - 3
+            if available_for_last > 0 and len(last) > available_for_last:
+                truncated_last = last[:available_for_last] + "..."
+                return f"{first}{middle_placeholder}{truncated_last}"
+            else:
+                # If even truncated version is too long, use simple truncation
+                return breadcrumb_path[:max_length-3] + "..."
+
+    def get_tools_breadcrumb_formatted(self, action: str, context_params: dict, query_manager=None):
+        """Get both formatted label and description for Tools & Options in one call"""
+        try:
+            breadcrumb = self.get_breadcrumb_for_action(action, context_params, query_manager)
+            breadcrumb_str = breadcrumb or ""  # Handle None case
+            label = self.format_breadcrumb_for_tools_label(breadcrumb_str)
+            description = self.format_breadcrumb_for_tools_description(breadcrumb_str)
+            return label, description
+        except Exception as e:
+            self.logger.error("Error generating formatted tools breadcrumb: %s", e)
+            return "[COLOR gray]• Lists[/COLOR]", "Lists • "
+
+    def get_directory_title_breadcrumb(self, action: str, context_params: dict, query_manager=None, max_length: int = 50) -> str:
+        """Get formatted directory title breadcrumb"""
+        try:
+            breadcrumb = self.get_breadcrumb_for_action(action, context_params, query_manager)
+            breadcrumb_str = breadcrumb or ""  # Handle None case
+            return self.format_breadcrumb_for_directory_title(breadcrumb_str, max_length)
+        except Exception as e:
+            self.logger.error("Error generating directory title breadcrumb: %s", e)
+            return ""
 
     def show_breadcrumb_notification(self, title: str):
         """[DEPRECATED] Show breadcrumb as notification - replaced by Tools integration"""
