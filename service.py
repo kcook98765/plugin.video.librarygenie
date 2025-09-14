@@ -618,11 +618,16 @@ class LibraryGenieService:
                 # Clear the request flag immediately to prevent retriggering
                 fresh_addon.setSettingBool('initial_sync_requested', False)
                 
-                # Get sync preferences from user settings
-                from lib.config.settings import SettingsManager
-                settings_manager = SettingsManager()
-                sync_movies = settings_manager.get_sync_movies()
-                sync_tv_episodes = settings_manager.get_sync_tv_episodes()
+                # Get sync preferences directly from Kodi settings to bypass cache issues
+                try:
+                    sync_movies = fresh_addon.getSettingBool('sync_movies')
+                except Exception:
+                    sync_movies = True  # Default to True
+                    
+                try:
+                    sync_tv_episodes = fresh_addon.getSettingBool('sync_tv_episodes')
+                except Exception:
+                    sync_tv_episodes = False  # Default to False
                 
                 log_info(f"Starting initial sync - Movies: {sync_movies}, TV: {sync_tv_episodes}")
                 
