@@ -323,13 +323,19 @@ class ListItemBuilder:
             try:
                 art_dict = json.loads(art_blob) if isinstance(art_blob, str) else art_blob
                 if isinstance(art_dict, dict):
+                    # Preserve the full art dictionary for _build_art_dict
+                    out['art'] = art_blob  # Keep original JSON string or dict
+                    # Also extract individual keys for backward compatibility
                     for k in ('thumb', 'banner', 'landscape', 'clearlogo'):
                         v = art_dict.get(k)
                         if v:
                             out[k] = v
+                else:
+                    # Even if parsing failed, preserve the original art data
+                    out['art'] = art_blob
             except Exception:
-                # non-fatal
-                pass
+                # non-fatal, but still preserve original art data
+                out['art'] = art_blob
 
         # resume (seconds)
         resume = src.get('resume') or {}
@@ -779,11 +785,40 @@ class ListItemBuilder:
                     item_art = {}
 
             if isinstance(item_art, dict):
+                # Check Kodi version once for efficiency
+                kodi_major = get_kodi_major_version()
+                is_v19 = (kodi_major == 19)
+                
                 # Copy all art keys from the art dict
                 for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape',
                                'clearlogo', 'clearart', 'discart', 'icon']:
                     if art_key in item_art and item_art[art_key]:
-                        art[art_key] = item_art[art_key]
+                        art_value = item_art[art_key]
+                        
+                        # V19 fix: Decode URL-encoded image:// URLs
+                        if is_v19 and art_value.startswith('image://'):
+                            try:
+                                import urllib.parse
+                                # Extract the URL from image://URL/ format and decode it
+                                if art_value.endswith('/'):
+                                    inner_url = art_value[8:-1]  # Remove 'image://' and trailing '/'
+                                else:
+                                    inner_url = art_value[8:]    # Remove 'image://' (no trailing slash)
+                                
+                                decoded_url = urllib.parse.unquote(inner_url)
+                                
+                                # Reconstruct with proper trailing slash
+                                if art_value.endswith('/'):
+                                    art_value = f"image://{decoded_url}/"
+                                else:
+                                    art_value = f"image://{decoded_url}"
+                                
+                                self.logger.debug("V19 ART FIX: Decoded %s URL for %s", art_key, item.get('title', 'Unknown'))
+                            except Exception as e:
+                                self.logger.warning("V19 ART FIX: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
+                                # Keep original value on decode failure
+                        
+                        art[art_key] = art_value
 
         # If we have poster but no thumb/icon, set them for list view compatibility
         if art.get('poster') and not art.get('thumb'):
