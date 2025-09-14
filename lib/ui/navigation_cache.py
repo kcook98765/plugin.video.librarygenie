@@ -43,6 +43,17 @@ class NavigationStateCache:
         self._lock = threading.Lock()
         self._initialized = True
         
+        # Performance metrics
+        self._stats = {
+            'hits': 0,
+            'misses': 0,
+            'generations_bumped': 0,
+            'cache_clears': 0,
+            'nav_mutations': 0,
+            'total_calls': 0
+        }
+        self._stats_lock = threading.Lock()
+        
         logger.debug("NavigationStateCache initialized (TTL: %dms)", self._default_ttl_ms)
     
     def enable(self, enabled: bool = True):
@@ -56,12 +67,16 @@ class NavigationStateCache:
         """Clear all cached entries"""
         with self._lock:
             self._cache.clear()
+            with self._stats_lock:
+                self._stats['cache_clears'] += 1
             logger.debug("NavigationStateCache cleared")
     
     def bump_generation(self):
         """Invalidate all cached entries by bumping generation ID"""
         with self._lock:
             self._generation += 1
+            with self._stats_lock:
+                self._stats['generations_bumped'] += 1
             logger.debug("NavigationStateCache generation bumped to %d", self._generation)
     
     def get(self, label: str, ttl_ms: Optional[int] = None) -> str:
@@ -75,6 +90,9 @@ class NavigationStateCache:
         Returns:
             str: Cached or fresh value from xbmc.getInfoLabel()
         """
+        with self._stats_lock:
+            self._stats['total_calls'] += 1
+        
         if not self._enabled:
             return xbmc.getInfoLabel(label)
         
@@ -89,10 +107,15 @@ class NavigationStateCache:
                 now - entry['timestamp'] <= ttl_ms / 1000.0 and
                 entry['generation'] == self._generation
             ):
+                with self._stats_lock:
+                    self._stats['hits'] += 1
                 logger.debug("Cache HIT for '%s': %s", label, entry['value'])
                 return entry['value']
         
         # Cache miss - fetch fresh value
+        with self._stats_lock:
+            self._stats['misses'] += 1
+        
         value = xbmc.getInfoLabel(label)
         
         with self._lock:
@@ -208,6 +231,9 @@ class NavigationStateCache:
         """
         logger.debug("nav_mutation: Starting (grace: %dms)", grace_ms)
         
+        with self._stats_lock:
+            self._stats['nav_mutations'] += 1
+        
         # Invalidate cache before navigation
         self.bump_generation()
         
@@ -222,14 +248,43 @@ class NavigationStateCache:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics for debugging"""
-        with self._lock:
+        with self._lock, self._stats_lock:
+            total_calls = self._stats['total_calls']
+            hit_rate = (self._stats['hits'] / total_calls * 100) if total_calls > 0 else 0
+            
             return {
                 'enabled': self._enabled,
                 'generation': self._generation,
                 'cached_entries': len(self._cache),
                 'default_ttl_ms': self._default_ttl_ms,
-                'labels': list(self._cache.keys())
+                'labels': list(self._cache.keys()),
+                'performance': {
+                    'total_calls': total_calls,
+                    'hits': self._stats['hits'],
+                    'misses': self._stats['misses'],
+                    'hit_rate_percent': round(hit_rate, 2),
+                    'generations_bumped': self._stats['generations_bumped'],
+                    'cache_clears': self._stats['cache_clears'],
+                    'nav_mutations': self._stats['nav_mutations']
+                }
             }
+    
+    def log_performance_summary(self):
+        """Log a performance summary for debugging"""
+        stats = self.get_stats()
+        perf = stats['performance']
+        
+        if perf['total_calls'] > 0:
+            logger.info("NavigationStateCache Performance Summary:")
+            logger.info("  Total calls: %d", perf['total_calls'])
+            logger.info("  Cache hits: %d", perf['hits'])
+            logger.info("  Cache misses: %d", perf['misses'])
+            logger.info("  Hit rate: %.2f%%", perf['hit_rate_percent'])
+            logger.info("  Generations bumped: %d", perf['generations_bumped'])
+            logger.info("  Navigation mutations: %d", perf['nav_mutations'])
+            logger.info("  Currently cached: %d labels", stats['cached_entries'])
+        else:
+            logger.debug("NavigationStateCache: No calls recorded yet")
 
 # Global singleton instance
 _nav_cache = None
