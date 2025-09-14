@@ -42,7 +42,13 @@ def get_kodi_major_version() -> int:
         return _cached_major_version
         
     except Exception as e:
-        logger.warning("Failed to parse Kodi version from '%s': %s", build_version, e)
+        # Get build_version safely for error logging
+        try:
+            build_version_for_log = xbmc.getInfoLabel("System.BuildVersion")
+        except:
+            build_version_for_log = "Unknown"
+        
+        logger.warning("Failed to parse Kodi version from '%s': %s", build_version_for_log, e)
         # Safe fallback to Matrix (19) for maximum compatibility
         _cached_major_version = 19
         return _cached_major_version
