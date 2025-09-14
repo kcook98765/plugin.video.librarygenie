@@ -464,36 +464,7 @@ class ListItemBuilder:
             # Art from art field
             art = self._build_art_dict(item)
             if art:
-                self.logger.debug("V19 ART APPLY: About to apply art dict for '%s'", title)
-                self.logger.debug("V19 ART APPLY: Art keys: %s", list(art.keys()))
-                for art_key, art_url in art.items():
-                    if art_url:
-                        self.logger.debug("V19 ART APPLY:   %s = %s", art_key, art_url[:100] + "..." if len(art_url) > 100 else art_url)
-                try:
-                    li.setArt(art)
-                    self.logger.debug("V19 ART APPLY: Successfully called li.setArt() for '%s'", title)
-                    
-                    # V19 DEBUG: Test if the actual image URLs are reachable
-                    kodi_major = get_kodi_major_version()
-                    if kodi_major == 19:
-                        import xbmcvfs
-                        for art_key, art_url in art.items():
-                            if art_url.startswith('image://') and 'http' in art_url:
-                                # Try to access the image through Kodi's VFS to see if it loads
-                                try:
-                                    test_file = xbmcvfs.File(art_url, 'r')
-                                    if test_file.size() > 0:
-                                        self.logger.debug("V19 URL TEST: %s URL is accessible (size: %d bytes)", art_key, test_file.size())
-                                    else:
-                                        self.logger.warning("V19 URL TEST: %s URL returned 0 bytes: %s", art_key, art_url)
-                                    test_file.close()
-                                except Exception as url_e:
-                                    self.logger.warning("V19 URL TEST: %s URL not accessible: %s - Error: %s", art_key, art_url, url_e)
-                    
-                except Exception as e:
-                    self.logger.error("V19 ART APPLY: setArt() failed for '%s': %s", title, e)
-            else:
-                self.logger.debug("V19 ART APPLY: No art dictionary for '%s'", title)
+                li.setArt(art)
 
             # Always set property fallbacks for maximum compatibility
             # These help when setDbId fails or on older versions
@@ -824,11 +795,10 @@ class ListItemBuilder:
                     if art_key in item_art and item_art[art_key]:
                         art_value = item_art[art_key]
                         
-                        # V19 fix: Decode URL-encoded image:// URLs
+                        # V19 fix: Handle URL-encoded image:// URLs
                         if is_v19 and art_value.startswith('image://'):
                             try:
                                 import urllib.parse
-                                original_url = art_value
                                 # Extract the URL from image://URL/ format and decode it
                                 if art_value.endswith('/'):
                                     inner_url = art_value[8:-1]  # Remove 'image://' and trailing '/'
@@ -837,26 +807,18 @@ class ListItemBuilder:
                                 
                                 decoded_url = urllib.parse.unquote(inner_url)
                                 
-                                # V19 EXPERIMENT: Try providing direct URLs instead of image:// wrapped
+                                # V19 requires direct HTTP/HTTPS URLs (not image:// wrapped)
                                 if decoded_url.startswith('http'):
-                                    # Use direct URL for V19
-                                    art_value = decoded_url
-                                    self.logger.debug("V19 ART EXPERIMENT: Using direct URL for %s", art_key)
+                                    art_value = decoded_url  # Use direct URL for remote images
                                 else:
                                     # Keep image:// wrapper for local/default images
                                     if art_value.endswith('/'):
                                         art_value = f"image://{decoded_url}/"
                                     else:
                                         art_value = f"image://{decoded_url}"
-                                
-                                self.logger.debug("V19 ART DEBUG: %s for %s", art_key, item.get('title', 'Unknown'))
-                                self.logger.debug("V19 ART DEBUG:   BEFORE: %s", original_url)
-                                self.logger.debug("V19 ART DEBUG:   AFTER:  %s", art_value)
-                                self.logger.debug("V19 ART DEBUG:   INNER_URL: %s", inner_url)
-                                self.logger.debug("V19 ART DEBUG:   DECODED: %s", decoded_url)
-                                self.logger.debug("V19 ART DEBUG:   DIRECT_URL: %s", "YES" if decoded_url.startswith('http') else "NO")
+                                        
                             except Exception as e:
-                                self.logger.warning("V19 ART FIX: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
+                                self.logger.warning("V19 ART: Failed to process %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
                                 # Keep original value on decode failure
                         
                         art[art_key] = art_value
