@@ -795,8 +795,9 @@ class ListItemBuilder:
                     if art_key in item_art and item_art[art_key]:
                         art_value = item_art[art_key]
                         
-                        # V19 fix: Handle URL-encoded image:// URLs
-                        if is_v19 and art_value.startswith('image://'):
+                        # Fix URL-encoded image:// URLs for all Kodi versions
+                        # Maintain proper image:// format to preserve Kodi's caching system
+                        if art_value.startswith('image://'):
                             try:
                                 import urllib.parse
                                 # Extract the URL from image://URL/ format and decode it
@@ -807,18 +808,15 @@ class ListItemBuilder:
                                 
                                 decoded_url = urllib.parse.unquote(inner_url)
                                 
-                                # V19 requires direct HTTP/HTTPS URLs (not image:// wrapped)
-                                if decoded_url.startswith('http'):
-                                    art_value = decoded_url  # Use direct URL for remote images
+                                # Always use image:// wrapper with properly decoded URL
+                                # This ensures Kodi's caching and optimization system works correctly
+                                if art_value.endswith('/'):
+                                    art_value = f"image://{decoded_url}/"
                                 else:
-                                    # Keep image:// wrapper for local/default images
-                                    if art_value.endswith('/'):
-                                        art_value = f"image://{decoded_url}/"
-                                    else:
-                                        art_value = f"image://{decoded_url}"
+                                    art_value = f"image://{decoded_url}"
                                         
                             except Exception as e:
-                                self.logger.warning("V19 ART: Failed to process %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
+                                self.logger.warning("ART: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
                                 # Keep original value on decode failure
                         
                         art[art_key] = art_value
