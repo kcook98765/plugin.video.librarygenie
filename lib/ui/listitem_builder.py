@@ -954,7 +954,7 @@ class ListItemBuilder:
             return 'movie' # Default to movie if unknown
 
 
-    def build_media_listitem(self, media_item: Dict[str, Any]) -> xbmcgui.ListItem:
+    def build_media_listitem(self, media_item: Dict[str, Any]) -> "tuple[xbmcgui.ListItem, str]":
         """Build ListItem for media content using enhanced data from media_items table"""
         try:
             # Use media_items data directly instead of JSON RPC calls

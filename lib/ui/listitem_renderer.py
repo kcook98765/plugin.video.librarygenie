@@ -24,7 +24,11 @@ class ListItemRenderer:
         self.addon_handle = addon_handle
         self.addon_id = addon_id
         self.logger = get_kodi_logger('lib.ui.listitem_renderer')
+        self.plugin_context = context
+        self.query_manager = context.query_manager if context else None
         self.builder = ListItemBuilder(addon_handle, addon_id, context)
+        # Alias for compatibility
+        self.listitem_builder = self.builder
 
     def _translate_path(self, path: str) -> str:
         """Translate path using Kodi V19+ API"""
@@ -144,8 +148,8 @@ class ListItemRenderer:
                 self.logger.info("RENDERER: Context menu callback provided - will apply to each item")
 
             # Use the ListItemBuilder to handle the rendering
-            builder = ListItemBuilder(self.addon_handle, self.addon_id)
-            success = builder.build_directory(items, content_type, context_menu_callback)
+            builder = ListItemBuilder(self.addon_handle, self.addon_id, self.plugin_context)
+            success = builder.build_directory(items, content_type)
 
             if success:
                 self.logger.info("RENDERER: Successfully rendered %s items", len(items))
@@ -508,10 +512,13 @@ class ListItemRenderer:
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
             return False
 
-    def render_list_items(self, list_id: int, sort_method: str = None) -> None:
+    def render_list_items(self, list_id: int, sort_method: Optional[str] = None) -> None:
         """Render items in a list with optimized performance using media_items data"""
         try:
             # Get list metadata
+            if not self.query_manager:
+                self.logger.error("Query manager not available")
+                return
             list_info = self.query_manager.get_list_by_id(list_id)
             if not list_info:
                 self.logger.error("List not found: %s", list_id)
@@ -522,11 +529,13 @@ class ListItemRenderer:
 
             if not items:
                 # Show empty list message
-                self.plugin_context.add_item(
+                xbmcplugin.addDirectoryItem(
+                    handle=self.addon_handle,
                     url="plugin://plugin.video.librarygenie/?action=empty",
                     listitem=xbmcgui.ListItem(label="No items in this list"),
                     isFolder=False
                 )
+                xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
                 return
 
             self.logger.debug("Rendering %s list items using media_items data", len(items))
@@ -539,16 +548,14 @@ class ListItemRenderer:
                     listitem, url = self.listitem_builder.build_media_listitem(item)
 
                     # Add context menu for list management
-                    context_menu = [
-                        (
-                            "Remove from List",
-                            f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&media_item_id={item['id']})"
-                        )
-                    ]
+                    label = "Remove from List"
+                    cmd = f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&media_item_id={item['id']})"
+                    context_menu = [(label, cmd)]
                     listitem.addContextMenuItems(context_menu)
 
                     # Add to plugin response
-                    self.plugin_context.add_item(
+                    xbmcplugin.addDirectoryItem(
+                        handle=self.addon_handle,
                         url=url,
                         listitem=listitem,
                         isFolder=False
@@ -559,14 +566,14 @@ class ListItemRenderer:
                     continue
 
             # Set content type and finish directory
-            self.plugin_context.set_content_type('movies')
-            self.plugin_context.end_directory(cacheToDisc=True)
+            xbmcplugin.setContent(self.addon_handle, 'movies')
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, cacheToDisc=True)
 
             self.logger.debug("Successfully rendered %s list items", len(items))
 
         except Exception as e:
             self.logger.error("Failed to render list items: %s", e)
-            self.plugin_context.end_directory(succeeded=False)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
 
 
 # Global renderer instance
