@@ -43,7 +43,7 @@ class ConfigManager:
             "search_page_size": 200,
             
             # Pagination settings  
-            "list_pagination_mode": "auto",  # "auto" or "manual"
+            "list_pagination_mode": 0,       # Integer: 0=auto, 1=manual
             "list_manual_page_size": 50,     # Manual page size when mode is "manual"
             
             # Background service settings
