@@ -163,7 +163,6 @@ class SyncController:
 
             # Check if library has changed since last sync
             if not self._should_perform_periodic_sync():
-                self.logger.debug("Skipping periodic sync - no library changes detected")
                 return False
 
             self.logger.info("Starting periodic library sync (delta scan)")
@@ -303,10 +302,6 @@ class SyncController:
                 hours_since_last_sync = (current_time - last_sync_time) / 3600
                 
                 if hours_since_last_sync < sync_frequency_hours:
-                    self.logger.debug(
-                        "Skipping periodic sync - only %.1f hours since last sync (frequency: %d hours)",
-                        hours_since_last_sync, sync_frequency_hours
-                    )
                     return False
                     
                 self.logger.debug(

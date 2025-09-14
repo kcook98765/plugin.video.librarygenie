@@ -627,7 +627,6 @@ class LibraryGenieService:
                 # Setting might not exist yet, treat as False
                 initial_sync_requested = False
                 
-            log(f"Checking initial sync request: flag='{initial_sync_requested}'")
             if not initial_sync_requested:
                 return
                 
