@@ -795,11 +795,13 @@ class ListItemBuilder:
                     if art_key in item_art and item_art[art_key]:
                         art_value = item_art[art_key]
                         
-                        # Fix URL-encoded image:// URLs for all Kodi versions
+                        # Fix URL-encoded image:// URLs for V19 only
                         # Maintain proper image:// format to preserve Kodi's caching system
-                        if art_value.startswith('image://'):
+                        if is_v19 and art_value.startswith('image://'):
                             try:
                                 import urllib.parse
+                                original_url = art_value
+                                
                                 # Extract the URL from image://URL/ format and decode it
                                 if art_value.endswith('/'):
                                     inner_url = art_value[8:-1]  # Remove 'image://' and trailing '/'
@@ -814,9 +816,15 @@ class ListItemBuilder:
                                     art_value = f"image://{decoded_url}/"
                                 else:
                                     art_value = f"image://{decoded_url}"
+                                
+                                # V19 Debug: Log the transformation
+                                if original_url != art_value:
+                                    self.logger.debug("V19 ART FIX: %s for %s", art_key, item.get('title', 'Unknown'))
+                                    self.logger.debug("V19 ART FIX:   BEFORE: %s", original_url)
+                                    self.logger.debug("V19 ART FIX:   AFTER:  %s", art_value)
                                         
                             except Exception as e:
-                                self.logger.warning("ART: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
+                                self.logger.warning("V19 ART: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
                                 # Keep original value on decode failure
                         
                         art[art_key] = art_value
