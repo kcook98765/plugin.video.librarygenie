@@ -584,10 +584,17 @@ class LibraryGenieService:
     def _check_initial_sync_request(self):
         """Check for initial sync requests from fresh install setup"""
         try:
-            # Create fresh addon instance to avoid settings caching issues between processes
-            from lib.config.config_manager import get_config
-            config = get_config()
-            initial_sync_requested = config.get_bool('initial_sync_requested', False)
+            # Create completely fresh addon instance to bypass all caching between processes
+            import xbmcaddon
+            fresh_addon = xbmcaddon.Addon()
+            
+            # Read directly from Kodi settings without any caching layer
+            try:
+                initial_sync_requested = fresh_addon.getSettingBool('initial_sync_requested')
+            except Exception:
+                # Setting might not exist yet, treat as False
+                initial_sync_requested = False
+                
             log(f"Checking initial sync request: flag='{initial_sync_requested}'")
             if not initial_sync_requested:
                 return
@@ -609,7 +616,7 @@ class LibraryGenieService:
                 
             try:
                 # Clear the request flag immediately to prevent retriggering
-                config.set('initial_sync_requested', False)
+                fresh_addon.setSettingBool('initial_sync_requested', False)
                 
                 # Get sync preferences from user settings
                 from lib.config.settings import SettingsManager
