@@ -6,9 +6,23 @@ LibraryGenie Service - Kodi Background Service
 Handles periodic tasks, cache management, and AI search synchronization
 """
 
-import xbmc
-import xbmcaddon
-import xbmcgui
+# Bootstrap Kodi stubs for development environment
+import os
+import sys
+repo = os.path.dirname(__file__)
+sys.path.extend([
+    os.path.join(repo, 'Kodistubs'),
+    os.path.join(repo, 'Kodistubs', 'build', 'lib'),
+])
+
+try:
+    import xbmc
+    import xbmcaddon
+    import xbmcgui
+except ImportError:
+    # This will provide better error visibility if stubs are still missing
+    raise
+
 import time
 import threading
 from typing import Optional
