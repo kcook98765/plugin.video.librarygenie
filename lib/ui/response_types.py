@@ -49,6 +49,7 @@ class DialogResponse:
     navigate_to_main: bool = False
     navigate_to_favorites: bool = False
     navigate_on_failure: Optional[str] = None
+    is_settings_operation: bool = False
 
     def __post_init__(self):
         """Debug post-initialization"""
@@ -59,7 +60,7 @@ class DialogResponse:
         except Exception:
             pass  # Don't let logging errors break the response
 
-    def show_notification(self, addon, default_title: str = None):
+    def show_notification(self, addon, default_title: Optional[str] = None):
         """Show notification to user if message is provided"""
         if self.message:
             try:

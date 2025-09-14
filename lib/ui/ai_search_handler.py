@@ -15,12 +15,8 @@ from ..data.query_manager import get_query_manager
 from ..utils.kodi_log import get_kodi_logger
 from .localization import L
 
-# Import PluginContext if it's defined elsewhere and needed for type hinting
-# For now, assuming it's a placeholder or defined in a broader context
-class PluginContext:
-    def __init__(self):
-        self.logger = get_kodi_logger('lib.ui.ai_search_handler')
-        self.params = {}
+# Import the real PluginContext
+from .plugin_context import PluginContext
 
 class AISearchHandler:
     """Handler for AI search functionality with IMDb list matching"""

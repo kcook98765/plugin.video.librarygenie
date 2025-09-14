@@ -83,11 +83,13 @@ class Router:
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
                 from .handler_factory import get_handler_factory
+                from .response_handler import get_response_handler
                 factory = get_handler_factory()
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
+                response_handler = get_response_handler()
                 response = lists_handler.show_lists_menu(context)
-                return response
+                return response_handler.handle_directory_response(response, context)
             elif action == 'prompt_and_search':
                 from .handler_factory import get_handler_factory
                 factory = get_handler_factory()
@@ -144,8 +146,10 @@ class Router:
                 if self._is_kodi_favorites_list(context, list_id):
                     self._handle_kodi_favorites_scan_if_needed(context)
                 
+                from .response_handler import get_response_handler
+                response_handler = get_response_handler()
                 response = lists_handler.view_list(context, list_id)
-                return response
+                return response_handler.handle_directory_response(response, context)
                 
             elif action == 'show_folder':
                 folder_id = params.get('folder_id')
@@ -156,11 +160,14 @@ class Router:
                     factory = get_handler_factory()
                     factory.context = context
                     lists_handler = factory.get_lists_handler()
-                    response = lists_handler.show_folder(context, folder_id)
-                    return response
+                    from .response_handler import get_response_handler
+                    response_handler = get_response_handler()
+                    response = lists_handler.show_folder(context, str(folder_id))
+                    return response_handler.handle_directory_response(response, context)
                 else:
                     self.logger.error("Missing folder_id parameter")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
 
             elif action == 'show_search_history':
                 # Handle search history folder access - look up folder ID only when needed
@@ -173,8 +180,10 @@ class Router:
                         factory = get_handler_factory()
                         factory.context = context
                         lists_handler = factory.get_lists_handler()
-                        response = lists_handler.show_folder(context, search_folder_id)
-                        return response
+                        from .response_handler import get_response_handler
+                        response_handler = get_response_handler()
+                        response = lists_handler.show_folder(context, str(search_folder_id))
+                        return response_handler.handle_directory_response(response, context)
                     else:
                         self.logger.error("Could not access search history folder")
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
@@ -193,7 +202,8 @@ class Router:
                 # Handle the DialogResponse
                 from .response_handler import get_response_handler
                 response_handler = get_response_handler()
-                return response_handler.handle_dialog_response(result, context)
+                success = response_handler.handle_dialog_response(result, context)
+                return bool(success) if success is not None else True
 
             elif action == "activate_ai_search":
                 from .handler_factory import get_handler_factory
@@ -205,12 +215,14 @@ class Router:
                 # Handle the DialogResponse
                 from .response_handler import get_response_handler
                 response_handler = get_response_handler()
-                return response_handler.handle_dialog_response(result, context)
+                success = response_handler.handle_dialog_response(result, context)
+                return bool(success) if success is not None else True
 
             elif action == "authorize_ai_search":
                 from .ai_search_handler import AISearchHandler
                 ai_handler = AISearchHandler()
-                ai_handler.authorize_ai_search(context)
+                result = ai_handler.authorize_ai_search(context)
+                return result if isinstance(result, bool) else True
             elif action == "ai_search_replace_sync":
                 try:
                     from .ai_search_handler import get_ai_search_handler
@@ -231,11 +243,19 @@ class Router:
                     self.logger.error("Error in ai_search_regular_sync handler: %s", e)
                     return False
             elif action == 'test_ai_search_connection':
-                from .handler_factory import get_handler_factory
-                factory = get_handler_factory()
-                factory.context = context
-                tools_handler = factory.get_tools_handler()
-                return tools_handler.test_ai_search_connection(context)
+                try:
+                    from ..auth.otp_auth import test_api_connection
+                    from ..config.settings import SettingsManager
+                    settings = SettingsManager()
+                    server_url = settings.get_remote_server_url()
+                    if not server_url:
+                        self.logger.error("No server URL configured for AI search connection test")
+                        return False
+                    result = test_api_connection(server_url)
+                    return result.get('success', False)
+                except Exception as e:
+                    self.logger.error("Error testing AI search connection: %s", e)
+                    return False
 
             elif action == 'find_similar_movies':
                 from .ai_search_handler import AISearchHandler
@@ -292,7 +312,8 @@ class Router:
             result = tools_handler.show_list_tools(context, list_type, list_id)
 
             # Use response handler to process the result
-            return response_handler.handle_dialog_response(result, context)
+            success = response_handler.handle_dialog_response(result, context)
+            return bool(success) if success is not None else True
 
         except Exception as e:
             self.logger.error("Error in list tools handler: %s", e)
