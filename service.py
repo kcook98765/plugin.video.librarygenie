@@ -587,9 +587,9 @@ class LibraryGenieService:
             # Create fresh addon instance to avoid settings caching issues between processes
             from lib.config.config_manager import get_config
             config = get_config()
-            initial_sync_requested = config.get('initial_sync_requested', 'false')
+            initial_sync_requested = config.get_bool('initial_sync_requested', False)
             log(f"Checking initial sync request: flag='{initial_sync_requested}'")
-            if initial_sync_requested != 'true':
+            if not initial_sync_requested:
                 return
                 
             log_info("⚡ INITIAL SYNC REQUEST DETECTED - Processing sync request")
@@ -609,7 +609,7 @@ class LibraryGenieService:
                 
             try:
                 # Clear the request flag immediately to prevent retriggering
-                config.set('initial_sync_requested', 'false')
+                config.set('initial_sync_requested', False)
                 
                 # Get sync preferences from user settings
                 from lib.config.settings import SettingsManager
