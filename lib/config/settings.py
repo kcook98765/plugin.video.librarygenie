@@ -224,7 +224,7 @@ class SettingsManager:
     def get_use_native_kodi_info(self) -> bool:
         """Get use native Kodi info for library items setting"""
         config = get_config()
-        return config.get_bool('use_native_kodi_info', True)
+        return config.get_bool('info_hijack_enabled', True)
 
     def get_enable_background_token_refresh(self) -> bool:
         """Get enable automatic token refresh in background service setting"""
