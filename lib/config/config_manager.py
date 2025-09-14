@@ -403,18 +403,24 @@ class ConfigManager:
             "initial_sync_requested",
         ]
         int_settings = [
-            "favorites_scan_interval_minutes",
+            # Favorites settings
+            "favorites_scan_interval_minutes", "favorites_scan_interval",
+            # Search settings
             "search_page_size", "search_history_days",
             # Sync settings
             "last_sync_time", "sync_frequency_hours",
-            # Phase 3: Advanced settings
-            "jsonrpc_page_size", "jsonrpc_timeout_seconds",
-            "db_batch_size", "db_busy_timeout_ms",
+            # Background service settings  
+            "background_interval_minutes", "background_interval",
+            # Advanced settings
+            "jsonrpc_page_size", "jsonrpc_timeout_seconds", "jsonrpc_timeout",
+            "db_batch_size", "database_batch_size", "db_busy_timeout_ms", "database_busy_timeout",
             # Remote service settings
-            "auth_poll_seconds",
+            "auth_poll_seconds", "auth_polling_interval",
+            "remote_timeout", "remote_max_retries", "remote_cache_duration",
+            # AI Search settings
+            "ai_search_sync_interval", 
             # Backup integer settings
             "backup_retention_count",
-            "background_interval_minutes",
             # Pagination settings
             "list_manual_page_size",
         ]
@@ -428,9 +434,17 @@ class ConfigManager:
 
         # String settings
         string_settings = [
-            "default_list_id", "remote_base_url", "device_name",
-            "backup_storage_location", "last_backup_time",
+            # General settings
+            "default_list_id", "device_name",
+            # Remote settings  
+            "remote_base_url", "remote_server_url",
+            # Backup settings
+            "backup_storage_location", "backup_local_path", "last_backup_time",
+            "backup_retention_policy",
+            # AI Search settings
             "ai_search_server_url", "ai_search_api_key", "export_location",
+            # Authentication settings
+            "access_token", "refresh_token", "token_expires_at",
             # Pagination settings
             "list_pagination_mode",
         ]
