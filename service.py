@@ -632,7 +632,7 @@ class LibraryGenieService:
                 return
                 
             log_info("⚡ INITIAL SYNC REQUEST DETECTED - Processing sync request")
-                
+            
             # Import here to avoid circular imports
             from lib.utils.sync_lock import GlobalSyncLock
             from lib.library.sync_controller import SyncController
