@@ -372,13 +372,13 @@ class ListItemBuilder:
 
             # Label: format based on media type
             if media_type == 'episode':
-                # Format episode label: "Show Name - S01E01: Episode Title"
+                # Format episode label: "Show Name - S01E01 - Episode Title"
                 tvshowtitle = item.get('tvshowtitle', '')
                 season = item.get('season')
                 episode = item.get('episode')
                 
                 if tvshowtitle and season is not None and episode is not None:
-                    display_label = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d}: {title}"
+                    display_label = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d} - {title}"
                 elif tvshowtitle:
                     display_label = f"{tvshowtitle}: {title}"
                 else:
@@ -972,13 +972,13 @@ class ListItemBuilder:
             # Format display title based on media type
             media_type = media_item.get('media_type', 'movie')
             if media_type == 'episode':
-                # Format episode title: "Show Name - S01E01: Episode Title"
+                # Format episode title: "Show Name - S01E01 - Episode Title"
                 tvshowtitle = media_item.get('tvshowtitle', '')
                 season = media_item.get('season')
                 episode = media_item.get('episode')
                 
                 if tvshowtitle and season is not None and episode is not None:
-                    display_title = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d}: {title}"
+                    display_title = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d} - {title}"
                 elif tvshowtitle:
                     display_title = f"{tvshowtitle}: {title}"
                 else:
