@@ -403,50 +403,38 @@ class ConfigManager:
             "initial_sync_requested",
         ]
         int_settings = [
-            # Favorites settings
-            "favorites_scan_interval_minutes", "favorites_scan_interval",
             # Search settings
             "search_page_size", "search_history_days",
-            # Sync settings
+            # Sync settings  
             "last_sync_time", "sync_frequency_hours",
-            # Background service settings  
-            "background_interval_minutes", "background_interval",
             # Advanced settings
-            "jsonrpc_page_size", "jsonrpc_timeout_seconds", "jsonrpc_timeout",
-            "db_batch_size", "database_batch_size", "db_busy_timeout_ms", "database_busy_timeout",
+            "jsonrpc_page_size", "jsonrpc_timeout_seconds",
+            "db_batch_size", "db_busy_timeout_ms",
             # Remote service settings
-            "auth_poll_seconds", "auth_polling_interval",
-            "remote_timeout", "remote_max_retries", "remote_cache_duration",
+            "auth_poll_seconds", "background_interval_minutes",
             # AI Search settings
             "ai_search_sync_interval", 
             # Backup integer settings
-            "backup_retention_count",
+            "backup_interval", "backup_retention_count", "backup_storage_type",
             # Pagination settings
-            "list_manual_page_size",
+            "list_pagination_mode", "list_manual_page_size",
         ]
         float_settings = []
 
-        # Select settings (stored as integer indexes)
-        select_settings = [
-            "backup_storage_type",
-            "backup_interval"
-        ]
+        # Select settings (stored as integer indexes) 
+        # Note: These are already handled as integers above
+        select_settings = []
 
         # String settings
         string_settings = [
             # General settings
-            "default_list_id", "device_name",
+            "default_list_id", "device_name", "export_location",
             # Remote settings  
-            "remote_base_url", "remote_server_url",
+            "remote_server_url",
             # Backup settings
-            "backup_storage_location", "backup_local_path", "last_backup_time",
-            "backup_retention_policy",
+            "backup_storage_location", "last_backup_time",
             # AI Search settings
-            "ai_search_server_url", "ai_search_api_key", "export_location",
-            # Authentication settings
-            "access_token", "refresh_token", "token_expires_at",
-            # Pagination settings
-            "list_pagination_mode",
+            "ai_search_api_key",
         ]
 
 
