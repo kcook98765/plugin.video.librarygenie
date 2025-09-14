@@ -2052,3 +2052,34 @@ msgctxt "#35546"
 msgid "Directory where exported files will be saved. If empty, you'll be prompted to select a location on first export."
 msgstr ""
 
+# List Pagination Settings
+msgctxt "#30330"
+msgid "List Pagination"
+msgstr ""
+
+msgctxt "#30331"
+msgid "Pagination Mode"
+msgstr ""
+
+msgctxt "#30332"
+msgid "Manual Page Size"
+msgstr ""
+
+# List Pagination Options
+msgctxt "#30571"
+msgid "Auto (device-based)"
+msgstr ""
+
+msgctxt "#30572"
+msgid "Manual"
+msgstr ""
+
+# List Pagination Help Text
+msgctxt "#35550"
+msgid "Auto mode adjusts page sizes based on your device's available memory for optimal performance. Manual mode lets you set a custom page size."
+msgstr ""
+
+msgctxt "#35551"
+msgid "Number of items to show per page when Manual mode is selected. Lower values improve performance on older devices."
+msgstr ""
+
