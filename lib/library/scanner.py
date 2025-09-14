@@ -149,9 +149,16 @@ class LibraryScanner:
 
             self.logger.info("=== MOVIE SYNC COMPLETE: %s movies successfully indexed ===", total_added)
 
-            # TV Episode sync (if enabled)
+            # TV Episode sync (if enabled) - read directly from Kodi to bypass caching
             total_episodes_added = 0
-            if self.settings.get_sync_tv_episodes():
+            import xbmcaddon
+            fresh_addon = xbmcaddon.Addon()
+            try:
+                sync_tv_episodes = fresh_addon.getSettingBool('sync_tv_episodes')
+            except Exception:
+                sync_tv_episodes = False
+                
+            if sync_tv_episodes:
                 self.logger.info("TV episode sync enabled - starting episode scan")
                 try:
                     total_episodes_added = self._sync_tv_episodes(dialog_bg, progress_dialog, progress_callback)
@@ -349,8 +356,15 @@ class LibraryScanner:
             with self.conn_manager.transaction() as conn:
                 conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
                 
-                # Also clear TV episodes if sync is enabled
-                if self.settings.get_sync_tv_episodes():
+                # Also clear TV episodes if sync is enabled - read directly from Kodi to bypass caching
+                import xbmcaddon
+                fresh_addon = xbmcaddon.Addon()
+                try:
+                    sync_tv_episodes = fresh_addon.getSettingBool('sync_tv_episodes')
+                except Exception:
+                    sync_tv_episodes = False
+                    
+                if sync_tv_episodes:
                     conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
                     self.logger.debug("Library index cleared for full scan (movies and episodes)")
                 else:
@@ -550,7 +564,15 @@ class LibraryScanner:
         """Perform TV episodes-only scan (no movies)"""
         self.logger.info("Starting TV episodes-only scan")
         
-        if not self.settings.get_sync_tv_episodes():
+        # Read directly from Kodi settings to bypass inter-process caching issues
+        import xbmcaddon
+        fresh_addon = xbmcaddon.Addon()
+        try:
+            sync_tv_episodes = fresh_addon.getSettingBool('sync_tv_episodes')
+        except Exception:
+            sync_tv_episodes = False
+            
+        if not sync_tv_episodes:
             self.logger.warning("TV episode sync is disabled - cannot perform episodes-only scan")
             return {"success": False, "error": "TV episode sync is disabled"}
 
