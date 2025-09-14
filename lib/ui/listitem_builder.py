@@ -810,18 +810,16 @@ class ListItemBuilder:
                                 
                                 decoded_url = urllib.parse.unquote(inner_url)
                                 
-                                # Always use image:// wrapper with properly decoded URL
-                                # This ensures Kodi's caching and optimization system works correctly
-                                if art_value.endswith('/'):
-                                    art_value = f"image://{decoded_url}/"
-                                else:
-                                    art_value = f"image://{decoded_url}"
+                                # V19 Fix: Always use image:// wrapper WITHOUT trailing slash
+                                # V19's image loader truncates URLs with trailing slashes
+                                art_value = f"image://{decoded_url}"
                                 
                                 # V19 Debug: Log the transformation
                                 if original_url != art_value:
                                     self.logger.debug("V19 ART FIX: %s for %s", art_key, item.get('title', 'Unknown'))
                                     self.logger.debug("V19 ART FIX:   BEFORE: %s", original_url)
                                     self.logger.debug("V19 ART FIX:   AFTER:  %s", art_value)
+                                    self.logger.debug("V19 ART FIX:   NO TRAILING SLASH: %s", "YES" if not art_value.endswith('/') else "NO")
                                         
                             except Exception as e:
                                 self.logger.warning("V19 ART: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
