@@ -548,9 +548,10 @@ class ListItemRenderer:
                     listitem, url = self.listitem_builder.build_media_listitem(item)
 
                     # Add context menu for list management
+                    from typing import List, Tuple
                     label = "Remove from List"
                     cmd = f"RunPlugin(plugin://plugin.video.librarygenie/?action=remove_from_list&list_id={list_id}&media_item_id={item['id']})"
-                    context_menu = [(label, cmd)]
+                    context_menu: List[Tuple[str, str]] = [(label, cmd)]
                     listitem.addContextMenuItems(context_menu)
 
                     # Add to plugin response
