@@ -165,8 +165,6 @@ class ListItemBuilder:
         # media type - be more specific for library items
         media_type = (src.get('media_type') or src.get('type') or 'movie').lower()
         
-        self.logger.debug("NORMALIZE ITEM: Raw data - title='%s', original_media_type='%s', tvshowtitle='%s', season=%s, episode=%s", 
-                        src.get('title', 'Unknown'), media_type, src.get('tvshowtitle', ''), src.get('season'), src.get('episode'))
 
         # FIXED: Trust database media_type first, then use inference rules
         # Preserve 'none' media type for action items - don't force to 'movie'
@@ -175,28 +173,22 @@ class ListItemBuilder:
         # Trust database media_type if it's reliable (episode/movie)
         elif media_type in ('episode', 'movie'):
             out['media_type'] = media_type
-            self.logger.debug("NORMALIZE ITEM: Trusted database media_type: '%s'", media_type)
         # Episode detection: check for episode-specific fields or episodeid
         elif (src.get('episodeid') or src.get('episode') is not None or 
               (src.get('tvshowtitle') and src.get('season') is not None)):
             media_type = 'episode'
             out['media_type'] = media_type
-            self.logger.debug("NORMALIZE ITEM: Detected episode from fields - episodeid=%s, episode=%s, tvshowtitle='%s', season=%s", 
-                            src.get('episodeid'), src.get('episode'), src.get('tvshowtitle', ''), src.get('season'))
         # Movie detection: movieid or kodi_id without episode indicators
         elif (src.get('movieid') or 
               (src.get('kodi_id') and not any([src.get('tvshowtitle'), src.get('season'), src.get('episode')]))):
             media_type = 'movie'
             out['media_type'] = media_type
-            self.logger.debug("NORMALIZE ITEM: Detected movie from fields - movieid=%s, kodi_id=%s", src.get('movieid'), src.get('kodi_id'))
         elif media_type not in ('tvshow', 'none'):
             # Default fallback for unknown types (but preserve 'tvshow')
             media_type = 'movie'
             out['media_type'] = media_type
-            self.logger.debug("NORMALIZE ITEM: Fallback to movie for media_type: '%s'", src.get('media_type'))
         else:
             out['media_type'] = media_type
-            self.logger.debug("NORMALIZE ITEM: Preserved media_type: '%s'", media_type)
 
         # kodi id (only for movie/episode)
         kodi_id = None
@@ -389,22 +381,15 @@ class ListItemBuilder:
             
             if is_episode:
                 # Format episode label: "Show Name - S01E01 - Episode Title"
-                self.logger.debug("EPISODE FORMAT: Processing episode - media_type=%s, title='%s', tvshowtitle='%s', season=%s, episode=%s", 
-                                media_type, title, tvshowtitle, season, episode)
-                
                 if tvshowtitle and season is not None and episode is not None:
                     display_label = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d} - {title}"
-                    self.logger.debug("EPISODE FORMAT: Applied full format: '%s'", display_label)
                 elif tvshowtitle:
                     display_label = f"{tvshowtitle} - {title}"
-                    self.logger.debug("EPISODE FORMAT: Applied show-only format: '%s'", display_label)
                 else:
                     display_label = title
-                    self.logger.debug("EPISODE FORMAT: Applied title-only format: '%s'", display_label)
             else:
                 # Movies and other media types - include year if present
                 display_label = f"{title} ({item['year']})" if item.get('year') else title
-                self.logger.debug("NON-EPISODE FORMAT: Applied movie/default format - media_type=%s, display_label='%s'", media_type, display_label)
 
             li = xbmcgui.ListItem(label=display_label)
 
@@ -901,9 +886,20 @@ class ListItemBuilder:
             except Exception as e:
                 self.logger.warning("LIB ITEM v20+: setMediaType() failed for '%s': %s", title, e)
 
-            # Core identification - minimal to let DB metadata take precedence
-            if item.get('title'):
-                video_info_tag.setTitle(item['title'])
+            # Core identification - use formatted title for episodes, original title for others
+            title_for_metadata = item.get('title', '')
+            if item.get('media_type') == 'episode':
+                # For episodes, use the formatted display label if available
+                tvshowtitle = item.get('tvshowtitle', '')
+                season = item.get('season')
+                episode = item.get('episode')
+                if tvshowtitle and season is not None and episode is not None:
+                    title_for_metadata = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d} - {title_for_metadata}"
+                elif tvshowtitle:
+                    title_for_metadata = f"{tvshowtitle} - {title_for_metadata}"
+            
+            if title_for_metadata:
+                video_info_tag.setTitle(title_for_metadata)
 
             if item.get('year'):
                 try:
@@ -999,25 +995,18 @@ class ListItemBuilder:
             
             if is_episode:
                 # Format episode title: "Show Name - S01E01 - Episode Title"
-                self.logger.debug("EPISODE FORMAT (build_media): Processing episode - media_type=%s, title='%s', tvshowtitle='%s', season=%s, episode=%s", 
-                                media_type, title, tvshowtitle, season, episode)
-                
                 if tvshowtitle and season is not None and episode is not None:
                     display_title = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d} - {title}"
-                    self.logger.debug("EPISODE FORMAT (build_media): Applied full format: '%s'", display_title)
                 elif tvshowtitle:
                     display_title = f"{tvshowtitle} - {title}"
-                    self.logger.debug("EPISODE FORMAT (build_media): Applied show-only format: '%s'", display_title)
                 else:
                     display_title = title
-                    self.logger.debug("EPISODE FORMAT (build_media): Applied title-only format: '%s'", display_title)
             else:
                 # Movies and other media types - format with year if available
                 if year:
                     display_title = f"{title} ({year})"
                 else:
                     display_title = title
-                self.logger.debug("NON-EPISODE FORMAT (build_media): Applied movie/default format - media_type=%s, display_title='%s'", media_type, display_title)
 
             listitem = xbmcgui.ListItem(label=display_title)
 
