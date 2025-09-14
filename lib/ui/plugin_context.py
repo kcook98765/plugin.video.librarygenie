@@ -29,6 +29,7 @@ class PluginContext:
 
         # Shared resources
         self.addon = xbmcaddon.Addon()
+        self.addon_id = self.addon.getAddonInfo('id')
         self.logger = get_kodi_logger('lib.ui.plugin_context')
 
         # Cache auth state
