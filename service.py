@@ -105,10 +105,15 @@ class LibraryGenieService:
     def _ensure_favorites_list(self):
         """Ensure Kodi Favorites list exists if favorites integration is enabled"""
         try:
-            from lib.config.config_manager import get_config
-            config = get_config()
+            # Read directly from Kodi settings to bypass inter-process caching issues
+            import xbmcaddon
+            fresh_addon = xbmcaddon.Addon()
             
-            favorites_enabled = config.get_bool('favorites_integration_enabled', False)
+            try:
+                favorites_enabled = fresh_addon.getSettingBool('favorites_integration_enabled')
+            except Exception:
+                favorites_enabled = False
+                
             if not favorites_enabled:
                 log("Service: Favorites integration disabled - skipping list check")
                 return
@@ -301,7 +306,13 @@ class LibraryGenieService:
 
             # Start AI search sync if enabled  
             log("Checking AI Search activation status at startup...")
-            ai_activated = self.settings.get_ai_search_activated()
+            # Read directly from Kodi settings to bypass caching
+            import xbmcaddon
+            fresh_addon = xbmcaddon.Addon()
+            try:
+                ai_activated = fresh_addon.getSettingBool('ai_search_activated')
+            except Exception:
+                ai_activated = False
             log(f"AI Search activated setting: {ai_activated}")
             
             if self._should_start_ai_sync():
@@ -474,15 +485,31 @@ class LibraryGenieService:
 
     def _should_start_ai_sync(self, force_log=False) -> bool:
         """Check if AI search sync should be started"""
+        # Read settings directly from Kodi to bypass inter-process caching issues
+        import xbmcaddon
+        fresh_addon = xbmcaddon.Addon()
+        
         # Verify that AI search is properly configured with valid auth
-        if not self.settings.get_ai_search_activated():
+        try:
+            ai_search_activated = fresh_addon.getSettingBool('ai_search_activated')
+        except Exception:
+            ai_search_activated = False
+            
+        if not ai_search_activated:
             if force_log:
                 log("AI Search not activated in settings")
             return False
 
         # Test if AI client is properly configured and authorized
-        server_url = self.settings.get_remote_server_url()
-        api_key = self.settings.get_ai_search_api_key()
+        try:
+            server_url = fresh_addon.getSettingString('remote_server_url')
+        except Exception:
+            server_url = ""
+            
+        try:
+            api_key = fresh_addon.getSettingString('ai_search_api_key')
+        except Exception:
+            api_key = ""
         
         # Check what is_authorized() returns (checks database)
         from lib.auth.state import is_authorized, get_api_key
@@ -540,8 +567,13 @@ class LibraryGenieService:
         log_info("AI search sync worker started")
 
         try:
-            # Periodic sync based on settings
-            sync_hours = self.settings.get_ai_search_sync_interval()
+            # Periodic sync based on settings - read directly from Kodi to bypass caching
+            import xbmcaddon
+            fresh_addon = xbmcaddon.Addon()
+            try:
+                sync_hours = fresh_addon.getSettingInt('ai_search_sync_interval')
+            except Exception:
+                sync_hours = 1  # Default to 1 hour
             sync_interval = min(sync_hours * 3600, 86400)  # Cap at 24 hours (86400 seconds) to avoid timeout errors
 
             while not self.sync_stop_event.is_set():
