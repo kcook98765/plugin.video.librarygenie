@@ -37,6 +37,8 @@ class LibraryGenieMonitor(xbmc.Monitor):
         """Called when addon settings are changed"""
         try:
             log_info("Settings changed - reloading configuration cache")
+            # Brief delay to ensure settings file is fully written by Kodi
+            xbmc.sleep(200)
             self.config_manager.reload()
         except Exception as e:
             log_error(f"Failed to reload settings cache: {e}")
