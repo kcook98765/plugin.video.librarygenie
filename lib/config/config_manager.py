@@ -373,6 +373,9 @@ class ConfigManager:
             "background_token_refresh",
             "info_hijack_enabled",
             "ai_search_activated",
+            # Initialization state settings
+            "first_run_completed",
+            "initial_sync_requested",
         ]
         int_settings = [
             "favorites_scan_interval_minutes",
