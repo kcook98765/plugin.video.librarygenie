@@ -254,6 +254,24 @@ class QueryManager:
             import traceback
             self.logger.error("Traceback: %s", traceback.format_exc())
             return []
+            
+    def get_list_item_count(self, list_id: int) -> int:
+        """Get total count of items in a specific list"""
+        try:
+            connection = self.connection_manager.get_connection()
+            cursor = connection.cursor()
+
+            query = "SELECT COUNT(*) as count FROM list_items WHERE list_id = ?"
+            cursor.execute(query, (list_id,))
+            result = cursor.fetchone()
+            
+            count = result['count'] if result else 0
+            self.logger.debug("List %s has %d total items", list_id, count)
+            return count
+
+        except Exception as e:
+            self.logger.error("Error getting list item count: %s", e)
+            return 0
 
     def create_list(self, name, description="", folder_id=None):
         """Create a new list in unified lists table with proper validation"""

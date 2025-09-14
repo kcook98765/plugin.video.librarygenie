@@ -158,6 +158,19 @@ class SettingsManager:
         value = config.get_int('search_page_size', 200)
         return max(50, min(500, value))
 
+    # Pagination Settings
+    def get_list_pagination_mode(self) -> str:
+        """Get list pagination mode ('auto' or 'manual')"""
+        config = get_config()
+        value = config.get('list_pagination_mode', 'auto')
+        return 'auto' if value not in ['auto', 'manual'] else value
+        
+    def get_list_manual_page_size(self) -> int:
+        """Get manual page size (clamped to 10-500 for stability)"""
+        config = get_config()
+        value = config.get_int('list_manual_page_size', 50)
+        return max(10, min(500, value))
+
     # Advanced Settings
     def get_jsonrpc_page_size(self) -> int:
         """Get JSON-RPC page size"""

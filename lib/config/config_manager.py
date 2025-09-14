@@ -42,6 +42,10 @@ class ConfigManager:
             # Search settings
             "search_page_size": 200,
             
+            # Pagination settings  
+            "list_pagination_mode": "auto",  # "auto" or "manual"
+            "list_manual_page_size": 50,     # Manual page size when mode is "manual"
+            
             # Background service settings
             "enable_background_service": True,
             "background_interval": 5,
@@ -381,6 +385,8 @@ class ConfigManager:
             # Backup integer settings
             "backup_retention_count",
             "background_interval_minutes",
+            # Pagination settings
+            "list_manual_page_size",
         ]
         float_settings = []
 
@@ -394,7 +400,9 @@ class ConfigManager:
         string_settings = [
             "default_list_id", "remote_base_url", "device_name",
             "backup_storage_location", "last_backup_time",
-            "ai_search_server_url", "ai_search_api_key", "export_location"
+            "ai_search_server_url", "ai_search_api_key", "export_location",
+            # Pagination settings
+            "list_pagination_mode",
         ]
 
 

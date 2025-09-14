@@ -128,7 +128,8 @@ class ListItemBuilder:
             title.startswith('[COLOR yellow]+ Create') or
             title.startswith('[COLOR cyan]+ Create') or
             'Sync Favorites' in title or
-            'Create New' in title
+            'Create New' in title or
+            item.get('is_navigation', False)  # Pagination navigation items
         )
 
 
@@ -505,16 +506,29 @@ class ListItemBuilder:
                     info_dict['plot'] = description
                 li.setInfo('video', info_dict)
 
-            # Use service icon for sync operations, folder icon for others
+            # Use appropriate icons for different action types
             if 'Sync' in title or action == 'scan_favorites_execute':
                 icon = 'DefaultAddonService.png'  # Service icon for sync operations
+            elif item.get('is_navigation', False):
+                # Use direction-specific icons for pagination
+                navigation_type = item.get('navigation_type', '')
+                if navigation_type == 'previous':
+                    icon = 'DefaultArrowLeft.png'
+                elif navigation_type == 'next': 
+                    icon = 'DefaultArrowRight.png'
+                else:
+                    icon = item.get('icon', 'DefaultFolder.png')  # Use custom icon if provided
             else:
                 icon = 'DefaultFolder.png'  # Standard folder icon for other actions
 
             li.setArt({'icon': icon, 'thumb': icon})
 
             # Build plugin URL that will trigger the action when folder is navigated to
-            if action:
+            # Prefer pre-built URL (e.g., for pagination navigation) over action-based URL
+            if item.get('url'):
+                # Use pre-built URL (for pagination navigation)
+                url = item.get('url')
+            elif action:
                 url = f"plugin://{self.addon_id}/?action={action}"
             else:
                 # Fallback for actions without specific action

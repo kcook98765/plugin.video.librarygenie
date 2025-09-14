@@ -146,6 +146,7 @@ class Router:
                 
                 response = lists_handler.view_list(context, list_id)
                 return response
+                
             elif action == 'show_folder':
                 folder_id = params.get('folder_id')
 
