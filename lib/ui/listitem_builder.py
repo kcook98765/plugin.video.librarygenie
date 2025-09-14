@@ -165,17 +165,25 @@ class ListItemBuilder:
         # media type - be more specific for library items
         media_type = (src.get('media_type') or src.get('type') or 'movie').lower()
 
+        # FIXED: Trust database media_type first, then use inference rules
         # Preserve 'none' media type for action items - don't force to 'movie'
         if media_type == 'none':
             out['media_type'] = 'none'
-        # For library items with movieid, ensure it's identified as 'movie'
-        elif src.get('movieid') or (src.get('kodi_id') and not src.get('episodeid')):
-            media_type = 'movie'
+        # Trust database media_type if it's reliable (episode/movie)
+        elif media_type in ('episode', 'movie'):
             out['media_type'] = media_type
-        elif src.get('episodeid') or src.get('episode') is not None:
+        # Episode detection: check for episode-specific fields or episodeid
+        elif (src.get('episodeid') or src.get('episode') is not None or 
+              (src.get('tvshowtitle') and src.get('season') is not None)):
             media_type = 'episode'
             out['media_type'] = media_type
-        elif media_type not in ('movie', 'episode', 'tvshow', 'none'):
+        # Movie detection: movieid or kodi_id without episode indicators
+        elif (src.get('movieid') or 
+              (src.get('kodi_id') and not any([src.get('tvshowtitle'), src.get('season'), src.get('episode')]))):
+            media_type = 'movie'
+            out['media_type'] = media_type
+        elif media_type not in ('tvshow', 'none'):
+            # Default fallback for unknown types (but preserve 'tvshow')
             media_type = 'movie'
             out['media_type'] = media_type
         else:
