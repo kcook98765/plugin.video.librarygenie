@@ -14,6 +14,7 @@ import xbmcgui
 import xbmcplugin
 from ..utils.kodi_log import get_kodi_logger
 from ..utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
+from ..config.settings import SettingsManager
 
 
 class ListItemBuilder:
@@ -413,12 +414,17 @@ class ListItemBuilder:
 
             is_folder = False
 
-            # ✨ ALWAYS set InfoHijack properties on library items first (before any metadata operations)
+            # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
-                li.setProperty("LG.InfoHijack.Armed", "1")
-                li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
-                li.setProperty("LG.InfoHijack.DBType", media_type)
-                self.logger.debug("🎯 HIJACK ARMED: '%s' - DBID=%s, DBType=%s", title, kodi_id, media_type)
+                settings_manager = SettingsManager()
+                if settings_manager.get_use_native_kodi_info():
+                    li.setProperty("LG.InfoHijack.Armed", "1")
+                    li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
+                    li.setProperty("LG.InfoHijack.DBType", media_type)
+                    self.logger.debug("🎯 HIJACK ARMED: '%s' - DBID=%s, DBType=%s", title, kodi_id, media_type)
+                else:
+                    # Setting is disabled - do not arm hijack
+                    self.logger.debug("📱 HIJACK DISABLED: '%s' - use_native_kodi_info setting is off", title)
             except Exception as e:
                 self.logger.error("LIB ITEM: ❌ Failed to set InfoHijack properties for '%s': %s", title, e)
 
