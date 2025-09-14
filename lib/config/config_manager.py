@@ -95,7 +95,7 @@ class ConfigManager:
             "clear_before_import": False,
             
             # Initialization state
-            "initial_sync_requested": "false",
+            "initial_sync_requested": False,
             
             # Authentication tokens
             "access_token": "",
