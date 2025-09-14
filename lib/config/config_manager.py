@@ -282,31 +282,37 @@ class ConfigManager:
             setting_type = self._get_setting_type(key)
             
             if setting_type == "bool":
-                result = self._addon.setSettingBool(key, value)
+                # Coerce value to boolean to prevent "Invalid setting type" errors
+                bool_value = bool(value) if not isinstance(value, str) else value.lower() in ('true', '1', 'yes')
+                result = self._addon.setSettingBool(key, bool_value)
                 if result:
                     # Update cache with the typed value
                     with self._cache_lock:
-                        self._cache[f"bool:{key}"] = bool(value)
+                        self._cache[f"bool:{key}"] = bool_value
                         # Also update string cache for get() method
-                        self._cache[key] = str(value).lower()
+                        self._cache[key] = str(bool_value).lower()
                 return result
             elif setting_type == "int":
-                result = self._addon.setSettingInt(key, value)
+                # Coerce value to integer to prevent "Invalid setting type" errors
+                int_value = int(value)
+                result = self._addon.setSettingInt(key, int_value)
                 if result:
                     # Update cache with the typed value
                     with self._cache_lock:
-                        self._cache[f"int:{key}"] = int(value)
+                        self._cache[f"int:{key}"] = int_value
                         # Also update string cache for get() method
-                        self._cache[key] = str(value)
+                        self._cache[key] = str(int_value)
                 return result
             elif setting_type == "number":
-                result = self._addon.setSettingNumber(key, value)
+                # Coerce value to float to prevent "Invalid setting type" errors
+                float_value = float(value)
+                result = self._addon.setSettingNumber(key, float_value)
                 if result:
                     # Update cache with the typed value
                     with self._cache_lock:
-                        self._cache[f"float:{key}"] = float(value)
+                        self._cache[f"float:{key}"] = float_value
                         # Also update string cache for get() method
-                        self._cache[key] = str(value)
+                        self._cache[key] = str(float_value)
                 return result
             else:
                 result = self._addon.setSettingString(key, str(value))
@@ -353,28 +359,47 @@ class ConfigManager:
         from ..utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         
-        # Comprehensive list of all backup-related settings
+        # Comprehensive list of all boolean settings
         bool_settings = [
+            # General settings
             "confirm_destructive_actions",
             "track_library_changes",
             "soft_delete_removed_items",
             "quick_add_enabled",
             "show_missing_indicators",
-            "favorites_integration_enabled",
             "show_unmapped_favorites",
+            # Library sync settings
+            "sync_movies",
             "sync_tv_episodes",
+            "first_run_completed",
+            # Background service settings
+            "enable_background_service",
+            "enable_batch_processing",
+            # Favorites settings
+            "favorites_integration_enabled",
+            # Remote service settings
+            "enable_auto_token_refresh",
+            "use_native_kodi_info",
+            "enable_background_token_refresh",
+            "remote_enabled",
+            "remote_fallback_to_local",
+            # AI Search settings
+            "ai_search_activated",
             # Backup boolean settings
+            "enable_automatic_backups",
             "backup_enabled",
             "backup_include_settings",
             "backup_include_non_library",
             "backup_include_folders",
+            # ShortList integration settings
+            "import_from_shortlist",
+            "clear_before_import",
+            # Legacy/other boolean settings
             "favorites_batch_processing",
             "shortlist_clear_before_import",
             "background_token_refresh",
             "info_hijack_enabled",
-            "ai_search_activated",
             # Initialization state settings
-            "first_run_completed",
             "initial_sync_requested",
         ]
         int_settings = [
