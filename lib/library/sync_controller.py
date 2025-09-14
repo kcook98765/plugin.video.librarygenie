@@ -46,7 +46,9 @@ class SyncController:
             
             # Set initial sync request flag for service to pick up (non-blocking)
             if sync_movies or sync_tv_episodes:
-                self.settings.addon.setSetting('initial_sync_requested', 'true')
+                from ..config.config_manager import get_config
+                config = get_config()
+                config.set('initial_sync_requested', True)
                 self.logger.info("Initial sync requested - service will process in background")
             else:
                 self.logger.info("No sync options enabled in first run setup")
