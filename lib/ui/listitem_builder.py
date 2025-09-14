@@ -14,7 +14,6 @@ import xbmcgui
 import xbmcplugin
 from ..utils.kodi_log import get_kodi_logger
 from ..utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
-from ..config.settings import SettingsManager
 
 
 class ListItemBuilder:
@@ -416,6 +415,7 @@ class ListItemBuilder:
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
+                from ..config.settings import SettingsManager
                 settings_manager = SettingsManager()
                 if settings_manager.get_use_native_kodi_info():
                     li.setProperty("LG.InfoHijack.Armed", "1")
