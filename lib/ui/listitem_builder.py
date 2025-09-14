@@ -472,6 +472,24 @@ class ListItemBuilder:
                 try:
                     li.setArt(art)
                     self.logger.debug("V19 ART APPLY: Successfully called li.setArt() for '%s'", title)
+                    
+                    # V19 DEBUG: Test if the actual image URLs are reachable
+                    kodi_major = get_kodi_major_version()
+                    if kodi_major == 19:
+                        import xbmcvfs
+                        for art_key, art_url in art.items():
+                            if art_url.startswith('image://') and 'http' in art_url:
+                                # Try to access the image through Kodi's VFS to see if it loads
+                                try:
+                                    test_file = xbmcvfs.File(art_url, 'r')
+                                    if test_file.size() > 0:
+                                        self.logger.debug("V19 URL TEST: %s URL is accessible (size: %d bytes)", art_key, test_file.size())
+                                    else:
+                                        self.logger.warning("V19 URL TEST: %s URL returned 0 bytes: %s", art_key, art_url)
+                                    test_file.close()
+                                except Exception as url_e:
+                                    self.logger.warning("V19 URL TEST: %s URL not accessible: %s - Error: %s", art_key, art_url, url_e)
+                    
                 except Exception as e:
                     self.logger.error("V19 ART APPLY: setArt() failed for '%s': %s", title, e)
             else:
@@ -819,17 +837,24 @@ class ListItemBuilder:
                                 
                                 decoded_url = urllib.parse.unquote(inner_url)
                                 
-                                # Reconstruct with proper trailing slash
-                                if art_value.endswith('/'):
-                                    art_value = f"image://{decoded_url}/"
+                                # V19 EXPERIMENT: Try providing direct URLs instead of image:// wrapped
+                                if decoded_url.startswith('http'):
+                                    # Use direct URL for V19
+                                    art_value = decoded_url
+                                    self.logger.debug("V19 ART EXPERIMENT: Using direct URL for %s", art_key)
                                 else:
-                                    art_value = f"image://{decoded_url}"
+                                    # Keep image:// wrapper for local/default images
+                                    if art_value.endswith('/'):
+                                        art_value = f"image://{decoded_url}/"
+                                    else:
+                                        art_value = f"image://{decoded_url}"
                                 
                                 self.logger.debug("V19 ART DEBUG: %s for %s", art_key, item.get('title', 'Unknown'))
                                 self.logger.debug("V19 ART DEBUG:   BEFORE: %s", original_url)
                                 self.logger.debug("V19 ART DEBUG:   AFTER:  %s", art_value)
                                 self.logger.debug("V19 ART DEBUG:   INNER_URL: %s", inner_url)
                                 self.logger.debug("V19 ART DEBUG:   DECODED: %s", decoded_url)
+                                self.logger.debug("V19 ART DEBUG:   DIRECT_URL: %s", "YES" if decoded_url.startswith('http') else "NO")
                             except Exception as e:
                                 self.logger.warning("V19 ART FIX: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
                                 # Keep original value on decode failure
