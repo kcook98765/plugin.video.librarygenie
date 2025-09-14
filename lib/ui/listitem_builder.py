@@ -464,7 +464,18 @@ class ListItemBuilder:
             # Art from art field
             art = self._build_art_dict(item)
             if art:
-                li.setArt(art)
+                self.logger.debug("V19 ART APPLY: About to apply art dict for '%s'", title)
+                self.logger.debug("V19 ART APPLY: Art keys: %s", list(art.keys()))
+                for art_key, art_url in art.items():
+                    if art_url:
+                        self.logger.debug("V19 ART APPLY:   %s = %s", art_key, art_url[:100] + "..." if len(art_url) > 100 else art_url)
+                try:
+                    li.setArt(art)
+                    self.logger.debug("V19 ART APPLY: Successfully called li.setArt() for '%s'", title)
+                except Exception as e:
+                    self.logger.error("V19 ART APPLY: setArt() failed for '%s': %s", title, e)
+            else:
+                self.logger.debug("V19 ART APPLY: No art dictionary for '%s'", title)
 
             # Always set property fallbacks for maximum compatibility
             # These help when setDbId fails or on older versions
@@ -799,6 +810,7 @@ class ListItemBuilder:
                         if is_v19 and art_value.startswith('image://'):
                             try:
                                 import urllib.parse
+                                original_url = art_value
                                 # Extract the URL from image://URL/ format and decode it
                                 if art_value.endswith('/'):
                                     inner_url = art_value[8:-1]  # Remove 'image://' and trailing '/'
@@ -813,7 +825,11 @@ class ListItemBuilder:
                                 else:
                                     art_value = f"image://{decoded_url}"
                                 
-                                self.logger.debug("V19 ART FIX: Decoded %s URL for %s", art_key, item.get('title', 'Unknown'))
+                                self.logger.debug("V19 ART DEBUG: %s for %s", art_key, item.get('title', 'Unknown'))
+                                self.logger.debug("V19 ART DEBUG:   BEFORE: %s", original_url)
+                                self.logger.debug("V19 ART DEBUG:   AFTER:  %s", art_value)
+                                self.logger.debug("V19 ART DEBUG:   INNER_URL: %s", inner_url)
+                                self.logger.debug("V19 ART DEBUG:   DECODED: %s", decoded_url)
                             except Exception as e:
                                 self.logger.warning("V19 ART FIX: Failed to decode %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
                                 # Keep original value on decode failure
