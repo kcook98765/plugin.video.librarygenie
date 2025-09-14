@@ -7,6 +7,7 @@ import time
 
 from ..utils.kodi_log import log, log_info, log_error, log_warning, get_kodi_logger
 from .info_hijack_helpers import open_native_info_fast, restore_container_after_close, _log
+from .navigation_cache import get_cached_info, navigation_action
 
 class InfoHijackManager:
     """
@@ -113,9 +114,9 @@ class InfoHijackManager:
         if dialog_active:
             if not self._native_info_was_open and not self._in_progress:
                 # Check if this is a hijackable dialog with armed item
-                armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
-                listitem_label = xbmc.getInfoLabel('ListItem.Label')
-                container_path = xbmc.getInfoLabel('Container.FolderPath')
+                armed = get_cached_info('ListItem.Property(LG.InfoHijack.Armed)') == '1'
+                listitem_label = get_cached_info('ListItem.Label')
+                container_path = get_cached_info('Container.FolderPath')
                 
                 # Debug: Always log dialog detection with armed state
                 log(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}', container='{(container_path[:50] + '...' if container_path else 'None')}'")
@@ -124,11 +125,11 @@ class InfoHijackManager:
                     log("HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
                     
                     # Get hijack data
-                    listitem_label = xbmc.getInfoLabel('ListItem.Label')
-                    hijack_dbid_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)')
-                    hijack_dbtype_prop = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)')
-                    native_dbid = xbmc.getInfoLabel('ListItem.DBID')
-                    native_dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+                    listitem_label = get_cached_info('ListItem.Label')
+                    hijack_dbid_prop = get_cached_info('ListItem.Property(LG.InfoHijack.DBID)')
+                    hijack_dbtype_prop = get_cached_info('ListItem.Property(LG.InfoHijack.DBType)')
+                    native_dbid = get_cached_info('ListItem.DBID')
+                    native_dbtype = get_cached_info('ListItem.DBTYPE')
                     
                     dbid = hijack_dbid_prop or native_dbid
                     dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
@@ -148,7 +149,8 @@ class InfoHijackManager:
                             # 🚪 STEP 2: CLOSE CURRENT DIALOG
                             log("HIJACK STEP 2: CLOSING CURRENT DIALOG")
                             initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
-                            xbmc.executebuiltin('Action(Back)')
+                            with navigation_action():
+                                xbmc.executebuiltin('Action(Back)')
                             
                             # Monitor for dialog actually closing instead of fixed sleep
                             if self._wait_for_dialog_close("Step 2 dialog close", initial_dialog_id, max_wait=1.0):
@@ -200,7 +202,7 @@ class InfoHijackManager:
                     if self._is_native_info_hydrated():
                         self._native_info_was_open = True
                         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-                        listitem_title = xbmc.getInfoLabel('ListItem.Title')
+                        listitem_title = get_cached_info('ListItem.Title')
                         self._logger.debug("HIJACK: Non-armed native info detected - Dialog ID: %s, Title: '%s'", current_dialog_id, listitem_title)
             return
 
@@ -208,19 +210,20 @@ class InfoHijackManager:
         if not self._in_progress:
             # Debug: Periodically check for armed items in container (less frequent)
             if int(current_time * 2) % 100 == 0:  # Every 50 seconds instead of 5
-                container_path = xbmc.getInfoLabel('Container.FolderPath')
+                container_path = get_cached_info('Container.FolderPath')
                 if 'plugin.video.librarygenie' in container_path:
-                    current_item = xbmc.getInfoLabel('Container.CurrentItem')
-                    num_items = xbmc.getInfoLabel('Container.NumItems')
-                    armed = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)') == '1'
+                    current_item = get_cached_info('Container.CurrentItem')
+                    num_items = get_cached_info('Container.NumItems')
+                    armed = get_cached_info('ListItem.Property(LG.InfoHijack.Armed)') == '1'
                     if armed:  # Only log when armed items are found
                         self._logger.debug("HIJACK: Armed item detected - %s/%s", current_item, num_items)
 
     def _is_native_info_hydrated(self) -> bool:
         """Check if native info dialog has native-only labels populated"""
         # Look for indicators that Kodi has populated the native dialog
-        duration = xbmc.getInfoLabel('ListItem.Duration')
-        codec = xbmc.getInfoLabel('ListItem.VideoCodec')
+        duration = get_cached_info('ListItem.Duration')
+        codec = get_cached_info('ListItem.VideoCodec')
+        # Keep artwork check real-time as it may be visibility-dependent
         has_artwork = xbmc.getCondVisibility('!String.IsEmpty(ListItem.Art(poster))')
         
         return bool(duration or codec or has_artwork)
@@ -242,8 +245,8 @@ class InfoHijackManager:
             self._wait_for_animations_to_complete("after dialog close")
             
             # Check current state after dialog close
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
-            current_window = xbmc.getInfoLabel("System.CurrentWindow")
+            current_path = get_cached_info("Container.FolderPath")
+            current_window = get_cached_info("System.CurrentWindow")
             self._logger.debug("HIJACK: Current state after dialog close - Path: '%s', Window: '%s'", current_path, current_window)
             
             # Check if we're on our own LibraryGenie hijack XSP content that needs navigation
@@ -255,12 +258,13 @@ class InfoHijackManager:
                 self._logger.debug("HIJACK: Executing back command to exit XSP")
                 
                 # Single back command when animations are complete
-                xbmc.executebuiltin('Action(Back)')
+                with navigation_action():
+                    xbmc.executebuiltin('Action(Back)')
                 
                 # Brief wait for navigation
                 self._wait_for_navigation_complete("XSP exit")
                 
-                final_path = xbmc.getInfoLabel("Container.FolderPath")
+                final_path = get_cached_info("Container.FolderPath")
                 if final_path and 'plugin.video.librarygenie' in final_path:
                     self._logger.debug("HIJACK: ✅ Successfully returned to plugin: '%s'", final_path)
             else:
