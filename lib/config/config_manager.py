@@ -405,6 +405,8 @@ class ConfigManager:
         int_settings = [
             "favorites_scan_interval_minutes",
             "search_page_size", "search_history_days",
+            # Sync settings
+            "last_sync_time", "sync_frequency_hours",
             # Phase 3: Advanced settings
             "jsonrpc_page_size", "jsonrpc_timeout_seconds",
             "db_batch_size", "db_busy_timeout_ms",
