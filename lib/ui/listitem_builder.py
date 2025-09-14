@@ -7,6 +7,7 @@ Builds ListItems with proper metadata and resume information
 """
 
 import json
+import re
 import urllib.parse
 from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
@@ -796,52 +797,49 @@ class ListItemBuilder:
                     if art_key in item_art and item_art[art_key]:
                         art_value = item_art[art_key]
                         
-                        # Fix URL-encoded image:// URLs for V19 only
-                        # Maintain proper image:// format to preserve Kodi's caching system
+                        # V19 Fix: Normalize to canonical format image://<percent-encoded-URL>/
+                        # Kodi V19 internal artwork system REQUIRES URLs to remain encoded WITH trailing slash
                         if is_v19 and art_value and art_value.startswith('image://'):
                             try:
                                 original_url = art_value
                                 
-                                # V19 has issues with URL-encoded image:// URLs and trailing slashes
-                                # Extract and process the inner URL
+                                # Step 1: Extract inner URL (everything after 'image://')
                                 if len(art_value) > 8:  # Must have content after 'image://'
-                                    # Extract the URL from image://URL/ format
-                                    if art_value.endswith('/'):
-                                        inner_url = art_value[8:-1]  # Remove 'image://' and trailing '/'
-                                    else:
-                                        inner_url = art_value[8:]    # Remove 'image://' (no trailing slash)
+                                    inner_url = art_value[8:]
                                     
-                                    # Only decode if it looks URL-encoded (contains % characters)
-                                    if '%' in inner_url:
-                                        try:
-                                            decoded_url = urllib.parse.unquote(inner_url)
-                                            # Validate the decoded URL isn't empty or malformed
-                                            if decoded_url and not decoded_url.isspace():
-                                                # V19 Fix: Always use image:// wrapper WITHOUT trailing slash
-                                                # V19's image loader truncates URLs with trailing slashes
-                                                art_value = f"image://{decoded_url}"
-                                                
-                                                # V19 Debug: Log the transformation
-                                                if original_url != art_value:
-                                                    self.logger.debug("V19 ART FIX: %s for %s", art_key, item.get('title', 'Unknown'))
-                                                    self.logger.debug("V19 ART FIX:   BEFORE: %s", original_url)
-                                                    self.logger.debug("V19 ART FIX:   AFTER:  %s", art_value)
-                                                    self.logger.debug("V19 ART FIX:   DECODED INNER: %s", decoded_url)
-                                            else:
-                                                self.logger.warning("V19 ART: Decoded URL is empty for %s: %s", art_key, inner_url)
-                                        except Exception as decode_error:
-                                            self.logger.warning("V19 ART: URL decode failed for %s: %s", art_key, decode_error)
+                                    # Step 2: Remove ALL trailing slashes to get clean inner content
+                                    inner_content = inner_url.rstrip('/')
+                                    
+                                    if inner_content:
+                                        # Step 3: Check if already fully percent-encoded
+                                        # Must have %XX patterns and NO unescaped reserved chars (:,/,?)
+                                        has_percent_encoding = bool(re.search(r'%[0-9A-Fa-f]{2}', inner_content))
+                                        has_unescaped_chars = bool(re.search(r'[:/\?#\[\]@!$&\'()*+,;= ]', inner_content))
+                                        
+                                        if has_percent_encoding and not has_unescaped_chars:
+                                            # Already fully encoded - just ensure canonical trailing slash
+                                            normalized_url = f"image://{inner_content}/"
+                                        else:
+                                            # Step 4: Not fully encoded - encode ALL characters for V19
+                                            encoded_inner = urllib.parse.quote(inner_content, safe='')
+                                            normalized_url = f"image://{encoded_inner}/"
+                                        
+                                        # Step 5: Apply normalized URL and log changes
+                                        art_value = normalized_url
+                                        
+                                        if original_url != art_value:
+                                            self.logger.debug("V19 ART NORMALIZE: %s for %s", art_key, item.get('title', 'Unknown'))
+                                            self.logger.debug("V19 ART NORMALIZE:   BEFORE: %s", original_url)
+                                            self.logger.debug("V19 ART NORMALIZE:   AFTER:  %s", art_value)
+                                            self.logger.debug("V19 ART NORMALIZE:   HAD_ENCODING: %s", "YES" if has_percent_encoding else "NO")
+                                            self.logger.debug("V19 ART NORMALIZE:   FINAL_SLASH: %s", "YES" if art_value.endswith('/') else "NO")
                                     else:
-                                        # No URL encoding detected, but still ensure no trailing slash for V19
-                                        if art_value.endswith('/'):
-                                            art_value = art_value[:-1]
-                                            if original_url != art_value:
-                                                self.logger.debug("V19 ART FIX: Removed trailing slash from %s: %s", art_key, art_value)
+                                        self.logger.warning("V19 ART: Empty inner content in %s URL: %s", art_key, art_value)
                                 else:
-                                    self.logger.warning("V19 ART: Invalid image:// URL format: %s", art_value)
+                                    self.logger.warning("V19 ART: Invalid image:// URL format for %s: %s", art_key, art_value)
                                         
                             except Exception as e:
-                                self.logger.warning("V19 ART: Failed to process %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
+                                self.logger.error("V19 ART: Failed to normalize %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
                                 # Keep original value on processing failure
                         
                         art[art_key] = art_value
