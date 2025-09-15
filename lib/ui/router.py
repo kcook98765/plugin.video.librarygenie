@@ -268,14 +268,24 @@ class Router:
                 if not handler:
                     self.logger.debug("No handler found for action '%s', will show main menu (redirecting to Lists)", action)
                     
-                    # ROUTER TIMING: Handler factory and main menu loading
-                    factory_start_time = time.time()
+                    # ROUTER TIMING: Handler factory import
+                    import_start_time = time.time()
                     from .handler_factory import get_handler_factory
+                    import_end_time = time.time()
+                    self.logger.info(f"ROUTER: Handler factory import took {import_end_time - import_start_time:.3f} seconds")
+                    
+                    # ROUTER TIMING: Factory instance creation
+                    factory_creation_start_time = time.time()
                     factory = get_handler_factory()
                     factory.context = context
+                    factory_creation_end_time = time.time()
+                    self.logger.info(f"ROUTER: Handler factory creation and context setup took {factory_creation_end_time - factory_creation_start_time:.3f} seconds")
+                    
+                    # ROUTER TIMING: Lists handler retrieval
+                    handler_retrieval_start_time = time.time()
                     lists_handler = factory.get_lists_handler()
-                    factory_end_time = time.time()
-                    self.logger.info(f"ROUTER: Handler factory and lists handler creation took {factory_end_time - factory_start_time:.3f} seconds")
+                    handler_retrieval_end_time = time.time()
+                    self.logger.info(f"ROUTER: Lists handler retrieval took {handler_retrieval_end_time - handler_retrieval_start_time:.3f} seconds")
                     
                     # ROUTER TIMING: Main menu handler execution
                     handler_start_time = time.time()

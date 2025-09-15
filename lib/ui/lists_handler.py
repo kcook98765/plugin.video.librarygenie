@@ -29,16 +29,35 @@ class ListsHandler:
     """Handles lists operations (refactored to use specialized modules)"""
 
     def __init__(self, context: PluginContext):
+        # CONSTRUCTOR TIMING: ListsHandler constructor start
+        constructor_start_time = time.time()
+        
+        # CONSTRUCTOR TIMING: Basic initialization
+        basic_init_start_time = time.time()
         self.context = context
         self.logger = get_kodi_logger('lib.ui.lists_handler')
         self.query_manager = context.query_manager
         self.storage_manager = context.storage_manager
-        self.breadcrumb_helper = get_breadcrumb_helper()
+        basic_init_end_time = time.time()
+        self.logger.info(f"CONSTRUCTOR: Basic initialization took {basic_init_end_time - basic_init_start_time:.3f} seconds")
         
-        # Initialize specialized operation modules
+        # CONSTRUCTOR TIMING: Breadcrumb helper
+        breadcrumb_start_time = time.time()
+        self.breadcrumb_helper = get_breadcrumb_helper()
+        breadcrumb_end_time = time.time()
+        self.logger.info(f"CONSTRUCTOR: Breadcrumb helper initialization took {breadcrumb_end_time - breadcrumb_start_time:.3f} seconds")
+        
+        # CONSTRUCTOR TIMING: Specialized operation modules
+        modules_start_time = time.time()
         self.list_ops = ListOperations(context)
         self.folder_ops = FolderOperations(context)
         self.import_export = ImportExportHandler(context)
+        modules_end_time = time.time()
+        self.logger.info(f"CONSTRUCTOR: Operation modules initialization took {modules_end_time - modules_start_time:.3f} seconds")
+        
+        # CONSTRUCTOR TIMING: Complete constructor
+        constructor_end_time = time.time()
+        self.logger.info(f"CONSTRUCTOR: ✅ Complete ListsHandler constructor took {constructor_end_time - constructor_start_time:.3f} seconds")
 
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
