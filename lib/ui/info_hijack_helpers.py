@@ -233,6 +233,17 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
     t_focus_start = time.perf_counter()
 
     try:
+        # Pre-check: If already focused on target item (not parent ".."), no navigation needed
+        current_item_label = get_cached_info("Container.ListItem().Label")
+        _log("focus_list_manual: Current focused item label = '%s'", xbmc.LOGDEBUG, current_item_label)
+        
+        if current_item_label != ".." and current_item_label.strip() != "..":
+            t_focus_end = time.perf_counter()
+            _log("focus_list_manual: Already focused on target item '%s' - no navigation needed (%.3fs)", xbmc.LOGDEBUG, current_item_label, t_focus_end - t_focus_start)
+            return True
+        
+        _log("focus_list_manual: Currently on parent item '%s' - navigation required", xbmc.LOGDEBUG, current_item_label)
+        
         view_mode = get_cached_info("Container.Viewmode").lower().strip()
         _log("focus_list_manual: Detected viewmode = '%s'", xbmc.LOGDEBUG, view_mode)
         
@@ -685,30 +696,18 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep5_end = time.perf_counter()
         logger.debug("%s ⏱️ SUBSTEP 5 TIMING: %.3fs", LOG_PREFIX, substep5_end - substep5_start)
         
-        # 📍 SUBSTEP 6: Check current item and navigate away from parent if needed
+        # 📍 SUBSTEP 6: Verify we're focused on target item (parent navigation now handled in focus_list_manual)
         substep6_start = time.perf_counter()
-        logger.debug("%s SUBSTEP 6: Checking current item and navigating to movie", LOG_PREFIX)
-        current_item_before = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-        current_item_label = xbmc.getInfoLabel('ListItem.Label')
+        logger.debug("%s SUBSTEP 6: Verifying focus on target item", LOG_PREFIX)
         
-        # Check if we're focused on the parent item ".."
-        if current_item_label == ".." or current_item_label.strip() == "..":
-            logger.debug("%s SUBSTEP 6: Currently on parent item '%s', navigating to next item", LOG_PREFIX, current_item_label)
-            xbmc.executebuiltin('Action(Down)')  # Move to next item
-            xbmc.sleep(150)  # Wait for navigation
-            current_item_after = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
-            new_label = xbmc.getInfoLabel('ListItem.Label')
-            logger.debug("%s SUBSTEP 6: Moved from parent item %s to item %s, new label: '%s'", LOG_PREFIX, current_item_before, current_item_after, new_label)
-        else:
-            logger.debug("%s SUBSTEP 6: Already on target item '%s' at position %s", LOG_PREFIX, current_item_label, current_item_before)
-        
-        # Verify we're now on the correct item
+        # Get current item details for verification
         final_item_label = xbmc.getInfoLabel('ListItem.Label')
         final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
         final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
         
+        # Verify we're not on parent item (should be handled by optimized focus_list_manual)
         if final_item_label == ".." or final_item_label.strip() == "..":
-            logger.warning("%s ❌ SUBSTEP 6 FAILED: Still on parent item after navigation attempt", LOG_PREFIX)
+            logger.warning("%s ❌ SUBSTEP 6 FAILED: Still on parent item - focus_list_manual should have handled this", LOG_PREFIX)
             return False
         
         logger.debug("%s SUBSTEP 6 COMPLETE: On target item - Position: %s, Label: '%s', DBID: %s", LOG_PREFIX, final_item_position, final_item_label, final_item_dbid)
