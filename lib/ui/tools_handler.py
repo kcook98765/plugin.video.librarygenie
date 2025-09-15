@@ -6,57 +6,14 @@ LibraryGenie - Tools Handler
 Modular tools and options handler for different list types
 """
 
-import time
-
-# TOOLS_HANDLER TIMING: Time each import to find the 100ms bottleneck
-print("[LibraryGenie] Starting tools_handler import timing...")
-
-import_start = time.time()
 import xbmcgui
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: xbmcgui import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from datetime import datetime
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: datetime import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from typing import Dict, Any, Optional
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: typing import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .plugin_context import PluginContext
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: PluginContext import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .response_types import DialogResponse
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: DialogResponse import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .localization_helper import L
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: localization_helper import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from ..utils.kodi_log import get_kodi_logger
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: kodi_log import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
-from ..import_export.export_engine import get_export_engine
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: export_engine import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from ..kodi.favorites_manager import get_phase4_favorites_manager
-import_end = time.time()
-print(f"[LibraryGenie] TOOLS_HANDLER: favorites_manager import took {import_end - import_start:.3f} seconds")
-
-print("[LibraryGenie] tools_handler import timing complete.")
 
 
 class ToolsHandler:
@@ -724,7 +681,8 @@ class ToolsHandler:
             if selected_option == -1 or selected_option == len(export_options) - 1:  # Cancel
                 return DialogResponse(success=False)
 
-            # Get export engine
+            # Get export engine (lazy import)
+            from ..import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
             
             if selected_option == 0:
@@ -844,7 +802,8 @@ class ToolsHandler:
             # Determine export scope
             include_subfolders = (selected_option == 1)  # Branch export
 
-            # Get export engine
+            # Get export engine (lazy import)
+            from ..import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
 
             # Run contextual export with folder filtering
@@ -1485,7 +1444,8 @@ class ToolsHandler:
     def _export_all_lists(self, context: PluginContext) -> DialogResponse:
         """Export all lists and folders"""
         try:
-            # Get export engine
+            # Get export engine (lazy import)
+            from ..import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
 
             # Get total count for confirmation
