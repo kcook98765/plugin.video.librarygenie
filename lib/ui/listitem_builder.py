@@ -159,220 +159,38 @@ class ListItemBuilder:
     # ----- normalization -----
     def _normalize_item(self, src: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Canonicalize a raw item dict to the lightweight, version-safe shape
-        consumed by this builder.
+        OPTIMIZED: Trust canonical data from QueryManager, only process non-canonical items.
+        This eliminates double normalization for optimal performance.
         """
+        # Check if this is already canonical data from QueryManager
+        if self._is_canonical_item(src):
+            # Canonical items are already properly formatted - pass through directly
+            return src
+
+        # Only do minimal processing for non-canonical items (action items, etc.)
         out: Dict[str, Any] = {}
-
-        # media type - be more specific for library items
-        media_type = (src.get('media_type') or src.get('type') or 'movie').lower()
         
-
-        # FIXED: Trust database media_type first, then use inference rules
-        # Preserve 'none' media type for action items - don't force to 'movie'
-        if media_type == 'none':
-            out['media_type'] = 'none'
-        # Trust database media_type if it's reliable (episode/movie)
-        elif media_type in ('episode', 'movie'):
-            out['media_type'] = media_type
-        # Episode detection: check for episode-specific fields or episodeid
-        elif (src.get('episodeid') or src.get('episode') is not None or 
-              (src.get('tvshowtitle') and src.get('season') is not None)):
-            media_type = 'episode'
-            out['media_type'] = media_type
-        # Movie detection: movieid or kodi_id without episode indicators
-        elif (src.get('movieid') or 
-              (src.get('kodi_id') and not any([src.get('tvshowtitle'), src.get('season'), src.get('episode')]))):
-            media_type = 'movie'
-            out['media_type'] = media_type
-        elif media_type not in ('tvshow', 'none'):
-            # Default fallback for unknown types (but preserve 'tvshow')
-            media_type = 'movie'
-            out['media_type'] = media_type
-        else:
-            out['media_type'] = media_type
-
-        # kodi id (only for movie/episode)
-        kodi_id = None
-        if media_type == 'movie':
-            kodi_id = src.get('kodi_id') or src.get('movieid')
-        elif media_type == 'episode':
-            kodi_id = src.get('kodi_id') or src.get('episodeid')
-        # Do NOT infer from generic 'id' to avoid misclassification
-        # Keep original logic but fix the flawed condition
-        if kodi_id is not None:
-            if isinstance(kodi_id, (int, float)):
-                out['kodi_id'] = int(kodi_id)
-            elif isinstance(kodi_id, str) and kodi_id.strip().isdigit():
-                # Fix: Convert numeric strings to integers 
-                out['kodi_id'] = int(kodi_id.strip())
-            else:
-                out['kodi_id'] = kodi_id  # Keep original value
-        else:
-            out['kodi_id'] = None
-
-        # identity / titles
-        out['title'] = src.get('title') or src.get('label') or 'Unknown'
-        if src.get('originaltitle') and src.get('originaltitle') != out['title']:
-            out['originaltitle'] = src.get('originaltitle')
-        if src.get('sorttitle'):
-            out['sorttitle'] = src.get('sorttitle')
-
-        # year
-        try:
-            year_value = src.get('year')
-            out['year'] = int(year_value) if year_value is not None else None
-        except (ValueError, TypeError):
-            out['year'] = None
-
-        # genre -> comma string
-        genre = src.get('genre')
-        if isinstance(genre, list):
-            out['genre'] = ", ".join([g for g in genre if g])
-        elif isinstance(genre, str):
-            out['genre'] = genre
-        # else omit
-
-        # plot/outline
-        plot = src.get('plot') or src.get('plotoutline') or src.get('description')
-        if plot:
-            out['plot'] = plot
-
-        # rating/votes/mpaa
-        try:
-            rating_value = src.get('rating')
-            if rating_value is not None:
-                out['rating'] = float(rating_value)
-        except (ValueError, TypeError):
-            pass
-        try:
-            votes_value = src.get('votes')
-            if votes_value is not None:
-                out['votes'] = int(votes_value)
-        except (ValueError, TypeError):
-            pass
-        if src.get('mpaa'):
-            out['mpaa'] = src['mpaa']
-
-        # duration -> minutes (Matrix-safe)
-        minutes = None
-        if src.get('duration_minutes') is not None:
-            # caller already provided minutes
-            try:
-                duration_minutes_value = src.get('duration_minutes')
-                minutes = int(duration_minutes_value) if duration_minutes_value is not None else None
-            except (ValueError, TypeError):
-                minutes = None
-        elif src.get('runtime') is not None:
-            # runtime commonly minutes
-            try:
-                runtime_value = src.get('runtime')
-                minutes = int(runtime_value) if runtime_value is not None else None
-            except (ValueError, TypeError):
-                minutes = None
-        elif src.get('duration') is not None:
-            # 'duration' may be minutes or seconds; best effort:
-            try:
-                duration_value = src.get('duration')
-                d = int(duration_value) if duration_value is not None else 0
-                minutes = d // 60 if d > 300 else d
-            except (ValueError, TypeError):
-                minutes = None
-        if minutes and minutes > 0:
-            out['duration_minutes'] = minutes
-
-        # studio / country
-        if src.get('studio'):
-            out['studio'] = src['studio'] if isinstance(src['studio'], str) else (src['studio'][0] if isinstance(src['studio'], list) and src['studio'] else None)
-        if src.get('country'):
-            out['country'] = src['country'] if isinstance(src['country'], str) else (src['country'][0] if isinstance(src['country'], list) and src['country'] else None)
-
-        # dates
-        out['premiered'] = src.get('premiered') or src.get('dateadded')
-
-        # episode extras
-        if media_type == 'episode':
-            if src.get('tvshowtitle') or src.get('showtitle'):
-                out['tvshowtitle'] = src.get('tvshowtitle') or src.get('showtitle')
-            for key in ('season', 'episode'):
-                if src.get(key) is not None:
-                    try:
-                        key_value = src.get(key)
-                        out[key] = int(key_value) if key_value is not None else None
-                    except (ValueError, TypeError):
-                        pass
-            if src.get('aired'):
-                out['aired'] = src['aired']
-            if src.get('playcount') is not None:
-                try:
-                    playcount_value = src.get('playcount')
-                    out['playcount'] = int(playcount_value) if playcount_value is not None else None
-                except (ValueError, TypeError):
-                    pass
-            if src.get('lastplayed'):
-                out['lastplayed'] = src['lastplayed']
-            # Helpful if present for videodb path construction
-            if src.get('tvshowid') is not None:
-                try:
-                    tvshowid_value = src.get('tvshowid')
-                    out['tvshowid'] = int(tvshowid_value) if tvshowid_value is not None else None
-                except (ValueError, TypeError):
-                    pass
-
-        # artwork - only from art JSON field now
-        art_blob = src.get('art')
-        if art_blob:
-            try:
-                art_dict = json.loads(art_blob) if isinstance(art_blob, str) else art_blob
-                if isinstance(art_dict, dict):
-                    # Preserve the full art dictionary for _build_art_dict
-                    out['art'] = art_blob  # Keep original JSON string or dict
-                    # Also extract individual keys for backward compatibility
-                    for k in ('thumb', 'banner', 'landscape', 'clearlogo'):
-                        v = art_dict.get(k)
-                        if v:
-                            out[k] = v
-                else:
-                    # Even if parsing failed, preserve the original art data
-                    out['art'] = art_blob
-            except Exception:
-                # non-fatal, but still preserve original art data
-                out['art'] = art_blob
-
-        # resume (seconds)
-        resume = src.get('resume') or {}
-        pos_value = resume.get('position_seconds') or resume.get('position') or 0
-        tot_value = resume.get('total_seconds') or resume.get('total') or 0
-        try:
-            pos = int(pos_value) if pos_value is not None else 0
-        except (ValueError, TypeError):
-            pos = 0
-        try:
-            tot = int(tot_value) if tot_value is not None else 0
-        except (ValueError, TypeError):
-            tot = 0
-        out['resume'] = {'position_seconds': pos, 'total_seconds': tot}
-
-        # preserve source if provided, can be useful for logging/routes
-        if src.get('source'):
-            out['source'] = src['source']
-
-        # preserve action for action items
-        if src.get('action'):
-            out['action'] = src['action']
-
-        # preserve ids for context menu
-        out['id'] = src.get('id')
-        out['media_item_id'] = src.get('media_item_id')
-        out['list_id'] = src.get('list_id')
-
-        # CRITICAL: Preserve file path fields for native Play button support
-        if src.get('file_path'):
-            out['file_path'] = src['file_path']
-        if src.get('play'):
-            out['play'] = src['play']
-
+        # Basic fields for non-canonical items
+        out['media_type'] = src.get('media_type', src.get('type', 'none'))
+        out['title'] = src.get('title', src.get('label', 'Unknown'))
+        
+        # Preserve action and other special fields
+        for key in ('action', 'id', 'media_item_id', 'list_id'):
+            if src.get(key):
+                out[key] = src[key]
+                
         return out
+
+    def _is_canonical_item(self, item: Dict[str, Any]) -> bool:
+        """Check if item is already canonical (processed by QueryManager)"""
+        # Canonical items have specific fields from QueryManager normalization
+        canonical_indicators = [
+            'duration_minutes',  # QueryManager converts runtime to this
+            'created_at',        # QueryManager preserves timestamps
+            'file_path',         # QueryManager preserves file paths
+            'order_score'        # QueryManager includes list ordering
+        ]
+        return any(item.get(field) is not None for field in canonical_indicators)
 
     # ----- library & external builders -----
     def _create_library_listitem(self, item: Dict[str, Any]) -> Optional[tuple]:
