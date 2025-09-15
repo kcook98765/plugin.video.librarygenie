@@ -7,6 +7,7 @@ Provides lazy instantiation of handlers to improve plugin startup performance
 """
 
 from typing import Dict, Optional, Any, Callable
+import time
 from ..utils.kodi_log import get_kodi_logger
 
 
@@ -38,8 +39,17 @@ class HandlerFactory:
     def get_lists_handler(self):
         """Get lists handler instance"""
         if 'lists' not in self._handler_cache:
+            # FACTORY TIMING: Lists handler import
+            import_start_time = time.time()
             from .lists_handler import ListsHandler
+            import_end_time = time.time()
+            self.logger.info(f"FACTORY: ListsHandler import took {import_end_time - import_start_time:.3f} seconds")
+            
+            # FACTORY TIMING: Lists handler instantiation
+            instantiation_start_time = time.time()
             self._handler_cache['lists'] = ListsHandler(self.context)
+            instantiation_end_time = time.time()
+            self.logger.info(f"FACTORY: ListsHandler instantiation took {instantiation_end_time - instantiation_start_time:.3f} seconds")
         return self._handler_cache['lists']
 
     def get_favorites_handler(self):
@@ -72,5 +82,11 @@ def get_handler_factory() -> HandlerFactory:
     """Get the global handler factory instance"""
     global _handler_factory
     if _handler_factory is None:
+        # FACTORY TIMING: HandlerFactory creation
+        factory_creation_start_time = time.time()
         _handler_factory = HandlerFactory()
+        factory_creation_end_time = time.time()
+        # Use direct logger since factory logger might not be ready yet
+        logger = get_kodi_logger('lib.ui.handler_factory.global')
+        logger.info(f"FACTORY: HandlerFactory creation took {factory_creation_end_time - factory_creation_start_time:.3f} seconds")
     return _handler_factory
