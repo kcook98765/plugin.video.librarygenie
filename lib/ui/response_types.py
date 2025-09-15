@@ -6,39 +6,24 @@ LibraryGenie - Response Types
 Standardized response objects for UI handlers
 """
 
-import time
-
-# RESPONSE_TYPES TIMING: Time each import to find the 45ms bottleneck
-print("[LibraryGenie] Starting response_types import timing...")
-
-import_start = time.time()
 from typing import List, Dict, Any, Optional, Union
-import_end = time.time()
-print(f"[LibraryGenie] RESPONSE_TYPES: typing imports took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
-from dataclasses import dataclass
-import_end = time.time()
-print(f"[LibraryGenie] RESPONSE_TYPES: dataclass import took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .localization import L
-import_end = time.time()
-print(f"[LibraryGenie] RESPONSE_TYPES: localization import took {import_end - import_start:.3f} seconds")
-
-print("[LibraryGenie] response_types import timing complete.")
 
 
-@dataclass
 class DirectoryResponse:
     """Response for directory listing handlers"""
-    items: List[Dict[str, Any]]
-    success: bool = True
-    cache_to_disc: bool = False  # Default to no caching for dynamic content
-    update_listing: bool = False
-    sort_methods: Optional[List[int]] = None
-    content_type: str = "movies"
-    allow_caching: bool = False  # Explicit flag to enable caching for truly static content
+    
+    def __init__(self, items: List[Dict[str, Any]], success: bool = True, 
+                 cache_to_disc: bool = False, update_listing: bool = False,
+                 sort_methods: Optional[List[int]] = None, content_type: str = "movies",
+                 allow_caching: bool = False):
+        self.items = items
+        self.success = success
+        self.cache_to_disc = cache_to_disc  # Default to no caching for dynamic content
+        self.update_listing = update_listing
+        self.sort_methods = sort_methods
+        self.content_type = content_type
+        self.allow_caching = allow_caching  # Explicit flag to enable caching for truly static content
 
     def to_kodi_params(self) -> Dict[str, Union[bool, List[int], None]]:
         """Convert to parameters for xbmcplugin.endOfDirectory"""
@@ -56,21 +41,25 @@ class DirectoryResponse:
         return params
 
 
-@dataclass
 class DialogResponse:
     """Response type for dialog operations"""
-    success: bool = False
-    message: str = ""
-    refresh_needed: bool = False
-    navigate_to_lists: bool = False
-    navigate_to_folder: Optional[int] = None
-    navigate_to_main: bool = False
-    navigate_to_favorites: bool = False
-    navigate_on_failure: Optional[str] = None
-    is_settings_operation: bool = False
-
-    def __post_init__(self):
-        """Debug post-initialization"""
+    
+    def __init__(self, success: bool = False, message: str = "", 
+                 refresh_needed: bool = False, navigate_to_lists: bool = False,
+                 navigate_to_folder: Optional[int] = None, navigate_to_main: bool = False,
+                 navigate_to_favorites: bool = False, navigate_on_failure: Optional[str] = None,
+                 is_settings_operation: bool = False):
+        self.success = success
+        self.message = message
+        self.refresh_needed = refresh_needed
+        self.navigate_to_lists = navigate_to_lists
+        self.navigate_to_folder = navigate_to_folder
+        self.navigate_to_main = navigate_to_main
+        self.navigate_to_favorites = navigate_to_favorites
+        self.navigate_on_failure = navigate_on_failure
+        self.is_settings_operation = is_settings_operation
+        
+        # Debug logging (moved from __post_init__)
         try:
             from ..utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.response_types')
@@ -93,13 +82,15 @@ class DialogResponse:
                 pass
 
 
-@dataclass
 class ActionResponse:
     """Response for action handlers (play, add to list, etc.)"""
-    success: bool
-    action_performed: str
-    refresh_needed: bool = False
-    notification_message: Optional[str] = None
+    
+    def __init__(self, success: bool, action_performed: str, 
+                 refresh_needed: bool = False, notification_message: Optional[str] = None):
+        self.success = success
+        self.action_performed = action_performed
+        self.refresh_needed = refresh_needed
+        self.notification_message = notification_message
 
     def handle_result(self, context):
         """Handle the action result with appropriate user feedback"""
@@ -124,12 +115,14 @@ class ActionResponse:
                 pass
 
 
-@dataclass
 class ErrorResponse:
     """Response for error conditions"""
-    error_message: str
-    error_code: Optional[str] = None
-    show_to_user: bool = True
+    
+    def __init__(self, error_message: str, error_code: Optional[str] = None, 
+                 show_to_user: bool = True):
+        self.error_message = error_message
+        self.error_code = error_code
+        self.show_to_user = show_to_user
 
     def handle_error(self, context):
         """Handle error with appropriate user feedback"""
@@ -147,7 +140,6 @@ class ErrorResponse:
                 pass
 
 
-@dataclass
 class ListResponse:
     """Response data for list-based UI actions"""
 

@@ -11,66 +11,19 @@ import time
 import xbmcplugin
 import xbmcgui
 
-# IMPORT TIMING: Time each import individually to find the 53ms bottleneck
-print("[LibraryGenie] Starting individual import timing...")
-
-import_start = time.time()
 from .plugin_context import PluginContext
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: PluginContext took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .response_types import DirectoryResponse, DialogResponse
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: response_types took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .localization import L
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: localization took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .breadcrumb_helper import get_breadcrumb_helper
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: breadcrumb_helper took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from ..utils.kodi_log import get_kodi_logger
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: kodi_log took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from ..data.query_manager import get_query_manager
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: query_manager took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .listitem_renderer import get_listitem_renderer
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: listitem_renderer took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from ..utils.kodi_version import get_kodi_major_version
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: kodi_version took {import_end - import_start:.3f} seconds")
 
 # Import the specialized operation modules
-import_start = time.time()
 from .list_operations import ListOperations
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: list_operations took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .folder_operations import FolderOperations
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: folder_operations took {import_end - import_start:.3f} seconds")
-
-import_start = time.time()
 from .import_export_handler import ImportExportHandler
-import_end = time.time()
-print(f"[LibraryGenie] IMPORT: import_export_handler took {import_end - import_start:.3f} seconds")
-
-print("[LibraryGenie] Individual import timing complete.")
 
 
 class ListsHandler:
