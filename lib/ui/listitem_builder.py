@@ -226,32 +226,28 @@ class ListItemBuilder:
 
             li = xbmcgui.ListItem(label=display_label)
 
-            # Use actual file path if available for direct playback, otherwise fallback to videodb:// URL
-            file_path = item.get('file_path') or item.get('play')
-            
-            
-            if file_path and file_path.strip():
-                # Use the actual file path for direct playback - enables native "Play" context menu
-                li.setPath(file_path)
-                self.logger.debug("LIB ITEM: Using direct file path for '%s': %s", title, file_path)
-                # Store the file path as the URL for the return value
-                playback_url = file_path
-            else:
-                # Fallback to videodb:// URL for native library integration
-                if kodi_id is None:
-                    self.logger.error("LIB ITEM: Cannot build videodb URL - kodi_id is None for '%s'", title)
-                    return None
+            # Prioritize videodb:// URLs for library items to eliminate background processing delays,
+            # fallback to direct file paths only when videodb isn't available
+            if kodi_id is not None and self._is_valid_library_id(kodi_id):
+                # Use videodb:// URL for native library integration (eliminates 4+ second delays)
                 videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
                 li.setPath(videodb_url)
-                self.logger.debug("LIB ITEM: Using videodb URL for '%s': %s", title, videodb_url)
+                self.logger.debug("LIB ITEM: Using optimized videodb URL for '%s': %s", title, videodb_url)
                 playback_url = videodb_url
-
-            # Set IsPlayable property based on what type of URL we're using
-            if file_path and file_path.strip():
-                # For direct file paths, we need to explicitly set IsPlayable=true for context menu support
-                li.setProperty('IsPlayable', 'true')
-                self.logger.debug("LIB ITEM: Set IsPlayable=true for direct file path: '%s'", title)
-            # For videodb:// URLs, Kodi handles IsPlayable automatically
+                # For videodb:// URLs, Kodi handles IsPlayable automatically
+            else:
+                # Fallback to direct file path when videodb isn't available
+                file_path = item.get('file_path') or item.get('play')
+                if file_path and file_path.strip():
+                    li.setPath(file_path)
+                    self.logger.debug("LIB ITEM: Using fallback file path for '%s': %s", title, file_path)
+                    playback_url = file_path
+                    # For direct file paths, we need to explicitly set IsPlayable=true for context menu support
+                    li.setProperty('IsPlayable', 'true')
+                    self.logger.debug("LIB ITEM: Set IsPlayable=true for direct file path: '%s'", title)
+                else:
+                    self.logger.error("LIB ITEM: No valid path available - kodi_id=%s, file_path=%s for '%s'", kodi_id, file_path, title)
+                    return None
 
             is_folder = False
             
