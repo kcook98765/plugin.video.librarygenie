@@ -155,6 +155,8 @@ class InfoHijackManager:
                             # Monitor for dialog actually closing instead of fixed sleep
                             if self._wait_for_dialog_close("Step 2 dialog close", initial_dialog_id, max_wait=1.0):
                                 log("HIJACK STEP 2 COMPLETE: Dialog closed")
+                                # Brief delay to allow dialog close animations to complete
+                                xbmc.sleep(25)  # 25ms for dialog close animation stability
                             else:
                                 log_warning("⚠️ HIJACK STEP 2: Dialog close timeout, proceeding anyway")
                             
