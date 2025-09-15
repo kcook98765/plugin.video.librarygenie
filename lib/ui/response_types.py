@@ -6,9 +6,27 @@ LibraryGenie - Response Types
 Standardized response objects for UI handlers
 """
 
+import time
+
+# RESPONSE_TYPES TIMING: Time each import to find the 45ms bottleneck
+print("[LibraryGenie] Starting response_types import timing...")
+
+import_start = time.time()
 from typing import List, Dict, Any, Optional, Union
+import_end = time.time()
+print(f"[LibraryGenie] RESPONSE_TYPES: typing imports took {import_end - import_start:.3f} seconds")
+
+import_start = time.time()
 from dataclasses import dataclass
+import_end = time.time()
+print(f"[LibraryGenie] RESPONSE_TYPES: dataclass import took {import_end - import_start:.3f} seconds")
+
+import_start = time.time()
 from .localization import L
+import_end = time.time()
+print(f"[LibraryGenie] RESPONSE_TYPES: localization import took {import_end - import_start:.3f} seconds")
+
+print("[LibraryGenie] response_types import timing complete.")
 
 
 @dataclass
