@@ -7,6 +7,7 @@ Handles lists display and navigation (refactored)
 """
 
 from typing import Dict, Any
+import time
 import xbmcplugin
 import xbmcgui
 from .plugin_context import PluginContext
@@ -190,7 +191,14 @@ class ListsHandler:
 
             # Initialize query manager
             query_manager = get_query_manager()
-            if not query_manager.initialize():
+            
+            # SQL TIMING: Initialize query manager
+            sql_start_time = time.time()
+            init_result = query_manager.initialize()
+            sql_end_time = time.time()
+            context.logger.debug("SQL TIMING [ROOT NAV]: query_manager.initialize() took %.3f seconds", sql_end_time - sql_start_time)
+            
+            if not init_result:
                 context.logger.error("Failed to initialize query manager")
                 return DirectoryResponse(
                     items=[],
@@ -198,7 +206,11 @@ class ListsHandler:
                 )
 
             # Get all user lists and folders
+            # SQL TIMING: Get all lists with folders
+            sql_start_time = time.time()
             all_lists = query_manager.get_all_lists_with_folders()
+            sql_end_time = time.time()
+            context.logger.debug("SQL TIMING [ROOT NAV]: query_manager.get_all_lists_with_folders() took %.3f seconds", sql_end_time - sql_start_time)
             context.logger.debug("Found %s total lists", len(all_lists))
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
@@ -359,7 +371,11 @@ class ListsHandler:
                 })
 
             # Get all existing folders to display as navigable items
+            # SQL TIMING: Get all folders
+            sql_start_time = time.time()
             all_folders = query_manager.get_all_folders()
+            sql_end_time = time.time()
+            context.logger.debug("SQL TIMING [ROOT NAV]: query_manager.get_all_folders() took %.3f seconds", sql_end_time - sql_start_time)
 
             # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
@@ -468,7 +484,14 @@ class ListsHandler:
 
             # Initialize query manager
             query_manager = get_query_manager()
-            if not query_manager.initialize():
+            
+            # SQL TIMING: Initialize query manager
+            sql_start_time = time.time()
+            init_result = query_manager.initialize()
+            sql_end_time = time.time()
+            context.logger.debug("SQL TIMING [FOLDER NAV]: query_manager.initialize() took %.3f seconds", sql_end_time - sql_start_time)
+            
+            if not init_result:
                 context.logger.error("Failed to initialize query manager")
                 return DirectoryResponse(
                     items=[],
@@ -476,7 +499,12 @@ class ListsHandler:
                 )
 
             # Get folder info
+            # SQL TIMING: Get folder by ID
+            sql_start_time = time.time()
             folder_info = query_manager.get_folder_by_id(folder_id)
+            sql_end_time = time.time()
+            context.logger.debug("SQL TIMING [FOLDER NAV]: query_manager.get_folder_by_id() took %.3f seconds", sql_end_time - sql_start_time)
+            
             if not folder_info:
                 context.logger.error("Folder %s not found", folder_id)
                 return DirectoryResponse(
@@ -485,11 +513,19 @@ class ListsHandler:
                 )
 
             # Get subfolders in this folder
+            # SQL TIMING: Get subfolders in this folder
+            sql_start_time = time.time()
             subfolders = query_manager.get_all_folders(parent_id=folder_id)
+            sql_end_time = time.time()
+            context.logger.debug("SQL TIMING [FOLDER NAV]: query_manager.get_all_folders(parent_id=%s) took %.3f seconds", folder_id, sql_end_time - sql_start_time)
             context.logger.debug("Folder '%s' (id=%s) has %s subfolders", folder_info['name'], folder_id, len(subfolders))
 
             # Get lists in this folder
+            # SQL TIMING: Get lists in this folder
+            sql_start_time = time.time()
             lists_in_folder = query_manager.get_lists_in_folder(folder_id)
+            sql_end_time = time.time()
+            context.logger.debug("SQL TIMING [FOLDER NAV]: query_manager.get_lists_in_folder() took %.3f seconds", sql_end_time - sql_start_time)
             context.logger.debug("Folder '%s' (id=%s) has %s lists", folder_info['name'], folder_id, len(lists_in_folder))
 
             # Set directory title with breadcrumb context
