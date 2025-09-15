@@ -131,6 +131,7 @@ class MigrationManager:
         );
         
         CREATE UNIQUE INDEX idx_folders_name_parent ON folders (name, parent_id);
+        CREATE INDEX idx_folders_parent_id ON folders (parent_id);
         
         CREATE TABLE lists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,6 +142,7 @@ class MigrationManager:
         );
         
         CREATE UNIQUE INDEX idx_lists_name_folder ON lists (name, folder_id);
+        CREATE INDEX idx_lists_folder_id ON lists (folder_id);
         
         CREATE TABLE media_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -198,6 +200,8 @@ class MigrationManager:
         
         CREATE UNIQUE INDEX idx_list_items_unique ON list_items (list_id, media_item_id);
         CREATE INDEX idx_list_items_position ON list_items (list_id, position);
+        CREATE INDEX idx_list_items_list_id ON list_items (list_id);
+        CREATE INDEX idx_list_items_media_item_id ON list_items (media_item_id);
         
         -- Additional essential tables
         CREATE TABLE sync_state (
