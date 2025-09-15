@@ -93,6 +93,8 @@ class ListItemRenderer:
             self.logger.debug("RENDER LISTS: Setting content type 'files' for handle %s", self.addon_handle)
             xbmcplugin.setContent(self.addon_handle, "files")
 
+            # OPTIMIZED: Prepare items for batch rendering
+            batch_items = []
             success_count = 0
             for idx, list_data in enumerate(lists, start=1):
                 try:
@@ -106,18 +108,18 @@ class ListItemRenderer:
                         url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
                         self.logger.debug("RENDER LISTS: Built list item for '%s' - URL: '%s'", list_name, url)
 
-                        xbmcplugin.addDirectoryItem(
-                            handle=self.addon_handle,
-                            url=url,
-                            listitem=list_item,
-                            isFolder=True
-                        )
+                        batch_items.append((url, list_item, True))
                         success_count += 1
-                        self.logger.debug("RENDER LISTS: Successfully added list #%s '%s' to directory", idx, list_name)
+                        self.logger.debug("RENDER LISTS: Successfully prepared list #%s '%s' for batch", idx, list_name)
                     else:
                         self.logger.warning("RENDER LISTS: Failed to build list item for '%s'", list_name)
                 except Exception as e:
                     self.logger.error("RENDER LISTS: Error processing list #%s: %s", idx, e)
+
+            # OPTIMIZED: Add all items in a single batch operation
+            if batch_items:
+                self.logger.debug("RENDER LISTS: Adding %s lists to directory in batch", len(batch_items))
+                xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             self.logger.info("RENDER LISTS: Successfully added %s/%s lists to directory", success_count, len(lists))
             self.logger.debug("RENDER LISTS: Calling endOfDirectory(handle=%s, cacheToDisc=True)", self.addon_handle)
@@ -180,18 +182,18 @@ class ListItemRenderer:
             # Set content type for folders
             xbmcplugin.setContent(self.addon_handle, "files")
 
+            # OPTIMIZED: Prepare items for batch rendering
+            batch_items = []
             for folder_data in folders:
                 list_item = self._build_folder_item(folder_data)
                 if list_item:
                     folder_id = folder_data['id']
                     url = f"plugin://{self.addon_id}/?action=show_folder&folder_id={folder_id}"
+                    batch_items.append((url, list_item, True))
 
-                    xbmcplugin.addDirectoryItem(
-                        handle=self.addon_handle,
-                        url=url,
-                        listitem=list_item,
-                        isFolder=True
-                    )
+            # OPTIMIZED: Add all items in a single batch operation
+            if batch_items:
+                xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
             return True
@@ -474,7 +476,8 @@ class ListItemRenderer:
                 xbmcplugin.addSortMethod(self.addon_handle, method)
                 self.logger.debug("RENDERER DIRECTORY: Added sort method %s", method_name)
 
-            # Build all items, ensuring non-empty URLs
+            # OPTIMIZED: Build all items for batch rendering
+            batch_items = []
             success_count = 0
             for idx, item in enumerate(items, start=1):
                 try:
@@ -486,13 +489,8 @@ class ListItemRenderer:
                         url, listitem, is_folder = result
                         # Ensure non-empty URL to avoid directory errors
                         if url and url.strip():
-                            self.logger.debug("RENDERER DIRECTORY: Adding item #%s '%s' - URL: '%s', isFolder: %s", idx, title, url, is_folder)
-                            xbmcplugin.addDirectoryItem(
-                                handle=self.addon_handle,
-                                url=url,
-                                listitem=listitem,
-                                isFolder=is_folder
-                            )
+                            self.logger.debug("RENDERER DIRECTORY: Preparing item #%s '%s' - URL: '%s', isFolder: %s", idx, title, url, is_folder)
+                            batch_items.append((url, listitem, is_folder))
                             success_count += 1
                         else:
                             self.logger.warning("RENDERER DIRECTORY: Skipping item #%s with empty URL: '%s'", idx, title)
@@ -500,6 +498,11 @@ class ListItemRenderer:
                         self.logger.warning("RENDERER DIRECTORY: Failed to build item #%s: '%s'", idx, title)
                 except Exception as e:
                     self.logger.error("RENDERER DIRECTORY: Error building item #%s '%s': %s", idx, item.get('title', 'Unknown'), e)
+
+            # OPTIMIZED: Add all items in a single batch operation
+            if batch_items:
+                self.logger.debug("RENDERER DIRECTORY: Adding %s items to directory in batch", len(batch_items))
+                xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             self.logger.debug("RENDERER DIRECTORY: Successfully added %s/%s items to directory", success_count, len(items))
             self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=True, cacheToDisc=True)", self.addon_handle)
@@ -540,7 +543,8 @@ class ListItemRenderer:
 
             self.logger.debug("Rendering %s list items using media_items data", len(items))
 
-            # Process items efficiently using enhanced media_items data
+            # OPTIMIZED: Process items efficiently for batch rendering
+            batch_items = []
             for item in items:
                 try:
                     # Build listitem using enhanced media data from media_items table
@@ -554,17 +558,16 @@ class ListItemRenderer:
                     context_menu: List[Tuple[str, str]] = [(label, cmd)]
                     listitem.addContextMenuItems(context_menu)
 
-                    # Add to plugin response
-                    xbmcplugin.addDirectoryItem(
-                        handle=self.addon_handle,
-                        url=url,
-                        listitem=listitem,
-                        isFolder=False
-                    )
+                    batch_items.append((url, listitem, False))
 
                 except Exception as e:
                     self.logger.error("Failed to render list item %s: %s", item.get('id', 'unknown'), e)
                     continue
+
+            # OPTIMIZED: Add all items in a single batch operation
+            if batch_items:
+                self.logger.debug("Adding %s list items to directory in batch", len(batch_items))
+                xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             # Set content type and finish directory
             xbmcplugin.setContent(self.addon_handle, 'movies')
