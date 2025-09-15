@@ -84,9 +84,9 @@ class ListItemBuilder:
 
             self.logger.info("DIRECTORY BUILD: Processed %s items - %s OK, %s failed", count, ok, fail)
 
-            self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi", len(tuples))
+            # OPTIMIZED: Prepare items for batch rendering
+            batch_items = []
             for idx, (url, li, is_folder, item) in enumerate(tuples, start=1):
-
                 # Set properties for global context menu detection
                 media_item_id = item.get('media_item_id') or item.get('id')
                 if media_item_id:
@@ -97,10 +97,11 @@ class ListItemBuilder:
                 if list_id:
                     li.setProperty('list_id', str(list_id))
 
-                # Add to directory immediately after context menu is applied
-                xbmcplugin.addDirectoryItem(
-                    handle=self.addon_handle, url=url, listitem=li, isFolder=is_folder
-                )
+                batch_items.append((url, li, is_folder))
+
+            # OPTIMIZED: Add all items in a single batch operation
+            self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
+            xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
