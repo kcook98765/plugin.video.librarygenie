@@ -93,8 +93,8 @@ class FavoritesHandler:
                 xbmcplugin.endOfDirectory(
                     context.addon_handle,
                     succeeded=True,
-                    updateListing=False,
-                    cacheToDisc=enable_caching
+                    updateListing=True,
+                    cacheToDisc=False
                 )
 
                 return DirectoryResponse(
@@ -406,7 +406,7 @@ class FavoritesHandler:
                     xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
                     # End directory properly
                     import xbmcplugin
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
                     return
 
                 if hasattr(response, 'refresh_needed') and response.refresh_needed:

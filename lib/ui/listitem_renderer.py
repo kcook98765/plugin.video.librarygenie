@@ -122,14 +122,14 @@ class ListItemRenderer:
                 xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             self.logger.info("RENDER LISTS: Successfully added %s/%s lists to directory", success_count, len(lists))
-            self.logger.debug("RENDER LISTS: Calling endOfDirectory(handle=%s, cacheToDisc=True)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
+            self.logger.debug("RENDER LISTS: Calling endOfDirectory(handle=%s, cacheToDisc=False)", self.addon_handle)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
             return True
 
         except Exception as e:
             self.logger.error("RENDER LISTS: Failed to render lists: %s", e)
             self.logger.debug("RENDER LISTS: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=True, cacheToDisc=False)
             return False
 
     def render_media_items(self, items: List[Dict[str, Any]], content_type: str = "movies", context_menu_callback=None) -> bool:
@@ -195,12 +195,12 @@ class ListItemRenderer:
             if batch_items:
                 xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
             return True
 
         except Exception as e:
             self.logger.error("Failed to render folders: %s", e)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=True, cacheToDisc=False)
             return False
 
     def _build_list_item(self, list_data: Dict[str, Any]) -> Optional[xbmcgui.ListItem]:
@@ -505,14 +505,14 @@ class ListItemRenderer:
                 xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             self.logger.debug("RENDERER DIRECTORY: Successfully added %s/%s items to directory", success_count, len(items))
-            self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=True, cacheToDisc=True)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
+            self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=True, cacheToDisc=False)", self.addon_handle)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
             return True
 
         except Exception as e:
             self.logger.error("RENDERER DIRECTORY: Fatal error in render_directory: %s", e)
             self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=False, cacheToDisc=False)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=True, cacheToDisc=False)
             return False
 
     def render_list_items(self, list_id: int, sort_method: Optional[str] = None) -> None:
@@ -571,7 +571,7 @@ class ListItemRenderer:
 
             # Set content type and finish directory
             xbmcplugin.setContent(self.addon_handle, 'movies')
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, cacheToDisc=True)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
 
             self.logger.debug("Successfully rendered %s list items", len(items))
 
