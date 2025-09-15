@@ -401,12 +401,20 @@ class ListItemBuilder:
 
             li = xbmcgui.ListItem(label=display_label)
 
-            # Build videodb:// URL for native library integration
-            if kodi_id is None:
-                self.logger.error("LIB ITEM: Cannot build videodb URL - kodi_id is None for '%s'", title)
-                return None
-            videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-            li.setPath(videodb_url)
+            # Use actual file path if available for direct playback, otherwise fallback to videodb:// URL
+            file_path = item.get('file_path') or item.get('play')
+            if file_path and file_path.strip():
+                # Use the actual file path for direct playback - enables native "Play" context menu
+                li.setPath(file_path)
+                self.logger.debug("LIB ITEM: Using direct file path for '%s': %s", title, file_path)
+            else:
+                # Fallback to videodb:// URL for native library integration
+                if kodi_id is None:
+                    self.logger.error("LIB ITEM: Cannot build videodb URL - kodi_id is None for '%s'", title)
+                    return None
+                videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
+                li.setPath(videodb_url)
+                self.logger.debug("LIB ITEM: Using videodb URL for '%s': %s", title, videodb_url)
 
             # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
             # Setting IsPlayable can interfere with native library handling and skins
