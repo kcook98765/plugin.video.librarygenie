@@ -10,6 +10,7 @@ from typing import Dict, Callable, Any
 from .plugin_context import PluginContext
 import xbmcgui
 import xbmcplugin
+import time
 from ..utils.kodi_log import get_kodi_logger
 
 
@@ -266,12 +267,22 @@ class Router:
                 handler = self._handlers.get(action)
                 if not handler:
                     self.logger.debug("No handler found for action '%s', will show main menu (redirecting to Lists)", action)
-                    # Show Lists as main menu instead of traditional main menu
+                    
+                    # ROUTER TIMING: Handler factory and main menu loading
+                    factory_start_time = time.time()
                     from .handler_factory import get_handler_factory
                     factory = get_handler_factory()
                     factory.context = context
                     lists_handler = factory.get_lists_handler()
+                    factory_end_time = time.time()
+                    self.logger.info(f"ROUTER: Handler factory and lists handler creation took {factory_end_time - factory_start_time:.3f} seconds")
+                    
+                    # ROUTER TIMING: Main menu handler execution
+                    handler_start_time = time.time()
                     response = lists_handler.show_lists_menu(context)
+                    handler_end_time = time.time()
+                    self.logger.info(f"ROUTER: Main menu handler execution took {handler_end_time - handler_start_time:.3f} seconds")
+                    
                     return response.success if hasattr(response, 'success') else True
 
                 # Use the registered handler
