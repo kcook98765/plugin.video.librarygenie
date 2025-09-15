@@ -81,6 +81,30 @@ class LibraryGenieService:
         except Exception as e:
             log_error(f"Failed to show notification: {e}")
 
+    def _ensure_profile_directory_ready(self, max_wait_seconds=10):
+        """Ensure addon profile directory is ready before database initialization"""
+        import xbmcvfs
+        import xbmcaddon
+        
+        profile_dir = xbmcvfs.translatePath(xbmcaddon.Addon().getAddonInfo('profile'))
+        wait_interval = 0.5  # 500ms between attempts
+        max_attempts = int(max_wait_seconds / wait_interval)
+        
+        for attempt in range(max_attempts):
+            if xbmcvfs.exists(profile_dir) or xbmcvfs.mkdirs(profile_dir):
+                if attempt > 0:  # Only log if we had to wait
+                    log_info(f"Profile directory ready after {attempt * wait_interval:.1f}s")
+                return True
+                
+            if self.monitor.abortRequested():
+                log_warning("Kodi shutdown requested during profile directory wait")
+                return False
+                
+            xbmc.sleep(int(wait_interval * 1000))  # Convert to milliseconds
+        
+        log_error(f"Profile directory not ready after {max_wait_seconds}s: {profile_dir}")
+        return False
+
     def _initialize_database(self):
         """Initialize database schema and handle critical setup like Favorites"""
         try:
@@ -300,6 +324,11 @@ class LibraryGenieService:
         log_info("LibraryGenie background service starting...")
 
         try:
+            # Wait for addon profile directory to be ready (fixes zip installation timing)
+            if not self._ensure_profile_directory_ready():
+                log_error("Service startup aborted - profile directory not ready")
+                return
+            
             # Initialize database if needed
             self._initialize_database()
 
