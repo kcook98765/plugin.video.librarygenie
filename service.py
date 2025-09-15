@@ -369,6 +369,7 @@ class LibraryGenieService:
         tick_count = 0
         last_dialog_active = False
         last_armed_state = None
+        last_container_path = None
         hijack_mode = False
         last_ai_sync_check = 0
 
@@ -381,12 +382,18 @@ class LibraryGenieService:
             try:
                 tick_count += 1
 
-                # Check if we need hijack functionality
+                # Cache Kodi API queries within tick cycle to reduce redundant calls
                 dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
                 armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
                 
+                # Only query container path when dialog state changes or when forced
+                state_changed = (dialog_active != last_dialog_active or armed_state != last_armed_state)
+                if state_changed or last_container_path is None:
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                else:
+                    container_path = last_container_path  # Reuse cached value
+                
                 # Also check if we're in extended monitoring period for XSP auto-navigation
-                container_path = xbmc.getInfoLabel('Container.FolderPath')
                 in_extended_monitoring = (
                     hasattr(self.hijack_manager, '_hijack_monitoring_expires') and 
                     time.time() < self.hijack_manager._hijack_monitoring_expires
@@ -410,7 +417,6 @@ class LibraryGenieService:
 
                 # Conditional debug logging - only when state changes or at very long intervals
                 # Also only log if something interesting is happening (not just idle ticks)
-                state_changed = (dialog_active != last_dialog_active or armed_state != last_armed_state)
                 interval_reached = (tick_count % log_interval == 0)
                 something_interesting = dialog_active or armed_state == '1' or in_extended_monitoring
                 
@@ -421,7 +427,7 @@ class LibraryGenieService:
 
                 if should_log:  # Using direct Kodi logging - no custom debug check needed
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
-                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    # Reuse cached container_path instead of querying again
                     mode_str = "HIJACK" if hijack_mode else "IDLE"
                     
                     if state_changed:
@@ -433,6 +439,7 @@ class LibraryGenieService:
                 # Store state for next comparison
                 last_dialog_active = dialog_active
                 last_armed_state = armed_state
+                last_container_path = container_path
 
                 # Check for AI sync activation changes periodically
                 if tick_count % ai_sync_check_interval == 0:
@@ -455,7 +462,7 @@ class LibraryGenieService:
                     
                     # Check if we can safely exit hijack mode AFTER hijack manager has processed
                     # Stay in hijack mode if user is still on LibraryGenie XSP pages
-                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    # Reuse cached container_path instead of querying again
                     on_lg_hijack_xsp = container_path and (
                         'lg_hijack_temp.xsp' in container_path or
                         'lg_hijack_debug.xsp' in container_path
@@ -471,8 +478,9 @@ class LibraryGenieService:
 
                 # Adaptive sleep timing based on mode
                 if hijack_mode:
-                    # Fast ticking when hijack is needed (100ms)
-                    if self.monitor.waitForAbort(0.1):
+                    # Reduced frequency ticking when hijack is needed (150ms instead of 100ms)
+                    # Still responsive but 33% less CPU usage
+                    if self.monitor.waitForAbort(0.15):
                         break
                 else:
                     # Slow ticking when idle to save resources (1 second)
