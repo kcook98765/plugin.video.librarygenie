@@ -227,6 +227,8 @@ def handle_shortlist_import():
     import xbmcgui
 
     log_info("=== SHORTLIST IMPORT HANDLER CALLED ===")
+    
+    progress = None  # Initialize to avoid LSP warning about possibly unbound variable
 
     try:
         log_info("Starting ShortList import process")
@@ -378,7 +380,7 @@ def handle_shortlist_import():
         log_error(f"Handler exception traceback: {traceback.format_exc()}")
 
         try:
-            if 'progress' in locals():
+            if progress is not None:
                 progress.close()
         except:
             pass
@@ -602,24 +604,36 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
             log_info("User selected: Movies and TV Episodes")
             _show_setup_progress(L(35525))  # "Setting up Movies and TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=True)
+            # Force cache reload to prevent showing setup again
+            from lib.config.config_manager import get_config
+            get_config().invalidate('first_run_completed')
             _show_setup_complete(L(35528))  # "Setup complete! Both movies and TV episodes will be synced."
             
         elif selected == 1:  # Movies only
             log_info("User selected: Movies Only")
             _show_setup_progress(L(35526))  # "Setting up Movies sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
+            # Force cache reload to prevent showing setup again
+            from lib.config.config_manager import get_config
+            get_config().invalidate('first_run_completed')
             _show_setup_complete(L(35529))  # "Setup complete! Movies will be synced."
             
         elif selected == 2:  # TV Episodes only
             log_info("User selected: TV Episodes Only")
             _show_setup_progress(L(35527))  # "Setting up TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=True)
+            # Force cache reload to prevent showing setup again
+            from lib.config.config_manager import get_config
+            get_config().invalidate('first_run_completed')
             _show_setup_complete(L(35530))  # "Setup complete! TV episodes will be synced."
             
         elif selected == 3:  # Skip setup
             log_info("User selected: Skip Setup")
             # Mark first run complete but don't enable any syncing
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=False)
+            # Force cache reload to prevent showing setup again
+            from lib.config.config_manager import get_config
+            get_config().invalidate('first_run_completed')
             xbmcgui.Dialog().notification(
                 L(35002),   # "LibraryGenie"
                 L(35531),   # "Setup skipped. Configure sync options in Settings."
@@ -636,6 +650,9 @@ def _check_and_handle_fresh_install(context: PluginContext) -> bool:
             from lib.library.sync_controller import SyncController
             sync_controller = SyncController()
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
+            # Force cache reload to prevent showing setup again
+            from lib.config.config_manager import get_config
+            get_config().invalidate('first_run_completed')
         except:
             pass
         
