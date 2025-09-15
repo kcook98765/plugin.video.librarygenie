@@ -81,12 +81,14 @@ class QueryManager:
         else:
             canonical["duration_minutes"] = 0
 
-        # Art normalization - use version-aware art storage
-        from ..utils.kodi_version import get_kodi_major_version
-
+        # OPTIMIZED: Art processing - trust pre-processed art or handle raw art fields
         art = item.get("art", {})
-        if not isinstance(art, dict):
-            # Handle individual art fields
+        if isinstance(art, dict):
+            # Art is already processed and formatted - trust it
+            canonical["art"] = art
+        else:
+            # Handle individual art fields for raw items (fallback for non-database items)
+            from ..utils.kodi_version import get_kodi_major_version
             art = {
                 "poster": str(item.get("poster", item.get("thumbnail", ""))),
                 "fanart": str(item.get("fanart", "")),
@@ -95,10 +97,8 @@ class QueryManager:
                 "landscape": str(item.get("landscape", "")),
                 "clearlogo": str(item.get("clearlogo", ""))
             }
-
-        # Store art dict in format appropriate for current Kodi version
-        kodi_major = get_kodi_major_version()
-        canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
+            kodi_major = get_kodi_major_version()
+            canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
 
         # Resume - always present for library items, in seconds
         resume_data = item.get("resume", {})
@@ -256,15 +256,17 @@ class QueryManager:
                     except json.JSONDecodeError as e:
                         self.logger.warning("Failed to parse JSON data: %s", e)
 
-                # Use stored data from media_items - no more JSON-RPC enrichment needed
-                # Parse additional data from stored fields
+                # OPTIMIZED: Parse art JSON once and format for Kodi version
                 if item.get('art') and isinstance(item['art'], str):
                     try:
-                        item['art'] = json.loads(item['art'])
+                        from ..utils.kodi_version import get_kodi_major_version
+                        art_dict = json.loads(item['art'])
+                        kodi_major = get_kodi_major_version()
+                        item['art'] = self._format_art_for_kodi_version(art_dict, kodi_major)
                     except json.JSONDecodeError:
                         item['art'] = {}
 
-                # Normalize to canonical format using stored data
+                # Normalize to canonical format using optimized data
                 canonical_item = self._normalize_to_canonical(item)
 
 
