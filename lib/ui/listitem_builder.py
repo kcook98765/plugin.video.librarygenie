@@ -404,6 +404,21 @@ class ListItemBuilder:
             # Use actual file path if available for direct playback, otherwise fallback to videodb:// URL
             file_path = item.get('file_path') or item.get('play')
             
+            # DEBUG: Track file path data flow for first few items
+            if hasattr(self, '_debug_counter'):
+                self._debug_counter += 1
+            else:
+                self._debug_counter = 1
+                
+            if self._debug_counter <= 3:
+                self.logger.debug("=== LISTITEM BUILDER DEBUG #%d ===", self._debug_counter)
+                self.logger.debug("  Title: '%s'", title)
+                self.logger.debug("  item.get('file_path'): '%s'", item.get('file_path'))
+                self.logger.debug("  item.get('play'): '%s'", item.get('play'))
+                self.logger.debug("  Resolved file_path: '%s'", file_path)
+                self.logger.debug("  file_path truthy: %s", bool(file_path and file_path.strip()))
+                self.logger.debug("  Available item keys: %s", list(item.keys()) if hasattr(item, 'keys') else 'not a dict')
+            
             if file_path and file_path.strip():
                 # Use the actual file path for direct playback - enables native "Play" context menu
                 li.setPath(file_path)
