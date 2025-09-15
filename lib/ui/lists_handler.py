@@ -255,8 +255,8 @@ class ListsHandler:
                 xbmcplugin.endOfDirectory(
                     context.addon_handle,
                     succeeded=True,
-                    updateListing=False,
-                    cacheToDisc=enable_caching
+                    updateListing=True,
+                    cacheToDisc=False
                 )
 
                 return DirectoryResponse(
@@ -442,8 +442,8 @@ class ListsHandler:
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=True,
-                updateListing=False,
-                cacheToDisc=enable_caching
+                updateListing=True,
+                cacheToDisc=False
             )
 
             return DirectoryResponse(
@@ -602,8 +602,8 @@ class ListsHandler:
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=True,
-                updateListing=False,
-                cacheToDisc=enable_caching
+                updateListing=True,
+                cacheToDisc=False
             )
 
             return DirectoryResponse(
@@ -728,8 +728,8 @@ class ListsHandler:
                 xbmcplugin.endOfDirectory(
                     context.addon_handle,
                     succeeded=True,
-                    updateListing=False,
-                    cacheToDisc=True
+                    updateListing=True,
+                    cacheToDisc=False
                 )
 
                 return DirectoryResponse(
@@ -799,8 +799,8 @@ class ListsHandler:
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=True,
-                updateListing=False,
-                cacheToDisc=enable_caching
+                updateListing=True,
+                cacheToDisc=False
             )
 
             return DirectoryResponse(
@@ -921,8 +921,8 @@ class ListsHandler:
             xbmcplugin.endOfDirectory(
                 context.addon_handle,
                 succeeded=True,
-                updateListing=False,
-                cacheToDisc=enable_caching
+                updateListing=True,
+                cacheToDisc=False
             )
 
             return DirectoryResponse(

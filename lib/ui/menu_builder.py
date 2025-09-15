@@ -104,9 +104,9 @@ class MenuBuilder:
                 self.logger.error("MENU BUILD: Failed to add menu item %s: %s", idx+1, e)
 
         self.logger.debug("MENU BUILD: Added %s menu items successfully, %s failed", successful_items, failed_items)
-        self.logger.debug("MENU BUILD: Calling endOfDirectory(handle=%s, cacheToDisc=True)", addon_handle)
-        xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=False, cacheToDisc=True)
-        self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching enabled")
+        self.logger.debug("MENU BUILD: Calling endOfDirectory(handle=%s, cacheToDisc=False)", addon_handle)
+        xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
+        self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching disabled")
 
     def _add_directory_item(self, item, addon_handle, base_url):
         """Add a single directory item with context menu support"""
@@ -238,8 +238,8 @@ class MenuBuilder:
         else:
             self.logger.debug("MOVIE MENU: No view_mode specified, using default category '%s'", category)
 
-        xbmcplugin.endOfDirectory(addon_handle, cacheToDisc=True)
-        self.logger.info("MOVIE MENU: Completed movie menu build with caching enabled")
+        xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
+        self.logger.info("MOVIE MENU: Completed movie menu build with caching disabled")
 
     def _add_movie_item(self, movie_data: Dict[str, Any], addon_handle, base_url, **options):
         """Add a movie item with Phase 11 enhanced ListItem"""
