@@ -635,6 +635,9 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         substep2_end = time.perf_counter()
         logger.debug("%s ⏱️ SUBSTEP 2 TIMING: %.3fs", LOG_PREFIX, substep2_end - substep2_start)
         
+        # Brief delay to ensure XSP file is fully written and available for Kodi to read
+        xbmc.sleep(30)  # 30ms buffer for file system consistency
+        
         # 🧭 SUBSTEP 3: Navigate to the XSP (creates native Kodi list with single item)
         substep3_start = time.perf_counter()
         logger.debug("%s SUBSTEP 3: Navigating to native list: %s", LOG_PREFIX, xsp_path)
