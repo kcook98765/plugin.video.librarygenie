@@ -8,6 +8,7 @@ Builds ListItems with proper metadata and resume information
 
 import json
 import re
+import time
 import urllib.parse
 from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
@@ -38,6 +39,9 @@ class ListItemBuilder:
         Returns:
             bool: success
         """
+        # Start timing the complete directory build process
+        build_start_time = time.time()
+        
         try:
             count = len(items)
             
@@ -105,12 +109,21 @@ class ListItemBuilder:
 
             self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
-            self.logger.info("DIRECTORY BUILD: ✅ Successfully built directory with %s items (%s failed)", ok, fail)
+            
+            # Calculate and log complete build time
+            build_end_time = time.time()
+            total_build_time = build_end_time - build_start_time
+            self.logger.info("DIRECTORY BUILD: ✅ Successfully built directory with %s items (%s failed) - Complete build time: %.3f seconds", ok, fail, total_build_time)
             return True
         except Exception as e:
             self.logger.error("DIRECTORY BUILD: fatal error: %s", e)
             self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            
+            # Calculate and log complete build time even on failure
+            build_end_time = time.time()
+            total_build_time = build_end_time - build_start_time
+            self.logger.error("DIRECTORY BUILD: ❌ Failed to build directory - Complete build time: %.3f seconds", total_build_time)
             return False
 
     # -------- internals --------
