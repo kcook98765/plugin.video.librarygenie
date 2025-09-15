@@ -37,6 +37,16 @@ class QueryManager:
         elif 'media_item_id' in item:
             canonical["id"] = item["media_item_id"]
 
+        # Preserve additional IDs and metadata from query
+        canonical["media_item_id"] = item.get("media_item_id", canonical.get("id"))
+        canonical["item_id"] = item.get("item_id", canonical.get("id"))
+        canonical["order_score"] = item.get("order_score", 0)
+        canonical["list_id"] = item.get("list_id")
+
+        # External IDs and identifiers
+        canonical["tmdb_id"] = item.get("tmdb_id")
+        canonical["imdb_id"] = item.get("imdb_id", item.get("imdbnumber"))
+
         # Common fields
         canonical["media_type"] = item.get("media_type", item.get("type", "movie"))
         canonical["kodi_id"] = int(item["kodi_id"]) if item.get("kodi_id") else None
@@ -51,7 +61,9 @@ class QueryManager:
         canonical["mpaa"] = str(item.get("mpaa", ""))
         canonical["studio"] = str(item.get("studio", ""))
         canonical["country"] = str(item.get("country", ""))
-        canonical["premiered"] = str(item.get("premiered", item.get("dateadded", "")))
+        canonical["director"] = str(item.get("director", ""))
+        canonical["writer"] = str(item.get("writer", ""))
+        canonical["premiered"] = str(item.get("premiered", item.get("dateadded", item.get("aired", ""))))
 
         # File path and playback fields - CRITICAL for native Play button support
         canonical["file_path"] = item.get("file_path", item.get("play", ""))
@@ -106,6 +118,10 @@ class QueryManager:
             canonical["aired"] = str(item.get("aired", ""))
             canonical["playcount"] = int(item.get("playcount", 0))
             canonical["lastplayed"] = str(item.get("lastplayed", ""))
+
+        # Timestamp fields from database
+        canonical["created_at"] = item.get("created_at", "")
+        canonical["updated_at"] = item.get("updated_at", "")
 
         return canonical
 
