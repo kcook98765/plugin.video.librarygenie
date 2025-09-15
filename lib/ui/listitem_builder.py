@@ -402,8 +402,24 @@ class ListItemBuilder:
             li = xbmcgui.ListItem(label=display_label)
 
             # Use actual file path if available for direct playback, otherwise fallback to videodb:// URL
+            # EXTENSIVE DEBUGGING: Log all item data to understand what's available
+            self.logger.debug("=== LIB ITEM FULL DEBUG for '%s' ===", title)
+            self.logger.debug("  kodi_id: %s", item.get('kodi_id'))
+            self.logger.debug("  file_path: '%s'", item.get('file_path'))
+            self.logger.debug("  play: '%s'", item.get('play'))
+            self.logger.debug("  source: '%s'", item.get('source'))
+            self.logger.debug("  media_type: '%s'", item.get('media_type'))
+            
+            # Log all keys in the item for complete visibility
+            item_keys = list(item.keys()) if hasattr(item, 'keys') else str(type(item))
+            self.logger.debug("  Available item keys: %s", item_keys)
+            
             file_path = item.get('file_path') or item.get('play')
-            self.logger.debug("LIB ITEM DEBUG: '%s' - file_path='%s', play='%s'", title, item.get('file_path'), item.get('play'))
+            self.logger.debug("  Resolved file_path: '%s'", file_path)
+            self.logger.debug("  file_path is truthy: %s", bool(file_path))
+            self.logger.debug("  file_path stripped: '%s'", file_path.strip() if file_path else 'None')
+            self.logger.debug("=== END DEBUG ===")
+            
             if file_path and file_path.strip():
                 # Use the actual file path for direct playback - enables native "Play" context menu
                 li.setPath(file_path)
@@ -428,6 +444,13 @@ class ListItemBuilder:
             # For videodb:// URLs, Kodi handles IsPlayable automatically
 
             is_folder = False
+            
+            # DEBUG: Check what path is actually set on the ListItem
+            try:
+                current_path = li.getPath()
+                self.logger.debug("LIB ITEM POST-SETUP: ListItem path is: '%s'", current_path)
+            except Exception as e:
+                self.logger.debug("LIB ITEM POST-SETUP: Could not get ListItem path: %s", e)
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
@@ -501,6 +524,20 @@ class ListItemBuilder:
 
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
+
+            # FINAL DEBUG: Check ListItem state before returning
+            try:
+                final_path = li.getPath()
+                final_isplayable = li.getProperty('IsPlayable')
+                final_hijack_armed = li.getProperty('LG.InfoHijack.Armed')
+                self.logger.debug("=== FINAL LISTITEM STATE for '%s' ===", title)
+                self.logger.debug("  Final path: '%s'", final_path)
+                self.logger.debug("  Final IsPlayable: '%s'", final_isplayable)
+                self.logger.debug("  Final hijack armed: '%s'", final_hijack_armed)
+                self.logger.debug("  Returning playback_url: '%s'", playback_url)
+                self.logger.debug("=== END FINAL STATE ===")
+            except Exception as e:
+                self.logger.debug("Could not get final ListItem state: %s", e)
 
             return playback_url, li, is_folder
         except Exception as e:

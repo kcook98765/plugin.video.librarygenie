@@ -218,6 +218,17 @@ class QueryManager:
             rows = cursor.fetchall()
 
             self.logger.debug("Query returned %s rows", len(rows))
+            
+            # DEBUG: Log first few items to see what file_path data we're getting
+            if rows:
+                for i, row in enumerate(rows[:3]):  # Log first 3 items
+                    row_dict = dict(row)
+                    self.logger.debug("=== DATABASE ROW %d DEBUG ===", i+1)
+                    self.logger.debug("  Title: '%s'", row_dict.get('title'))
+                    self.logger.debug("  Kodi ID: %s", row_dict.get('kodi_id'))
+                    self.logger.debug("  Raw file_path: '%s'", row_dict.get('file_path'))
+                    self.logger.debug("  Source: '%s'", row_dict.get('source'))
+                    self.logger.debug("=== END ROW DEBUG ===")
 
             items = []
 
