@@ -403,10 +403,13 @@ class ListItemBuilder:
 
             # Use actual file path if available for direct playback, otherwise fallback to videodb:// URL
             file_path = item.get('file_path') or item.get('play')
+            self.logger.debug("LIB ITEM DEBUG: '%s' - file_path='%s', play='%s'", title, item.get('file_path'), item.get('play'))
             if file_path and file_path.strip():
                 # Use the actual file path for direct playback - enables native "Play" context menu
                 li.setPath(file_path)
                 self.logger.debug("LIB ITEM: Using direct file path for '%s': %s", title, file_path)
+                # Store the file path as the URL for the return value
+                playback_url = file_path
             else:
                 # Fallback to videodb:// URL for native library integration
                 if kodi_id is None:
@@ -415,9 +418,14 @@ class ListItemBuilder:
                 videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
                 li.setPath(videodb_url)
                 self.logger.debug("LIB ITEM: Using videodb URL for '%s': %s", title, videodb_url)
+                playback_url = videodb_url
 
-            # Do NOT set IsPlayable for videodb:// items - Kodi handles this natively
-            # Setting IsPlayable can interfere with native library handling and skins
+            # Set IsPlayable property based on what type of URL we're using
+            if file_path and file_path.strip():
+                # For direct file paths, we need to explicitly set IsPlayable=true for context menu support
+                li.setProperty('IsPlayable', 'true')
+                self.logger.debug("LIB ITEM: Set IsPlayable=true for direct file path: '%s'", title)
+            # For videodb:// URLs, Kodi handles IsPlayable automatically
 
             is_folder = False
 
@@ -494,7 +502,7 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
-            return videodb_url, li, is_folder
+            return playback_url, li, is_folder
         except Exception as e:
             self.logger.error("LIB ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
             return None
