@@ -246,12 +246,6 @@ class QueryManager:
                 # Convert row to dict
                 item = dict(row)
 
-                # DEBUG: Check first few raw database rows
-                if row_idx < 3:
-                    self.logger.debug("=== RAW DATABASE ROW %d ===", row_idx + 1)
-                    self.logger.debug("  Title: '%s'", item.get('title'))
-                    self.logger.debug("  Raw file_path field: '%s'", item.get('file_path'))
-                    self.logger.debug("  Raw play field: '%s'", item.get('play'))
 
                 # Parse JSON data if present
                 if item.get('data_json'):
@@ -273,13 +267,6 @@ class QueryManager:
                 # Normalize to canonical format using stored data
                 canonical_item = self._normalize_to_canonical(item)
 
-                # DEBUG: Check first few normalized items
-                if row_idx < 3:
-                    self.logger.debug("=== POST-NORMALIZATION ROW %d ===", row_idx + 1)
-                    self.logger.debug("  Title: '%s'", canonical_item.get('title'))
-                    self.logger.debug("  Canonical file_path: '%s'", canonical_item.get('file_path'))
-                    self.logger.debug("  Canonical play: '%s'", canonical_item.get('play'))
-                    self.logger.debug("  Available keys: %s", list(canonical_item.keys()))
 
                 items.append(canonical_item)
 
