@@ -47,37 +47,63 @@ class QueryManager:
         canonical["tmdb_id"] = item.get("tmdb_id")
         canonical["imdb_id"] = item.get("imdb_id", item.get("imdbnumber"))
 
-        # Common fields
+        # OPTIMIZED: Common fields - avoid redundant type conversions
         canonical["media_type"] = item.get("media_type", item.get("type", "movie"))
-        canonical["kodi_id"] = int(item["kodi_id"]) if item.get("kodi_id") else None
-        canonical["title"] = str(item.get("title", ""))
-        canonical["originaltitle"] = str(item.get("originaltitle", "")) if item.get("originaltitle") != canonical["title"] else ""
-        canonical["sorttitle"] = str(item.get("sorttitle", ""))
-        canonical["year"] = int(item.get("year", 0)) if item.get("year") else 0
-        canonical["genre"] = str(item.get("genre", ""))
-        canonical["plot"] = str(item.get("plot", item.get("plotoutline", "")))
-        canonical["rating"] = float(item.get("rating") or 0.0)
-        canonical["votes"] = int(item.get("votes") or 0)
-        canonical["mpaa"] = str(item.get("mpaa", ""))
-        canonical["studio"] = str(item.get("studio", ""))
-        canonical["country"] = str(item.get("country", ""))
-        canonical["director"] = str(item.get("director", ""))
-        canonical["writer"] = str(item.get("writer", ""))
-        canonical["premiered"] = str(item.get("premiered", item.get("dateadded", item.get("aired", ""))))
+        
+        # Only convert kodi_id if it's not already an int
+        kodi_id = item.get("kodi_id")
+        if kodi_id is None:
+            canonical["kodi_id"] = None
+        elif isinstance(kodi_id, int):
+            canonical["kodi_id"] = kodi_id
+        else:
+            canonical["kodi_id"] = int(kodi_id) if kodi_id else None
+            
+        # String fields - only convert if not already string
+        title = item.get("title", "")
+        canonical["title"] = title if isinstance(title, str) else str(title)
+        
+        originaltitle = item.get("originaltitle", "")
+        canonical["originaltitle"] = (originaltitle if isinstance(originaltitle, str) else str(originaltitle)) if originaltitle != canonical["title"] else ""
+        
+        # Batch string conversions for fields that are likely already strings
+        for field in ["sorttitle", "genre", "mpaa", "studio", "country", "director", "writer"]:
+            value = item.get(field, "")
+            canonical[field] = value if isinstance(value, str) else str(value)
+            
+        # Plot and premiered must be strings for xbmcgui compatibility
+        plot = item.get("plot", item.get("plotoutline", ""))
+        canonical["plot"] = plot if isinstance(plot, str) else str(plot or "")
+        
+        # Numeric fields - only convert if necessary
+        year = item.get("year", 0)
+        canonical["year"] = year if isinstance(year, int) else (int(year) if year else 0)
+        
+        rating = item.get("rating") or 0.0
+        canonical["rating"] = rating if isinstance(rating, float) else float(rating)
+        
+        votes = item.get("votes") or 0
+        canonical["votes"] = votes if isinstance(votes, int) else int(votes)
+        
+        # Premiered must be string for xbmcgui compatibility
+        premiered = item.get("premiered", item.get("dateadded", item.get("aired", "")))
+        canonical["premiered"] = premiered if isinstance(premiered, str) else str(premiered or "")
 
         # File path and playback fields - CRITICAL for native Play button support
         canonical["file_path"] = item.get("file_path", item.get("play", ""))
         canonical["play"] = item.get("play", item.get("file_path", ""))
         canonical["source"] = item.get("source", "")
 
-        # Duration - normalize to minutes (runtime from JSON-RPC is in minutes)
+        # OPTIMIZED: Duration - avoid redundant conversions
         runtime = item.get("runtime", item.get("duration", 0))
         if runtime:
+            # Only convert if not already an int
+            runtime_int = runtime if isinstance(runtime, int) else int(runtime)
             # Runtime from JSON-RPC is already in minutes, duration might be seconds
-            if runtime > 1000:  # Assume seconds, convert to minutes
-                canonical["duration_minutes"] = int(runtime / 60)
+            if runtime_int > 1000:  # Assume seconds, convert to minutes
+                canonical["duration_minutes"] = runtime_int // 60
             else:  # Already in minutes
-                canonical["duration_minutes"] = int(runtime)
+                canonical["duration_minutes"] = runtime_int
         else:
             canonical["duration_minutes"] = 0
 
@@ -100,24 +126,37 @@ class QueryManager:
             kodi_major = get_kodi_major_version()
             canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
 
-        # Resume - always present for library items, in seconds
+        # OPTIMIZED: Resume - preserve precision for float seconds
         resume_data = item.get("resume", {})
         if isinstance(resume_data, dict):
+            pos = resume_data.get("position", resume_data.get("position_seconds", 0))
+            tot = resume_data.get("total", resume_data.get("total_seconds", 0))
             canonical["resume"] = {
-                "position_seconds": int(resume_data.get("position", resume_data.get("position_seconds", 0))),
-                "total_seconds": int(resume_data.get("total", resume_data.get("total_seconds", 0)))
+                "position_seconds": pos if isinstance(pos, (int, float)) else (round(float(pos)) if pos else 0),
+                "total_seconds": tot if isinstance(tot, (int, float)) else (round(float(tot)) if tot else 0)
             }
         else:
             canonical["resume"] = {"position_seconds": 0, "total_seconds": 0}
 
-        # Episode-specific fields
+        # OPTIMIZED: Episode-specific fields - avoid redundant conversions
         if canonical["media_type"] == "episode":
-            canonical["tvshowtitle"] = str(item.get("tvshowtitle", item.get("showtitle", "")))
-            canonical["season"] = int(item.get("season", 0))
-            canonical["episode"] = int(item.get("episode", 0))
-            canonical["aired"] = str(item.get("aired", ""))
-            canonical["playcount"] = int(item.get("playcount", 0))
-            canonical["lastplayed"] = str(item.get("lastplayed", ""))
+            tvshowtitle = item.get("tvshowtitle", item.get("showtitle", ""))
+            canonical["tvshowtitle"] = tvshowtitle if isinstance(tvshowtitle, str) else str(tvshowtitle)
+            
+            season = item.get("season", 0)
+            canonical["season"] = season if isinstance(season, int) else int(season)
+            
+            episode = item.get("episode", 0)
+            canonical["episode"] = episode if isinstance(episode, int) else int(episode)
+            
+            aired = item.get("aired", "")
+            canonical["aired"] = aired if isinstance(aired, str) else str(aired)
+            
+            playcount = item.get("playcount", 0)
+            canonical["playcount"] = playcount if isinstance(playcount, int) else int(playcount)
+            
+            lastplayed = item.get("lastplayed", "")
+            canonical["lastplayed"] = lastplayed if isinstance(lastplayed, str) else str(lastplayed)
 
         # Timestamp fields from database
         canonical["created_at"] = item.get("created_at", "")
@@ -263,7 +302,9 @@ class QueryManager:
                         art_dict = json.loads(item['art'])
                         kodi_major = get_kodi_major_version()
                         item['art'] = self._format_art_for_kodi_version(art_dict, kodi_major)
+                        self.logger.debug("OPTIMIZED ART: Parsed and formatted art for item %s", item.get('title', 'Unknown'))
                     except json.JSONDecodeError:
+                        self.logger.warning("OPTIMIZED ART: Failed to parse art JSON for item %s", item.get('title', 'Unknown'))
                         item['art'] = {}
 
                 # Normalize to canonical format using optimized data
