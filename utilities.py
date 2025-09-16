@@ -97,8 +97,16 @@ def handle_set_default_list():
         config = get_config()
         current_default_id = config.get("default_list_id", "")
         if current_default_id:
-            # Ensure display setting matches current default
-            _update_default_list_display(config, current_default_id)
+            # Handle corrupted settings where dictionary was stored instead of just ID
+            if current_default_id.startswith("{'id'"):
+                log_info(f"Found corrupted default_list_id setting: {current_default_id}")
+                # Clear corrupted setting
+                config.set("default_list_id", "")
+                config.set("default_list_display", "None selected")
+                log_info("Cleared corrupted default list settings")
+            else:
+                # Ensure display setting matches current default
+                _update_default_list_display(config, current_default_id)
         else:
             # No default set, ensure display shows "None selected"
             _update_default_list_display(config, None)
