@@ -515,11 +515,6 @@
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="last_sync_time" type="integer" label="" help="">
-          <level>4</level>
-          <default>0</default>
-          <control type="edit" format="integer"/>
-        </setting>
         <setting id="initial_sync_requested" type="boolean" label="" help="">
           <level>4</level>
           <default>false</default>
