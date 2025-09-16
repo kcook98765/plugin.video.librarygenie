@@ -136,48 +136,6 @@ class SyncController:
             # Always release global lock when done
             lock.release()
 
-    def perform_periodic_sync(self) -> bool:
-        """
-        Perform periodic sync check based on current settings
-        Called by background service instead of auto-trigger monitoring
-        Returns: True if sync was performed
-        """
-        try:
-            # Skip if first run not completed
-            if self.is_first_run():
-                self.logger.debug("Skipping periodic sync - first run not completed")
-                return False
-
-            # Skip if sync already in progress (prevents duplicate scans)
-            if SyncController._sync_in_progress:
-                self.logger.debug("Skipping periodic sync - sync already in progress")
-                return False
-
-            sync_movies = self.settings.get_sync_movies()
-            sync_tv_episodes = self.settings.get_sync_tv_episodes()
-            
-            # Skip if no sync options enabled
-            if not sync_movies and not sync_tv_episodes:
-                self.logger.debug("Skipping periodic sync - no sync options enabled")
-                return False
-
-            # Check if library has changed since last sync
-            if not self._should_perform_periodic_sync():
-                return False
-
-            self.logger.info("Starting periodic library sync (delta scan)")
-            success, message = self._perform_periodic_delta_sync()
-            
-            if success:
-                self.logger.info("Periodic sync completed: %s", message)
-            else:
-                self.logger.warning("Periodic sync had issues: %s", message)
-                
-            return success
-
-        except Exception as e:
-            self.logger.error("Error during periodic sync: %s", e)
-            return False
 
     def get_sync_status(self) -> Dict[str, Any]:
         """Get current sync configuration and status"""
@@ -287,43 +245,6 @@ class SyncController:
             # Always release global lock when done
             lock.release()
 
-    def _should_perform_periodic_sync(self) -> bool:
-        """Check if periodic sync should be performed based on cooldown and library changes"""
-        try:
-            import time
-            
-            # Get sync frequency and last sync time
-            sync_frequency_hours = self.settings.get_sync_frequency_hours()
-            last_sync_time = self.settings.get_last_sync_time()
-            current_time = int(time.time())
-            
-            # Calculate time since last sync
-            if last_sync_time > 0:
-                hours_since_last_sync = (current_time - last_sync_time) / 3600
-                
-                if hours_since_last_sync < sync_frequency_hours:
-                    return False
-                    
-                self.logger.debug(
-                    "Sync cooldown passed - %.1f hours since last sync (frequency: %d hours)",
-                    hours_since_last_sync, sync_frequency_hours
-                )
-            else:
-                self.logger.debug("No previous sync time recorded - allowing periodic sync")
-            
-            # If library change tracking is disabled, sync after cooldown
-            if not self.settings.get_track_library_changes():
-                self.logger.debug("Library change tracking disabled - performing periodic sync")
-                return True
-            
-            # TODO: In future, could add actual library change detection here
-            # For now, proceed with sync after cooldown period
-            self.logger.debug("Performing periodic sync after cooldown period")
-            return True
-            
-        except Exception as e:
-            self.logger.error("Error checking if periodic sync needed: %s", e)
-            return True  # Err on the side of syncing
 
     def _format_sync_results(self, results: Dict[str, Any], duration: float) -> str:
         """Format sync results into a user-friendly message"""

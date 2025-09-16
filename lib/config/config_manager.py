@@ -36,8 +36,6 @@ class ConfigManager:
             # Library sync settings
             "sync_movies": True,
             "first_run_completed": False,
-            "sync_frequency_hours": 1,
-            "last_sync_time": 0,
             "use_native_kodi_info": True,
             
             # Search settings
@@ -405,7 +403,6 @@ class ConfigManager:
             # Search settings
             "search_page_size", "search_history_days",
             # Sync settings  
-            "last_sync_time", "sync_frequency_hours",
             # Advanced settings
             "jsonrpc_page_size", "jsonrpc_timeout_seconds",
             "db_batch_size", "db_busy_timeout_ms",
