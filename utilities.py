@@ -81,30 +81,63 @@ def handle_set_default_list():
     log_info("Handling set_default_list action")
     
     try:
-        # Import required modules using absolute imports from lib/
-        from ui.plugin_context import PluginContext
-        from ui.handler_factory import get_handler_factory
-        from ui.response_handler import get_response_handler
+        # Simplified approach - directly create a list selection dialog
+        # Get available lists from database
+        from data.query_manager import get_query_manager
         
-        # Create a mock context for settings operations (no addon handle needed)
-        context = PluginContext()
-        context.addon_handle = -1  # No directory rendering for settings actions
+        query_manager = get_query_manager()
+        if not query_manager or not query_manager.initialize():
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Database not available",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return
         
-        # Get the lists handler
-        factory = get_handler_factory()
-        factory.context = context
-        lists_handler = factory.get_lists_handler()
-        response_handler = get_response_handler()
+        # Get all lists
+        lists = query_manager.get_all_lists()
         
-        # Call the set default list method
-        response = lists_handler.set_default_list(context)
+        if not lists:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie", 
+                "No lists found. Create some lists first.",
+                xbmcgui.NOTIFICATION_WARNING
+            )
+            return
         
-        # Handle the response
-        if hasattr(response, 'success'):
-            if response.success:
-                log_info("Set default list completed successfully")
-            else:
-                log_error(f"Set default list failed: {getattr(response, 'message', 'Unknown error')}")
+        # Create selection dialog
+        dialog = xbmcgui.Dialog()
+        list_names = [f"{lst['name']}" for lst in lists]
+        list_names.insert(0, "None (disable quick-add)")
+        
+        selected = dialog.select("Select Default List for Quick-Add", list_names)
+        
+        if selected == -1:  # User cancelled
+            return
+        elif selected == 0:  # None selected
+            # Clear default list
+            from config.config_manager import get_config
+            config = get_config()
+            config.set("default_list_id", "")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Quick-add default list cleared",
+                xbmcgui.NOTIFICATION_INFO
+            )
+        else:
+            # Set selected list as default
+            selected_list = lists[selected - 1]  # -1 because we inserted "None" at index 0
+            
+            from config.config_manager import get_config
+            config = get_config()
+            config.set("default_list_id", str(selected_list['id']))
+            
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                f"Default list set to: {selected_list['name']}",
+                xbmcgui.NOTIFICATION_INFO
+            )
+            log_info(f"Default list set to: {selected_list['name']} (ID: {selected_list['id']})")
         
     except Exception as e:
         log_error(f"Error in handle_set_default_list: {e}")
