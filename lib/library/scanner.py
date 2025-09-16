@@ -203,8 +203,8 @@ class LibraryScanner:
             return {"success": False, "error": str(e)}
 
     def perform_delta_scan(self) -> Dict[str, Any]:
-        """Perform a delta scan to detect changes"""
-        self.logger.debug("Starting delta library scan")
+        """Perform a delta scan to detect changes using memory-efficient database snapshots"""
+        self.logger.debug("Starting memory-efficient delta library scan")
 
         if not self.query_manager.initialize():
             self.logger.error("Failed to initialize database for delta scan")
@@ -225,20 +225,28 @@ class LibraryScanner:
         scan_start = datetime.now().isoformat()
 
         try:
-            # Get current Kodi library state (quick check)
-            current_movies = self.kodi_client.get_movies_quick_check()
-            current_ids = {movie["movieid"] for movie in current_movies}
-
-            # Get our indexed movies
-            indexed_movies = self._get_indexed_movies()
-            indexed_ids = {movie["kodi_id"] for movie in indexed_movies}
-
-            # Detect changes
-            new_ids = current_ids - indexed_ids
-            removed_ids = indexed_ids - current_ids
+            # Use database-centric snapshot approach for memory efficiency
+            from lib.library.sync_snapshot_manager import SyncSnapshotManager
+            snapshot_manager = SyncSnapshotManager()
+            
+            # Create snapshot of current library state
+            snapshot_result = snapshot_manager.create_snapshot('movie')
+            if not snapshot_result.get("success"):
+                self.logger.error("Failed to create snapshot: %s", snapshot_result.get("error"))
+                return {"success": False, "error": "Snapshot creation failed"}
+            
+            self.logger.info("Created snapshot with %d movies using batch size %d", 
+                            snapshot_result.get("total_items", 0), 
+                            snapshot_result.get("batch_size", 0))
+            
+            # Detect changes using SQL operations (memory efficient - no Python sets)
+            changes = snapshot_manager.detect_changes('movie')
+            new_ids = changes['new']
+            removed_ids = changes['removed']
+            existing_count = changes['existing_count']
 
             items_added = 0
-            items_updated = 0
+            items_updated = existing_count  # Already updated by SQL in detect_changes
             items_removed = 0
 
             # Process new movies
@@ -252,21 +260,19 @@ class LibraryScanner:
                 self.logger.debug("Delta scan: %s removed movies detected", len(removed_ids))
                 items_removed = self._mark_movies_removed(removed_ids)
 
-            # Update last_seen for existing movies
-            existing_ids = current_ids & indexed_ids
-            if existing_ids:
-                items_updated = self._update_last_seen(existing_ids)
-
             scan_end = datetime.now().isoformat()
 
             if items_added > 0 or items_removed > 0:
                 self.logger.info("=== DELTA SCAN COMPLETE: +%s new, -%s removed movies ===", items_added, items_removed)
             else:
                 self.logger.debug("Delta scan complete: no changes detected")
+            
+            # Cleanup snapshot to prevent table bloat
+            snapshot_manager.cleanup_snapshot()
 
             return {
                 "success": True,
-                "items_found": len(current_movies),
+                "items_found": snapshot_result.get("total_items", 0),
                 "items_added": items_added,
                 "items_updated": items_updated,
                 "items_removed": items_removed,
@@ -275,6 +281,13 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error("Delta scan failed: %s", e)
+            # Ensure cleanup on failure
+            try:
+                from lib.library.sync_snapshot_manager import SyncSnapshotManager
+                snapshot_manager = SyncSnapshotManager()
+                snapshot_manager.cleanup_snapshot()
+            except Exception:
+                pass  # Don't let cleanup errors mask the original error
             return {"success": False, "error": str(e)}
 
     def get_library_stats(self) -> Dict[str, Any]:
