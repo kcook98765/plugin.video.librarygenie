@@ -475,8 +475,7 @@ def handle_authorize_ai_search():
             dialog = xbmcgui.Dialog()
             entered_url = dialog.input(
                 "Enter AI Search Server URL", 
-                type=xbmcgui.INPUT_ALPHANUM,
-                option=xbmcgui.ALPHANUM_HIDE_INPUT
+                type=xbmcgui.INPUT_ALPHANUM
             )
             
             if not entered_url or not entered_url.strip():
