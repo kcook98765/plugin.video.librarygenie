@@ -97,16 +97,8 @@ def handle_set_default_list():
         config = get_config()
         current_default_id = config.get("default_list_id", "")
         if current_default_id:
-            # Handle corrupted settings where dictionary was stored instead of just ID
-            if current_default_id.startswith("{'id'"):
-                log_info(f"Found corrupted default_list_id setting: {current_default_id}")
-                # Clear corrupted setting
-                config.set("default_list_id", "")
-                config.set("default_list_display", "None selected")
-                log_info("Cleared corrupted default list settings")
-            else:
-                # Ensure display setting matches current default
-                _update_default_list_display(config, current_default_id)
+            # Ensure display setting matches current default
+            _update_default_list_display(config, current_default_id)
         else:
             # No default set, ensure display shows "None selected"
             _update_default_list_display(config, None)
@@ -138,13 +130,15 @@ def handle_set_default_list():
                 new_list_id = _create_new_list_with_folder_selection(query_manager)
                 if new_list_id:
                     # Successfully created new list, set it as default
-                    config.set("default_list_id", str(new_list_id))
+                    # Ensure we have just the ID, not a dictionary
+                    list_id = new_list_id['id'] if isinstance(new_list_id, dict) else new_list_id
+                    config.set("default_list_id", str(list_id))
                     
                     # Update the display setting
-                    _update_default_list_display(config, new_list_id)
+                    _update_default_list_display(config, list_id)
                     
-                    # Get the new list info for confirmation
-                    new_list = query_manager.get_list_by_id(new_list_id)
+                    # Get the new list info for confirmation  
+                    new_list = query_manager.get_list_by_id(list_id)
                     list_name = new_list.get('name', 'New List') if new_list else 'New List'
                     
                     xbmcgui.Dialog().notification(
@@ -152,7 +146,7 @@ def handle_set_default_list():
                         f"Created and set default list: {list_name}",
                         xbmcgui.NOTIFICATION_INFO
                     )
-                    log_info(f"Created new list and set as default: {list_name} (ID: {new_list_id})")
+                    log_info(f"Created new list and set as default: {list_name} (ID: {list_id})")
                     
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
