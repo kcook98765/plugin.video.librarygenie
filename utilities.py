@@ -465,12 +465,15 @@ def handle_authorize_ai_search():
         from config.config_manager import get_config
         
         config = get_config()
-        server_url = config.get("remote_server_url", "")
+        # Check both current setting value (from settings dialog) and saved config
+        # This allows activation while still in settings dialog before saving
+        addon = xbmcaddon.Addon()
+        server_url = addon.getSetting("remote_server_url") or config.get("remote_server_url", "")
         
-        if not server_url:
+        if not server_url or not server_url.strip():
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
-                "No AI search server URL configured",
+                "No AI search server URL configured. Please enter a server URL first.",
                 xbmcgui.NOTIFICATION_WARNING
             )
             return
