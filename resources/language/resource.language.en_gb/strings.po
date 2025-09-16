@@ -240,9 +240,6 @@ msgctxt "#30412"
 msgid "Device name"
 msgstr ""
 
-msgctxt "#30413"
-msgid "Auth polling interval (seconds)"
-msgstr ""
 
 msgctxt "#30420"
 msgid "Library Sync"
