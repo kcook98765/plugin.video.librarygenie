@@ -61,7 +61,7 @@ class DialogResponse:
         
         # Debug logging (moved from __post_init__)
         try:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.response_types')
             logger.debug("DEBUG: DialogResponse created - success=%s, message='%s'", self.success, self.message)
         except Exception:

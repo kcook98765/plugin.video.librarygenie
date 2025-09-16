@@ -13,8 +13,8 @@ import urllib.parse
 from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
 import xbmcplugin
-from ..utils.kodi_log import get_kodi_logger
-from ..utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
+from lib.utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
 
 
 class ListItemBuilder:
@@ -273,7 +273,7 @@ class ListItemBuilder:
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
-                from ..config.settings import SettingsManager
+                from lib.config.settings import SettingsManager
                 settings_manager = SettingsManager()
                 if settings_manager.get_use_native_kodi_info():
                     li.setProperty("LG.InfoHijack.Armed", "1")
@@ -971,7 +971,7 @@ class ListItemBuilder:
                     info_labels['aired'] = media_item['aired']
 
             # Call the version-specific metadata setting function
-            from ..utils.kodi_version import get_kodi_major_version
+            from lib.utils.kodi_version import get_kodi_major_version
             kodi_major = get_kodi_major_version()
 
             if kodi_major >= 20:

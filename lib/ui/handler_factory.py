@@ -8,7 +8,7 @@ Provides lazy instantiation of handlers to improve plugin startup performance
 
 from typing import Dict, Optional, Any, Callable
 import time
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class HandlerFactory:
@@ -23,7 +23,7 @@ class HandlerFactory:
     def get_main_menu_handler(self):
         """Get MainMenuHandler instance (lazy loaded)"""
         if 'main_menu' not in self._handler_cache:
-            from .main_menu_handler import MainMenuHandler
+            from lib.ui.main_menu_handler import MainMenuHandler
             self._handler_cache['main_menu'] = MainMenuHandler()
             self.logger.debug("Created MainMenuHandler instance")
         return self._handler_cache['main_menu']
@@ -31,7 +31,7 @@ class HandlerFactory:
     def get_search_handler(self):
         """Get SearchHandler instance (lazy loaded)"""
         if 'search' not in self._handler_cache:
-            from .search_handler import SearchHandler
+            from lib.ui.search_handler import SearchHandler
             self._handler_cache['search'] = SearchHandler()
             self.logger.debug("Created SearchHandler instance")
         return self._handler_cache['search']
@@ -41,7 +41,7 @@ class HandlerFactory:
         if 'lists' not in self._handler_cache:
             # FACTORY TIMING: Lists handler import
             import_start_time = time.time()
-            from .lists_handler import ListsHandler
+            from lib.ui.lists_handler import ListsHandler
             import_end_time = time.time()
             self.logger.info(f"FACTORY: ListsHandler import took {import_end_time - import_start_time:.3f} seconds")
             
@@ -55,7 +55,7 @@ class HandlerFactory:
     def get_favorites_handler(self):
         """Get FavoritesHandler instance (lazy loaded)"""
         if 'favorites' not in self._handler_cache:
-            from .favorites_handler import FavoritesHandler
+            from lib.ui.favorites_handler import FavoritesHandler
             self._handler_cache['favorites'] = FavoritesHandler()
             self.logger.debug("Created FavoritesHandler instance")
         return self._handler_cache['favorites']
@@ -63,7 +63,7 @@ class HandlerFactory:
     def get_tools_handler(self):
         """Get ToolsHandler instance (lazy loaded)"""
         if 'tools' not in self._handler_cache:
-            from .tools_handler import ToolsHandler
+            from lib.ui.tools_handler import ToolsHandler
             self._handler_cache['tools'] = ToolsHandler()
             self.logger.debug("Created ToolsHandler instance")
         return self._handler_cache['tools']

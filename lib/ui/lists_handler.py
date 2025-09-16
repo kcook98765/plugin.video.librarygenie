@@ -11,19 +11,19 @@ import time
 import xbmcplugin
 import xbmcgui
 
-from .plugin_context import PluginContext
-from .response_types import DirectoryResponse, DialogResponse
-from .localization import L
-from .breadcrumb_helper import get_breadcrumb_helper
-from ..utils.kodi_log import get_kodi_logger
-from ..data.query_manager import get_query_manager
-from .listitem_renderer import get_listitem_renderer
-from ..utils.kodi_version import get_kodi_major_version
+from lib.ui.plugin_context import PluginContext
+from lib.ui.response_types import DirectoryResponse, DialogResponse
+from lib.ui.localization import L
+from lib.ui.breadcrumb_helper import get_breadcrumb_helper
+from lib.utils.kodi_log import get_kodi_logger
+from lib.data.query_manager import get_query_manager
+from lib.ui.listitem_renderer import get_listitem_renderer
+from lib.utils.kodi_version import get_kodi_major_version
 
 # Import the specialized operation modules
-from .list_operations import ListOperations
-from .folder_operations import FolderOperations
-from .import_export_handler import ImportExportHandler
+from lib.ui.list_operations import ListOperations
+from lib.ui.folder_operations import FolderOperations
+from lib.ui.import_export_handler import ImportExportHandler
 
 
 class ListsHandler:
@@ -354,7 +354,7 @@ class ListsHandler:
                 # Create "Kodi Favorites" list if it doesn't exist but setting is enabled
                 context.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating it")
                 try:
-                    from ..config.favorites_helper import on_favorites_integration_enabled
+                    from lib.config.favorites_helper import on_favorites_integration_enabled
                     on_favorites_integration_enabled()  # This will create the list if it doesn't exist
                     
                     # Refresh the lists to include the newly created "Kodi Favorites"
@@ -711,7 +711,7 @@ class ListsHandler:
             current_page = int(context.get_param('page', '1'))
             
             # Import pagination manager 
-            from .pagination_manager import get_pagination_manager
+            from lib.ui.pagination_manager import get_pagination_manager
             pagination_manager = get_pagination_manager()
             
             # Get total count first for pagination calculation
@@ -813,7 +813,7 @@ class ListsHandler:
 
             # Build media items using ListItemBuilder
             try:
-                from .listitem_builder import ListItemBuilder
+                from lib.ui.listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon_id, context)
                 # Use auto-detect for content type (None) instead of hardcoding "movies"
                 success = builder.build_directory(list_items, None)
@@ -1038,7 +1038,7 @@ class ListsHandler:
             dbid = context.get_param('dbid')
 
             # Get settings
-            from ..config.settings import SettingsManager
+            from lib.config.settings import SettingsManager
             settings = SettingsManager()
             default_list_id = settings.get_default_list_id()
 
@@ -1220,8 +1220,8 @@ class ListsHandler:
             response = self.remove_from_list(context, list_id, str(matching_item['id']))
 
             # Handle the DialogResponse
-            from .response_types import DialogResponse
-            from .response_handler import get_response_handler
+            from lib.ui.response_types import DialogResponse
+            from lib.ui.response_handler import get_response_handler
 
             if isinstance(response, DialogResponse):
                 response_handler = get_response_handler()

@@ -10,10 +10,10 @@ import xbmcplugin
 import xbmcgui
 from datetime import datetime
 from typing import Dict, Any, List
-from .plugin_context import PluginContext
-from .response_types import DirectoryResponse, DialogResponse
-from .localization import L
-from ..utils.kodi_log import get_kodi_logger
+from lib.ui.plugin_context import PluginContext
+from lib.ui.response_types import DirectoryResponse, DialogResponse
+from lib.ui.localization import L
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class FavoritesHandler:
@@ -41,7 +41,7 @@ class FavoritesHandler:
             self.logger.info("Found %s favorites to display", len(favorites))
 
             # Set directory title with breadcrumb context
-            from .breadcrumb_helper import get_breadcrumb_helper
+            from lib.ui.breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
             
             directory_title = breadcrumb_helper.get_directory_title_breadcrumb("kodi_favorites", {}, None)
@@ -119,7 +119,7 @@ class FavoritesHandler:
                 # Context menus now handled by global context.py
 
                 # Build favorites items
-                from .listitem_renderer import get_listitem_renderer
+                from lib.ui.listitem_renderer import get_listitem_renderer
                 renderer = get_listitem_renderer(context.addon_handle, context.addon.getAddonInfo('id'))
 
                 success = renderer.render_media_items(
@@ -225,7 +225,7 @@ class FavoritesHandler:
                     yeslabel=L(37018)   # "Create New List"
                 ):
                     # Redirect to create list
-                    from .lists_handler import ListsHandler
+                    from lib.ui.lists_handler import ListsHandler
                     lists_handler = ListsHandler()
                     return lists_handler.create_list(context)
                 else:
@@ -383,7 +383,7 @@ class FavoritesHandler:
             self.logger.info("Showing favorites tools & options")
 
             # Use the modular tools handler
-            from .tools_handler import ToolsHandler
+            from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
             return tools_handler.show_list_tools(context, "favorites")
 

@@ -12,10 +12,10 @@ from typing import List, Tuple, Dict, Any, Optional, Callable
 import xbmcgui
 import xbmcplugin
 
-from ..utils.kodi_log import get_kodi_logger
-from ..utils.kodi_version import get_kodi_major_version
-from .listitem_renderer import get_listitem_renderer
-from .localization import L
+from lib.utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_version import get_kodi_major_version
+from lib.ui.listitem_renderer import get_listitem_renderer
+from lib.ui.localization import L
 
 
 class MenuBuilder:
@@ -47,7 +47,7 @@ class MenuBuilder:
             
             if not has_tools_item:
                 try:
-                    from .breadcrumb_helper import get_breadcrumb_helper
+                    from lib.ui.breadcrumb_helper import get_breadcrumb_helper
                     breadcrumb_helper = get_breadcrumb_helper()
                     
                     breadcrumb_text = breadcrumb_helper.get_breadcrumb_for_tools_label_raw(breadcrumb_path)

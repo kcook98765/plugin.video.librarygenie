@@ -7,10 +7,10 @@ Handles the main menu display and navigation
 """
 
 from typing import Optional
-from .menu_builder import MenuBuilder
-from .plugin_context import PluginContext
-from ..utils.kodi_log import get_kodi_logger
-from ..utils.kodi_version import get_kodi_major_version
+from lib.ui.menu_builder import MenuBuilder
+from lib.ui.plugin_context import PluginContext
+from lib.utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_version import get_kodi_major_version
 import xbmcplugin
 import xbmcaddon
 
@@ -28,7 +28,7 @@ class MainMenuHandler:
             context.logger.info("MAIN MENU: Starting main menu display on Kodi v%s - redirecting to Lists", kodi_major)
 
             # Redirect main menu directly to Lists interface
-            from .handler_factory import get_handler_factory
+            from lib.ui.handler_factory import get_handler_factory
             factory = get_handler_factory()
             factory.context = context
             lists_handler = factory.get_lists_handler()
