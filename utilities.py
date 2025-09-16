@@ -468,15 +468,33 @@ def handle_authorize_ai_search():
         # Check both current setting value (from settings dialog) and saved config
         # This allows activation while still in settings dialog before saving
         addon = xbmcaddon.Addon()
-        server_url = addon.getSetting("remote_server_url") or config.get("remote_server_url", "")
+        current_url = addon.getSetting("remote_server_url")
+        saved_url = config.get("remote_server_url", "")
+        server_url = current_url or saved_url
+        
+        # Debug logging to see what we're getting
+        log_info(f"Authorization check - Current URL: '{current_url}', Saved URL: '{saved_url}', Final URL: '{server_url}'")
         
         if not server_url or not server_url.strip():
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No AI search server URL configured. Please enter a server URL first.",
-                xbmcgui.NOTIFICATION_WARNING
-            )
-            return
+            # Try alternative approach - check if user wants to enter URL now
+            dialog = xbmcgui.Dialog()
+            if dialog.yesno(
+                "No Server URL",
+                "No AI search server URL configured.\n\nWould you like to enter one now?",
+                "Cancel",
+                "Enter URL"
+            ):
+                # Get URL from user
+                entered_url = dialog.input("Enter AI Search Server URL", type=xbmcgui.INPUT_ALPHANUM)
+                if entered_url and entered_url.strip():
+                    server_url = entered_url.strip()
+                    # Save it immediately so it persists
+                    addon.setSetting("remote_server_url", server_url)
+                    log_info(f"User entered URL: '{server_url}' - proceeding with authorization")
+                else:
+                    return
+            else:
+                return
         
         # Run authorization flow
         result = run_otp_authorization_flow(server_url)
