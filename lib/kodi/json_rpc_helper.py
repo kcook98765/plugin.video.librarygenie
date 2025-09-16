@@ -13,8 +13,8 @@ from dataclasses import dataclass
 
 import xbmc
 
-from ..utils.kodi_log import get_kodi_logger
-from ..config import get_config
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config import get_config
 
 
 @dataclass

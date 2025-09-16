@@ -13,12 +13,12 @@ from typing import List, Dict, Any, Optional
 
 import xbmcvfs
 
-from ..data import get_query_manager
-from ..data.connection_manager import get_connection_manager
-from ..utils.kodi_log import get_kodi_logger
-from ..config import get_config
-from .favorites_parser import Phase4FavoritesParser
-from ..data.list_library_manager import get_list_library_manager
+from lib.data import get_query_manager
+from lib.data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config import get_config
+from lib.kodi.favorites_parser import Phase4FavoritesParser
+from lib.data.list_library_manager import get_list_library_manager
 
 
 class Phase4FavoritesManager:
@@ -475,7 +475,7 @@ class Phase4FavoritesManager:
                 self.logger.info("    No existing episode found for show_id=%s S%02dE%02d", show_kodi_id, season, episode)
                 
                 # Check if TV sync is enabled - if so, episode should exist from sync
-                from ..config.settings import SettingsManager
+                from lib.config.settings import SettingsManager
                 settings = SettingsManager()
                 if settings.get_sync_tv_episodes():
                     self.logger.info("    TV episode sync is enabled but episode not found - may need full library scan")
@@ -500,7 +500,7 @@ class Phase4FavoritesManager:
         """Create a single episode on-demand for favorites compatibility when sync is disabled"""
         try:
             # Import here to avoid circular imports
-            from ..kodi.json_rpc_client import get_kodi_client
+            from lib.kodi.json_rpc_client import get_kodi_client
             
             kodi_client = get_kodi_client()
             
@@ -663,7 +663,7 @@ class Phase4FavoritesManager:
                 return ""
             
             # Use the same normalization logic as the favorites parser
-            from .favorites_parser import get_phase4_favorites_parser
+            from lib.kodi.favorites_parser import get_phase4_favorites_parser
             parser = get_phase4_favorites_parser()
             return parser._normalize_file_path_key(file_path)
             
@@ -675,7 +675,7 @@ class Phase4FavoritesManager:
         """Get favorites from unified lists table using standard list query approach"""
         try:
             # Use the standard query manager to get list items - same as any other list
-            from ..data.query_manager import get_query_manager
+            from lib.data.query_manager import get_query_manager
             query_manager = get_query_manager()
 
             # Get the Kodi Favorites list ID
