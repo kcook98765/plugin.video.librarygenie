@@ -448,18 +448,6 @@
             <heading>30412</heading>
           </control>
         </setting>
-        <setting id="auth_poll_seconds" type="integer" label="30413" help="35542">
-          <level>3</level>
-          <default>3</default>
-          <constraints>
-            <minimum>1</minimum>
-            <step>1</step>
-            <maximum>10</maximum>
-          </constraints>
-          <control type="slider" format="integer">
-            <popup>false</popup>
-          </control>
-        </setting>
         <setting id="background_interval_minutes" type="integer" label="30451" help="35543">
           <level>3</level>
           <default>5</default>

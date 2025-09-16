@@ -211,10 +211,8 @@ class SettingsManager:
         return value if value else L(30412)  # "Device name"
 
     def get_auth_polling_interval(self) -> int:
-        """Get authentication polling interval in seconds"""
-        config = get_config()
-        value = config.get_int('auth_polling_interval', 3)
-        return max(5, min(60, value))
+        """Get authentication polling interval in seconds (hard-coded to 5 seconds)"""
+        return 5
 
     def get_enable_auto_token_refresh(self) -> bool:
         """Get enable automatic token refresh setting"""

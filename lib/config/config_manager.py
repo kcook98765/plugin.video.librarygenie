@@ -64,7 +64,6 @@ class ConfigManager:
             # Remote service settings
             "remote_server_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",
-            "auth_polling_interval": 5,  # Align with minimum clamp value
             "enable_auto_token_refresh": True,
             "use_native_kodi_info": True,
             "enable_background_token_refresh": True,
