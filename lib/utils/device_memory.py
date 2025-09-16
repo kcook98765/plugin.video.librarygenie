@@ -8,7 +8,7 @@ Detects available device memory for adaptive pagination sizing
 
 import xbmc
 from typing import Dict, Optional, Any, Union
-from .kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 logger = get_kodi_logger('lib.utils.device_memory')
 

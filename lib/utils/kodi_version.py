@@ -9,7 +9,7 @@ Centralized utility for determining Kodi version with caching
 
 import xbmc
 from typing import Optional
-from .kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 logger = get_kodi_logger('lib.utils.kodi_version')
 
