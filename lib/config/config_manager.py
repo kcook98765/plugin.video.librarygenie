@@ -111,7 +111,7 @@ class ConfigManager:
                 return self._cache[key]
         
         try:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             
             # Always try string first as it's most compatible
@@ -129,7 +129,7 @@ class ConfigManager:
             return result
         except Exception as e:
             # Return default value if setting read fails
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             logger.error("Exception getting setting '%s': %s", key, e)
             fallback = self._defaults.get(key, default)
@@ -149,7 +149,7 @@ class ConfigManager:
                 return self._cache[cache_key]
         
         try:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             
             # Check what type we think this setting should be
@@ -164,7 +164,7 @@ class ConfigManager:
             
             return result
         except Exception as e:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             logger.error("getSettingBool('%s') failed with exception: %s: %s", key, type(e).__name__, e)
             
@@ -186,7 +186,7 @@ class ConfigManager:
                 return result
             except Exception as e2:
                 # Use defaults dict fallback if available, otherwise use provided default
-                from ..utils.kodi_log import get_kodi_logger
+                from lib.utils.kodi_log import get_kodi_logger
                 logger = get_kodi_logger('lib.config.config_manager')
                 logger.error("String fallback also failed for '%s': %s: %s", key, type(e2).__name__, e2)
                 fallback = self._defaults.get(key, default)
@@ -206,7 +206,7 @@ class ConfigManager:
                 return self._cache[cache_key]
         
         try:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             
             # First try getSettingInt
@@ -218,7 +218,7 @@ class ConfigManager:
             
             return result
         except Exception as e:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             logger.warning("getSettingInt('%s') failed: %s", key, e)
             
@@ -237,7 +237,7 @@ class ConfigManager:
                 
                 return result
             except (ValueError, TypeError) as e2:
-                from ..utils.kodi_log import get_kodi_logger
+                from lib.utils.kodi_log import get_kodi_logger
                 logger = get_kodi_logger('lib.config.config_manager')
                 logger.error("String conversion failed for '%s': %s", key, e2)
                 fallback = self._defaults.get(key, default)
@@ -276,7 +276,7 @@ class ConfigManager:
     def set(self, key, value):
         """Set configuration value with write-through caching"""
         try:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             
             setting_type = self._get_setting_type(key)
@@ -322,7 +322,7 @@ class ConfigManager:
                         self._cache[key] = str(value)
                 return result
         except Exception as e:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             logger.error("Exception setting '%s' = '%s': %s", key, value, e)
             return False
@@ -349,14 +349,14 @@ class ConfigManager:
 
     def reload(self):
         """Reload all settings by clearing cache completely"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         logger.debug("Reloading all settings cache")
         self.invalidate()
 
     def _get_setting_type(self, key):
         """Determine setting type based on key name"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         
         # Comprehensive list of all boolean settings
@@ -460,7 +460,7 @@ class ConfigManager:
         if stored_id:
             # Verify the stored ID still points to a valid list
             try:
-                from ..data import QueryManager
+                from lib.data import QueryManager
                 query_manager = QueryManager()
 
                 # Check if list exists
@@ -475,7 +475,7 @@ class ConfigManager:
 
         # Fallback: find alphabetically first list (don't write back silently)
         try:
-            from ..data import QueryManager
+            from lib.data import QueryManager
             query_manager = QueryManager()
 
             lists = query_manager.get_user_lists()
@@ -526,11 +526,11 @@ class ConfigManager:
             if success:
                 # Trigger immediate scan
                 try:
-                    from .favorites_helper import on_favorites_integration_enabled
+                    from lib.config.favorites_helper import on_favorites_integration_enabled
                     on_favorites_integration_enabled()
                 except Exception as e:
                     # Log but don't fail the setting change
-                    from ..utils.kodi_log import get_kodi_logger
+                    from lib.utils.kodi_log import get_kodi_logger
                     logger = get_kodi_logger('lib.config.config_manager')
                     logger.warning("Failed to trigger immediate favorites scan: %s", e)
 
@@ -548,11 +548,11 @@ class ConfigManager:
             if success:
                 # Trigger immediate library scan with TV episodes
                 try:
-                    from .tv_sync_helper import on_tv_episode_sync_enabled
+                    from lib.config.tv_sync_helper import on_tv_episode_sync_enabled
                     on_tv_episode_sync_enabled()
                 except Exception as e:
                     # Log but don't fail the setting change
-                    from ..utils.kodi_log import get_kodi_logger
+                    from lib.utils.kodi_log import get_kodi_logger
                     logger = get_kodi_logger('lib.config.config_manager')
                     logger.warning("Failed to trigger immediate TV episode sync: %s", e)
 
@@ -584,7 +584,7 @@ class ConfigManager:
     def get_backup_storage_location(self) -> str:
         """Get backup storage location with proper fallback"""
         try:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             logger.debug("CONFIG_DEBUG: Getting backup storage location")
             
@@ -603,7 +603,7 @@ class ConfigManager:
             logger.debug("CONFIG_DEBUG: Using default backup path: %s", default_path)
             return default_path
         except Exception as e:
-            from ..utils.kodi_log import get_kodi_logger
+            from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.config.config_manager')
             logger.error("CONFIG_DEBUG: Exception in get_backup_storage_location: %s", e)
             # Ultimate fallback
@@ -611,7 +611,7 @@ class ConfigManager:
 
     def get_backup_enabled(self) -> bool:
         """Get backup enabled setting with detailed debugging"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         logger.debug("CONFIG_DEBUG: Getting backup_enabled setting")
         
@@ -625,7 +625,7 @@ class ConfigManager:
 
     def get_backup_include_non_library(self) -> bool:
         """Get backup include non-library setting with detailed debugging"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         logger.debug("CONFIG_DEBUG: Getting backup_include_non_library setting")
         
@@ -639,7 +639,7 @@ class ConfigManager:
 
     def get_backup_include_folders(self) -> bool:
         """Get backup include folders setting with detailed debugging"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         logger.debug("CONFIG_DEBUG: Getting backup_include_folders setting")
         
@@ -653,7 +653,7 @@ class ConfigManager:
 
     def get_backup_retention_count(self) -> int:
         """Get backup retention count with detailed debugging"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         logger.debug("CONFIG_DEBUG: Getting backup_retention_count setting")
         
@@ -667,7 +667,7 @@ class ConfigManager:
 
     def get_backup_storage_type(self) -> str:
         """Get backup storage type with detailed debugging"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         logger.debug("CONFIG_DEBUG: Getting backup_storage_type setting")
         
@@ -691,7 +691,7 @@ class ConfigManager:
 
     def get_backup_interval(self) -> str:
         """Get backup interval with detailed debugging"""
-        from ..utils.kodi_log import get_kodi_logger
+        from lib.utils.kodi_log import get_kodi_logger
         logger = get_kodi_logger('lib.config.config_manager')
         logger.debug("CONFIG_DEBUG: Getting backup_interval setting")
         

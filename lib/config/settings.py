@@ -11,9 +11,9 @@ from __future__ import annotations
 import xbmcaddon
 from typing import Any, Dict, Optional, Union
 
-from .config_manager import get_config
-from ..utils.kodi_log import get_kodi_logger
-from ..ui.localization import L
+from lib.config.config_manager import get_config
+from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.localization import L
 
 class SettingsManager:
     """Manages all addon settings with proper type conversion and validation"""
