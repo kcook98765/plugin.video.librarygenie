@@ -465,36 +465,33 @@ def handle_authorize_ai_search():
         from config.config_manager import get_config
         
         config = get_config()
-        # Check both current setting value (from settings dialog) and saved config
-        # This allows activation while still in settings dialog before saving
         addon = xbmcaddon.Addon()
-        current_url = addon.getSetting("remote_server_url")
-        saved_url = config.get("remote_server_url", "")
-        server_url = current_url or saved_url
         
-        # Debug logging to see what we're getting
-        log_info(f"Authorization check - Current URL: '{current_url}', Saved URL: '{saved_url}', Final URL: '{server_url}'")
+        # Check if we already have a URL configured
+        server_url = config.get("remote_server_url", "").strip()
         
-        if not server_url or not server_url.strip():
-            # Try alternative approach - check if user wants to enter URL now
+        if not server_url:
+            # Streamlined workflow: Ask for URL first
             dialog = xbmcgui.Dialog()
-            if dialog.yesno(
-                "No Server URL",
-                "No AI search server URL configured.\n\nWould you like to enter one now?",
-                "Cancel",
-                "Enter URL"
-            ):
-                # Get URL from user
-                entered_url = dialog.input("Enter AI Search Server URL", type=xbmcgui.INPUT_ALPHANUM)
-                if entered_url and entered_url.strip():
-                    server_url = entered_url.strip()
-                    # Save it immediately so it persists
-                    addon.setSetting("remote_server_url", server_url)
-                    log_info(f"User entered URL: '{server_url}' - proceeding with authorization")
-                else:
-                    return
-            else:
+            entered_url = dialog.input(
+                "Enter AI Search Server URL", 
+                type=xbmcgui.INPUT_ALPHANUM,
+                option=xbmcgui.ALPHANUM_HIDE_INPUT
+            )
+            
+            if not entered_url or not entered_url.strip():
+                log_info("User cancelled URL entry")
                 return
+                
+            server_url = entered_url.strip()
+            
+            # Save URL immediately to both addon settings and config
+            addon.setSetting("remote_server_url", server_url)
+            config.set("remote_server_url", server_url)
+            
+            log_info(f"User entered and saved server URL for authorization")
+        else:
+            log_info(f"Using existing server URL for authorization")
         
         # Run authorization flow
         result = run_otp_authorization_flow(server_url)
