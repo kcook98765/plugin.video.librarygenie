@@ -806,7 +806,7 @@ class ListsHandler:
                     pagination_info=pagination_info,
                     base_url=base_url,
                     url_params=url_params,
-                    placement='both'
+                    placement='bottom'
                 )
                 context.logger.debug("Added pagination controls to list (page %d/%d)", 
                                    pagination_info.current_page, pagination_info.total_pages)
