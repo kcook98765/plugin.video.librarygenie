@@ -17,7 +17,7 @@ from lib.config.settings import SettingsManager
 from lib.utils.kodi_log import get_kodi_logger
 from lib.auth.state import is_authorized, get_api_key
 # Removed import of otp_auth to resolve circular dependency
-# from ..auth.otp_auth import exchange_otp_for_api_key, test_api_connection
+# from lib.auth.otp_auth import exchange_otp_for_api_key, test_api_connection
 
 
 class AISearchClient:
