@@ -123,6 +123,9 @@ def handle_set_default_list():
                     config = get_config()
                     config.set("default_list_id", str(new_list_id))
                     
+                    # Update the display setting
+                    _update_default_list_display(config, new_list_id)
+                    
                     # Get the new list info for confirmation
                     new_list = query_manager.get_list_by_id(new_list_id)
                     list_name = new_list.get('name', 'New List') if new_list else 'New List'
@@ -147,6 +150,9 @@ def handle_set_default_list():
                 config = get_config()
                 config.set("default_list_id", str(selected_list['id']))
                 
+                # Update the display setting
+                _update_default_list_display(config, selected_list['id'])
+                
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     f"Default list set to: {selected_list['name']}",
@@ -164,6 +170,41 @@ def handle_set_default_list():
             f"Error setting default list: {str(e)}",
             xbmcgui.NOTIFICATION_ERROR
         )
+
+
+def _update_default_list_display(config, list_id=None):
+    """Helper function to update the display setting with the current default list name"""
+    try:
+        if not list_id:
+            # Clear the display
+            config.set("default_list_display", "None selected")
+            return True
+            
+        # Get the list name from the database
+        from data.query_manager import get_query_manager
+        query_manager = get_query_manager()
+        if query_manager and query_manager.initialize():
+            list_info = query_manager.get_list_by_id(list_id)
+            if list_info:
+                list_name = list_info.get('name', 'Unknown List')
+                folder_name = list_info.get('folder_name')
+                
+                # Format display with folder info if available
+                if folder_name:
+                    display_text = f"{list_name} ({folder_name})"
+                else:
+                    display_text = list_name
+                    
+                config.set("default_list_display", display_text)
+                return True
+        
+        # Fallback if we can't get list info
+        config.set("default_list_display", f"List ID: {list_id}")
+        return True
+        
+    except Exception as e:
+        log_error(f"Error updating default list display: {e}")
+        return False
 
 
 def _create_new_list_with_folder_selection(query_manager):
