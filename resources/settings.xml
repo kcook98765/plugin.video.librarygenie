@@ -97,7 +97,9 @@
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
-          <control type="label" format="string"/>
+          <control type="edit" format="string" enable="false">
+            <heading>30045</heading>
+          </control>
         </setting>
         <setting id="set_default_list_action" type="action" label="30041" help="">
           <level>0</level>
