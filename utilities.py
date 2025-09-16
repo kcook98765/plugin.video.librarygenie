@@ -81,8 +81,6 @@ def handle_set_default_list():
     log_info("Handling set_default_list action")
     
     try:
-        # Simplified approach - directly create a list selection dialog
-        # Get available lists from database
         from data.query_manager import get_query_manager
         
         query_manager = get_query_manager()
@@ -94,50 +92,68 @@ def handle_set_default_list():
             )
             return
         
-        # Get all lists
-        lists = query_manager.get_user_lists()
-        
-        if not lists:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie", 
-                "No lists found. Create some lists first.",
-                xbmcgui.NOTIFICATION_WARNING
-            )
-            return
-        
-        # Create selection dialog
-        dialog = xbmcgui.Dialog()
-        list_names = [f"{lst['name']}" for lst in lists]
-        list_names.insert(0, "None (disable quick-add)")
-        
-        selected = dialog.select("Select Default List for Quick-Add", list_names)
-        
-        if selected == -1:  # User cancelled
-            return
-        elif selected == 0:  # None selected
-            # Clear default list
-            from config.config_manager import get_config
-            config = get_config()
-            config.set("default_list_id", "")
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Quick-add default list cleared",
-                xbmcgui.NOTIFICATION_INFO
-            )
-        else:
-            # Set selected list as default
-            selected_list = lists[selected - 1]  # -1 because we inserted "None" at index 0
+        while True:  # Loop to allow retry after creating new list
+            # Get all user lists and filter out Search History
+            all_lists = query_manager.get_user_lists()
+            lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History']
             
-            from config.config_manager import get_config
-            config = get_config()
-            config.set("default_list_id", str(selected_list['id']))
+            # Create selection dialog options
+            dialog = xbmcgui.Dialog()
+            list_names = ["Add New List..."]  # First option for creating new list
             
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                f"Default list set to: {selected_list['name']}",
-                xbmcgui.NOTIFICATION_INFO
-            )
-            log_info(f"Default list set to: {selected_list['name']} (ID: {selected_list['id']})")
+            # Add existing lists
+            for lst in lists:
+                folder_info = f" ({lst['folder_name']})" if lst.get('folder_name') else ""
+                list_names.append(f"{lst['name']}{folder_info}")
+            
+            # If no lists available, still show the create option
+            if not lists:
+                list_names.append("(No existing lists found)")
+            
+            selected = dialog.select("Select Default List for Quick-Add", list_names)
+            
+            if selected == -1:  # User cancelled
+                return
+            elif selected == 0:  # "Add New List..." selected
+                # Handle new list creation
+                new_list_id = _create_new_list_with_folder_selection(query_manager)
+                if new_list_id:
+                    # Successfully created new list, set it as default
+                    from config.config_manager import get_config
+                    config = get_config()
+                    config.set("default_list_id", str(new_list_id))
+                    
+                    # Get the new list info for confirmation
+                    new_list = query_manager.get_list_by_id(new_list_id)
+                    list_name = new_list.get('name', 'New List') if new_list else 'New List'
+                    
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"Created and set default list: {list_name}",
+                        xbmcgui.NOTIFICATION_INFO
+                    )
+                    log_info(f"Created new list and set as default: {list_name} (ID: {new_list_id})")
+                    return
+                # If creation failed, continue the loop to show menu again
+            else:
+                # Existing list selected
+                if not lists or selected > len(lists):
+                    # Handle edge case where "No existing lists found" was shown
+                    continue
+                    
+                selected_list = lists[selected - 1]  # -1 because "Add New List..." is at index 0
+                
+                from config.config_manager import get_config
+                config = get_config()
+                config.set("default_list_id", str(selected_list['id']))
+                
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Default list set to: {selected_list['name']}",
+                    xbmcgui.NOTIFICATION_INFO
+                )
+                log_info(f"Default list set to: {selected_list['name']} (ID: {selected_list['id']})")
+                return
         
     except Exception as e:
         log_error(f"Error in handle_set_default_list: {e}")
@@ -148,6 +164,70 @@ def handle_set_default_list():
             f"Error setting default list: {str(e)}",
             xbmcgui.NOTIFICATION_ERROR
         )
+
+
+def _create_new_list_with_folder_selection(query_manager):
+    """Helper function to create a new list with folder selection"""
+    try:
+        # Get list name from user
+        dialog = xbmcgui.Dialog()
+        list_name = dialog.input("Enter List Name", type=xbmcgui.INPUT_ALPHANUM)
+        
+        if not list_name or not list_name.strip():
+            return None  # User cancelled or entered empty name
+        
+        list_name = list_name.strip()
+        
+        # Get available folders for selection
+        all_folders = query_manager.get_all_folders()
+        
+        # Filter out Search History folder from selection
+        folders = [f for f in all_folders if f.get('name') != 'Search History']
+        
+        folder_options = ["[Root Level]"]  # Option for root level
+        folder_ids = [None]  # None represents root level
+        
+        for folder in folders:
+            folder_options.append(folder['name'])
+            folder_ids.append(folder['id'])
+        
+        # Show folder selection dialog
+        selected_folder_index = dialog.select(f"Select Folder for '{list_name}'", folder_options)
+        
+        if selected_folder_index == -1:
+            return None  # User cancelled folder selection
+        
+        selected_folder_id = folder_ids[selected_folder_index]
+        
+        # Create the list
+        result = query_manager.create_list(list_name, description='', folder_id=selected_folder_id)
+        
+        if isinstance(result, dict) and result.get("error"):
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                f"Failed to create list: {result['error']}",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return None
+        elif result:
+            # Successful creation - result should be the new list ID
+            return result
+        else:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to create list",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return None
+            
+    except Exception as e:
+        log_error(f"Error creating new list: {e}")
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            f"Error creating list: {str(e)}",
+            xbmcgui.NOTIFICATION_ERROR
+        )
+        return None
 
 
 def handle_manual_library_sync():
