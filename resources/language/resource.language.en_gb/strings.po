@@ -246,7 +246,7 @@ msgstr ""
 
 
 msgctxt "#30420"
-msgid "Library Sync"
+msgid "Remote AI Library Sync"
 msgstr ""
 
 msgctxt "#30421"
