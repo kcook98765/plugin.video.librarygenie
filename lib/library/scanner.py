@@ -10,14 +10,14 @@ import json
 from datetime import datetime
 from typing import List, Dict, Set, Any, Optional, Callable
 
-from ..data import QueryManager
-from ..data.connection_manager import get_connection_manager
-from ..kodi.json_rpc_client import get_kodi_client
-from ..utils.kodi_log import get_kodi_logger
-from ..utils.kodi_version import get_kodi_major_version
-from ..config.settings import SettingsManager
+from lib.data import QueryManager
+from lib.data.connection_manager import get_connection_manager
+from lib.kodi.json_rpc_client import get_kodi_client
+from lib.utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_version import get_kodi_major_version
+from lib.config.settings import SettingsManager
 
-from ..ui.localization import L
+from lib.ui.localization import L
 
 class LibraryScanner:
     """Scans and indexes Kodi's video library"""

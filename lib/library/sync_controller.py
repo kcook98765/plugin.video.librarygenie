@@ -11,10 +11,10 @@ from __future__ import annotations
 import time
 from typing import Optional, Tuple, Dict, Any
 
-from ..config.settings import SettingsManager
-from ..utils.kodi_log import get_kodi_logger
-from ..ui.localization import L
-from .scanner import LibraryScanner
+from lib.config.settings import SettingsManager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.localization import L
+from lib.library.scanner import LibraryScanner
 
 
 class SyncController:
@@ -46,7 +46,7 @@ class SyncController:
             
             # Set initial sync request flag for service to pick up (non-blocking)
             if sync_movies or sync_tv_episodes:
-                from ..config.config_manager import get_config
+                from lib.config.config_manager import get_config
                 config = get_config()
                 config.set('initial_sync_requested', True)
                 self.logger.info("Initial sync requested - service will process in background")
