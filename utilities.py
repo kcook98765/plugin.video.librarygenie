@@ -82,6 +82,7 @@ def handle_set_default_list():
     
     try:
         from data.query_manager import get_query_manager
+        from config.config_manager import get_config
         
         query_manager = get_query_manager()
         if not query_manager or not query_manager.initialize():
@@ -91,6 +92,16 @@ def handle_set_default_list():
                 xbmcgui.NOTIFICATION_ERROR
             )
             return
+        
+        # Initialize display setting if needed - sync with existing default list
+        config = get_config()
+        current_default_id = config.get("default_list_id", "")
+        if current_default_id:
+            # Ensure display setting matches current default
+            _update_default_list_display(config, current_default_id)
+        else:
+            # No default set, ensure display shows "None selected"
+            _update_default_list_display(config, None)
         
         while True:  # Loop to allow retry after creating new list
             # Get all user lists and filter out Search History
@@ -119,8 +130,6 @@ def handle_set_default_list():
                 new_list_id = _create_new_list_with_folder_selection(query_manager)
                 if new_list_id:
                     # Successfully created new list, set it as default
-                    from config.config_manager import get_config
-                    config = get_config()
                     config.set("default_list_id", str(new_list_id))
                     
                     # Update the display setting
@@ -146,8 +155,6 @@ def handle_set_default_list():
                     
                 selected_list = lists[selected - 1]  # -1 because "Add New List..." is at index 0
                 
-                from config.config_manager import get_config
-                config = get_config()
                 config.set("default_list_id", str(selected_list['id']))
                 
                 # Update the display setting
