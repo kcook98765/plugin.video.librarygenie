@@ -154,6 +154,66 @@ class KodiJsonRpcClient:
         except Exception as e:
             self.logger.error("JSON-RPC quick check failed: %s", e)
             return []
+    
+    def get_movies_quick_check_paginated(self, offset: int = 0, limit: int = 500) -> Dict[str, Any]:
+        """Get minimal movie data for delta sync in memory-efficient batches"""
+        request = {
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetMovies", 
+            "params": {
+                "properties": ["file", "dateadded", "title"],  # Minimal fields only
+                "limits": {"start": offset, "end": offset + limit}
+            },
+            "id": 1
+        }
+        
+        try:
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+
+            if "error" in response:
+                self.logger.error("JSON-RPC paginated quick check error: %s", response['error'])
+                return {"movies": [], "limits": {"total": 0}}
+
+            result = response.get("result", {})
+            movies = result.get("movies", [])
+            limits = result.get("limits", {"total": 0})
+
+            return {"movies": movies, "limits": limits}
+
+        except Exception as e:
+            self.logger.error("JSON-RPC paginated quick check failed: %s", e)
+            return {"movies": [], "limits": {"total": 0}}
+    
+    def get_episodes_quick_check_paginated(self, offset: int = 0, limit: int = 500) -> Dict[str, Any]:
+        """Get minimal TV episode data for delta sync in memory-efficient batches"""
+        request = {
+            "jsonrpc": "2.0",
+            "method": "VideoLibrary.GetEpisodes",
+            "params": {
+                "properties": ["file", "dateadded", "title"],  # Minimal fields only
+                "limits": {"start": offset, "end": offset + limit}
+            },
+            "id": 1
+        }
+        
+        try:
+            response_str = xbmc.executeJSONRPC(json.dumps(request))
+            response = json.loads(response_str)
+
+            if "error" in response:
+                self.logger.error("JSON-RPC episodes paginated quick check error: %s", response['error'])
+                return {"episodes": [], "limits": {"total": 0}}
+
+            result = response.get("result", {})
+            episodes = result.get("episodes", [])
+            limits = result.get("limits", {"total": 0}}
+
+            return {"episodes": episodes, "limits": limits}
+
+        except Exception as e:
+            self.logger.error("JSON-RPC episodes paginated quick check failed: %s", e)
+            return {"episodes": [], "limits": {"total": 0}}
 
     def get_movie_details(self, movie_id: int) -> Optional[Dict[str, Any]]:
         """Get details for a specific movie by ID"""
