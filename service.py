@@ -452,9 +452,6 @@ class LibraryGenieService:
                 if tick_count % 50 == 0:  # Every 5 seconds
                     self._check_cache_refresh_request()
                 
-                # Check for periodic library sync based on user settings
-                if tick_count % tv_sync_check_interval == 0:
-                    self._check_periodic_library_sync(tick_count)
 
                 # Run hijack manager tick only when needed
                 if hijack_mode:
