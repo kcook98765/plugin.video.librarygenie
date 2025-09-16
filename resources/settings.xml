@@ -374,6 +374,35 @@
 
     <!-- REMOTE SERVICES SETTINGS (Level 3) - Expert/Debug features -->
     <category id="remote" label="30400" help="">
+      <group id="15" label="30420">
+        <setting id="device_name" type="string" label="30412" help="35541">
+          <level>3</level>
+          <default>Kodi</default>
+          <constraints>
+            <allowempty>false</allowempty>
+          </constraints>
+          <control type="edit" format="string">
+            <heading>30412</heading>
+          </control>
+        </setting>
+        <setting id="background_interval_minutes" type="integer" label="30451" help="35543">
+          <level>3</level>
+          <default>5</default>
+          <constraints>
+            <minimum>1</minimum>
+            <maximum>1440</maximum>
+          </constraints>
+          <control type="edit" format="integer">
+            <heading>30451</heading>
+          </control>
+        </setting>
+        <setting id="background_token_refresh" type="boolean" label="32086" help="35544">
+          <level>3</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
+      </group>
+      
       <group id="14" label="30410">
         <setting id="remote_server_url" type="string" label="30411" help="35540">
           <level>3</level>
@@ -448,35 +477,6 @@
           <control type="button" format="action">
             <heading>30464</heading>
           </control>
-        </setting>
-      </group>
-      
-      <group id="15" label="30420">
-        <setting id="device_name" type="string" label="30412" help="35541">
-          <level>3</level>
-          <default>Kodi</default>
-          <constraints>
-            <allowempty>false</allowempty>
-          </constraints>
-          <control type="edit" format="string">
-            <heading>30412</heading>
-          </control>
-        </setting>
-        <setting id="background_interval_minutes" type="integer" label="30451" help="35543">
-          <level>3</level>
-          <default>5</default>
-          <constraints>
-            <minimum>1</minimum>
-            <maximum>1440</maximum>
-          </constraints>
-          <control type="edit" format="integer">
-            <heading>30451</heading>
-          </control>
-        </setting>
-        <setting id="background_token_refresh" type="boolean" label="32086" help="35544">
-          <level>3</level>
-          <default>true</default>
-          <control type="toggle"/>
         </setting>
       </group>
     </category>

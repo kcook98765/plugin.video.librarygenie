@@ -233,7 +233,7 @@ msgid "Remote Services"
 msgstr ""
 
 msgctxt "#30410"
-msgid "Authentication"
+msgid "Remote AI search (alpha)"
 msgstr ""
 
 msgctxt "#30411"
