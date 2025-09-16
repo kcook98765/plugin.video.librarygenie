@@ -83,8 +83,16 @@
     <!-- LISTS SETTINGS (Level 0-1) - List management features -->
     <category id="lists" label="30200" help="">
       <group id="3" label="30040">
+        <setting id="quick_add_enabled" type="boolean" label="30042" help="35510">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
         <setting id="set_default_list_action" type="action" label="30041" help="">
           <level>0</level>
+          <dependencies>
+            <dependency type="enable" setting="quick_add_enabled" operator="is">true</dependency>
+          </dependencies>
           <data>RunScript(plugin.video.librarygenie,set_default_list)</data>
           <constraints>
             <allowempty>true</allowempty>
@@ -92,11 +100,6 @@
           <control type="button" format="action">
             <heading>30041</heading>
           </control>
-        </setting>
-        <setting id="quick_add_enabled" type="boolean" label="30042" help="35510">
-          <level>0</level>
-          <default>false</default>
-          <control type="toggle"/>
         </setting>
       </group>
       
