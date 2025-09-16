@@ -7,8 +7,8 @@ Creates the complete database schema on first run
 """
 
 import time
-from .connection_manager import get_connection_manager
-from ..utils.kodi_log import get_kodi_logger
+from lib.data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
 TARGET_SCHEMA_VERSION = 2

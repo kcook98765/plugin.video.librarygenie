@@ -6,10 +6,10 @@ LibraryGenie - Data Layer
 Database operations and query management
 """
 
-from .query_manager import QueryManager, get_query_manager
-from .connection_manager import get_connection_manager
-from .storage_manager import get_storage_manager
-from .migrations import get_migration_manager
+from lib.data.query_manager import QueryManager, get_query_manager
+from lib.data.connection_manager import get_connection_manager
+from lib.data.storage_manager import get_storage_manager
+from lib.data.migrations import get_migration_manager
 
 # Export main classes and functions
 __all__ = [

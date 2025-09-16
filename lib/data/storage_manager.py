@@ -10,7 +10,7 @@ import os
 import xbmcvfs
 import xbmcaddon
 
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class StorageManager:
