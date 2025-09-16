@@ -7,7 +7,7 @@ LibraryGenie - Favorites Integration Helper
 Helper functions for favorites integration settings
 """
 
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 def on_favorites_integration_enabled():
@@ -17,7 +17,7 @@ def on_favorites_integration_enabled():
     
     # Ensure "Kodi Favorites" list exists in database (even if empty)
     try:
-        from ..data.query_manager import get_query_manager
+        from lib.data.query_manager import get_query_manager
         query_manager = get_query_manager()
         if query_manager.initialize():
             # Check if Kodi Favorites list exists, create if not

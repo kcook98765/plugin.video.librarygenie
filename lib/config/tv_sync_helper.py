@@ -6,7 +6,7 @@ LibraryGenie - TV Episode Sync Helper
 Compatibility layer for TV episode sync with new SyncController architecture
 """
 
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 def on_tv_episode_sync_enabled():
@@ -18,13 +18,13 @@ def on_tv_episode_sync_enabled():
     logger.info("TV episode sync requested - using new SyncController")
     
     try:
-        from ..library.sync_controller import SyncController
+        from lib.library.sync_controller import SyncController
         
         # Use new SyncController for TV episode sync
         sync_controller = SyncController()
         
         # Check if TV episodes sync is enabled in settings
-        from ..config.settings import SettingsManager
+        from lib.config.settings import SettingsManager
         settings = SettingsManager()
         if not settings.get_sync_tv_episodes():
             logger.warning("TV episode sync called but setting is disabled")
@@ -58,8 +58,8 @@ def trigger_tv_sync():
     logger.info("TV sync requested - delegating to SyncController")
     
     try:
-        from ..library.sync_controller import SyncController
-        from ..config.settings import SettingsManager
+        from lib.library.sync_controller import SyncController
+        from lib.config.settings import SettingsManager
         
         settings = SettingsManager()
         
