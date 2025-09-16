@@ -6,7 +6,7 @@ LibraryGenie - Localization Helper
 Provides helper functions for common localization patterns
 """
 
-from .localization import L
+from lib.ui.localization import L
 
 def get_confirmation_dialog_strings(action_type: str = "delete"):
     """Get localized strings for confirmation dialogs"""

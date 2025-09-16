@@ -5,9 +5,9 @@ import xbmc
 import xbmcgui
 import time
 
-from ..utils.kodi_log import log, log_info, log_error, log_warning, get_kodi_logger
-from .info_hijack_helpers import open_native_info_fast, restore_container_after_close, _log
-from .navigation_cache import get_cached_info, navigation_action
+from lib.utils.kodi_log import log, log_info, log_error, log_warning, get_kodi_logger
+from lib.ui.info_hijack_helpers import open_native_info_fast, restore_container_after_close, _log
+from lib.ui.navigation_cache import get_cached_info, navigation_action
 
 class InfoHijackManager:
     """

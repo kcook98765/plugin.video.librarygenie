@@ -11,7 +11,7 @@ import threading
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Any
 import xbmc
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 logger = get_kodi_logger('lib.ui.navigation_cache')
 

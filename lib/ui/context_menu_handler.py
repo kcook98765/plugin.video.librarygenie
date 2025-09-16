@@ -1,10 +1,10 @@
 import json
 import os
 import sys
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 # Import localization function
-from .localization import L
+from lib.ui.localization import L
 
 # Set up logging
 log = get_kodi_logger('lib.ui.context_menu_handler')

@@ -8,9 +8,9 @@ Handles adaptive pagination logic with device memory awareness and user override
 
 import math
 from typing import Dict, List, Optional, Tuple, Any
-from ..config.settings import SettingsManager
-from ..utils.device_memory import get_device_memory_profiler
-from ..utils.kodi_log import get_kodi_logger
+from lib.config.settings import SettingsManager
+from lib.utils.device_memory import get_device_memory_profiler
+from lib.utils.kodi_log import get_kodi_logger
 
 logger = get_kodi_logger('lib.ui.pagination_manager')
 

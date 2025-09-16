@@ -9,11 +9,10 @@ Modular tools and options handler for different list types
 import xbmcgui
 from datetime import datetime
 from typing import Dict, Any, Optional
-from .plugin_context import PluginContext
-from .response_types import DialogResponse
-from .localization_helper import L
-from ..utils.kodi_log import get_kodi_logger
-from ..kodi.favorites_manager import get_phase4_favorites_manager
+from lib.ui.plugin_context import PluginContext
+from lib.ui.response_types import DialogResponse
+from lib.ui.localization_helper import L
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class ToolsHandler:
@@ -22,7 +21,7 @@ class ToolsHandler:
     def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_kodi_logger('lib.ui.tools_handler')
         try:
-            from .listitem_builder import ListItemBuilder
+            from lib.ui.listitem_builder import ListItemBuilder
             if context:
                 self.listitem_builder = ListItemBuilder(
                     addon_handle=context.addon_handle,
@@ -94,11 +93,11 @@ class ToolsHandler:
 
             # Handle selected option
             if selected_index == 0:  # Scan Favorites
-                from .favorites_handler import FavoritesHandler
+                from lib.ui.favorites_handler import FavoritesHandler
                 favorites_handler = FavoritesHandler()
                 return favorites_handler.scan_favorites(context)
             elif selected_index == 1:  # Save As
-                from .favorites_handler import FavoritesHandler
+                from lib.ui.favorites_handler import FavoritesHandler
                 favorites_handler = FavoritesHandler()
                 return favorites_handler.save_favorites_as(context)
 
@@ -210,7 +209,7 @@ class ToolsHandler:
                 elif selected_index == 1:  # Export
                     return self._export_single_list(context, list_id)
                 elif selected_index == 2:  # Delete
-                    from .lists_handler import ListsHandler
+                    from lib.ui.lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
                     result = lists_handler.delete_list(context, list_id)
 
@@ -230,7 +229,7 @@ class ToolsHandler:
             elif is_kodi_favorites:
                 # Kodi Favorites list: Save As New List(0), Cancel(1)
                 if selected_index == 0:  # Save As New List
-                    from .favorites_handler import FavoritesHandler
+                    from lib.ui.favorites_handler import FavoritesHandler
                     favorites_handler = FavoritesHandler()
                     return favorites_handler.save_favorites_as(context)
             else:
@@ -238,7 +237,7 @@ class ToolsHandler:
                 if selected_index == 0:  # Merge lists
                     return self._merge_lists(context, list_id)
                 elif selected_index == 1:  # Rename
-                    from .lists_handler import ListsHandler
+                    from lib.ui.lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
                     result = lists_handler.rename_list(context, list_id)
 
@@ -253,7 +252,7 @@ class ToolsHandler:
                 elif selected_index == 3:  # Export
                     return self._export_single_list(context, list_id)
                 elif selected_index == 4:  # Delete
-                    from .lists_handler import ListsHandler
+                    from lib.ui.lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
                     result = lists_handler.delete_list(context, list_id)
 
@@ -358,7 +357,7 @@ class ToolsHandler:
                 elif selected_index == 1:  # Create subfolder
                     return self._create_subfolder(context, folder_id)
                 elif selected_index == 2:  # Rename
-                    from .lists_handler import ListsHandler
+                    from lib.ui.lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
                     result = lists_handler.rename_folder(context, folder_id)
 
@@ -376,7 +375,7 @@ class ToolsHandler:
                 elif selected_index == 4:  # Export
                     return self._export_folder_lists(context, folder_id)
                 elif selected_index == 5:  # Delete
-                    from .lists_handler import ListsHandler
+                    from lib.ui.lists_handler import ListsHandler
                     lists_handler = ListsHandler(context)
                     result = lists_handler.delete_folder(context, folder_id)
 
@@ -682,7 +681,7 @@ class ToolsHandler:
                 return DialogResponse(success=False)
 
             # Get export engine (lazy import)
-            from ..import_export.export_engine import get_export_engine
+            from lib.import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
             
             if selected_option == 0:
@@ -803,7 +802,7 @@ class ToolsHandler:
             include_subfolders = (selected_option == 1)  # Branch export
 
             # Get export engine (lazy import)
-            from ..import_export.export_engine import get_export_engine
+            from lib.import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
 
             # Run contextual export with folder filtering
@@ -867,7 +866,7 @@ class ToolsHandler:
                 return DialogResponse(success=False)
 
             # Get export engine
-            from ..import_export.export_engine import get_export_engine
+            from lib.import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
 
             # Run export for all lists (no context filter = export everything)
@@ -908,7 +907,7 @@ class ToolsHandler:
     def _handle_import_lists(self, context: PluginContext) -> DialogResponse:
         """Import lists from file"""
         try:
-            from ..import_export.import_engine import get_import_engine
+            from lib.import_export.import_engine import get_import_engine
             
             # Show file browser for selection
             import xbmcgui
@@ -1019,6 +1018,7 @@ class ToolsHandler:
     def _show_favorites_stats(self) -> DialogResponse:
         """Show favorites statistics"""
         try:
+            from lib.kodi.favorites_manager import get_phase4_favorites_manager
             favorites_manager = get_phase4_favorites_manager()
 
             stats = favorites_manager.get_favorites_stats()
@@ -1048,7 +1048,7 @@ class ToolsHandler:
     def _run_manual_backup(self) -> DialogResponse:
         """Run manual backup"""
         try:
-            from ..import_export import get_timestamp_backup_manager
+            from lib.import_export import get_timestamp_backup_manager
             backup_manager = get_timestamp_backup_manager()
 
             result = backup_manager.run_manual_backup()
@@ -1079,7 +1079,7 @@ class ToolsHandler:
     def _show_backup_manager(self) -> DialogResponse:
         """Show backup manager with list of backups"""
         try:
-            from ..import_export import get_timestamp_backup_manager
+            from lib.import_export import get_timestamp_backup_manager
             backup_manager = get_timestamp_backup_manager()
 
             backups = backup_manager.list_backups()
@@ -1148,7 +1148,7 @@ class ToolsHandler:
     def restore_backup_from_settings(self) -> DialogResponse:
         """Handle restore backup from settings menu"""
         try:
-            from ..import_export import get_timestamp_backup_manager
+            from lib.import_export import get_timestamp_backup_manager
             backup_manager = get_timestamp_backup_manager()
 
             import xbmcgui
@@ -1293,7 +1293,7 @@ class ToolsHandler:
             ]
 
             # Check if AI Search is available
-            from ..remote.ai_search_client import get_ai_search_client
+            from lib.remote.ai_search_client import get_ai_search_client
             ai_client = get_ai_search_client()
             if ai_client.is_activated():
                 tools_options.insert(1, f"🤖 {L(34100)}")  # AI Movie Search
@@ -1349,7 +1349,7 @@ class ToolsHandler:
     def _import_lists(self, context: PluginContext, target_folder_id: str = None) -> DialogResponse:
         """Import lists from file to specified folder"""
         try:
-            from ..import_export.import_engine import get_import_engine
+            from lib.import_export.import_engine import get_import_engine
             import_engine = get_import_engine()
 
             # Show file browser for selection
@@ -1419,7 +1419,7 @@ class ToolsHandler:
         """Export all lists and folders"""
         try:
             # Get export engine (lazy import)
-            from ..import_export.export_engine import get_export_engine
+            from lib.import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
 
             # Get total count for confirmation
@@ -1670,8 +1670,8 @@ class ToolsHandler:
     def handle_restore_backup(self, params: dict, context) -> DialogResponse:
         """Handle backup restoration"""
         try:
-            from ..import_export.backup_manager import BackupManager
-            from .localization import L
+            from lib.import_export.backup_manager import BackupManager
+            from lib.ui.localization import L
             import xbmcgui
 
             backup_manager = BackupManager()
@@ -1715,8 +1715,8 @@ class ToolsHandler:
     def handle_activate_ai_search(self, params: dict, context) -> DialogResponse:
         """Handle AI search activation via OTP code"""
         try:
-            from ..auth.auth_helper import get_auth_helper
-            from .localization import L
+            from lib.auth.auth_helper import get_auth_helper
+            from lib.ui.localization import L
             import xbmcgui
 
             auth_helper = get_auth_helper()
@@ -1750,7 +1750,7 @@ class ToolsHandler:
     def _handle_local_search(self, context: PluginContext) -> DialogResponse:
         """Execute local search directly"""
         try:
-            from .handler_factory import get_handler_factory
+            from lib.ui.handler_factory import get_handler_factory
             
             # Get search handler and execute search
             factory = get_handler_factory()
@@ -1780,7 +1780,7 @@ class ToolsHandler:
     def _handle_local_episodes_search(self, context: PluginContext) -> DialogResponse:
         """Execute local episodes search directly"""
         try:
-            from .handler_factory import get_handler_factory
+            from lib.ui.handler_factory import get_handler_factory
             
             # Get search handler and execute search
             factory = get_handler_factory()
@@ -1890,7 +1890,7 @@ class ToolsHandler:
     def _handle_create_list(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new list from main lists menu"""
         try:
-            from .lists_handler import ListsHandler
+            from lib.ui.lists_handler import ListsHandler
             lists_handler = ListsHandler(context)
             result = lists_handler.create_list(context)
             

@@ -12,8 +12,8 @@ import xbmcgui
 import json
 from typing import Optional, Dict, Any
 
-from ..utils.kodi_log import get_kodi_logger
-from .localization import L
+from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.localization import L
 
 
 class PlaybackActionHandler:
