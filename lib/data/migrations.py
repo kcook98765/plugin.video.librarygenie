@@ -11,7 +11,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 2
+TARGET_SCHEMA_VERSION = 3
 
 
 class MigrationManager:
@@ -102,7 +102,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 2, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 3, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -282,6 +282,18 @@ class MigrationManager:
         
         CREATE INDEX idx_remote_cache_key ON remote_cache(cache_key);
         CREATE INDEX idx_remote_cache_expires ON remote_cache(expires_at);
+        
+        -- Sync snapshot table for memory-efficient delta detection
+        CREATE TABLE sync_snapshot (
+            kodi_id INTEGER PRIMARY KEY,
+            media_type TEXT NOT NULL,
+            title TEXT,
+            file_path TEXT,
+            dateadded TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        ) WITHOUT ROWID;
+        
+        CREATE INDEX idx_sync_snapshot_media_type ON sync_snapshot (media_type);
         
         -- Insert default data
         INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
