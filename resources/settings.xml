@@ -235,13 +235,6 @@
       </group>
       
       <group id="11" label="30540">
-        <setting id="backup_test_action" type="action" label="30541" help="">
-          <level>2</level>
-          <control type="button" format="action">
-            <heading>30541</heading>
-            <action>RunPlugin(plugin://plugin.video.librarygenie/?action=test_backup)</action>
-          </control>
-        </setting>
         <setting id="backup_manual_action" type="action" label="30542" help="">
           <level>2</level>
           <control type="button" format="action">
