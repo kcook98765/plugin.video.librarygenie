@@ -9,9 +9,9 @@ Simplified state management for API key authentication
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from ..data.connection_manager import get_connection_manager
-from ..utils.kodi_log import get_kodi_logger
-from ..config.settings import SettingsManager
+from lib.data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config.settings import SettingsManager
 
 
 logger = get_kodi_logger('lib.auth.state')

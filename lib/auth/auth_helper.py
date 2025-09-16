@@ -8,10 +8,10 @@ Handles authorization prompts and user guidance for OTP-based auth
 """
 
 import xbmcgui
-from ..utils.kodi_log import get_kodi_logger
-from .state import is_authorized, get_api_key, clear_auth_data
-from .otp_auth import run_otp_authorization_flow, test_api_connection, is_api_key_valid
-from ..config import get_config
+from lib.utils.kodi_log import get_kodi_logger
+from lib.auth.state import is_authorized, get_api_key, clear_auth_data
+from lib.auth.otp_auth import run_otp_authorization_flow, test_api_connection, is_api_key_valid
+from lib.config import get_config
 
 
 class AuthorizationHelper:

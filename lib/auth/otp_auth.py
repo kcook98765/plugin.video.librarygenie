@@ -15,9 +15,9 @@ import xbmc
 import xbmcgui
 from typing import Dict, Any, Optional
 
-from ..config import get_config
-from ..utils.kodi_log import get_kodi_logger
-from .state import save_api_key, get_api_key, clear_auth_data
+from lib.config import get_config
+from lib.utils.kodi_log import get_kodi_logger
+from lib.auth.state import save_api_key, get_api_key, clear_auth_data
 # Avoid circular import - get_ai_search_client imported when needed
 
 logger = get_kodi_logger('lib.auth.otp_auth')
@@ -375,13 +375,13 @@ def run_otp_authorization_flow(server_url: str) -> bool:
 
                 # Trigger authoritative sync after successful OTP authentication
                 try:
-                    from ..data.list_library_manager import get_list_library_manager
+                    from lib.data.list_library_manager import get_list_library_manager
                     library_manager = get_list_library_manager()
                     media_items = library_manager.get_all_items(limit=10000)
 
                     if media_items:
                         # Lazy import to avoid circular dependency
-                        from ..remote.ai_search_client import get_ai_search_client
+                        from lib.remote.ai_search_client import get_ai_search_client
                         ai_client = get_ai_search_client()
                         sync_result = ai_client.sync_after_otp(media_items)
                         if sync_result and sync_result.get('success'):
