@@ -493,9 +493,9 @@ def handle_authorize_ai_search():
             log_info(f"Using existing server URL for authorization")
         
         # Run authorization flow
-        result = run_otp_authorization_flow(server_url)
+        success = run_otp_authorization_flow(server_url)
         
-        if result.get('success'):
+        if success:
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
                 "AI search authorization completed successfully",
@@ -503,13 +503,12 @@ def handle_authorize_ai_search():
             )
             log_info("AI search authorization completed successfully")
         else:
-            error_msg = result.get('error', 'Authorization failed')
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
-                f"Authorization failed: {error_msg}",
+                "Authorization failed",
                 xbmcgui.NOTIFICATION_ERROR
             )
-            log_error(f"AI search authorization failed: {error_msg}")
+            log_error("AI search authorization failed")
         
     except Exception as e:
         log_error(f"Error in handle_authorize_ai_search: {e}")
