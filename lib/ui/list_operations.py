@@ -8,11 +8,11 @@ Handles core list management operations (create, delete, rename, add items)
 
 from typing import Dict, Any, Optional
 import xbmcgui
-from .plugin_context import PluginContext
-from .response_types import DialogResponse
-from .localization import L
-from ..utils.kodi_log import get_kodi_logger
-from ..data.query_manager import get_query_manager
+from lib.ui.plugin_context import PluginContext
+from lib.ui.response_types import DialogResponse
+from lib.ui.localization import L
+from lib.utils.kodi_log import get_kodi_logger
+from lib.data.query_manager import get_query_manager
 
 
 class ListOperations:
@@ -24,7 +24,7 @@ class ListOperations:
         # Get query manager with fallback
         self.query_manager = context.query_manager
         if self.query_manager is None:
-            from ..data.query_manager import get_query_manager
+            from lib.data.query_manager import get_query_manager
             self.query_manager = get_query_manager()
         self.storage_manager = context.storage_manager
 
@@ -361,7 +361,7 @@ class ListOperations:
                 )
 
             # Set the default list ID in settings
-            from ..config.settings import SettingsManager
+            from lib.config.settings import SettingsManager
             settings = SettingsManager()
             settings.set_default_list_id(target_list_id)
 

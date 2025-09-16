@@ -10,10 +10,10 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
-from ..utils.kodi_log import get_kodi_logger
-from ..utils.kodi_version import get_version_specific_control_id
-from .localization import L
-from .navigation_cache import get_cached_info, get_navigation_snapshot, navigation_action
+from lib.utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_version import get_version_specific_control_id
+from lib.ui.localization import L
+from lib.ui.navigation_cache import get_cached_info, get_navigation_snapshot, navigation_action
 
 logger = get_kodi_logger('lib.ui.info_hijack_helpers')
 

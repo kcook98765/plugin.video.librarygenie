@@ -10,11 +10,11 @@ from typing import Dict, Any, Optional, List
 import xbmcgui
 import json
 import os
-from .plugin_context import PluginContext
-from .response_types import DialogResponse
-from .localization import L
-from ..utils.kodi_log import get_kodi_logger
-from ..data.query_manager import get_query_manager
+from lib.ui.plugin_context import PluginContext
+from lib.ui.response_types import DialogResponse
+from lib.ui.localization import L
+from lib.utils.kodi_log import get_kodi_logger
+from lib.data.query_manager import get_query_manager
 
 
 class ImportExportHandler:
@@ -26,7 +26,7 @@ class ImportExportHandler:
         # Get query manager with fallback
         self.query_manager = context.query_manager
         if self.query_manager is None:
-            from ..data.query_manager import get_query_manager
+            from lib.data.query_manager import get_query_manager
             self.query_manager = get_query_manager()
         self.storage_manager = context.storage_manager
 
@@ -164,7 +164,7 @@ class ImportExportHandler:
 
             # Use export engine if available
             try:
-                from ..engines.export_engine import get_export_engine
+                from lib.engines.export_engine import get_export_engine
                 export_engine = get_export_engine()
                 result = export_engine.export_folder(folder_id, folder_name, include_subfolders)
                 
@@ -211,7 +211,7 @@ class ImportExportHandler:
 
             # Use import engine if available
             try:
-                from ..engines.import_engine import get_import_engine
+                from lib.engines.import_engine import get_import_engine
                 import_engine = get_import_engine()
                 
                 if not import_engine:

@@ -10,13 +10,13 @@ import xbmcgui
 import xbmc
 from typing import Optional, List, Dict, Any
 
-from ..remote.ai_search_client import get_ai_search_client
-from ..data.query_manager import get_query_manager
-from ..utils.kodi_log import get_kodi_logger
-from .localization import L
+from lib.remote.ai_search_client import get_ai_search_client
+from lib.data.query_manager import get_query_manager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.localization import L
 
 # Import the real PluginContext
-from .plugin_context import PluginContext
+from lib.ui.plugin_context import PluginContext
 
 class AISearchHandler:
     """Handler for AI search functionality with IMDb list matching"""
@@ -665,7 +665,7 @@ class AISearchHandler:
             dialog_bg = None
             try:
                 # Get movies from local database
-                from ..data.connection_manager import get_connection_manager
+                from lib.data.connection_manager import get_connection_manager
                 conn_manager = get_connection_manager()
 
                 # Show background progress
@@ -778,7 +778,7 @@ class AISearchHandler:
 
             try:
                 # Get movie library for sync
-                from ..library.scanner import get_library_scanner
+                from lib.library.scanner import get_library_scanner
                 scanner = get_library_scanner()
 
                 progress.update(25, "Scanning library...")

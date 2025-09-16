@@ -7,11 +7,11 @@ Handles action routing and dispatch for plugin requests
 """
 
 from typing import Dict, Callable, Any
-from .plugin_context import PluginContext
+from lib.ui.plugin_context import PluginContext
 import xbmcgui
 import xbmcplugin
 import time
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class Router:
@@ -39,7 +39,7 @@ class Router:
         self.logger.debug("Router dispatching action: '%s'", action)
 
         # Generate breadcrumb context for navigation
-        from .breadcrumb_helper import get_breadcrumb_helper
+        from lib.ui.breadcrumb_helper import get_breadcrumb_helper
         breadcrumb_helper = get_breadcrumb_helper()
         breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
 
@@ -49,9 +49,9 @@ class Router:
         try:
             # Handle special router-managed actions
             if action == "show_list_tools":
-                from .handler_factory import get_handler_factory
-                from .response_handler import get_response_handler
-                from .session_state import get_session_state
+                from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
+                from lib.ui.session_state import get_session_state
 
                 # Store current location for returning after tools operations
                 import xbmc
@@ -83,8 +83,8 @@ class Router:
             elif action == "noop":
                 return self._handle_noop(context)
             elif action == 'lists' or action == 'show_lists_menu':
-                from .handler_factory import get_handler_factory
-                from .response_handler import get_response_handler
+                from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
                 factory = get_handler_factory()
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
@@ -92,7 +92,7 @@ class Router:
                 response = lists_handler.show_lists_menu(context)
                 return response_handler.handle_directory_response(response, context)
             elif action == 'prompt_and_search':
-                from .handler_factory import get_handler_factory
+                from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context # Set context before using factory
                 search_handler = factory.get_search_handler()
@@ -103,7 +103,7 @@ class Router:
                 dbtype = context.get_param('dbtype')
                 dbid = context.get_param('dbid')
 
-                from .handler_factory import get_handler_factory
+                from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
@@ -122,13 +122,13 @@ class Router:
                     return success
             # Added new handler for remove_from_list
             elif action == 'remove_from_list':
-                from .handler_factory import get_handler_factory
+                from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
                 return self._handle_remove_from_list(context, lists_handler)
             elif action == 'remove_library_item_from_list':
-                from .handler_factory import get_handler_factory
+                from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
@@ -137,7 +137,7 @@ class Router:
                 dbid = context.get_param('dbid')
                 return lists_handler.remove_library_item_from_list(context, list_id, dbtype, dbid)
             elif action in ['show_list', 'view_list']:
-                from .handler_factory import get_handler_factory
+                from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
@@ -147,7 +147,7 @@ class Router:
                 if self._is_kodi_favorites_list(context, list_id):
                     self._handle_kodi_favorites_scan_if_needed(context)
                 
-                from .response_handler import get_response_handler
+                from lib.ui.response_handler import get_response_handler
                 response_handler = get_response_handler()
                 response = lists_handler.view_list(context, list_id)
                 return response_handler.handle_directory_response(response, context)
@@ -157,11 +157,11 @@ class Router:
 
                 if folder_id:
                     # Use the handler factory
-                    from .handler_factory import get_handler_factory
+                    from lib.ui.handler_factory import get_handler_factory
                     factory = get_handler_factory()
                     factory.context = context
                     lists_handler = factory.get_lists_handler()
-                    from .response_handler import get_response_handler
+                    from lib.ui.response_handler import get_response_handler
                     response_handler = get_response_handler()
                     response = lists_handler.show_folder(context, str(folder_id))
                     return response_handler.handle_directory_response(response, context)
@@ -177,11 +177,11 @@ class Router:
                     search_folder_id = query_manager.get_or_create_search_history_folder()
                     if search_folder_id:
                         # Use the handler factory
-                        from .handler_factory import get_handler_factory
+                        from lib.ui.handler_factory import get_handler_factory
                         factory = get_handler_factory()
                         factory.context = context
                         lists_handler = factory.get_lists_handler()
-                        from .response_handler import get_response_handler
+                        from lib.ui.response_handler import get_response_handler
                         response_handler = get_response_handler()
                         response = lists_handler.show_folder(context, str(search_folder_id))
                         return response_handler.handle_directory_response(response, context)
@@ -194,39 +194,39 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
             elif action == "restore_backup":
-                from .handler_factory import get_handler_factory
+                from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context
                 tools_handler = factory.get_tools_handler()
                 result = tools_handler.handle_restore_backup(params, context)
 
                 # Handle the DialogResponse
-                from .response_handler import get_response_handler
+                from lib.ui.response_handler import get_response_handler
                 response_handler = get_response_handler()
                 success = response_handler.handle_dialog_response(result, context)
                 return bool(success) if success is not None else True
 
             elif action == "activate_ai_search":
-                from .handler_factory import get_handler_factory
+                from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context
                 tools_handler = factory.get_tools_handler()
                 result = tools_handler.handle_activate_ai_search(params, context)
 
                 # Handle the DialogResponse
-                from .response_handler import get_response_handler
+                from lib.ui.response_handler import get_response_handler
                 response_handler = get_response_handler()
                 success = response_handler.handle_dialog_response(result, context)
                 return bool(success) if success is not None else True
 
             elif action == "authorize_ai_search":
-                from .ai_search_handler import AISearchHandler
+                from lib.ui.ai_search_handler import AISearchHandler
                 ai_handler = AISearchHandler()
                 result = ai_handler.authorize_ai_search(context)
                 return result if isinstance(result, bool) else True
             elif action == "ai_search_replace_sync":
                 try:
-                    from .ai_search_handler import get_ai_search_handler
+                    from lib.ui.ai_search_handler import get_ai_search_handler
                     ai_handler = get_ai_search_handler()
                     ai_handler.trigger_replace_sync(context)
                     return True
@@ -236,7 +236,7 @@ class Router:
 
             elif action == "ai_search_regular_sync":
                 try:
-                    from .ai_search_handler import get_ai_search_handler
+                    from lib.ui.ai_search_handler import get_ai_search_handler
                     ai_handler = get_ai_search_handler()
                     ai_handler.trigger_regular_sync(context)
                     return True
@@ -245,8 +245,8 @@ class Router:
                     return False
             elif action == 'test_ai_search_connection':
                 try:
-                    from ..auth.otp_auth import test_api_connection
-                    from ..config.settings import SettingsManager
+                    from lib.auth.otp_auth import test_api_connection
+                    from lib.config.settings import SettingsManager
                     settings = SettingsManager()
                     server_url = settings.get_remote_server_url()
                     if not server_url:
@@ -259,7 +259,7 @@ class Router:
                     return False
 
             elif action == 'find_similar_movies':
-                from .ai_search_handler import AISearchHandler
+                from lib.ui.ai_search_handler import AISearchHandler
                 ai_search_handler = AISearchHandler()
                 return ai_search_handler.find_similar_movies(context)
             else:
@@ -270,7 +270,7 @@ class Router:
                     
                     # ROUTER TIMING: Handler factory import
                     import_start_time = time.time()
-                    from .handler_factory import get_handler_factory
+                    from lib.ui.handler_factory import get_handler_factory
                     import_end_time = time.time()
                     self.logger.info(f"ROUTER: Handler factory import took {import_end_time - import_start_time:.3f} seconds")
                     
@@ -319,8 +319,8 @@ class Router:
     def _handle_list_tools(self, context: PluginContext, params: Dict[str, Any]) -> bool:
         """Handle list tools action with response processing"""
         try:
-            from .handler_factory import get_handler_factory
-            from .response_handler import get_response_handler
+            from lib.ui.handler_factory import get_handler_factory
+            from lib.ui.response_handler import get_response_handler
 
             factory = get_handler_factory()
             factory.context = context # Set context before using factory
@@ -384,7 +384,7 @@ class Router:
             self.logger.info("Authorization button clicked from settings")
 
             # Get settings manager for server URL
-            from ..config.settings import SettingsManager
+            from lib.config.settings import SettingsManager
             settings = SettingsManager()
             server_url = settings.get_remote_server_url()
 
@@ -424,7 +424,7 @@ class Router:
 
             try:
                 # Exchange OTP for API key
-                from ..auth.otp_auth import exchange_otp_for_api_key
+                from lib.auth.otp_auth import exchange_otp_for_api_key
                 result = exchange_otp_for_api_key(otp_code, server_url)
 
                 progress.close()

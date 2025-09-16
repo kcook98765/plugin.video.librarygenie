@@ -10,9 +10,9 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 from typing import Any
-from .plugin_context import PluginContext
-from .response_types import DirectoryResponse, DialogResponse
-from ..utils.kodi_log import get_kodi_logger
+from lib.ui.plugin_context import PluginContext
+from lib.ui.response_types import DirectoryResponse, DialogResponse
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class ResponseHandler:
@@ -49,7 +49,7 @@ class ResponseHandler:
                 if getattr(response, 'navigate_to_folder', None):
                     # Navigate to specific folder (highest priority for folder operations)
                     import xbmc
-                    from .session_state import get_session_state
+                    from lib.ui.session_state import get_session_state
                     
                     # Bump refresh token for cache-busting
                     session_state = get_session_state()
@@ -64,7 +64,7 @@ class ResponseHandler:
                 elif getattr(response, 'navigate_to_lists', None):
                     # Navigate to lists menu
                     import xbmc
-                    from .session_state import get_session_state
+                    from lib.ui.session_state import get_session_state
                     
                     # Bump refresh token for cache-busting
                     session_state = get_session_state()
@@ -78,7 +78,7 @@ class ResponseHandler:
                 elif getattr(response, 'navigate_to_main', None):
                     # Navigate to main menu
                     import xbmc
-                    from .session_state import get_session_state
+                    from lib.ui.session_state import get_session_state
                     
                     # Bump refresh token for cache-busting
                     session_state = get_session_state()
@@ -92,7 +92,7 @@ class ResponseHandler:
                 elif getattr(response, 'navigate_to_favorites', None):
                     # Navigate to favorites view
                     import xbmc
-                    from .session_state import get_session_state
+                    from lib.ui.session_state import get_session_state
                     
                     # Bump refresh token for cache-busting
                     session_state = get_session_state()
@@ -107,7 +107,7 @@ class ResponseHandler:
                     # Only refresh if no specific navigation was requested
                     # Use Container.Refresh to force Kodi to rebuild directory from scratch
                     import xbmc
-                    from .session_state import get_session_state
+                    from lib.ui.session_state import get_session_state
                     
                     session_state = get_session_state()
                     
@@ -190,7 +190,7 @@ class ResponseHandler:
         """Handle navigation for successful dialog responses"""
         try:
             # Check for tools return location first - if set, navigate back there after tools operations
-            from .session_state import get_session_state
+            from lib.ui.session_state import get_session_state
             session_state = get_session_state()
             tools_return_location = session_state.get_tools_return_location()
             

@@ -10,24 +10,24 @@ from __future__ import annotations
 from typing import Optional, Dict, Any, List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .plugin_context import PluginContext
-    from .response_types import DirectoryResponse
+    from lib.ui.plugin_context import PluginContext
+    from lib.ui.response_types import DirectoryResponse
 
 import xbmcgui
 import xbmcaddon
 import xbmc
 import xbmcplugin
 
-from ..search import get_simple_search_engine, get_simple_query_interpreter
-from ..data.query_manager import get_query_manager
-from ..data.connection_manager import get_connection_manager
-from ..search.simple_search_engine import SimpleSearchEngine
-from ..utils.kodi_log import get_kodi_logger
-from .localization import L
-from .menu_builder import MenuBuilder
+from lib.search import get_simple_search_engine, get_simple_query_interpreter
+from lib.data.query_manager import get_query_manager
+from lib.data.connection_manager import get_connection_manager
+from lib.search.simple_search_engine import SimpleSearchEngine
+from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.localization import L
+from lib.ui.menu_builder import MenuBuilder
 
 try:
-    from .response_types import DirectoryResponse
+    from lib.ui.response_types import DirectoryResponse
 except Exception:
     DirectoryResponse = None
 
@@ -121,7 +121,7 @@ class SearchHandler:
 
         except Exception as e:
             self._error(f"Simple search execution failed: {e}")
-            from ..search.simple_search_engine import SimpleSearchResult
+            from lib.search.simple_search_engine import SimpleSearchResult
             result = SimpleSearchResult()
             result.query_summary = "Search error"
             return result
@@ -243,7 +243,7 @@ class SearchHandler:
     def ai_search_prompt(self, context: PluginContext) -> bool:
         """Prompt user for AI search query and perform AI search"""
         try:
-            from .ai_search_handler import get_ai_search_handler
+            from lib.ui.ai_search_handler import get_ai_search_handler
             
             context.logger.debug("AI SEARCH: Starting AI search prompt")
             
