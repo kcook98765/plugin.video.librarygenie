@@ -7,8 +7,18 @@ Handles RunScript calls from settings.xml action buttons
 """
 
 import sys
+import os
 import xbmcgui
 import xbmcaddon
+
+# Add the main lib directory to Python path so we can import lib.utils.kodi_log
+# utilities.py is in resources/lib/, so we need to go up two levels to get to the addon root,
+# then down to lib/
+addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+lib_path = os.path.join(addon_root, 'lib')
+if lib_path not in sys.path:
+    sys.path.insert(0, lib_path)
+
 from utils.kodi_log import log, log_info, log_error
 
 def main():
