@@ -88,24 +88,16 @@
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="allow_edit_display" type="boolean" label="" help="">
-          <level>4</level>
-          <default>false</default>
-          <control type="toggle"/>
-        </setting>
-        <setting id="default_list_display" type="string" label="30044" help="">
+        <setting id="default_list_display" type="string" label="30045" help="">
           <level>0</level>
           <default>None selected</default>
           <dependencies>
             <dependency type="visible" setting="quick_add_enabled" operator="is">true</dependency>
-            <dependency type="enable" setting="allow_edit_display" operator="is">true</dependency>
           </dependencies>
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
-          <control type="edit" format="string">
-            <heading>30044</heading>
-          </control>
+          <control type="label" format="string"/>
         </setting>
         <setting id="set_default_list_action" type="action" label="30041" help="">
           <level>0</level>
