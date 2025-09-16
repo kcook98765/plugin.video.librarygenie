@@ -88,19 +88,6 @@
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="default_list_display" type="string" label="30045" help="">
-          <level>0</level>
-          <default>None selected</default>
-          <dependencies>
-            <dependency type="visible" setting="quick_add_enabled" operator="is">true</dependency>
-          </dependencies>
-          <constraints>
-            <allowempty>true</allowempty>
-          </constraints>
-          <control type="edit" format="string" enable="false">
-            <heading>30045</heading>
-          </control>
-        </setting>
         <setting id="set_default_list_action" type="action" label="30041" help="">
           <level>0</level>
           <dependencies>
@@ -112,6 +99,20 @@
           </constraints>
           <control type="button" format="action">
             <heading>30041</heading>
+          </control>
+        </setting>
+        <setting id="default_list_display" type="string" label="30045" help="">
+          <level>0</level>
+          <default>None selected</default>
+          <dependencies>
+            <dependency type="visible" setting="quick_add_enabled" operator="is">true</dependency>
+            <dependency type="enable" setting="quick_add_enabled" operator="is">false</dependency>
+          </dependencies>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string">
+            <heading>30045</heading>
           </control>
         </setting>
       </group>
