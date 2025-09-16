@@ -55,7 +55,7 @@ class ConfigManager:
             "favorites_scan_interval": 30,
             "enable_batch_processing": True,
             
-            # Advanced settings
+            # Local (JSON-RPC) service settings
             "jsonrpc_page_size": 200,  # Items per JSON-RPC page
             "jsonrpc_timeout": 10,
             "database_batch_size": 200,
