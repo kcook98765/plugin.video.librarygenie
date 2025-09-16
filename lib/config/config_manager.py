@@ -427,7 +427,7 @@ class ConfigManager:
         # String settings
         string_settings = [
             # General settings
-            "default_list_id", "device_name", "export_location",
+            "default_list_id", "default_list_display", "device_name", "export_location",
             # Remote settings  
             "remote_server_url",
             # Backup settings
