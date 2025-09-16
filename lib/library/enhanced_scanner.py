@@ -13,11 +13,11 @@ from typing import List, Dict, Set, Any, Optional, Callable
 
 import xbmc
 
-from ..data import QueryManager
-from ..data.connection_manager import get_connection_manager
-from ..kodi.json_rpc_helper import get_json_rpc_helper
-from ..utils.kodi_log import get_kodi_logger
-from ..config import get_config
+from lib.data import QueryManager
+from lib.data.connection_manager import get_connection_manager
+from lib.kodi.json_rpc_helper import get_json_rpc_helper
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config import get_config
 
 
 class Phase3LibraryScanner:

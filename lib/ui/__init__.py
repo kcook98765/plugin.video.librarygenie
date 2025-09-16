@@ -5,8 +5,8 @@
 LibraryGenie - UI Package
 """
 
-from .menu_builder import MenuBuilder
-from .listitem_builder import ListItemBuilder
-from .listitem_renderer import get_listitem_renderer
+from lib.ui.menu_builder import MenuBuilder
+from lib.ui.listitem_builder import ListItemBuilder
+from lib.ui.listitem_renderer import get_listitem_renderer
 
 __all__ = ["MenuBuilder", "ListItemBuilder", "get_listitem_renderer"]

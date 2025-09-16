@@ -6,6 +6,6 @@ LibraryGenie - Library Module
 Local library indexing and scanning functionality
 """
 
-from .scanner import LibraryScanner
+from lib.library.scanner import LibraryScanner
 
 __all__ = ["LibraryScanner"]
