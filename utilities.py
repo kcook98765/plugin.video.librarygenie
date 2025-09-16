@@ -145,6 +145,9 @@ def handle_set_default_list():
                         xbmcgui.NOTIFICATION_INFO
                     )
                     log_info(f"Created new list and set as default: {list_name} (ID: {new_list_id})")
+                    
+                    # Refresh settings to show updated display
+                    _refresh_settings_display()
                     return
                 # If creation failed, continue the loop to show menu again
             else:
@@ -166,6 +169,9 @@ def handle_set_default_list():
                     xbmcgui.NOTIFICATION_INFO
                 )
                 log_info(f"Default list set to: {selected_list['name']} (ID: {selected_list['id']})")
+                
+                # Refresh settings to show updated display
+                _refresh_settings_display()
                 return
         
     except Exception as e:
@@ -177,6 +183,28 @@ def handle_set_default_list():
             f"Error setting default list: {str(e)}",
             xbmcgui.NOTIFICATION_ERROR
         )
+
+
+def _refresh_settings_display():
+    """Helper function to refresh the settings display after changes"""
+    try:
+        import xbmc
+        
+        # Show brief notification about refreshing
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Refreshing settings...",
+            xbmcgui.NOTIFICATION_INFO,
+            1000
+        )
+        
+        # Explicitly close then reopen settings to ensure refresh
+        xbmc.executebuiltin('Dialog.Close(addonsettings,true)')
+        xbmc.sleep(300)  # Small delay to ensure close completes
+        xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')
+        
+    except Exception as e:
+        log_error(f"Error refreshing settings display: {e}")
 
 
 def _update_default_list_display(config, list_id=None):
