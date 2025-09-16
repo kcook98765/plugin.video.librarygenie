@@ -71,27 +71,6 @@ class SettingsManager:
         config = get_config()
         config.set('first_run_completed', completed)
 
-    def get_sync_frequency_hours(self) -> int:
-        """Get sync frequency in hours (1-48, default 1)"""
-        config = get_config()
-        value = config.get_int('sync_frequency_hours', 1)
-        return max(1, min(48, value or 1))
-
-    def set_sync_frequency_hours(self, hours: int) -> None:
-        """Set sync frequency in hours (1-48)"""
-        validated_hours = max(1, min(48, hours))
-        config = get_config()
-        config.set('sync_frequency_hours', validated_hours)
-
-    def get_last_sync_time(self) -> int:
-        """Get timestamp of last sync completion"""
-        config = get_config()
-        return config.get_int('last_sync_time', 0)
-
-    def set_last_sync_time(self, timestamp: int) -> None:
-        """Set timestamp of last sync completion"""
-        config = get_config()
-        config.set('last_sync_time', timestamp)
 
     # Lists Settings
     def get_default_list_id(self) -> Optional[str]:

@@ -376,7 +376,6 @@ class LibraryGenieService:
         # Reduced logging frequency
         log_interval = 300  # Log every 30 seconds in normal mode, 10 seconds in hijack mode
         ai_sync_check_interval = 30  # Check AI sync activation every 30 seconds
-        tv_sync_check_interval = 5   # Check TV sync activation every 5 seconds for responsiveness
 
         while not self.monitor.abortRequested():
             try:
@@ -447,6 +446,9 @@ class LibraryGenieService:
                     
                 # Check for initial sync requests first (higher priority)
                 self._check_initial_sync_request()
+                
+                # Check for startup sync (once per service run)
+                self._check_startup_sync()
                 
                 # Check for cache refresh requests (every 5 seconds)
                 if tick_count % 50 == 0:  # Every 5 seconds
@@ -628,26 +630,60 @@ class LibraryGenieService:
         finally:
             log_info("AI search sync worker stopped")
             
-    def _check_periodic_library_sync(self, tick_count=None):
-        """Check if periodic library sync should be performed based on user settings"""
+
+    def _check_startup_sync(self):
+        """Check if startup sync should be performed (once per service run)"""
+        # Only check once per service startup
+        if hasattr(self, '_startup_sync_checked'):
+            return
+        self._startup_sync_checked = True
+        
         try:
             # Import here to avoid circular imports
             from lib.library.sync_controller import SyncController
             
-            # Initialize sync controller - it handles its own GlobalSyncLock
+            # Initialize sync controller
             sync_controller = SyncController()
             
-            # Perform periodic sync (returns True if sync was performed)
-            # SyncController.perform_periodic_sync() handles locking internally
-            if sync_controller.perform_periodic_sync():
-                log_info("📚 Periodic library sync completed")
-                self._show_notification(
-                    "Library sync completed - content updated",
-                    time_ms=6000
-                )
+            # Skip if first run not completed (initial sync handles this)
+            if sync_controller.is_first_run():
+                log("Skipping startup sync - first run not completed yet")
+                return
+            
+            # Check if sync is enabled
+            sync_movies = sync_controller.settings.get_sync_movies()
+            sync_tv_episodes = sync_controller.settings.get_sync_tv_episodes()
+            
+            if not sync_movies and not sync_tv_episodes:
+                log("Skipping startup sync - no sync options enabled")
+                return
+            
+            log_info("🚀 Performing startup library sync (delta scan)")
+            
+            # Perform delta sync to catch any changes since last Kodi run
+            try:
+                result = sync_controller.scanner.perform_delta_scan()
+                if result.get("success", False):
+                    items_added = result.get("items_added", 0)
+                    items_removed = result.get("items_removed", 0)
+                    
+                    if items_added > 0 or items_removed > 0:
+                        log_info(f"📚 Startup sync completed: +{items_added} new, -{items_removed} removed")
+                        self._show_notification(
+                            f"Library updated: {items_added} new items added",
+                            time_ms=4000
+                        )
+                    else:
+                        log("Startup sync completed: no changes detected")
+                else:
+                    error_msg = result.get("error", "Unknown error")
+                    log_error(f"Startup sync failed: {error_msg}")
+                    
+            except Exception as e:
+                log_error(f"Error during startup sync: {e}")
                 
         except Exception as e:
-            log_error(f"Error during periodic library sync: {e}")
+            log_error(f"Error checking startup sync: {e}")
 
     def _check_initial_sync_request(self):
         """Check for initial sync requests from fresh install setup"""
