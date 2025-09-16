@@ -11,10 +11,10 @@ import os
 from datetime import datetime
 from io import StringIO
 from typing import List, Dict, Any, Optional, Tuple
-from .data_schemas import ExportEnvelope
-from .storage_manager import get_storage_manager
-from ..data.connection_manager import get_connection_manager
-from ..utils.kodi_log import get_kodi_logger
+from lib.import_export.data_schemas import ExportEnvelope
+from lib.import_export.storage_manager import get_storage_manager
+from lib.data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class ExportEngine:
@@ -61,7 +61,7 @@ class ExportEngine:
                 filename = os.path.basename(file_path)
             else:
                 # Check if export location is set in preferences
-                from ..config import get_config
+                from lib.config import get_config
                 config = get_config()
                 export_location = config.get_export_location()
                 

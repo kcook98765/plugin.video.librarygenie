@@ -10,8 +10,8 @@ import json
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
-from ..utils.kodi_log import get_kodi_logger
-from ..data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.data.connection_manager import get_connection_manager
 
 
 class RemoteCache:

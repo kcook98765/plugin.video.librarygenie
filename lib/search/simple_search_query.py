@@ -9,7 +9,7 @@ Simplified search query class focusing on keyword-based search across title and 
 from __future__ import annotations
 from typing import List, Optional, Dict, Any
 
-from ..config.settings import SettingsManager
+from lib.config.settings import SettingsManager
 
 
 class SimpleSearchQuery:

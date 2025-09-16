@@ -9,8 +9,8 @@ Maps remote search results to local library items
 from typing import Dict, Any, Optional, List
 import re
 
-from ..utils.kodi_log import get_kodi_logger
-from ..data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.data.connection_manager import get_connection_manager
 
 
 class RemoteMapper:

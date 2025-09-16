@@ -9,11 +9,11 @@ Handles timestamped backups with database tracking
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
-from .export_engine import get_export_engine
-from .storage_manager import get_storage_manager
-from ..config import get_config
-from ..data.connection_manager import get_connection_manager
-from ..utils.kodi_log import get_kodi_logger
+from lib.import_export.export_engine import get_export_engine
+from lib.import_export.storage_manager import get_storage_manager
+from lib.config import get_config
+from lib.data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class TimestampBackupManager:
@@ -203,7 +203,7 @@ class TimestampBackupManager:
         """Check if backup contains meaningful user data"""
         try:
             # Get query manager
-            from ..data.query_manager import get_query_manager
+            from lib.data.query_manager import get_query_manager
             query_manager = get_query_manager()
 
             # Count user lists (excluding Search History and Kodi Favorites)

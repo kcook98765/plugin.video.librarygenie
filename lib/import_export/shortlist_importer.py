@@ -8,11 +8,11 @@ Imports lists from the ShortList addon into LibraryGenie
 
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
-from ..data.connection_manager import get_connection_manager
-from ..data import QueryManager
-from ..data.list_library_manager import get_list_library_manager
-from ..kodi.json_rpc_helper import get_json_rpc_helper
-from ..utils.kodi_log import get_kodi_logger
+from lib.data.connection_manager import get_connection_manager
+from lib.data import QueryManager
+from lib.data.list_library_manager import get_list_library_manager
+from lib.kodi.json_rpc_helper import get_json_rpc_helper
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class ShortListImporter:

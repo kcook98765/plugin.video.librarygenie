@@ -7,12 +7,12 @@ Simple keyword-based search across title and plot fields
 """
 
 # Simple search components
-from .simple_query_interpreter import get_simple_query_interpreter
-from .simple_search_engine import get_simple_search_engine
-from .simple_search_query import SimpleSearchQuery
+from lib.search.simple_query_interpreter import get_simple_query_interpreter
+from lib.search.simple_search_engine import get_simple_search_engine
+from lib.search.simple_search_query import SimpleSearchQuery
 
 # Utility classes
-from .normalizer import get_text_normalizer
+from lib.search.normalizer import get_text_normalizer
 
 __all__ = [
     'get_simple_query_interpreter',
