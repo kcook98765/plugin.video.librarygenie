@@ -38,6 +38,7 @@ class ConfigManager:
             "first_run_completed": False,
             "sync_frequency_hours": 1,
             "last_sync_time": 0,
+            "use_native_kodi_info": True,
             
             # Search settings
             "search_page_size": 200,
@@ -65,7 +66,6 @@ class ConfigManager:
             "remote_server_url": "",  # Blank by default for repo safety
             "device_name": "Kodi",
             "enable_auto_token_refresh": True,
-            "use_native_kodi_info": True,
             "enable_background_token_refresh": True,
             "remote_enabled": False,
             "remote_timeout": 30,
