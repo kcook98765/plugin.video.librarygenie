@@ -9,8 +9,8 @@ Manages the library movies table and provides methods for library item operation
 import json
 from typing import List, Dict, Any, Optional
 
-from .connection_manager import get_connection_manager
-from ..utils.kodi_log import get_kodi_logger
+from lib.data.connection_manager import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class ListLibraryManager:

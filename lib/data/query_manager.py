@@ -9,9 +9,9 @@ Real SQLite-based data layer for list and item management
 import json
 from typing import List, Dict, Any, Optional
 
-from .connection_manager import get_connection_manager
-from .migrations import get_migration_manager
-from ..utils.kodi_log import get_kodi_logger
+from lib.data.connection_manager import get_connection_manager
+from lib.data.migrations import get_migration_manager
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class QueryManager:
@@ -114,7 +114,7 @@ class QueryManager:
             canonical["art"] = art
         else:
             # Handle individual art fields for raw items (fallback for non-database items)
-            from ..utils.kodi_version import get_kodi_major_version
+            from lib.utils.kodi_version import get_kodi_major_version
             art = {
                 "poster": str(item.get("poster", item.get("thumbnail", ""))),
                 "fanart": str(item.get("fanart", "")),
@@ -298,7 +298,7 @@ class QueryManager:
                 # OPTIMIZED: Parse art JSON once and format for Kodi version
                 if item.get('art') and isinstance(item['art'], str):
                     try:
-                        from ..utils.kodi_version import get_kodi_major_version
+                        from lib.utils.kodi_version import get_kodi_major_version
                         art_dict = json.loads(item['art'])
                         kodi_major = get_kodi_major_version()
                         item['art'] = self._format_art_for_kodi_version(art_dict, kodi_major)
@@ -389,7 +389,7 @@ class QueryManager:
 
             with self.connection_manager.transaction() as conn:
                 # Create media item data with version-aware art storage
-                from ..utils.kodi_version import get_kodi_major_version
+                from lib.utils.kodi_version import get_kodi_major_version
                 kodi_major = get_kodi_major_version()
 
                 # Use provided art_data or empty dict
@@ -1184,7 +1184,7 @@ class QueryManager:
     def _match_items_to_kodi_library(self, items_to_match: List[tuple]) -> Dict[int, Optional[int]]:
         """Try to match items without kodi_id to Kodi library movies"""
         try:
-            from ..kodi.json_rpc_client import get_kodi_client
+            from lib.kodi.json_rpc_client import get_kodi_client
             kodi_client = get_kodi_client()
 
             # Get a quick list of all movies in library
@@ -1263,7 +1263,7 @@ class QueryManager:
                     canonical_item = self._normalize_to_canonical(kodi_item)
 
                     # Extract basic fields for media_items table with version-aware art storage
-                    from ..utils.kodi_version import get_kodi_major_version
+                    from lib.utils.kodi_version import get_kodi_major_version
                     kodi_major = get_kodi_major_version()
 
                     media_data = {

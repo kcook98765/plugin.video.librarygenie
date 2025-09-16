@@ -13,9 +13,9 @@ import atexit
 from typing import Optional
 from contextlib import contextmanager
 
-from ..utils.kodi_log import get_kodi_logger
-from ..config import get_config
-from .storage_manager import get_storage_manager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config import get_config
+from lib.data.storage_manager import get_storage_manager
 
 
 class ConnectionManager:
@@ -123,7 +123,7 @@ class ConnectionManager:
             cached_target_version = metadata.get('target_schema_version', 0)
             
             # Import current target version
-            from .migrations import TARGET_SCHEMA_VERSION
+            from lib.data.migrations import TARGET_SCHEMA_VERSION
             
             # Schema versions must match for safe optimization
             if cached_schema_version == cached_target_version == TARGET_SCHEMA_VERSION:
@@ -221,7 +221,7 @@ class ConnectionManager:
             
             # Initialize database schema if needed (pass connection directly to avoid recursion)
             try:
-                from .migrations import MigrationManager
+                from lib.data.migrations import MigrationManager
                 migration_manager = MigrationManager(self)  # Pass self to avoid circular dependency
                 migration_manager.ensure_initialized_with_connection(conn)  # Pass connection directly
                 self.logger.debug("Database schema initialization completed")
