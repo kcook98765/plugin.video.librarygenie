@@ -410,7 +410,7 @@ class ConfigManager:
             "jsonrpc_page_size", "jsonrpc_timeout_seconds",
             "db_batch_size", "db_busy_timeout_ms",
             # Remote service settings
-            "auth_poll_seconds", "background_interval_minutes",
+            "background_interval_minutes",
             # AI Search settings
             "ai_search_sync_interval", 
             # Backup integer settings
