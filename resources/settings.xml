@@ -375,27 +375,27 @@
     <!-- REMOTE SERVICES SETTINGS (Level 3) - Expert/Debug features -->
     <category id="remote" label="30400" help="">
       <group id="14" label="30410">
-        <setting id="remote_server_url" type="string" label="30411" help="35540">
-          <level>3</level>
-          <default></default>
-          <constraints>
-            <allowempty>true</allowempty>
-          </constraints>
-          <control type="edit" format="string">
-            <heading>30411</heading>
-          </control>
-        </setting>
         <setting id="ai_search_authorize_action" type="action" label="30435" help="">
           <level>3</level>
-          <dependencies>
-            <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
-          </dependencies>
           <data>RunScript(plugin.video.librarygenie,authorize_ai_search)</data>
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
             <heading>30435</heading>
+          </control>
+        </setting>
+        <setting id="remote_server_url" type="string" label="30411" help="35540">
+          <level>3</level>
+          <default></default>
+          <dependencies>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
+          </dependencies>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string">
+            <heading>30411</heading>
           </control>
         </setting>
         <setting id="ai_search_activated" type="boolean" label="30423" help="30424">
