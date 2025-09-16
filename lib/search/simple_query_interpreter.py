@@ -9,10 +9,10 @@ Simplified query parsing focused on keyword extraction without complex year logi
 from __future__ import annotations
 from typing import List
 
-from .simple_search_query import SimpleSearchQuery
-from .normalizer import get_text_normalizer
-from ..utils.kodi_log import get_kodi_logger
-from ..config.settings import SettingsManager
+from lib.search.simple_search_query import SimpleSearchQuery
+from lib.search.normalizer import get_text_normalizer
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config.settings import SettingsManager
 
 
 class SimpleQueryInterpreter:

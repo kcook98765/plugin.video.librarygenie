@@ -9,7 +9,7 @@ All remote search functionality now uses the new OTP-based authentication system
 """
 
 import warnings
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 logger = get_kodi_logger('lib.remote.search_client')
 

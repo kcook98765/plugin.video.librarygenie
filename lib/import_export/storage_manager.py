@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Tuple
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 import xbmcvfs
 import xbmcaddon

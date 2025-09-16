@@ -13,9 +13,9 @@ import urllib.error
 import time
 from typing import Dict, Any, Optional, List
 
-from ..config.settings import SettingsManager
-from ..utils.kodi_log import get_kodi_logger
-from ..auth.state import is_authorized, get_api_key
+from lib.config.settings import SettingsManager
+from lib.utils.kodi_log import get_kodi_logger
+from lib.auth.state import is_authorized, get_api_key
 # Removed import of otp_auth to resolve circular dependency
 # from ..auth.otp_auth import exchange_otp_for_api_key, test_api_connection
 
@@ -152,7 +152,7 @@ class AISearchClient:
                 if e.code == 401:
                     self.logger.warning("API key appears to be invalid/expired")
                     # Clear invalid API key to prevent repeated failed requests
-                    from ..auth.state import clear_auth_data
+                    from lib.auth.state import clear_auth_data
                     clear_auth_data()
 
                 self.logger.error("HTTP %s error: %s", e.code, error_msg)
@@ -200,7 +200,7 @@ class AISearchClient:
                 user_email = result.get('user_email', '')
 
                 if api_key:
-                    from ..auth.state import save_api_key
+                    from lib.auth.state import save_api_key
                     save_api_key(api_key)
 
                     # Update internal state

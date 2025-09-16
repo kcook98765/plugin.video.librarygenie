@@ -9,13 +9,13 @@ Handles automatic scheduled backups with retention policies
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
-from .export_engine import get_export_engine
-from .storage_manager import get_storage_manager
-from ..config import get_config
-from ..utils.kodi_log import get_kodi_logger
-from ..config.settings import SettingsManager
-from ..data import get_query_manager
-from ..data.connection_manager import get_connection_manager
+from lib.import_export.export_engine import get_export_engine
+from lib.import_export.storage_manager import get_storage_manager
+from lib.config import get_config
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config.settings import SettingsManager
+from lib.data import get_query_manager
+from lib.data.connection_manager import get_connection_manager
 
 
 class BackupManager:
@@ -62,7 +62,7 @@ class BackupManager:
             self.logger.info("DEPRECATED: BackupManager.run_automatic_backup - redirecting to TimestampBackupManager")
 
             # Redirect to the new timestamp backup manager
-            from . import get_timestamp_backup_manager
+            from lib.import_export import get_timestamp_backup_manager
             timestamp_backup_manager = get_timestamp_backup_manager()
 
             return timestamp_backup_manager.run_automatic_backup()
@@ -78,7 +78,7 @@ class BackupManager:
 
             # Redirect to the new timestamp backup manager
             try:
-                from . import get_timestamp_backup_manager
+                from lib.import_export import get_timestamp_backup_manager
                 timestamp_backup_manager = get_timestamp_backup_manager()
                 if timestamp_backup_manager and hasattr(timestamp_backup_manager, 'list_backups'):
                     return timestamp_backup_manager.list_backups()

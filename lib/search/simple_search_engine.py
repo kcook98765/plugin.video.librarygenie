@@ -11,10 +11,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
 
-from .simple_search_query import SimpleSearchQuery
-from .normalizer import get_text_normalizer
-from ..data import get_connection_manager
-from ..utils.kodi_log import get_kodi_logger
+from lib.search.simple_search_query import SimpleSearchQuery
+from lib.search.normalizer import get_text_normalizer
+from lib.data import get_connection_manager
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class SimpleSearchResult:

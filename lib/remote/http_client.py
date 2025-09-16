@@ -12,8 +12,8 @@ from typing import Dict, Any, Optional
 from urllib.parse import urljoin, urlencode
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
-from ..utils.kodi_log import get_kodi_logger
-from ..config.settings import get_phase12_remote_settings
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config.settings import get_phase12_remote_settings
 
 
 class RemoteHTTPClient:

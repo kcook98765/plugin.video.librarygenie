@@ -9,11 +9,11 @@ Safely imports and merges JSON/CSV data with validation and preview
 import json
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Set, Tuple
-from .data_schemas import ExportSchema, ImportPreview, ImportResult
-from .storage_manager import get_storage_manager
-from ..data.connection_manager import get_connection_manager
-from ..data import QueryManager
-from ..utils.kodi_log import get_kodi_logger
+from lib.import_export.data_schemas import ExportSchema, ImportPreview, ImportResult
+from lib.import_export.storage_manager import get_storage_manager
+from lib.data.connection_manager import get_connection_manager
+from lib.data import QueryManager
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class DataMatcher:
