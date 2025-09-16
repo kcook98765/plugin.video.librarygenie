@@ -147,9 +147,21 @@ def handle_set_default_list():
                     log_info(f"Created new list and set as default: {list_name} (ID: {new_list_id})")
                     
                     # Ensure quick_add toggle stays enabled (user must have turned it on to reach this point)
+                    log_info("Forcing quick_add_enabled to stay ON before refresh")
                     config.set("quick_add_enabled", True)
+                    
+                    # Also try direct addon setting as backup
+                    try:
+                        import xbmcaddon
+                        addon = xbmcaddon.Addon()
+                        addon.setSettingBool("quick_add_enabled", True)
+                        log_info("Set quick_add_enabled via direct addon method")
+                    except Exception as e:
+                        log_info(f"Direct addon setting failed, using config manager only: {e}")
+                    
                     import xbmc
-                    xbmc.sleep(150)  # Small delay to ensure setting is persisted
+                    xbmc.sleep(300)  # Longer delay to ensure setting is persisted
+                    log_info("About to refresh settings with toggle preserved")
                     
                     # Refresh settings to show updated display
                     _refresh_settings_display()
@@ -176,9 +188,21 @@ def handle_set_default_list():
                 log_info(f"Default list set to: {selected_list['name']} (ID: {selected_list['id']})")
                 
                 # Ensure quick_add toggle stays enabled (user must have turned it on to reach this point)  
+                log_info("Forcing quick_add_enabled to stay ON before refresh")
                 config.set("quick_add_enabled", True)
+                
+                # Also try direct addon setting as backup
+                try:
+                    import xbmcaddon
+                    addon = xbmcaddon.Addon()
+                    addon.setSettingBool("quick_add_enabled", True)
+                    log_info("Set quick_add_enabled via direct addon method")
+                except Exception as e:
+                    log_info(f"Direct addon setting failed, using config manager only: {e}")
+                
                 import xbmc
-                xbmc.sleep(150)  # Small delay to ensure setting is persisted
+                xbmc.sleep(300)  # Longer delay to ensure setting is persisted
+                log_info("About to refresh settings with toggle preserved")
                 
                 # Refresh settings to show updated display
                 _refresh_settings_display()
