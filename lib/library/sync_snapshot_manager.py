@@ -145,7 +145,7 @@ class SyncSnapshotManager:
                     
         return total_items
     
-    def detect_changes(self, media_type: str = 'movie') -> Dict[str, Set[int]]:
+    def detect_changes(self, media_type: str = 'movie') -> Dict[str, Any]:
         """
         Use SQL to detect new/removed/existing items by comparing snapshot with media_items
         
@@ -182,28 +182,33 @@ class SyncSnapshotManager:
             removed_results = self.conn_manager.execute_query(removed_query, [media_type, media_type])
             removed_ids = {row["kodi_id"] for row in removed_results}
             
-            # Find existing items (in both snapshot and media_items)
-            existing_query = """
-                SELECT m.kodi_id 
-                FROM media_items m 
-                INNER JOIN sync_snapshot s ON s.kodi_id = m.kodi_id AND s.media_type = ?
-                WHERE m.media_type = ? 
-                    AND m.is_removed = 0
+            # Update timestamps for existing items directly via SQL (no Python sets needed)
+            update_existing_query = """
+                UPDATE media_items 
+                SET updated_at = datetime('now') 
+                WHERE media_type = ? 
+                    AND is_removed = 0 
+                    AND EXISTS (
+                        SELECT 1 FROM sync_snapshot s 
+                        WHERE s.kodi_id = media_items.kodi_id 
+                            AND s.media_type = ?
+                    )
             """
-            existing_results = self.conn_manager.execute_query(existing_query, [media_type, media_type])
-            existing_ids = {row["kodi_id"] for row in existing_results}
+            with self.conn_manager.transaction() as conn:
+                cursor = conn.execute(update_existing_query, [media_type, media_type])
+                existing_count = cursor.rowcount
             
-            self.logger.info(f"Change detection results - New: {len(new_ids)}, Removed: {len(removed_ids)}, Existing: {len(existing_ids)}")
+            self.logger.info(f"Change detection results - New: {len(new_ids)}, Removed: {len(removed_ids)}, Existing: {existing_count}")
             
             return {
                 "new": new_ids,
                 "removed": removed_ids, 
-                "existing": existing_ids
+                "existing_count": existing_count
             }
             
         except Exception as e:
             self.logger.error(f"Failed to detect {media_type} changes: {e}")
-            return {"new": set(), "removed": set(), "existing": set()}
+            return {"new": set(), "removed": set(), "existing_count": 0}
     
     def cleanup_snapshot(self):
         """Remove all snapshot data to prevent table bloat"""

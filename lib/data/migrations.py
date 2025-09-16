@@ -294,6 +294,7 @@ class MigrationManager:
         ) WITHOUT ROWID;
         
         CREATE INDEX idx_sync_snapshot_media_type ON sync_snapshot (media_type);
+        CREATE INDEX idx_sync_snapshot_media_type_kodi_id ON sync_snapshot (media_type, kodi_id);
         
         -- Insert default data
         INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)

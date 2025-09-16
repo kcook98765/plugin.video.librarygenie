@@ -207,7 +207,7 @@ class KodiJsonRpcClient:
 
             result = response.get("result", {})
             episodes = result.get("episodes", [])
-            limits = result.get("limits", {"total": 0}}
+            limits = result.get("limits", {"total": 0})
 
             return {"episodes": episodes, "limits": limits}
 
