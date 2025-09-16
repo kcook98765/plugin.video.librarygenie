@@ -67,7 +67,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="manual_library_sync" type="action" label="30035" help="35509" action="RunScript(plugin.video.librarygenie, manual_library_sync)">
+        <setting id="manual_library_sync" type="action" label="30035" help="35509" action="RunScript(plugin.video.librarygenie,manual_library_sync)">
           <level>1</level>
         </setting>
       </group>
@@ -76,7 +76,7 @@
     <!-- LISTS SETTINGS (Level 0-1) - List management features -->
     <category id="lists" label="30200" help="">
       <group id="3" label="30040">
-        <setting id="set_default_list_action" type="action" label="30041" help="" action="RunScript(plugin.video.librarygenie, set_default_list)">
+        <setting id="set_default_list_action" type="action" label="30041" help="" action="RunScript(plugin.video.librarygenie,set_default_list)">
           <level>0</level>
         </setting>
         <setting id="quick_add_enabled" type="boolean" label="30042" help="35510">
@@ -111,7 +111,7 @@
       </group>
       
       <group id="5" label="30070">
-        <setting id="shortlist_import_action" type="action" label="30071" help="" action="RunScript(plugin.video.librarygenie, import_shortlist)">
+        <setting id="shortlist_import_action" type="action" label="30071" help="" action="RunScript(plugin.video.librarygenie,import_shortlist)">
           <level>1</level>
         </setting>
         <setting id="shortlist_clear_before_import" type="boolean" label="30072" help="35514">
@@ -223,10 +223,10 @@
       </group>
       
       <group id="11" label="30540">
-        <setting id="backup_manual_action" type="action" label="30542" help="" action="RunScript(plugin.video.librarygenie, manual_backup)">
+        <setting id="backup_manual_action" type="action" label="30542" help="" action="RunScript(plugin.video.librarygenie,manual_backup)">
           <level>2</level>
         </setting>
-        <setting id="backup_restore_action" type="action" label="30543" help="" action="RunScript(plugin.video.librarygenie, restore_backup)">
+        <setting id="backup_restore_action" type="action" label="30543" help="" action="RunScript(plugin.video.librarygenie,restore_backup)">
           <level>2</level>
         </setting>
       </group>
@@ -333,7 +333,7 @@
             <heading>30411</heading>
           </control>
         </setting>
-        <setting id="ai_search_authorize_action" type="action" label="30435" help="" action="RunScript(plugin.video.librarygenie, authorize_ai_search)">
+        <setting id="ai_search_authorize_action" type="action" label="30435" help="" action="RunScript(plugin.video.librarygenie,authorize_ai_search)">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
@@ -364,13 +364,13 @@
             <heading>30425</heading>
           </control>
         </setting>
-        <setting id="ai_search_replace_sync_action" type="action" label="30449" help="" action="RunScript(plugin.video.librarygenie, ai_search_replace_sync)">
+        <setting id="ai_search_replace_sync_action" type="action" label="30449" help="" action="RunScript(plugin.video.librarygenie,ai_search_replace_sync)">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
         </setting>
-        <setting id="ai_search_regular_sync_action" type="action" label="30464" help="" action="RunScript(plugin.video.librarygenie, ai_search_regular_sync)">
+        <setting id="ai_search_regular_sync_action" type="action" label="30464" help="" action="RunScript(plugin.video.librarygenie,ai_search_regular_sync)">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>

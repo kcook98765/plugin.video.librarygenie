@@ -20,8 +20,12 @@ def main():
         log_error("No action parameter provided to utilities handler")
         return
     
-    action = sys.argv[1]
-    log_info(f"Handling settings action: {action}")
+    # Normalize action parameter (handle whitespace and key=value format)
+    action = sys.argv[1].strip()
+    if action.startswith("action="):
+        action = action.split("=", 1)[1].strip()
+    
+    log_info(f"Handling settings action: '{action}'")
     
     try:
         if action == "set_default_list":
@@ -208,16 +212,27 @@ def handle_authorize_ai_search():
     log_info("Handling authorize_ai_search action")
     
     try:
+        # Check if AI search handler is available
+        from lib.ui.handler_factory import get_handler_factory
+        factory = get_handler_factory()
+        
+        if not hasattr(factory, 'get_ai_search_handler'):
+            log_error("AI search handler not available in factory")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "AI search functionality not available",
+                xbmcgui.NOTIFICATION_WARNING
+            )
+            return
+        
         # Import required modules
         from lib.ui.plugin_context import PluginContext
-        from lib.ui.handler_factory import get_handler_factory
         
         # Create a mock context for settings operations
         context = PluginContext()
         context.addon_handle = -1  # No directory rendering for settings actions
         
         # Get the AI search handler
-        factory = get_handler_factory()
         factory.context = context
         ai_search_handler = factory.get_ai_search_handler()
         
@@ -246,16 +261,27 @@ def handle_ai_search_replace_sync():
     log_info("Handling ai_search_replace_sync action")
     
     try:
+        # Check if AI search handler is available
+        from lib.ui.handler_factory import get_handler_factory
+        factory = get_handler_factory()
+        
+        if not hasattr(factory, 'get_ai_search_handler'):
+            log_error("AI search handler not available in factory")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "AI search functionality not available",
+                xbmcgui.NOTIFICATION_WARNING
+            )
+            return
+        
         # Import required modules
         from lib.ui.plugin_context import PluginContext
-        from lib.ui.handler_factory import get_handler_factory
         
         # Create a mock context for settings operations
         context = PluginContext()
         context.addon_handle = -1  # No directory rendering for settings actions
         
         # Get the AI search handler
-        factory = get_handler_factory()
         factory.context = context
         ai_search_handler = factory.get_ai_search_handler()
         
@@ -284,16 +310,27 @@ def handle_ai_search_regular_sync():
     log_info("Handling ai_search_regular_sync action")
     
     try:
+        # Check if AI search handler is available
+        from lib.ui.handler_factory import get_handler_factory
+        factory = get_handler_factory()
+        
+        if not hasattr(factory, 'get_ai_search_handler'):
+            log_error("AI search handler not available in factory")
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "AI search functionality not available",
+                xbmcgui.NOTIFICATION_WARNING
+            )
+            return
+        
         # Import required modules
         from lib.ui.plugin_context import PluginContext
-        from lib.ui.handler_factory import get_handler_factory
         
         # Create a mock context for settings operations
         context = PluginContext()
         context.addon_handle = -1  # No directory rendering for settings actions
         
         # Get the AI search handler
-        factory = get_handler_factory()
         factory.context = context
         ai_search_handler = factory.get_ai_search_handler()
         
