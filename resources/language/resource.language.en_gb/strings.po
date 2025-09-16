@@ -270,6 +270,10 @@ msgctxt "#30435"
 msgid "Activate AI Search"
 msgstr ""
 
+msgctxt "#30470"
+msgid "Deactivate AI Search"
+msgstr ""
+
 msgctxt "#30423"
 msgid "AI Search Activated"
 msgstr ""

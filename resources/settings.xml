@@ -399,12 +399,22 @@
           </control>
         </setting>
         <setting id="ai_search_activated" type="boolean" label="30423" help="30424">
-          <level>3</level>
+          <level>4</level>
           <default>false</default>
-          <dependencies>
-            <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
-          </dependencies>
           <control type="toggle"/>
+        </setting>
+        <setting id="ai_search_deactivate_action" type="action" label="30470" help="">
+          <level>3</level>
+          <dependencies>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
+          </dependencies>
+          <data>RunScript(plugin.video.librarygenie,deactivate_ai_search)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30470</heading>
+          </control>
         </setting>
         <setting id="ai_search_sync_interval" type="integer" label="30425" help="30426">
           <level>3</level>

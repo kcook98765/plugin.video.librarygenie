@@ -10,6 +10,7 @@ import sys
 import os
 import xbmcgui
 import xbmcaddon
+from typing import List, Union
 
 # Setup proper module paths for Kodi addon structure
 addon = xbmcaddon.Addon()
@@ -57,6 +58,8 @@ def main():
             handle_ai_search_replace_sync()
         elif action == "ai_search_regular_sync":
             handle_ai_search_regular_sync()
+        elif action == "deactivate_ai_search":
+            handle_deactivate_ai_search()
         else:
             log_error(f"Unknown action: {action}")
             xbmcgui.Dialog().notification(
@@ -110,7 +113,7 @@ def handle_set_default_list():
             
             # Create selection dialog options
             dialog = xbmcgui.Dialog()
-            list_names = ["Add New List..."]  # First option for creating new list
+            list_names: List[Union[str, xbmcgui.ListItem]] = ["Add New List..."]  # First option for creating new list
             
             # Add existing lists
             for lst in lists:
@@ -247,7 +250,7 @@ def _create_new_list_with_folder_selection(query_manager):
         # Filter out Search History folder from selection
         folders = [f for f in all_folders if f.get('name') != 'Search History']
         
-        folder_options = ["[Root Level]"]  # Option for root level
+        folder_options: List[Union[str, xbmcgui.ListItem]] = ["[Root Level]"]  # Option for root level
         folder_ids = [None]  # None represents root level
         
         for folder in folders:
@@ -406,7 +409,7 @@ def handle_restore_backup():
         
         # Create selection dialog
         dialog = xbmcgui.Dialog()
-        backup_names = []
+        backup_names: List[Union[str, xbmcgui.ListItem]] = []
         for backup in available_backups:
             # Format: filename (size, age)
             size_mb = round(backup.get('file_size', 0) / 1024 / 1024, 2)
@@ -498,6 +501,67 @@ def handle_authorize_ai_search():
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             f"AI search authorization error: {str(e)}",
+            xbmcgui.NOTIFICATION_ERROR
+        )
+
+
+def handle_deactivate_ai_search():
+    """Handle deactivate AI search action from settings"""
+    log_info("Handling deactivate_ai_search action")
+    
+    try:
+        from auth.state import clear_auth_data, is_authorized
+        from config.config_manager import get_config
+        
+        # Check if currently authorized
+        if not is_authorized():
+            xbmcgui.Dialog().notification(
+                "LibraryGenie", 
+                "AI search is not currently activated",
+                xbmcgui.NOTIFICATION_WARNING
+            )
+            return
+        
+        # Confirm deactivation
+        dialog = xbmcgui.Dialog()
+        if not dialog.yesno(
+            "Deactivate AI Search",
+            "This will deactivate AI search and clear all authorization data.\n\nContinue?",
+            "Cancel",
+            "Deactivate"
+        ):
+            return
+        
+        # Clear auth data and deactivate
+        config = get_config()
+        
+        # Clear API key and auth data
+        success = clear_auth_data()
+        if success:
+            # Set activated status to false
+            config.set('ai_search_activated', False)
+            
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "AI search deactivated successfully", 
+                xbmcgui.NOTIFICATION_INFO
+            )
+            log_info("AI search deactivated successfully")
+        else:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to deactivate AI search",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            log_error("Failed to clear auth data during deactivation")
+        
+    except Exception as e:
+        log_error(f"Error in handle_deactivate_ai_search: {e}")
+        import traceback
+        log_error(f"AI search deactivation error traceback: {traceback.format_exc()}")
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            f"AI search deactivation error: {str(e)}",
             xbmcgui.NOTIFICATION_ERROR
         )
 
