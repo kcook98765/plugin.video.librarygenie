@@ -456,7 +456,7 @@
           <level>3</level>
           <default>Kodi</default>
           <dependencies>
-            <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
           <constraints>
             <allowempty>false</allowempty>
@@ -469,7 +469,7 @@
           <level>3</level>
           <default>5</default>
           <dependencies>
-            <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
           <constraints>
             <minimum>1</minimum>
@@ -483,7 +483,7 @@
           <level>3</level>
           <default>true</default>
           <dependencies>
-            <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
+            <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
           <control type="toggle"/>
         </setting>
