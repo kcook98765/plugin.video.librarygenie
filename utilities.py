@@ -95,7 +95,7 @@ def handle_set_default_list():
             return
         
         # Get all lists
-        lists = query_manager.get_all_lists()
+        lists = query_manager.get_user_lists()
         
         if not lists:
             xbmcgui.Dialog().notification(
