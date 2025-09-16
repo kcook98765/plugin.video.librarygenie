@@ -20,7 +20,12 @@ class PluginContext:
 
     def __init__(self):
         # Parse plugin arguments
-        self.addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+        # Handle cases where sys.argv[1] might not be a valid integer (e.g., when called from settings)
+        try:
+            self.addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+        except (ValueError, IndexError):
+            # Fallback for non-integer handles (e.g., utilities.py calls)
+            self.addon_handle = -1
         self.base_url = sys.argv[0] if len(sys.argv) > 0 else ""
         query_string = sys.argv[2][1:] if len(sys.argv) > 2 and len(sys.argv[2]) > 1 else ""
 
