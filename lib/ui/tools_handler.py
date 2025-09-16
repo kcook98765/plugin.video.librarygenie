@@ -998,8 +998,6 @@ class ToolsHandler:
                 return self._show_library_stats()
             elif action == "favorites_stats":
                 return self._show_favorites_stats()
-            elif action == "test_backup":
-                return self._test_backup_config()
             elif action == "manual_backup":
                 return self._run_manual_backup()
             elif action == "backup_manager":
