@@ -1421,9 +1421,6 @@ msgctxt "#30540"
 msgid "Backup Actions"
 msgstr ""
 
-msgctxt "#30541"
-msgid "Test backup configuration"
-msgstr ""
 
 msgctxt "#30542"
 msgid "Manual Backup"
@@ -1532,9 +1529,6 @@ msgctxt "#36043"
 msgid "Backup Manager"
 msgstr ""
 
-msgctxt "#36044"
-msgid "Test Backup Config"
-msgstr ""
 
 msgctxt "#36045"
 msgid "Library Statistics"
@@ -1758,9 +1752,6 @@ msgctxt "#36077"
 msgid "Backup Manager"
 msgstr ""
 
-msgctxt "#36078"
-msgid "Test Backup Config"
-msgstr ""
 
 msgctxt "#36079"
 msgid "Library Statistics"

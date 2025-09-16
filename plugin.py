@@ -126,37 +126,6 @@ def handle_settings():
     xbmcaddon.Addon().openSettings()
 
 
-def _handle_test_backup(context: PluginContext):
-    """Handle backup configuration test from settings"""
-    try:
-        log_info("Testing backup configuration from settings")
-
-        from lib.import_export import get_timestamp_backup_manager
-        backup_manager = get_timestamp_backup_manager()
-
-        # Test backup configuration by attempting a dry run
-        result = {"success": True, "message": "Backup configuration appears valid"}
-
-        if result["success"]:
-            message = f"Backup test successful:\n{result.get('message', '')}"
-            if 'path' in result:
-                message += f"\nStorage path: {result['path']}"
-            xbmcgui.Dialog().ok("Backup Test", message)
-        else:
-            error_msg = result.get("error", "Unknown error")
-            xbmcgui.Dialog().ok("Backup Test Failed", f"Test failed:\n{error_msg}")
-
-    except Exception as e:
-        log_error(f"Error in test backup handler: {e}")
-        xbmcgui.Dialog().ok("Backup Test Error", f"Test error: {str(e)}")
-
-    # Don't render directory for settings actions
-    try:
-        if context.addon_handle >= 0:
-            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
-    except Exception:
-        pass
-
 
 def _handle_manual_backup(context: PluginContext):
     """Handle manual backup from settings"""
@@ -820,7 +789,6 @@ def _register_all_handlers(router: Router):
         'signout': lambda ctx: handle_signout(),
         'on_select': lambda ctx: handle_on_select(ctx.params, ctx.addon_handle),
         'import_shortlist': lambda ctx: handle_shortlist_import(),
-        'test_backup': lambda ctx: _handle_test_backup(ctx),
         'manual_backup': lambda ctx: _handle_manual_backup(ctx),
         'restore_backup': lambda ctx: _handle_restore_backup(ctx),
         'noop': lambda ctx: handle_noop(),

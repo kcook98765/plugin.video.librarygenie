@@ -199,7 +199,6 @@ The Tools & Options system activates based on `list_type` parameter:
 - **⚪ Export All Lists** - Complete system export
 - **⚪ Manual Backup** - Create backup snapshot
 - **⚪ Backup Manager** - Manage existing backups
-- **⚪ Test Backup Config** - Validate backup settings
 - **🟡 Library Statistics** - Show system stats
 - **🟡 Force Library Rescan** - Refresh library data
 - **🟡 Clear Search History** - Remove all search data
@@ -240,10 +239,6 @@ The Tools & Options system activates based on `list_type` parameter:
 - Restore functionality with confirmation dialogs
 - Replace vs append options for restore
 
-**Test Backup Config:**
-- Validates backup storage settings
-- Tests write permissions and path accessibility
-- Reports configuration status
 
 **Library Statistics:**
 - System-wide statistics display
@@ -292,7 +287,6 @@ Different actions set specific navigation flags:
 ### Backup Management
 - **Manual Backup**: User-initiated backup creation
 - **Backup Manager**: List and restore from existing backups
-- **Test Configuration**: Validate backup settings
 - **Retention Management**: Automatic cleanup of old backups
 
 ### Import/Export Operations
