@@ -67,8 +67,15 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="manual_library_sync" type="action" label="30035" help="35509" action="RunScript(plugin.video.librarygenie,manual_library_sync)">
+        <setting id="manual_library_sync" type="action" label="30035" help="35509">
           <level>1</level>
+          <data>RunScript(plugin.video.librarygenie,manual_library_sync)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30035</heading>
+          </control>
         </setting>
       </group>
     </category>
@@ -76,8 +83,15 @@
     <!-- LISTS SETTINGS (Level 0-1) - List management features -->
     <category id="lists" label="30200" help="">
       <group id="3" label="30040">
-        <setting id="set_default_list_action" type="action" label="30041" help="" action="RunScript(plugin.video.librarygenie,set_default_list)">
+        <setting id="set_default_list_action" type="action" label="30041" help="">
           <level>0</level>
+          <data>RunScript(plugin.video.librarygenie,set_default_list)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30041</heading>
+          </control>
         </setting>
         <setting id="quick_add_enabled" type="boolean" label="30042" help="35510">
           <level>0</level>
@@ -111,8 +125,15 @@
       </group>
       
       <group id="5" label="30070">
-        <setting id="shortlist_import_action" type="action" label="30071" help="" action="RunScript(plugin.video.librarygenie,import_shortlist)">
+        <setting id="shortlist_import_action" type="action" label="30071" help="">
           <level>1</level>
+          <data>RunScript(plugin.video.librarygenie,import_shortlist)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30071</heading>
+          </control>
         </setting>
         <setting id="shortlist_clear_before_import" type="boolean" label="30072" help="35514">
           <level>1</level>
@@ -223,11 +244,25 @@
       </group>
       
       <group id="11" label="30540">
-        <setting id="backup_manual_action" type="action" label="30542" help="" action="RunScript(plugin.video.librarygenie,manual_backup)">
+        <setting id="backup_manual_action" type="action" label="30542" help="">
           <level>2</level>
+          <data>RunScript(plugin.video.librarygenie,manual_backup)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30542</heading>
+          </control>
         </setting>
-        <setting id="backup_restore_action" type="action" label="30543" help="" action="RunScript(plugin.video.librarygenie,restore_backup)">
+        <setting id="backup_restore_action" type="action" label="30543" help="">
           <level>2</level>
+          <data>RunScript(plugin.video.librarygenie,restore_backup)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30543</heading>
+          </control>
         </setting>
       </group>
     </category>
@@ -333,11 +368,18 @@
             <heading>30411</heading>
           </control>
         </setting>
-        <setting id="ai_search_authorize_action" type="action" label="30435" help="" action="RunScript(plugin.video.librarygenie,authorize_ai_search)">
+        <setting id="ai_search_authorize_action" type="action" label="30435" help="">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="remote_server_url" operator="!is"></dependency>
           </dependencies>
+          <data>RunScript(plugin.video.librarygenie,authorize_ai_search)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30435</heading>
+          </control>
         </setting>
         <setting id="ai_search_activated" type="boolean" label="30423" help="30424">
           <level>3</level>
@@ -364,17 +406,31 @@
             <heading>30425</heading>
           </control>
         </setting>
-        <setting id="ai_search_replace_sync_action" type="action" label="30449" help="" action="RunScript(plugin.video.librarygenie,ai_search_replace_sync)">
+        <setting id="ai_search_replace_sync_action" type="action" label="30449" help="">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
+          <data>RunScript(plugin.video.librarygenie,ai_search_replace_sync)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30449</heading>
+          </control>
         </setting>
-        <setting id="ai_search_regular_sync_action" type="action" label="30464" help="" action="RunScript(plugin.video.librarygenie,ai_search_regular_sync)">
+        <setting id="ai_search_regular_sync_action" type="action" label="30464" help="">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
+          <data>RunScript(plugin.video.librarygenie,ai_search_regular_sync)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30464</heading>
+          </control>
         </setting>
       </group>
       
