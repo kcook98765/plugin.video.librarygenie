@@ -321,7 +321,9 @@ class LibraryGenieService:
 
     def start(self):
         """Start the background service"""
-        log_info("LibraryGenie background service starting...")
+        log_info("🚀 LibraryGenie background service starting...")
+        log_info(f"LibraryGenie service PID: {xbmc.getInfoLabel('System.KernelVersion')}")
+        xbmcgui.Dialog().notification("LibraryGenie", "Service Starting...", xbmcgui.NOTIFICATION_INFO, 3000)
 
         try:
             # Wait for addon profile directory to be ready (fixes zip installation timing)
@@ -637,6 +639,9 @@ class LibraryGenieService:
         if hasattr(self, '_startup_sync_checked'):
             return
         self._startup_sync_checked = True
+        
+        log_info("🔍 Checking startup sync conditions...")
+        xbmcgui.Dialog().notification("LibraryGenie", "Checking startup sync...", xbmcgui.NOTIFICATION_INFO, 2000)
         
         try:
             # Import here to avoid circular imports
