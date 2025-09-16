@@ -9,7 +9,7 @@ Handles RunScript calls from settings.xml action buttons
 import sys
 import xbmcgui
 import xbmcaddon
-from lib.utils.kodi_log import log, log_info, log_error
+from utils.kodi_log import log, log_info, log_error
 
 def main():
     """Main entry point for RunScript calls from settings"""
@@ -69,9 +69,9 @@ def handle_set_default_list():
     
     try:
         # Import required modules
-        from lib.ui.plugin_context import PluginContext
-        from lib.ui.handler_factory import get_handler_factory
-        from lib.ui.response_handler import get_response_handler
+        from ui.plugin_context import PluginContext
+        from ui.handler_factory import get_handler_factory
+        from ui.response_handler import get_response_handler
         
         # Create a mock context for settings operations (no addon handle needed)
         context = PluginContext()
@@ -110,8 +110,13 @@ def handle_manual_library_sync():
     
     try:
         # Import the manual sync handler from plugin.py
+        import sys
+        import os
+        # Add the addon root directory to the Python path
+        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        sys.path.insert(0, addon_root)
         from plugin import _handle_manual_library_sync
-        from lib.ui.plugin_context import PluginContext
+        from ui.plugin_context import PluginContext
         
         # Create a mock context for settings operations
         context = PluginContext()
@@ -137,6 +142,12 @@ def handle_import_shortlist():
     
     try:
         # Import the shortlist handler from plugin.py
+        import sys
+        import os
+        # Add the addon root directory to the Python path
+        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        if addon_root not in sys.path:
+            sys.path.insert(0, addon_root)
         from plugin import handle_shortlist_import
         
         # Call the shortlist import handler
@@ -159,8 +170,14 @@ def handle_manual_backup():
     
     try:
         # Import the manual backup handler from plugin.py
+        import sys
+        import os
+        # Add the addon root directory to the Python path
+        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        if addon_root not in sys.path:
+            sys.path.insert(0, addon_root)
         from plugin import _handle_manual_backup
-        from lib.ui.plugin_context import PluginContext
+        from ui.plugin_context import PluginContext
         
         # Create a mock context for settings operations
         context = PluginContext()
@@ -186,8 +203,14 @@ def handle_restore_backup():
     
     try:
         # Import the restore backup handler from plugin.py
+        import sys
+        import os
+        # Add the addon root directory to the Python path
+        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        if addon_root not in sys.path:
+            sys.path.insert(0, addon_root)
         from plugin import _handle_restore_backup
-        from lib.ui.plugin_context import PluginContext
+        from ui.plugin_context import PluginContext
         
         # Create a mock context for settings operations
         context = PluginContext()
@@ -213,7 +236,7 @@ def handle_authorize_ai_search():
     
     try:
         # Check if AI search handler is available
-        from lib.ui.handler_factory import get_handler_factory
+        from ui.handler_factory import get_handler_factory
         factory = get_handler_factory()
         
         if not hasattr(factory, 'get_ai_search_handler'):
@@ -226,7 +249,7 @@ def handle_authorize_ai_search():
             return
         
         # Import required modules
-        from lib.ui.plugin_context import PluginContext
+        from ui.plugin_context import PluginContext
         
         # Create a mock context for settings operations
         context = PluginContext()
@@ -262,7 +285,7 @@ def handle_ai_search_replace_sync():
     
     try:
         # Check if AI search handler is available
-        from lib.ui.handler_factory import get_handler_factory
+        from ui.handler_factory import get_handler_factory
         factory = get_handler_factory()
         
         if not hasattr(factory, 'get_ai_search_handler'):
@@ -275,7 +298,7 @@ def handle_ai_search_replace_sync():
             return
         
         # Import required modules
-        from lib.ui.plugin_context import PluginContext
+        from ui.plugin_context import PluginContext
         
         # Create a mock context for settings operations
         context = PluginContext()
@@ -311,7 +334,7 @@ def handle_ai_search_regular_sync():
     
     try:
         # Check if AI search handler is available
-        from lib.ui.handler_factory import get_handler_factory
+        from ui.handler_factory import get_handler_factory
         factory = get_handler_factory()
         
         if not hasattr(factory, 'get_ai_search_handler'):
@@ -324,7 +347,7 @@ def handle_ai_search_regular_sync():
             return
         
         # Import required modules
-        from lib.ui.plugin_context import PluginContext
+        from ui.plugin_context import PluginContext
         
         # Create a mock context for settings operations
         context = PluginContext()
