@@ -31,10 +31,6 @@ class SettingsManager:
 
 
     # Library Settings
-    def get_track_library_changes(self) -> bool:
-        """Get track library changes setting"""
-        config = get_config()
-        return config.get_bool('track_library_changes', True)
 
     def get_soft_delete_removed(self) -> bool:
         """Get soft delete removed items setting"""
