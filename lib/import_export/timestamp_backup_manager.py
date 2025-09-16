@@ -137,7 +137,7 @@ class TimestampBackupManager:
     def restore_backup(self, file_path: str, replace_mode: bool = False) -> Dict[str, Any]:
         """Restore from backup file"""
         try:
-            from .import_engine import get_import_engine
+            from lib.import_export.import_engine import get_import_engine
             import_engine = get_import_engine()
 
             # Read backup file content

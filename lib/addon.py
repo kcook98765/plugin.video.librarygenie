@@ -13,8 +13,8 @@ import xbmcgui
 import xbmcaddon
 import xbmcplugin
 from typing import Dict, Any
-from .utils.kodi_log import get_kodi_logger
-from .config import get_config
+from lib.utils.kodi_log import get_kodi_logger
+from lib.config import get_config
 
 
 class AddonController:
@@ -87,7 +87,7 @@ class AddonController:
             self.logger.debug("Search params: %s", self.params)
 
             # Import search UI handler (lazy import to avoid circular dependencies)
-            from .ui.search_handler import SearchHandler
+            from lib.ui.search_handler import SearchHandler
             self.logger.debug("SearchHandler imported successfully")
 
             search_handler = SearchHandler(self.handle)
@@ -117,7 +117,7 @@ class AddonController:
             self.logger.info("Handling authorization")
 
             # Import and run authorization flow (lazy import)
-            from .auth.device_code import run_authorize_flow
+            from lib.auth.device_code import run_authorize_flow
             run_authorize_flow()
 
             # Return to main menu after authorization attempt
@@ -141,7 +141,7 @@ class AddonController:
             self.logger.info("Handling logout")
 
             # Import and clear auth tokens (lazy import)
-            from .auth.state import clear_tokens
+            from lib.auth.state import clear_tokens
 
             success = clear_tokens()
 
@@ -182,7 +182,7 @@ class AddonController:
         """Check if user is authorized"""
         try:
             # Lazy import to avoid circular dependencies
-            from .auth.state import is_authorized
+            from lib.auth.state import is_authorized
             return is_authorized()
         except ImportError:
             # Auth module not available, assume not authorized
