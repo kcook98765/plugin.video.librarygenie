@@ -139,7 +139,6 @@ class SyncController:
             'first_run_completed': self.settings.get_first_run_completed(),
             'sync_movies_enabled': self.settings.get_sync_movies(),
             'sync_tv_episodes_enabled': self.settings.get_sync_tv_episodes(),
-            'track_library_changes': self.settings.get_track_library_changes(),
         }
 
     def _sync_movies(self, progress_dialog=None) -> int:

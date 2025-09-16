@@ -25,7 +25,6 @@ class ConfigManager:
         self._defaults = {
             # General settings
             "confirm_destructive_actions": True,
-            "track_library_changes": True,
             "soft_delete_removed_items": True,
             "default_list_id": "",
             "quick_add_enabled": False,
