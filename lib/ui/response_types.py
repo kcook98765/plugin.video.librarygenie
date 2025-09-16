@@ -7,7 +7,7 @@ Standardized response objects for UI handlers
 """
 
 from typing import List, Dict, Any, Optional, Union
-from .localization import L
+from lib.ui.localization import L
 
 
 class DirectoryResponse:

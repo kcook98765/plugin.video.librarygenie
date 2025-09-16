@@ -10,10 +10,10 @@ from typing import List, Dict, Any, Optional
 import xbmcgui
 import xbmcplugin
 import xbmcvfs
-from .listitem_builder import ListItemBuilder
-from ..utils.kodi_log import get_kodi_logger
-from .localization import L
-from ..utils.kodi_version import get_kodi_major_version, is_kodi_v21_plus
+from lib.ui.listitem_builder import ListItemBuilder
+from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.localization import L
+from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v21_plus
 
 
 class ListItemRenderer:

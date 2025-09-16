@@ -9,7 +9,7 @@ Tracks UI state to prevent notification spam and manage user experience
 import time
 from typing import Dict, Any, List, Optional
 
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class SessionState:

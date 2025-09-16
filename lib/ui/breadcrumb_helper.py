@@ -7,7 +7,7 @@ Generates breadcrumb navigation paths for UI context
 """
 
 from typing import Optional
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class BreadcrumbHelper:

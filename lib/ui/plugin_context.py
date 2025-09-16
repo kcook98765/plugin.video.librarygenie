@@ -11,8 +11,8 @@ from urllib.parse import parse_qsl
 from typing import Dict, Any, Optional
 
 import xbmcaddon
-from ..utils.kodi_log import get_kodi_logger
-from ..auth.state import is_authorized
+from lib.utils.kodi_log import get_kodi_logger
+from lib.auth.state import is_authorized
 
 
 class PluginContext:
@@ -58,7 +58,7 @@ class PluginContext:
     def query_manager(self):
         """Get query manager singleton (lazy loaded)"""
         if self._query_manager is None:
-            from ..data.query_manager import get_query_manager
+            from lib.data.query_manager import get_query_manager
             self._query_manager = get_query_manager()
             if not self._query_manager.initialize():
                 self.logger.error("Failed to initialize query manager")
@@ -69,7 +69,7 @@ class PluginContext:
     def favorites_manager(self):
         """Get cached favorites manager instance"""
         if self._favorites_manager is None:
-            from ..kodi.favorites_manager import get_phase4_favorites_manager
+            from lib.kodi.favorites_manager import get_phase4_favorites_manager
             self._favorites_manager = get_phase4_favorites_manager()
         return self._favorites_manager
 
@@ -77,7 +77,7 @@ class PluginContext:
     def storage_manager(self):
         """Get cached storage manager instance"""
         if self._storage_manager is None:
-            from ..data.storage_manager import get_storage_manager
+            from lib.data.storage_manager import get_storage_manager
             self._storage_manager = get_storage_manager()
         return self._storage_manager
 
@@ -108,7 +108,7 @@ class PluginContext:
     
     def build_cache_busted_url(self, action: str, **kwargs) -> str:
         """Build plugin URL with cache-busting refresh token"""
-        from .session_state import get_session_state
+        from lib.ui.session_state import get_session_state
         session_state = get_session_state()
         
         # Add refresh token for cache busting
@@ -118,7 +118,7 @@ class PluginContext:
     
     def add_cache_buster_to_url(self, url: str) -> str:
         """Add cache-busting parameter to existing URL"""
-        from .session_state import get_session_state
+        from lib.ui.session_state import get_session_state
         session_state = get_session_state()
         
         separator = "&" if "?" in url else "?"
@@ -132,7 +132,7 @@ class PluginContext:
                 return None
 
             # Import here to avoid circular imports
-            from .breadcrumb_helper import get_breadcrumb_helper
+            from lib.ui.breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
             return breadcrumb_helper.get_breadcrumb_for_action(action, self.params, self.query_manager)
         except Exception as e:
@@ -155,7 +155,7 @@ class PluginContext:
             folder_name = folder_info.get('name', 'Unknown Folder')
 
             # Generate breadcrumb for folder
-            from .breadcrumb_helper import get_breadcrumb_helper
+            from lib.ui.breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
             breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(
                 'show_folder', 
