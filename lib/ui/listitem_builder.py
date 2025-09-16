@@ -286,6 +286,9 @@ class ListItemBuilder:
             except Exception as e:
                 self.logger.error("LIB ITEM: ❌ Failed to set InfoHijack properties for '%s': %s", title, e)
 
+            # Enhanced episode title formatting for maximum skin compatibility
+            self._set_enhanced_episode_formatting(li, item, display_label, is_episode)
+
             # Handle metadata setting based on Kodi version
             kodi_major = get_kodi_major_version()
 
@@ -318,13 +321,13 @@ class ListItemBuilder:
                         self.logger.warning("LIB ITEM: DB linking failed for '%s' - falling back to property method", title)
 
                     # Set metadata via InfoTagVideo setters (v20+) - but keep it lightweight
-                    self._set_infotag_metadata(video_info_tag, item, title)
+                    self._set_infotag_metadata(video_info_tag, item, display_label if is_episode else title)
 
                 except Exception as e:
                     self.logger.error("LIB ITEM: InfoTagVideo setup failed for '%s': %s", title, e)
             else:
-                # v19: Use classic setInfo() approach
-                info = self._build_lightweight_info(item)
+                # v19: Use classic setInfo() approach with enhanced episode title
+                info = self._build_lightweight_info(item, display_label if is_episode else title)
                 li.setInfo('video', info)
 
             # Art from art field
@@ -502,7 +505,7 @@ class ListItemBuilder:
             return None
 
     # ----- info/art/resume helpers -----
-    def _build_lightweight_info(self, item: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_lightweight_info(self, item: Dict[str, Any], formatted_title: Optional[str] = None) -> Dict[str, Any]:
         """
         Build lightweight info dictionary for list items with native library metadata.
         Includes fields that Kodi expects for proper library integration but avoids heavy arrays.
@@ -515,8 +518,10 @@ class ListItemBuilder:
         """
         info: Dict[str, Any] = {}
 
-        # Core identification fields
-        if item.get('title'):
+        # Core identification fields - use formatted title for episodes if provided
+        if formatted_title:
+            info['title'] = formatted_title
+        elif item.get('title'):
             info['title'] = item['title']
         if item.get('originaltitle') and item['originaltitle'] != item.get('title'):
             info['originaltitle'] = item['originaltitle']
@@ -797,7 +802,52 @@ class ListItemBuilder:
         ))
         list_item.addContextMenuItems(cm)
 
-    def _set_infotag_metadata(self, video_info_tag, item: Dict[str, Any], title: str):
+    def _set_enhanced_episode_formatting(self, li: xbmcgui.ListItem, item: Dict[str, Any], display_label: str, is_episode: bool):
+        """
+        Enhanced episode title formatting for maximum skin compatibility across Kodi versions.
+        Sets multiple label/title fields and properties that different skins might check.
+        """
+        try:
+            if not is_episode:
+                return
+                
+            tvshowtitle = item.get('tvshowtitle', '')
+            season = item.get('season')
+            episode = item.get('episode')
+            title = item.get('title', '')
+            kodi_major = get_kodi_major_version()
+            
+            # Set ListItem label explicitly - some skins check this directly
+            li.setLabel(display_label)
+            self.logger.debug("EPISODE FORMAT: Set ListItem.Label to '%s'", display_label)
+            
+            # Set custom properties for skins that might use them
+            li.setProperty('formatted_episode_title', display_label)
+            li.setProperty('episode_format_type', 'extended')
+            
+            # Set individual formatted components for skins that construct their own labels
+            if tvshowtitle and season is not None and episode is not None:
+                li.setProperty('episode_formatted_number', f"S{int(season):02d}E{int(episode):02d}")
+                li.setProperty('episode_full_context', f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d}")
+            
+            # Version-specific additional properties for enhanced compatibility
+            if kodi_major >= 21:
+                # v21+ specific properties
+                li.setProperty('kodi21_episode_label', display_label)
+                self.logger.debug("EPISODE FORMAT v21+: Set enhanced properties for '%s'", title)
+            elif kodi_major >= 20:
+                # v20 specific properties  
+                li.setProperty('kodi20_episode_label', display_label)
+                self.logger.debug("EPISODE FORMAT v20: Set enhanced properties for '%s'", title)
+            else:
+                # v19 fallback properties
+                li.setProperty('kodi19_episode_label', display_label)
+                self.logger.debug("EPISODE FORMAT v19: Set fallback properties for '%s'", title)
+                
+        except Exception as e:
+            self.logger.warning("EPISODE FORMAT: Failed to set enhanced formatting for '%s': %s", item.get('title', 'Unknown'), e)
+
+    def _set_infotag_metadata(self, video_info_tag, item: Dict[str, Any], formatted_title: str):
         """
         Set metadata via InfoTagVideo setters for v20+ library items.
         Uses pre-computed fields for optimal performance.
@@ -808,22 +858,12 @@ class ListItemBuilder:
             try:
                 video_info_tag.setMediaType(media_type)
             except Exception as e:
-                self.logger.warning("LIB ITEM v20+: setMediaType() failed for '%s': %s", title, e)
+                self.logger.warning("LIB ITEM v20+: setMediaType() failed for '%s': %s", item.get('title', 'Unknown'), e)
 
-            # Core identification - use formatted title for episodes, original title for others
-            title_for_metadata = item.get('title', '')
-            if item.get('media_type') == 'episode':
-                # For episodes, use the formatted display label if available
-                tvshowtitle = item.get('tvshowtitle', '')
-                season = item.get('season')
-                episode = item.get('episode')
-                if tvshowtitle and season is not None and episode is not None:
-                    title_for_metadata = f"{tvshowtitle} - S{int(season):02d}E{int(episode):02d} - {title_for_metadata}"
-                elif tvshowtitle:
-                    title_for_metadata = f"{tvshowtitle} - {title_for_metadata}"
-            
-            if title_for_metadata:
-                video_info_tag.setTitle(title_for_metadata)
+            # Use the pre-formatted title passed from the caller (eliminates duplicate formatting logic)
+            if formatted_title:
+                video_info_tag.setTitle(formatted_title)
+                self.logger.debug("LIB ITEM v20+: Set InfoTagVideo title to '%s'", formatted_title)
 
             if item.get('year'):
                 try:
@@ -887,7 +927,7 @@ class ListItemBuilder:
                     video_info_tag.setFirstAired(item['aired'])
 
         except Exception as e:
-            self.logger.warning("LIB ITEM v20+: InfoTagVideo metadata setup failed for '%s': %s", title, e)
+            self.logger.warning("LIB ITEM v20+: InfoTagVideo metadata setup failed for '%s': %s", item.get('title', 'Unknown'), e)
 
     def _get_kodi_mediatype(self, media_type: str) -> str:
         """Map internal media type to Kodi's expected values."""
