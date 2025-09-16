@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List
 
 import xbmc
 
-from ..utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_log import get_kodi_logger
 
 
 class KodiJsonRpcClient:
