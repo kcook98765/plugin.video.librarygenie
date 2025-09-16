@@ -271,8 +271,11 @@ def _create_new_list_with_folder_selection(query_manager):
             )
             return None
         elif result:
-            # Successful creation - result should be the new list ID
-            return result
+            # Successful creation - result might be a dict or just the ID
+            if isinstance(result, dict) and 'id' in result:
+                return result['id']  # Extract ID from dictionary
+            else:
+                return result  # Already just the ID
         else:
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
