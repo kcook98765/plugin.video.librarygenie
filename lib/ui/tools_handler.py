@@ -1044,30 +1044,6 @@ class ToolsHandler:
                 message=f"Error getting favorites stats: {e}"
             )
 
-    def _test_backup_config(self) -> DialogResponse:
-        """Test backup configuration"""
-        try:
-            from ..import_export import get_timestamp_backup_manager
-            backup_manager = get_timestamp_backup_manager()
-
-            result = backup_manager.test_backup_configuration()
-
-            if result["success"]:
-                message = f"Backup configuration test successful:\n{result['message']}"
-            else:
-                message = f"Backup configuration test failed:\n{result['error']}"
-
-            return DialogResponse(
-                success=result.get("success", False),
-                message=message
-            )
-
-        except Exception as e:
-            self.logger.error("Error testing backup config: %s", e)
-            return DialogResponse(
-                success=False,
-                message=f"Error testing backup config: {e}"
-            )
 
     def _run_manual_backup(self) -> DialogResponse:
         """Run manual backup"""
