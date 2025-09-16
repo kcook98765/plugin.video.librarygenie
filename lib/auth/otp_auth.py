@@ -349,8 +349,8 @@ def run_otp_authorization_flow(server_url: str) -> bool:
         # Get OTP code from user
         dialog = xbmcgui.Dialog()
         otp_code = dialog.input(
-            "Enter OTP Code",
             "Enter the 8-digit OTP code from the website:",
+            default="",
             type=xbmcgui.INPUT_NUMERIC
         )
 
