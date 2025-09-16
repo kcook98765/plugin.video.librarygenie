@@ -11,15 +11,18 @@ import os
 import xbmcgui
 import xbmcaddon
 
-# Add the main lib directory to Python path so we can import lib.utils.kodi_log
-# utilities.py is in resources/lib/, so we need to go up two levels to get to the addon root,
-# then down to lib/
-addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-lib_path = os.path.join(addon_root, 'lib')
+# Setup proper module paths for Kodi addon structure
+addon = xbmcaddon.Addon()
+addon_path = addon.getAddonInfo('path')
+lib_path = os.path.join(addon_path, 'lib')
+
+# Add lib directory to Python path for absolute imports
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
 
+# Now import using absolute paths from lib/
 from utils.kodi_log import log, log_info, log_error
+
 
 def main():
     """Main entry point for RunScript calls from settings"""
@@ -78,7 +81,7 @@ def handle_set_default_list():
     log_info("Handling set_default_list action")
     
     try:
-        # Import required modules
+        # Import required modules using absolute imports from lib/
         from ui.plugin_context import PluginContext
         from ui.handler_factory import get_handler_factory
         from ui.response_handler import get_response_handler
@@ -120,11 +123,6 @@ def handle_manual_library_sync():
     
     try:
         # Import the manual sync handler from plugin.py
-        import sys
-        import os
-        # Add the addon root directory to the Python path
-        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        sys.path.insert(0, addon_root)
         from plugin import _handle_manual_library_sync
         from ui.plugin_context import PluginContext
         
@@ -152,12 +150,6 @@ def handle_import_shortlist():
     
     try:
         # Import the shortlist handler from plugin.py
-        import sys
-        import os
-        # Add the addon root directory to the Python path
-        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        if addon_root not in sys.path:
-            sys.path.insert(0, addon_root)
         from plugin import handle_shortlist_import
         
         # Call the shortlist import handler
@@ -180,12 +172,6 @@ def handle_manual_backup():
     
     try:
         # Import the manual backup handler from plugin.py
-        import sys
-        import os
-        # Add the addon root directory to the Python path
-        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        if addon_root not in sys.path:
-            sys.path.insert(0, addon_root)
         from plugin import _handle_manual_backup
         from ui.plugin_context import PluginContext
         
@@ -213,12 +199,6 @@ def handle_restore_backup():
     
     try:
         # Import the restore backup handler from plugin.py
-        import sys
-        import os
-        # Add the addon root directory to the Python path
-        addon_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        if addon_root not in sys.path:
-            sys.path.insert(0, addon_root)
         from plugin import _handle_restore_backup
         from ui.plugin_context import PluginContext
         
