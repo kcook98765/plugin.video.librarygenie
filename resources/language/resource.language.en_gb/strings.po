@@ -78,7 +78,7 @@ msgid "Lists Integration"
 msgstr ""
 
 msgctxt "#30041"
-msgid "Default list for quick-add"
+msgid "Set Default List"
 msgstr ""
 
 msgctxt "#30042"
@@ -91,6 +91,10 @@ msgstr ""
 
 msgctxt "#30044"
 msgid "Default list ID (internal)"
+msgstr ""
+
+msgctxt "#30045"
+msgid "Current default list:"
 msgstr ""
 
 msgctxt "#30050"
