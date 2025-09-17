@@ -45,6 +45,23 @@ COLOR_MAP = {
     # Search colors (3xxxx)
     33000: "lightblue",   # Local Movie Search
     34100: "cyan",        # AI Movie Search
+    
+    # Error Messages (should be red for visibility)
+    30507: "red",         # Failed to create list
+    34306: "red",         # Database error
+    37019: "red",         # List not found
+    37020: "red",         # Folder not found
+    37021: "red",         # Failed to create folder
+    
+    # Success Messages (should be green)
+    34011: "green",       # Restore completed successfully
+    
+    # Action Labels (should be yellow for emphasis)
+    37022: "yellow",      # Move to New List
+    37023: "yellow",      # Clear All Search History
+    
+    # Navigation Labels (should be white/neutral)
+    36032: "white",       # [Root Level]
 }
 
 def _is_colorization_enabled() -> bool:

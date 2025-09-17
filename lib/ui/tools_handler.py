@@ -123,7 +123,7 @@ class ToolsHandler:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message="List not found"
+                    message=L(37019)  # "List not found" (red color)
                 )
 
             # Check if this is a search history list
@@ -153,7 +153,7 @@ class ToolsHandler:
             if is_search_history:
                 # Special options for search history lists
                 options = [
-                    "Move to New List",
+                    L(37022),  # "Move to New List" (yellow color)
                     L(36053).replace('%s', short_name),  # "Export %s"
                     L(36054).replace('%s', short_name)  # "Delete %s"
                 ]
@@ -293,7 +293,7 @@ class ToolsHandler:
                 # Special options for Search History folder
                 options.extend([
                     L(36012) % folder_info['name'],  # "Export All Lists in '%s'"
-                    "Clear All Search History"
+                    L(37023)  # "Clear All Search History" (yellow color)
                 ])
 
                 # Debug logging for reserved folder
