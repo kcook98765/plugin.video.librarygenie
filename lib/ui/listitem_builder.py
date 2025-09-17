@@ -416,11 +416,14 @@ class ListItemBuilder:
             if item.get('url'):
                 # Use pre-built URL (for pagination navigation)
                 url = item.get('url')
+                self.logger.debug("🔍 ACTION ITEM URL DEBUG: Using pre-built URL for '%s': %s", title, url)
             elif action:
                 url = f"plugin://{self.addon_id}/?action={action}"
+                self.logger.debug("🔍 ACTION ITEM URL DEBUG: Using action-based URL for '%s': %s", title, url)
             else:
                 # Fallback for actions without specific action
                 url = f"plugin://{self.addon_id}/?action=noop"
+                self.logger.warning("🚨 ACTION ITEM URL DEBUG: FALLING BACK TO NOOP for '%s'! item: %s", title, item)
 
             # Mark as folder so Kodi treats it as navigable directory
             is_folder = True
