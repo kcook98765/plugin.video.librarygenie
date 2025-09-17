@@ -171,8 +171,10 @@ class ConfigManager:
                 
                 if str_value.lower() in ('true', '1', 'yes'):
                     result = True
-                elif str_value.lower() in ('false', '0', 'no', ''):
+                elif str_value.lower() in ('false', '0', 'no'):
                     result = False
+                elif str_value == '' or str_value is None:
+                    result = self._defaults.get(key, default)
                 else:
                     result = self._defaults.get(key, default)
                 
@@ -365,6 +367,7 @@ class ConfigManager:
             "quick_add_enabled",
             "show_missing_indicators",
             "show_unmapped_favorites",
+            "enable_colorized_labels",
             # Library sync settings
             "sync_movies",
             "sync_tv_episodes",
