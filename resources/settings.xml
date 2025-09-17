@@ -483,10 +483,14 @@
       </group>
     </category>
 
-    <!-- UI SETTINGS (Level 3) - Interface customization -->
+    <!-- UI SETTINGS (Level 0) - Interface customization -->
     <category id="ui" label="30020" help="">
       <group id="16" label="30020">
-        <!-- No settings currently in this category -->
+        <setting id="enable_colorized_labels" type="boolean" label="30180" help="35020">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
       </group>
     </category>
 
