@@ -69,14 +69,14 @@ class ToolsHandler:
                     message="Failed to initialize favorites manager"
                 )
 
-            scan_option = f"[COLOR white]{L(36001)}[/COLOR]"  # "Scan Favorites"
+            scan_option = L(36001)  # "Scan Favorites"
 
             # Build options for favorites - organized by type
             options = [
                 # Refresh operations
                 scan_option,
                 # Additive operations
-                f"[COLOR lightgreen]{L(36002)}[/COLOR]"  # "Save As New List"
+                L(36002)  # "Save As New List"
             ]
 
             # Show selection dialog

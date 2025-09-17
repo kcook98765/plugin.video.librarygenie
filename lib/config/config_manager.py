@@ -31,6 +31,7 @@ class ConfigManager:
             "show_missing_indicators": True,
             "show_unmapped_favorites": False,
             "sync_tv_episodes": False,  # Sync TV episodes during library scan
+            "enable_colorized_labels": True,  # Enable colorized menu text
             
             # Library sync settings
             "sync_movies": True,
