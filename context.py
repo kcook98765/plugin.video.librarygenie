@@ -88,7 +88,7 @@ def _show_librarygenie_menu(addon):
         if not search_label or search_label.startswith('LocMiss_'):
             search_label = "LG Search"
         
-        options.append(f"[COLOR lightblue]{search_label}[/COLOR]")
+        options.append(search_label)
         actions.append("show_search_submenu")
 
         # Use cached values instead of fresh getInfoLabel calls
@@ -122,7 +122,7 @@ def _show_librarygenie_menu(addon):
         more_label = L(37104)  # "LG more..."
         if not more_label or more_label.startswith('LocMiss_'):
             more_label = "LG more..."
-        options.append(f"[COLOR white]{more_label}[/COLOR]")
+        options.append(more_label)
         actions.append("show_more_submenu")
 
         # Show the menu
@@ -175,7 +175,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         quick_add_label = L(37101)  # "LG Quick Add"
         if not quick_add_label or quick_add_label.startswith('LocMiss_'):
             quick_add_label = "LG Quick Add"
-        options.append(f"[COLOR lightgreen]{quick_add_label}[/COLOR]")
+        options.append(quick_add_label)
         
         # Determine appropriate quick add action based on context
         if item_info.get('media_item_id'):
@@ -189,7 +189,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     add_list_label = L(37102)  # "LG Add to List..."
     if not add_list_label or add_list_label.startswith('LocMiss_'):
         add_list_label = "LG Add to List..."
-    options.append(f"[COLOR yellow]{add_list_label}[/COLOR]")
+    options.append(add_list_label)
     
     # Determine appropriate add action based on context
     if item_info.get('media_item_id'):
@@ -204,7 +204,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         remove_label = L(37103)  # "LG Remove from List"
         if not remove_label or remove_label.startswith('LocMiss_'):
             remove_label = "LG Remove from List"
-        options.append(f"[COLOR red]{remove_label}[/COLOR]")
+        options.append(remove_label)
         
         # Extract list_id for remove action
         list_id = item_info.get('list_id')
@@ -253,14 +253,14 @@ def _show_search_submenu(addon):
         movie_search_label = L(37200)  # "Local Movie Search"
         if not movie_search_label or movie_search_label.startswith('LocMiss_'):
             movie_search_label = "Local Movie Search"
-        options.append(f"[COLOR lightblue]{movie_search_label}[/COLOR]")
+        options.append(movie_search_label)
         actions.append("search_movies")
         
         # Local TV Search
         tv_search_label = L(37201)  # "Local TV Search"
         if not tv_search_label or tv_search_label.startswith('LocMiss_'):
             tv_search_label = "Local TV Search"
-        options.append(f"[COLOR lightblue]{tv_search_label}[/COLOR]")
+        options.append(tv_search_label)
         actions.append("search_tv")
         
         # AI Movie Search (if available)
@@ -268,14 +268,14 @@ def _show_search_submenu(addon):
             ai_search_label = L(37202)  # "AI Movie Search"
             if not ai_search_label or ai_search_label.startswith('LocMiss_'):
                 ai_search_label = "AI Movie Search"
-            options.append(f"[COLOR cyan]{ai_search_label}[/COLOR]")
+            options.append(ai_search_label)
             actions.append("search_ai")
         
         # Search History
         history_label = L(37203)  # "Search History"
         if not history_label or history_label.startswith('LocMiss_'):
             history_label = "Search History"
-        options.append(f"[COLOR yellow]{history_label}[/COLOR]")
+        options.append(history_label)
         actions.append("search_history")
         
         # Kodi Favorites (if enabled)
@@ -283,7 +283,7 @@ def _show_search_submenu(addon):
             favorites_label = L(37204)  # "Kodi Favorites"
             if not favorites_label or favorites_label.startswith('LocMiss_'):
                 favorites_label = "Kodi Favorites"
-            options.append(f"[COLOR green]{favorites_label}[/COLOR]")
+            options.append(favorites_label)
             actions.append("show_favorites")
         
         # Show the submenu
