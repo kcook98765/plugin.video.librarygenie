@@ -23,7 +23,6 @@ from lib.utils.kodi_version import get_kodi_major_version
 # Import the specialized operation modules
 from lib.ui.list_operations import ListOperations
 from lib.ui.folder_operations import FolderOperations
-from lib.ui.import_export_handler import ImportExportHandler
 
 
 class ListsHandler:
@@ -48,17 +47,26 @@ class ListsHandler:
         breadcrumb_end_time = time.time()
         self.logger.info(f"CONSTRUCTOR: Breadcrumb helper initialization took {breadcrumb_end_time - breadcrumb_start_time:.3f} seconds")
         
-        # CONSTRUCTOR TIMING: Specialized operation modules
+        # CONSTRUCTOR TIMING: Core operation modules (import/export deferred for performance)
         modules_start_time = time.time()
         self.list_ops = ListOperations(context)
         self.folder_ops = FolderOperations(context)
-        self.import_export = ImportExportHandler(context)
+        self._import_export = None  # Lazy loaded on first use
         modules_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: Operation modules initialization took {modules_end_time - modules_start_time:.3f} seconds")
+        self.logger.info(f"CONSTRUCTOR: Core operation modules initialization took {modules_end_time - modules_start_time:.3f} seconds")
         
         # CONSTRUCTOR TIMING: Complete constructor
         constructor_end_time = time.time()
         self.logger.info(f"CONSTRUCTOR: ✅ Complete ListsHandler constructor took {constructor_end_time - constructor_start_time:.3f} seconds")
+
+    @property
+    def import_export(self):
+        """Lazy load ImportExportHandler only when import/export operations are needed"""
+        if self._import_export is None:
+            self.logger.debug("LAZY LOAD: Loading ImportExportHandler on first use")
+            from lib.ui.import_export_handler import ImportExportHandler
+            self._import_export = ImportExportHandler(self.context)
+        return self._import_export
 
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
