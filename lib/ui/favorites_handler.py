@@ -57,7 +57,7 @@ class FavoritesHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
             
-            tools_item = xbmcgui.ListItem(label=f"Tools & Options {breadcrumb_text}")
+            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
             tools_item.setInfo('video', {'plot': description_text + "Tools and options for favorites"})
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -76,7 +76,7 @@ class FavoritesHandler:
             if not favorites_items:
                 # No favorites found - show empty message
                 # Add empty state message
-                empty_item = xbmcgui.ListItem(label="No favorites found")
+                empty_item = xbmcgui.ListItem(label=L(32006))
                 empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library.'})
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
@@ -547,7 +547,7 @@ class FavoritesHandler:
         try:
             if not favorites:
                 # Show empty message
-                empty_item = xbmcgui.ListItem(label="No favorites found")
+                empty_item = xbmcgui.ListItem(label=L(32006))
                 self.plugin_context.add_item(
                     url="plugin://plugin.video.librarygenie/?action=empty",
                     listitem=empty_item,
