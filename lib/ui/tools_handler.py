@@ -8,7 +8,7 @@ Modular tools and options handler for different list types
 
 import xbmcgui
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Literal
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DialogResponse
 from lib.ui.localization import L
@@ -54,7 +54,7 @@ class ToolsHandler:
         except Exception as e:
             self.logger.error("Error registering tools providers: %s", e)
 
-    def show_list_tools(self, context: PluginContext, list_type: str, list_id: Optional[str] = None) -> DialogResponse:
+    def show_list_tools(self, context: PluginContext, list_type: Literal['favorites','user_list','folder','lists_main'], list_id: Optional[str] = None) -> DialogResponse:
         """Show tools & options modal for different list types using centralized system"""
         try:
             self.logger.debug("Showing tools & options for list_type: %s, list_id: %s", list_type, list_id)
@@ -181,10 +181,10 @@ class ToolsHandler:
             source_list = source_lists[selected_index]
 
             # Confirm merge
+            message = f"{L(36022) % source_list['name']}\n{L(36024)}"  # "Merge '%s' into target list?\nThe source list will remain unchanged."
             if not dialog.yesno(
                 L(36021),  # "Confirm Merge"
-                L(36022) % source_list['name'],  # "Merge '%s' into target list?"
-                L(36024)  # "The source list will remain unchanged."
+                message
             ):
                 return DialogResponse(success=False)
 
@@ -488,7 +488,7 @@ class ToolsHandler:
             dialog = xbmcgui.Dialog()
             
             # Get subfolder count for branch export option
-            subfolders = query_manager.get_subfolders(folder_id) if hasattr(query_manager, 'get_subfolders') else []
+            subfolders = query_manager.get_all_folders(parent_id=folder_id)
             subfolder_count = len(subfolders) if subfolders else 0
             
             export_options = [
@@ -758,7 +758,7 @@ class ToolsHandler:
             from lib.import_export import get_timestamp_backup_manager
             backup_manager = get_timestamp_backup_manager()
 
-            result = backup_manager.run_manual_backup()
+            result = backup_manager.run_automatic_backup()
 
             if result["success"]:
                 message = (
@@ -816,11 +816,10 @@ class ToolsHandler:
 
             # Confirm restore
             dialog = xbmcgui.Dialog()
+            restore_message = f"{L(37007) % selected_backup['display_name']}\n{L(34014)}\n{L(34602)}"
             if not dialog.yesno(
-                heading=L(34007),  # "Restore from Backup"
-                line1=L(37007) % selected_backup['display_name'],  # "Restore from: %s"
-                line2=L(34014),    # "This will replace all current lists and data."
-                line3=L(34602),    # "This action cannot be undone."
+                L(34007),  # "Restore from Backup"
+                restore_message,
                 nolabel=L(36003),  # "Cancel"
                 yeslabel=L(34007)  # "Restore from Backup"
             ):
@@ -1047,10 +1046,10 @@ class ToolsHandler:
 
                 # Confirm export
                 dialog = xbmcgui.Dialog()
+                export_message = f"{L(36070) % list_count}\n{L(36039)}"
                 if not dialog.yesno(
                     L(36037),  # "Confirm Export"
-                    L(36070) % list_count,  # "Export all %d lists and folders?"
-                    L(36039),  # "This will include all list items and metadata."
+                    export_message,
                     nolabel=L(36003),  # "Cancel"
                     yeslabel=L(36007)   # "Export"
                 ):
