@@ -680,10 +680,7 @@ class ListsHandler:
     def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
         """Display contents of a specific list"""
         try:
-            # Add detailed pagination debugging
-            page_param = context.get_param('page', '1')
-            context.logger.debug("🔍 PAGINATION DEBUG: Displaying list %s, page param: %s, all params: %s", 
-                               list_id, page_param, dict(context.params))
+            context.logger.debug("Displaying list %s", list_id)
 
             # Check for custom parent path to fix navigation from search results
             parent_path = context.get_param('parent_path')
@@ -718,41 +715,26 @@ class ListsHandler:
             pagination_manager = get_pagination_manager()
             
             # Get total count first for pagination calculation
-            # Convert list_id to int if the method expects it
-            if hasattr(query_manager, 'get_list_item_count'):
-                try:
-                    list_id_int = int(list_id)
-                    total_items = query_manager.get_list_item_count(list_id_int)
-                except (ValueError, TypeError, AttributeError):
-                    # Fallback to string version or alternative method
-                    total_items = len(query_manager.get_list_items(list_id))
+            total_items = query_manager.get_list_item_count(list_id)
             
-            # Calculate pagination
+            # Calculate pagination  
             pagination_info = pagination_manager.calculate_pagination(
                 total_items=total_items,
                 current_page=current_page,
-                base_page_size=10  # Smaller page size for testing pagination
+                base_page_size=25  # Standard page size
             )
             
             # Get list items with pagination
-            context.logger.debug("🔍 QUERY DEBUG: Getting list items for list_id=%s (page %d/%d)", 
+            context.logger.debug("Getting list items from query_manager for list_id=%s (page %d/%d)", 
                                list_id, pagination_info.current_page, pagination_info.total_pages)
-            context.logger.debug("🔍 QUERY DEBUG: Using limit=%d, offset=%d", 
-                               pagination_info.page_size, pagination_info.start_index)
-            
             list_items = query_manager.get_list_items(
                 list_id,
                 limit=pagination_info.page_size,
                 offset=pagination_info.start_index
             )
-            
-            context.logger.debug("🔍 QUERY DEBUG: Query returned %s items (expected %d-%d of %d total)", 
+            context.logger.debug("Query manager returned %s items (showing %d-%d of %d total)", 
                                len(list_items), pagination_info.start_index + 1, 
                                pagination_info.end_index, pagination_info.total_items)
-            
-            if not list_items and pagination_info.current_page > 1:
-                context.logger.error("🔍 QUERY DEBUG: EMPTY RESULT on page %d! This suggests pagination issue.", 
-                                   pagination_info.current_page)
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
@@ -818,23 +800,6 @@ class ListsHandler:
                 base_url = context.build_url('show_list')
                 url_params = {'list_id': list_id}  # Ensure list_id is preserved in pagination URLs
                 
-                context.logger.debug("🔍 PAGINATION DEBUG: Creating pagination controls with base_url='%s', url_params=%s", 
-                                   base_url, url_params)
-                
-                # Create pagination items first to see the URLs
-                pagination_items = pagination_manager.create_pagination_items(
-                    pagination_info=pagination_info,
-                    base_url=base_url,
-                    url_params=url_params
-                )
-                
-                for item in pagination_items:
-                    context.logger.debug("🔍 PAGINATION DEBUG: Generated pagination URL: %s -> %s", 
-                                       item['title'], item['url'])
-                    
-                # Manual URL construction test
-                expected_next_url = f"{base_url}&list_id={list_id}&page=2"
-                context.logger.debug("🔍 PAGINATION DEBUG: Expected next URL should be: %s", expected_next_url)
                 
                 # Insert pagination controls into list_items
                 list_items = pagination_manager.insert_pagination_items(
