@@ -26,6 +26,13 @@ class ListItemBuilder:
         self.addon_id = addon_id
         self.context = context
         self.logger = get_kodi_logger('lib.ui.listitem_builder')
+        
+        # Initialize consolidated utilities - CONSOLIDATED
+        from lib.utils.listitem_utils import ListItemMetadataManager, ListItemPropertyManager, ListItemArtManager, ContextMenuBuilder
+        self.metadata_manager = ListItemMetadataManager(addon_id)
+        self.property_manager = ListItemPropertyManager()
+        self.art_manager = ListItemArtManager(addon_id)
+        self.context_menu_builder = ContextMenuBuilder(addon_id)
 
     # -------- public API --------
     def build_directory(self, items: List[Dict[str, Any]], content_type: Optional[str] = None) -> bool:
@@ -294,46 +301,24 @@ class ListItemBuilder:
             # Enhanced episode title formatting for maximum skin compatibility
             self._set_enhanced_episode_formatting(li, item, display_label, is_episode)
 
-            # Handle metadata setting based on Kodi version
+            # Handle metadata setting based on Kodi version - CONSOLIDATED
+            plot_text = item.get('plot', '')
+            metadata_title = display_label if is_episode else title
+            self.metadata_manager.set_basic_metadata(li, metadata_title, plot_text, "video")
+            
+            # Handle DB linking for library items
             kodi_major = get_kodi_major_version()
-
-            if kodi_major >= 20:
-                # v20+: Use InfoTagVideo setters and avoid setInfo() for library items
+            if kodi_major >= 20 and kodi_id is not None:
                 try:
                     video_info_tag = li.getVideoInfoTag()
-
-                    # setDbId() for library linking - use feature detection instead of version detection
-                    dbid_success = False
-                    if kodi_id is not None:
-                        try:
-                            # Try v21+ signature first (2 args)
-                            video_info_tag.setDbId(int(kodi_id), media_type)
-                            dbid_success = True
-                        except TypeError:
-                            # Fallback to v19/v20 signature (1 arg)
-                            try:
-                                video_info_tag.setDbId(int(kodi_id))
-                                dbid_success = True
-                            except Exception as e:
-                                self.logger.warning("LIB ITEM: setDbId() 1-arg fallback failed for '%s': %s", title, e)
-                        except Exception as e:
-                            self.logger.warning("LIB ITEM: setDbId() 2-arg failed for '%s': %s", title, e)
-                    else:
-                        self.logger.warning("LIB ITEM: Cannot set setDbId - kodi_id is None for '%s'", title)
-
-                    # Report dbid failure for diagnostics
-                    if not dbid_success:
-                        self.logger.warning("LIB ITEM: DB linking failed for '%s' - falling back to property method", title)
-
-                    # Set metadata via InfoTagVideo setters (v20+) - but keep it lightweight
-                    self._set_infotag_metadata(video_info_tag, item, display_label if is_episode else title)
-
+                    # Try v21+ signature first (2 args), fallback to v19/v20 (1 arg)
+                    try:
+                        video_info_tag.setDbId(int(kodi_id), media_type)
+                    except TypeError:
+                        video_info_tag.setDbId(int(kodi_id))
+                    self.logger.debug("LIB ITEM: DB linking successful for '%s'", title)
                 except Exception as e:
-                    self.logger.error("LIB ITEM: InfoTagVideo setup failed for '%s': %s", title, e)
-            else:
-                # v19: Use classic setInfo() approach with enhanced episode title
-                info = self._build_lightweight_info(item, display_label if is_episode else title)
-                li.setInfo('video', info)
+                    self.logger.warning("LIB ITEM: DB linking failed for '%s': %s", title, e)
 
             # Art from art field
             art = self._build_art_dict(item)
@@ -448,24 +433,9 @@ class ListItemBuilder:
             display_label = f"{title} ({item['year']})" if item.get('year') else title
             li = xbmcgui.ListItem(label=display_label)
 
-            # Apply metadata based on Kodi version - use InfoTagVideo on v20+
-            kodi_major = get_kodi_major_version()
-            if kodi_major >= 20:
-                # v20+: Use InfoTagVideo setters to avoid deprecation warnings
-                try:
-                    video_info_tag = li.getVideoInfoTag()
-                    self._set_infotag_metadata(video_info_tag, item, title)
-                except Exception as e:
-                    self.logger.warning("EXT ITEM v20+: InfoTagVideo setup failed for '%s': %s", title, e)
-                    # On v21+, completely avoid setInfo() to prevent deprecation warnings
-                    # Only use setInfo() on v19/v20 where InfoTagVideo may not be fully reliable
-                    if kodi_major < 21:
-                        info = self._build_lightweight_info(item)
-                        li.setInfo('video', info)
-            else:
-                # v19: Use setInfo()
-                info = self._build_lightweight_info(item)
-                li.setInfo('video', info)
+            # Apply metadata based on Kodi version - CONSOLIDATED
+            plot_text = item.get('plot', '')
+            self.metadata_manager.set_basic_metadata(li, title, plot_text, "video")
 
             # Apply art from art field same as library items
             art = self._build_art_dict(item)
@@ -510,222 +480,10 @@ class ListItemBuilder:
             return None
 
     # ----- info/art/resume helpers -----
-    def _build_lightweight_info(self, item: Dict[str, Any], formatted_title: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Build lightweight info dictionary for list items with native library metadata.
-        Includes fields that Kodi expects for proper library integration but avoids heavy arrays.
-
-        IMPORTANT: This method intentionally avoids heavy fields like:
-        - cast/crew arrays (Kodi will populate these automatically via dbid)
-        - deep streamdetails
-        - complex metadata that would slow down list scrolling
-        This keeps list views snappy while providing native library behavior.
-        """
-        info: Dict[str, Any] = {}
-
-        # Core identification fields - use formatted title for episodes if provided
-        if formatted_title:
-            info['title'] = formatted_title
-        elif item.get('title'):
-            info['title'] = item['title']
-        if item.get('originaltitle') and item['originaltitle'] != item.get('title'):
-            info['originaltitle'] = item['originaltitle']
-        if item.get('sorttitle'):
-            info['sorttitle'] = item['sorttitle']
-
-        # Year and date fields
-        if item.get('year') is not None:
-            try:
-                year_value = item.get('year')
-                info['year'] = int(year_value) if year_value is not None else None
-            except (ValueError, TypeError):
-                pass
-        if item.get('premiered'):
-            info['premiered'] = item['premiered']
-
-        # Content description - use full plot text for complete information
-        plot_text = item.get('plot', '')
-        if plot_text:
-            info['plot'] = plot_text
-        if item.get('plotoutline'):
-            info['plotoutline'] = item['plotoutline']
-
-        # Ratings and content classification
-        if item.get('rating') is not None:
-            try:
-                rating_value = item.get('rating')
-                info['rating'] = float(rating_value) if rating_value is not None else None
-            except (ValueError, TypeError):
-                pass
-        if item.get('votes') is not None:
-            try:
-                votes_value = item.get('votes')
-                info['votes'] = int(votes_value) if votes_value is not None else None
-            except (ValueError, TypeError):
-                pass
-        if item.get('mpaa'):
-            info['mpaa'] = item['mpaa']
-
-        # Genre handling - data stored in version-appropriate format
-        genre_data = item.get('genre', '')
-        if genre_data:
-            # Data is already in the correct format for this Kodi version
-            info['genre'] = genre_data
-
-        # Duration handling - Kodi expects duration in seconds for info dict
-        runtime_minutes = item.get('runtime', 0)
-        duration_seconds = item.get('duration', 0)
-        duration_minutes = item.get('duration_minutes', 0)
-
-        calculated_duration = None
-        if runtime_minutes and isinstance(runtime_minutes, (int, float)) and runtime_minutes > 0:
-            calculated_duration = int(runtime_minutes * 60)
-        elif duration_minutes and isinstance(duration_minutes, (int, float)) and duration_minutes > 0:
-            calculated_duration = int(duration_minutes * 60)
-        elif duration_seconds and isinstance(duration_seconds, (int, float)) and duration_seconds > 0:
-            if duration_seconds < 3600:  # Less than 1 hour, probably minutes
-                calculated_duration = int(duration_seconds * 60)
-            else:
-                calculated_duration = int(duration_seconds)
-
-        if calculated_duration:
-            info['duration'] = calculated_duration
-
-        # Production information (lightweight strings only)
-        if item.get('director'):
-            # Handle both string and list formats
-            if isinstance(item['director'], list):
-                info['director'] = ", ".join(item['director']) if item['director'] else ""
-            else:
-                info['director'] = str(item['director'])
-
-        if item.get('studio'):
-            # Handle both string and list formats
-            if isinstance(item['studio'], list):
-                info['studio'] = item['studio'][0] if item['studio'] else ""
-            else:
-                info['studio'] = str(item['studio'])
-
-        if item.get('country'):
-            # Handle both string and list formats
-            if isinstance(item['country'], list):
-                info['country'] = item['country'][0] if item['country'] else ""
-            else:
-                info['country'] = str(item['country'])
-
-        # Playback tracking
-        if item.get('playcount') is not None:
-            try:
-                playcount_value = item.get('playcount')
-                info['playcount'] = int(playcount_value) if playcount_value is not None else None
-            except (ValueError, TypeError):
-                pass
-        if item.get('lastplayed'):
-            info['lastplayed'] = item['lastplayed']
-
-        # Episode-specific fields
-        if item.get('media_type') == 'episode':
-            if item.get('tvshowtitle'):
-                info['tvshowtitle'] = item['tvshowtitle']
-            if item.get('season') is not None:
-                try:
-                    season_value = item.get('season')
-                    info['season'] = int(season_value) if season_value is not None else None
-                except (ValueError, TypeError):
-                    pass
-            if item.get('episode') is not None:
-                try:
-                    episode_value = item.get('episode')
-                    info['episode'] = int(episode_value) if episode_value is not None else None
-                except (ValueError, TypeError):
-                    pass
-            if item.get('aired'):
-                info['aired'] = item['aired']
-
-        # Media type for proper overlays and library recognition
-        info['mediatype'] = item.get('media_type', 'movie')
-
-        return info
 
     def _build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
-        """Build artwork dictionary from item data - uses only art field"""
-        art = {}
-
-        # Get art data from the art JSON field only
-        item_art = item.get('art')
-        if item_art:
-            # Handle both dict and JSON string formats
-            if isinstance(item_art, str):
-                try:
-                    item_art = json.loads(item_art)
-                except (json.JSONDecodeError, ValueError):
-                    item_art = {}
-
-            if isinstance(item_art, dict):
-                # Check Kodi version once for efficiency
-                kodi_major = get_kodi_major_version()
-                is_v19 = (kodi_major == 19)
-                
-                # Copy all art keys from the art dict
-                for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape',
-                               'clearlogo', 'clearart', 'discart', 'icon']:
-                    if art_key in item_art and item_art[art_key]:
-                        art_value = item_art[art_key]
-                        
-                        # V19 Fix: Normalize to canonical format image://<percent-encoded-URL>/
-                        # Kodi V19 internal artwork system REQUIRES URLs to remain encoded WITH trailing slash
-                        if is_v19 and art_value and art_value.startswith('image://'):
-                            try:
-                                original_url = art_value
-                                
-                                # Step 1: Extract inner URL (everything after 'image://')
-                                if len(art_value) > 8:  # Must have content after 'image://'
-                                    inner_url = art_value[8:]
-                                    
-                                    # Step 2: Remove ALL trailing slashes to get clean inner content
-                                    inner_content = inner_url.rstrip('/')
-                                    
-                                    if inner_content:
-                                        # Step 3: Check if already fully percent-encoded
-                                        # Must have %XX patterns and NO unescaped reserved chars (:,/,?)
-                                        has_percent_encoding = bool(re.search(r'%[0-9A-Fa-f]{2}', inner_content))
-                                        has_unescaped_chars = bool(re.search(r'[:/\?#\[\]@!$&\'()*+,;= ]', inner_content))
-                                        
-                                        if has_percent_encoding and not has_unescaped_chars:
-                                            # Already fully encoded - just ensure canonical trailing slash
-                                            normalized_url = f"image://{inner_content}/"
-                                        else:
-                                            # Step 4: Not fully encoded - encode ALL characters for V19
-                                            encoded_inner = urllib.parse.quote(inner_content, safe='')
-                                            normalized_url = f"image://{encoded_inner}/"
-                                        
-                                        # Step 5: Apply normalized URL and log changes
-                                        art_value = normalized_url
-                                        
-                                        if original_url != art_value:
-                                            self.logger.debug("V19 ART NORMALIZE: %s for %s", art_key, item.get('title', 'Unknown'))
-                                            self.logger.debug("V19 ART NORMALIZE:   BEFORE: %s", original_url)
-                                            self.logger.debug("V19 ART NORMALIZE:   AFTER:  %s", art_value)
-                                            self.logger.debug("V19 ART NORMALIZE:   HAD_ENCODING: %s", "YES" if has_percent_encoding else "NO")
-                                            self.logger.debug("V19 ART NORMALIZE:   FINAL_SLASH: %s", "YES" if art_value.endswith('/') else "NO")
-                                    else:
-                                        self.logger.warning("V19 ART: Empty inner content in %s URL: %s", art_key, art_value)
-                                else:
-                                    self.logger.warning("V19 ART: Invalid image:// URL format for %s: %s", art_key, art_value)
-                                        
-                            except Exception as e:
-                                self.logger.error("V19 ART: Failed to normalize %s URL for %s: %s", art_key, item.get('title', 'Unknown'), e)
-                                # Keep original value on processing failure
-                        
-                        art[art_key] = art_value
-
-        # If we have poster but no thumb/icon, set them for list view compatibility
-        if art.get('poster') and not art.get('thumb'):
-            art['thumb'] = art['poster']
-        if art.get('poster') and not art.get('icon'):
-            art['icon'] = art['poster']
-
-        return art
+        """Build artwork dictionary from item data - CONSOLIDATED"""
+        return self.art_manager.build_art_dict(item)
 
     def _set_resume_info_versioned(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
         """
@@ -852,87 +610,6 @@ class ListItemBuilder:
         except Exception as e:
             self.logger.warning("EPISODE FORMAT: Failed to set enhanced formatting for '%s': %s", item.get('title', 'Unknown'), e)
 
-    def _set_infotag_metadata(self, video_info_tag, item: Dict[str, Any], formatted_title: str):
-        """
-        Set metadata via InfoTagVideo setters for v20+ library items.
-        Uses pre-computed fields for optimal performance.
-        """
-        try:
-            # Ensure proper media type is set first for correct identification
-            media_type = item.get('media_type', 'movie')
-            try:
-                video_info_tag.setMediaType(media_type)
-            except Exception as e:
-                self.logger.warning("LIB ITEM v20+: setMediaType() failed for '%s': %s", item.get('title', 'Unknown'), e)
-
-            # Use the pre-formatted title passed from the caller (eliminates duplicate formatting logic)
-            if formatted_title:
-                video_info_tag.setTitle(formatted_title)
-                self.logger.debug("LIB ITEM v20+: Set InfoTagVideo title to '%s'", formatted_title)
-
-            if item.get('year'):
-                try:
-                    year_value = item.get('year')
-                    if year_value is not None:
-                        video_info_tag.setYear(int(year_value))
-                except (ValueError, TypeError):
-                    pass
-
-            # Use full plot text for complete information
-            plot_text = item.get('plot', '')
-            if plot_text:
-                video_info_tag.setPlot(plot_text)
-
-            # Use stored genre data (format depends on Kodi version during scan)
-            genre_data = item.get('genre', '')
-            if genre_data:
-                try:
-                    # Try to parse as JSON array first (v20+ format)
-                    genres = json.loads(genre_data)
-                    if isinstance(genres, list) and genres:
-                        video_info_tag.setGenres(genres)
-                except (json.JSONDecodeError, TypeError):
-                    # Fallback to string format (v19 format or direct string)
-                    if isinstance(genre_data, str):
-                        genres = [g.strip() for g in genre_data.split(',') if g.strip()]
-                        if genres:
-                            video_info_tag.setGenres(genres)
-
-            # Rating
-            if item.get('rating'):
-                try:
-                    rating_value = item.get('rating')
-                    if rating_value is not None:
-                        video_info_tag.setRating(float(rating_value))
-                except (ValueError, TypeError):
-                    pass
-
-            # Episode-specific fields
-            if item.get('media_type') == 'episode':
-                if item.get('season') is not None:
-                    try:
-                        season_value = item.get('season')
-                        if season_value is not None:
-                            video_info_tag.setSeason(int(season_value))
-                    except (ValueError, TypeError):
-                        pass
-
-                if item.get('episode') is not None:
-                    try:
-                        episode_value = item.get('episode')
-                        if episode_value is not None:
-                            video_info_tag.setEpisode(int(episode_value))
-                    except (ValueError, TypeError):
-                        pass
-
-                if item.get('tvshowtitle'):
-                    video_info_tag.setTvShowTitle(item['tvshowtitle'])
-
-                if item.get('aired'):
-                    video_info_tag.setFirstAired(item['aired'])
-
-        except Exception as e:
-            self.logger.warning("LIB ITEM v20+: InfoTagVideo metadata setup failed for '%s': %s", item.get('title', 'Unknown'), e)
 
     def _get_kodi_mediatype(self, media_type: str) -> str:
         """Map internal media type to Kodi's expected values."""
