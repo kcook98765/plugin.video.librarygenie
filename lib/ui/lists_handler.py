@@ -247,7 +247,7 @@ class ListsHandler:
                 description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, query_manager)
                 
                 menu_items.append({
-                    'label': f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}",
+                    'label': f"Tools & Options {breadcrumb_text}",
                     'url': context.build_url('show_list_tools', list_type='lists_main'),
                     'is_folder': True,
                     'icon': "DefaultAddonProgram.png",
@@ -256,7 +256,7 @@ class ListsHandler:
 
                 # Add "Create First List" option
                 menu_items.append({
-                    'label': "[COLOR lightgreen]+ Create Your First List[/COLOR]",
+                    'label': "+ Create Your First List",
                     'url': context.build_url('create_list_execute'),
                     'is_folder': True,
                     'icon': "DefaultAddSource.png",
@@ -329,7 +329,7 @@ class ListsHandler:
             breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
 
             menu_items.append({
-                'label': f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}",
+                'label': f"Tools & Options {breadcrumb_text}",
                 'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
@@ -382,7 +382,7 @@ class ListsHandler:
                 ]
 
                 menu_items.append({
-                    'label': f"[COLOR yellow]{name}[/COLOR]",
+                    'label': name,
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
                     'description': description,
@@ -411,7 +411,7 @@ class ListsHandler:
                 ]
 
                 menu_items.append({
-                    'label': f"[COLOR cyan]{folder_name}[/COLOR]",
+                    'label': folder_name,
                     'url': context.build_url('show_folder', folder_id=folder_id),
                     'is_folder': True,
                     'description': f"Folder",
@@ -441,7 +441,7 @@ class ListsHandler:
                     ]
 
                 menu_items.append({
-                    'label': f"[COLOR yellow]{name}[/COLOR]",
+                    'label': name,
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
                     'description': description,
@@ -606,7 +606,7 @@ class ListsHandler:
                 ]
 
                 menu_items.append({
-                    'label': f"[COLOR yellow]{name}[/COLOR]",
+                    'label': name,
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
                     'description': description,
@@ -618,7 +618,7 @@ class ListsHandler:
             if not lists_in_folder:
                 renderer = get_listitem_renderer()
                 empty_item = renderer.create_simple_listitem(
-                    title="[COLOR gray]Folder is empty[/COLOR]",  # This string should also be localized
+                    title="Folder is empty",  # This string should also be localized
                     description='This folder contains no lists',  # This string should also be localized
                     action='noop'
                 )

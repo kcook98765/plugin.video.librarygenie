@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DialogResponse
-from lib.ui.localization_helper import L
+from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
 
 
@@ -153,9 +153,9 @@ class ToolsHandler:
             if is_search_history:
                 # Special options for search history lists
                 options = [
-                    "[COLOR lightgreen]Move to New List[/COLOR]",
-                    f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
-                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]"  # "Delete %s"
+                    "Move to New List",
+                    L(36053).replace('%s', short_name),  # "Export %s"
+                    L(36054).replace('%s', short_name)  # "Delete %s"
                 ]
 
                 # Debug logging for search history list tools options
@@ -163,7 +163,7 @@ class ToolsHandler:
             elif is_kodi_favorites:
                 # Special options for Kodi Favorites - limited to copy only, no modifications
                 options = [
-                    f"[COLOR lightgreen]{L(36002)}[/COLOR]"  # "Save As New List"
+                    L(36002)  # "Save As New List"
                 ]
 
                 # Debug logging for Kodi Favorites list tools options
@@ -172,14 +172,14 @@ class ToolsHandler:
                 # Standard list options
                 options = [
                     # Additive operations
-                    f"[COLOR yellow]{L(36004) % short_name}[/COLOR]",  # "Merge Into %s"
+                    L(36004) % short_name,  # "Merge Into %s"
                     # Modify operations
-                    f"[COLOR yellow]{L(36051).replace('%s', short_name)}[/COLOR]",  # "Rename %s"
-                    f"[COLOR yellow]{L(36052).replace('%s', short_name)}[/COLOR]",  # "Move %s to Folder"
+                    L(36051).replace('%s', short_name),  # "Rename %s"
+                    L(36052).replace('%s', short_name),  # "Move %s to Folder"
                     # Export operations
-                    f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
+                    L(36053).replace('%s', short_name),  # "Export %s"
                     # Destructive operations
-                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]"  # "Delete %s"
+                    L(36054).replace('%s', short_name)  # "Delete %s"
                 ]
 
                 # Debug logging for standard list tools options
@@ -292,8 +292,8 @@ class ToolsHandler:
             if is_reserved:
                 # Special options for Search History folder
                 options.extend([
-                    f"[COLOR white]{L(36012) % folder_info['name']}[/COLOR]",  # "Export All Lists in '%s'"
-                    "[COLOR yellow]Clear All Search History[/COLOR]"
+                    L(36012) % folder_info['name'],  # "Export All Lists in '%s'"
+                    "Clear All Search History"
                 ])
 
                 # Debug logging for reserved folder
@@ -302,21 +302,21 @@ class ToolsHandler:
                 # Standard folder options
                 # Additive operations
                 options.extend([
-                    f"[COLOR lightgreen]{L(36009) % folder_info['name']}[/COLOR]",  # "Create New List in '%s'"
-                    f"[COLOR lightgreen]{L(36010) % folder_info['name']}[/COLOR]"  # "Create New Subfolder in '%s'"
+                    L(36009) % folder_info['name'],  # "Create New List in '%s'"
+                    L(36010) % folder_info['name']  # "Create New Subfolder in '%s'"
                 ])
 
                 # Modify operations
                 options.extend([
-                    f"[COLOR yellow]{L(36005) % folder_info['name']}[/COLOR]",  # "Rename '%s'"
-                    f"[COLOR yellow]{L(36011) % folder_info['name']}[/COLOR]"  # "Move '%s' to Folder"
+                    L(36005) % folder_info['name'],  # "Rename '%s'"
+                    L(36011) % folder_info['name']  # "Move '%s' to Folder"
                 ])
 
                 # Export operations
-                options.append(f"[COLOR white]{L(36012) % folder_info['name']}[/COLOR]")  # "Export All Lists in '%s'"
+                options.append(L(36012) % folder_info['name'])  # "Export All Lists in '%s'"
 
                 # Destructive operations
-                options.append(f"[COLOR red]{L(36008) % folder_info['name']}[/COLOR]")  # "Delete '%s'"
+                options.append(L(36008) % folder_info['name'])  # "Delete '%s'"
 
                 # Debug logging for standard folder
                 self.logger.debug("TOOLS DEBUG: Added standard options for folder '%s'", folder_info['name'])
@@ -1272,9 +1272,9 @@ class ToolsHandler:
 
             # Main lists menu tools - enhanced with search (Kodi Favorites removed as it's now a regular list)
             tools_options = [
-                f"[COLOR lightblue]{L(33000)}[/COLOR]",  # Local Movie Search
-                "[COLOR lightblue]Local Episodes Search[/COLOR]",  # Local Episodes Search
-                "[COLOR yellow]Search History[/COLOR]",
+                L(33000),  # Local Movie Search
+                "Local Episodes Search",  # Local Episodes Search
+                "Search History",
                 "---",  # Separator
                 "Create New List",
                 "Create New Folder",
@@ -1289,7 +1289,7 @@ class ToolsHandler:
             from lib.remote.ai_search_client import get_ai_search_client
             ai_client = get_ai_search_client()
             if ai_client.is_activated():
-                tools_options.insert(1, f"[COLOR cyan]{L(34100)}[/COLOR]")  # AI Movie Search
+                tools_options.insert(1, L(34100))  # AI Movie Search
 
 
             # Debug logging for lists main tools options
@@ -1307,13 +1307,13 @@ class ToolsHandler:
 
             # Handle main lists menu actions
             selected_option = tools_options[selected_index]
-            if selected_option == f"[COLOR lightblue]{L(33000)}[/COLOR]":  # Local Movie Search
+            if selected_option == L(33000):  # Local Movie Search
                 return self._handle_local_search(context)
             elif selected_option == "🔎 Local Episodes Search":  # Local Episodes Search
                 return self._handle_local_episodes_search(context)
-            elif selected_option == f"🤖 {L(34100)}":  # AI Movie Search
+            elif selected_option == L(34100):  # AI Movie Search
                 return self._handle_ai_search(context)
-            elif selected_option == "[COLOR yellow]Search History[/COLOR]":
+            elif selected_option == "Search History":
                 return self._handle_search_history(context)
             elif selected_option == "Create New List":
                 return self._handle_create_list(context)
@@ -1566,7 +1566,7 @@ class ToolsHandler:
                     folder_ids.append(folder['id'])
 
             # Add option to create new folder
-            folder_options.append("[COLOR yellow]+ Create New Folder[/COLOR]")
+            folder_options.append("+ Create New Folder")
 
             # Show folder selection dialog
             selected_index = xbmcgui.Dialog().select("Move to folder:", folder_options)
