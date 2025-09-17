@@ -151,9 +151,6 @@ class ListItemBuilder:
 
         try:
             if is_action_item:
-                # Debug pagination items specifically
-                if item.get('is_navigation', False):
-                    self.logger.debug("🔍 NAVIGATION ITEM DEBUG: Processing pagination item: %s", item)
                 return self._create_action_item(item)
             elif media_type in ('movie', 'episode') and self._is_valid_library_id(kodi_id):
                 return self._create_library_listitem(item)
@@ -192,7 +189,7 @@ class ListItemBuilder:
         out['title'] = src.get('title', src.get('label', 'Unknown'))
         
         # Preserve action and other special fields
-        for key in ('action', 'id', 'media_item_id', 'list_id'):
+        for key in ('action', 'id', 'media_item_id', 'list_id', 'url', 'is_navigation', 'navigation_type', 'icon'):
             if src.get(key):
                 out[key] = src[key]
                 
@@ -419,14 +416,11 @@ class ListItemBuilder:
             if item.get('url'):
                 # Use pre-built URL (for pagination navigation)
                 url = item.get('url')
-                self.logger.debug("🔍 ACTION ITEM URL DEBUG: Using pre-built URL for '%s': %s", title, url)
             elif action:
                 url = f"plugin://{self.addon_id}/?action={action}"
-                self.logger.debug("🔍 ACTION ITEM URL DEBUG: Using action-based URL for '%s': %s", title, url)
             else:
                 # Fallback for actions without specific action
                 url = f"plugin://{self.addon_id}/?action=noop"
-                self.logger.warning("🚨 ACTION ITEM URL DEBUG: FALLING BACK TO NOOP for '%s'! item: %s", title, item)
 
             # Mark as folder so Kodi treats it as navigable directory
             is_folder = True
