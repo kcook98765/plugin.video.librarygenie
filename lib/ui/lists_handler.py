@@ -814,9 +814,12 @@ class ListsHandler:
             # Add pagination controls if needed
             context.logger.debug("🔍 PAGINATION CLICK DEBUG: Checking if pagination needed: %d pages total", pagination_info.total_pages)
             if pagination_info.total_pages > 1:
-                # Build base URL for pagination navigation
-                base_url = context.build_url('show_list')
-                url_params = {'list_id': list_id}  # Ensure list_id is preserved in pagination URLs
+                # Build base URL for pagination navigation - use raw base URL and include all params
+                base_url = context.base_url.rstrip('/')
+                url_params = {
+                    'action': 'show_list',
+                    'list_id': list_id
+                }  # Include action and list_id in parameters
                 context.logger.debug("🔍 PAGINATION CLICK DEBUG: Building pagination URLs with base_url='%s', url_params=%s", base_url, url_params)
                 
                 # Insert pagination controls into list_items
