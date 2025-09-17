@@ -151,6 +151,9 @@ class ListItemBuilder:
 
         try:
             if is_action_item:
+                # Debug pagination items specifically
+                if item.get('is_navigation', False):
+                    self.logger.debug("🔍 NAVIGATION ITEM DEBUG: Processing pagination item: %s", item)
                 return self._create_action_item(item)
             elif media_type in ('movie', 'episode') and self._is_valid_library_id(kodi_id):
                 return self._create_library_listitem(item)
