@@ -321,7 +321,7 @@ class ListOperations:
                 list_ids.append(lst['id'])
 
             # Add option to create new list
-            list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
+            list_options.append("+ Create New List") # Localize this string
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
@@ -419,7 +419,7 @@ class ListOperations:
                     list_options.append(f"{folder_name}/{lst['name']}")
 
             # Add option to create new list
-            list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
+            list_options.append("+ Create New List") # Localize this string
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
@@ -521,7 +521,7 @@ class ListOperations:
                     list_options.append(f"{folder_name}/{lst['name']}")
 
             # Add option to create new list
-            list_options.append("[COLOR yellow]+ Create New List[/COLOR]") # Localize this string
+            list_options.append("+ Create New List") # Localize this string
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()

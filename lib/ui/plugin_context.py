@@ -190,7 +190,7 @@ class PluginContext:
                 ]
 
                 menu_items.append({
-                    'label': f"[COLOR cyan]{subfolder_name}[/COLOR]",
+                    'label': subfolder_name,
                     'url': self.build_url('show_folder', folder_id=subfolder_id),
                     'is_folder': True,
                     'description': f"Folder",
@@ -217,7 +217,7 @@ class PluginContext:
 
             # Add Tools & Options for folder
             menu_items.append({
-                'label': f"[COLOR yellow]Tools & Options for '{folder_name}'[/COLOR]",
+                'label': f"Tools & Options for '{folder_name}'",
                 'url': self.build_url('show_tools', list_type='folder', list_id=folder_id),
                 'is_folder': True,
                 'description': "Manage this folder"
