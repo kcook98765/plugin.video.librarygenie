@@ -10,7 +10,7 @@ import xbmcgui
 import xbmc
 from typing import Optional, List, Dict, Any
 
-from lib.remote.ai_search_client import get_ai_search_client
+# AI search client is lazy loaded on first use for better startup performance
 from lib.data.query_manager import get_query_manager
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.localization import L
@@ -23,8 +23,17 @@ class AISearchHandler:
 
     def __init__(self):
         self.logger = get_kodi_logger('lib.ui.ai_search_handler')
-        self.ai_client = get_ai_search_client()
+        self._ai_client = None  # Lazy loaded on first use for better startup performance
         self.query_manager = get_query_manager()
+
+    @property
+    def ai_client(self):
+        """Lazy load AI search client only when AI search features are actually used"""
+        if self._ai_client is None:
+            self.logger.debug("LAZY LOAD: Loading AI search client on first use")
+            from lib.remote.ai_search_client import get_ai_search_client
+            self._ai_client = get_ai_search_client()
+        return self._ai_client
 
     def perform_ai_search(self, query: str) -> bool:
         """
@@ -584,7 +593,7 @@ class AISearchHandler:
         """Handle AI search authorization"""
         try:
             # Check if already authorized
-            ai_client = get_ai_search_client()
+            ai_client = self.ai_client
             if ai_client.is_activated():
                 xbmcgui.Dialog().ok(
                     "Already Authorized", 
@@ -639,7 +648,7 @@ class AISearchHandler:
     def trigger_replace_sync(self, context: PluginContext) -> None:
         """Trigger an authoritative replace sync with AI Search server"""
         try:
-            ai_client = get_ai_search_client()
+            ai_client = self.ai_client
 
             # Check if AI Search is activated
             if not ai_client.is_activated():
@@ -752,7 +761,7 @@ class AISearchHandler:
     def trigger_regular_sync(self, context: PluginContext) -> None:
         """Trigger a regular (non-replace) sync with AI Search server"""
         try:
-            ai_client = get_ai_search_client()
+            ai_client = self.ai_client
 
             # Check if AI Search is activated
             if not ai_client.is_activated():
