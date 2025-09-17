@@ -73,6 +73,10 @@ msgctxt "#30036"
 msgid "Auto-sync frequency (hours)"
 msgstr ""
 
+msgctxt "#30180"
+msgid "Enable colorized menu labels"
+msgstr ""
+
 msgctxt "#30040"
 msgid "Lists Integration"
 msgstr ""
@@ -2123,6 +2127,11 @@ msgstr ""
 
 msgctxt "#37204"
 msgid "Kodi Favorites"
+msgstr ""
+
+# UI Colorization Help Text
+msgctxt "#35020"
+msgid "Enable color-coded menu labels and text for better visual organization. When disabled, all text appears in standard white."
 msgstr ""
 
 # Context Indicators (ASCII-based)
