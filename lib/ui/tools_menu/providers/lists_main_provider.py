@@ -19,57 +19,84 @@ class ListsMainToolsProvider(BaseToolsProvider):
     def build_tools(self, context: ToolsContext, plugin_context: Any) -> List[ToolAction]:
         """Build main lists tools menu"""
         try:
-            return [
-                # Creation operations
-                self._create_action(
-                    action_id="create_new_list",
-                    label=L(36009).replace(' in %s', ''),  # "Create New List"
-                    handler=self._handle_create_new_list
-                ),
-                self._create_action(
-                    action_id="create_new_folder", 
-                    label=L(36010).replace(' in %s', ''),  # "Create New Folder"
-                    handler=self._handle_create_new_folder
-                ),
-                
-                # Import/Export operations
-                self._create_action(
-                    action_id="import_data",
-                    label="Import Lists",  # TODO: Add to localization
-                    handler=self._handle_import_data
-                ),
-                self._create_action(
-                    action_id="export_all",
-                    label="Export All Lists",  # TODO: Add to localization  
-                    handler=self._handle_export_all
-                ),
-                
-                # Backup operations
-                self._create_action(
-                    action_id="create_backup",
-                    label="Create Backup",  # TODO: Add to localization
-                    handler=self._handle_create_backup
-                ),
-                self._create_action(
-                    action_id="restore_backup",
-                    label="Restore Backup",  # TODO: Add to localization
-                    handler=self._handle_restore_backup
-                ),
-                
-                # Settings
-                self._create_action(
-                    action_id="settings",
-                    label="Settings",  # TODO: Add to localization
-                    handler=self._handle_settings
-                ),
-                
-                # AI Search activation
-                self._create_action(
-                    action_id="ai_search_status",
-                    label="AI Search Status",  # TODO: Add to localization
-                    handler=self._handle_ai_search_status
-                )
-            ]
+            actions = []
+            
+            # Search operations (matching old system order)
+            actions.append(self._create_action(
+                action_id="local_movie_search",
+                label=L(33000),  # Local Movie Search
+                handler=self._handle_local_movie_search
+            ))
+            
+            # Check if AI Search is available (like old system)
+            try:
+                from lib.remote.ai_search_client import get_ai_search_client
+                ai_client = get_ai_search_client()
+                if ai_client.is_activated():
+                    actions.append(self._create_action(
+                        action_id="ai_movie_search",
+                        label=L(34100),  # AI Movie Search
+                        handler=self._handle_ai_movie_search
+                    ))
+            except Exception:
+                pass  # AI search not available
+            
+            actions.append(self._create_action(
+                action_id="local_episodes_search",
+                label="Local Episodes Search",  # TODO: Add to localization
+                handler=self._handle_local_episodes_search
+            ))
+            
+            actions.append(self._create_action(
+                action_id="search_history",
+                label="Search History",  # TODO: Add to localization
+                handler=self._handle_search_history
+            ))
+            
+            # Creation operations
+            actions.append(self._create_action(
+                action_id="create_new_list",
+                label="Create New List",  # TODO: Add to localization
+                handler=self._handle_create_new_list
+            ))
+            actions.append(self._create_action(
+                action_id="create_new_folder", 
+                label="Create New Folder",  # TODO: Add to localization
+                handler=self._handle_create_new_folder
+            ))
+            
+            # Import/Export operations  
+            actions.append(self._create_action(
+                action_id="import_data",
+                label="Import Lists from File",  # Match old system label
+                handler=self._handle_import_data
+            ))
+            actions.append(self._create_action(
+                action_id="export_all",
+                label="Export All Lists",  # Match old system label
+                handler=self._handle_export_all
+            ))
+            
+            # Settings
+            actions.append(self._create_action(
+                action_id="settings",
+                label="Settings & Preferences",  # Match old system label
+                handler=self._handle_settings
+            ))
+            
+            # Backup operations
+            actions.append(self._create_action(
+                action_id="create_backup",
+                label="Database Backup",  # Match old system label
+                handler=self._handle_create_backup
+            ))
+            actions.append(self._create_action(
+                action_id="restore_backup",
+                label="Restore from Backup",  # Match old system label
+                handler=self._handle_restore_backup
+            ))
+            
+            return actions
                 
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
@@ -161,14 +188,50 @@ class ListsMainToolsProvider(BaseToolsProvider):
             logger.error("Error opening settings: %s", e)
             return DialogResponse(success=False, message="Error opening settings")
     
-    def _handle_ai_search_status(self, plugin_context: Any, payload: dict) -> DialogResponse:
-        """Handle AI search status"""
+    def _handle_local_movie_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
+        """Handle local movie search"""
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._handle_ai_search_activation_status(plugin_context)
+            return tools_handler._handle_local_search(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
-            logger.error("Error handling AI search status: %s", e)
-            return DialogResponse(success=False, message="Error checking AI search status")
+            logger.error("Error handling local movie search: %s", e)
+            return DialogResponse(success=False, message="Error opening local movie search")
+
+    def _handle_ai_movie_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
+        """Handle AI movie search"""
+        try:
+            from lib.ui.tools_handler import ToolsHandler
+            tools_handler = ToolsHandler()
+            return tools_handler._handle_ai_search(plugin_context)
+        except Exception as e:
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
+            logger.error("Error handling AI movie search: %s", e)
+            return DialogResponse(success=False, message="Error opening AI movie search")
+
+    def _handle_local_episodes_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
+        """Handle local episodes search"""
+        try:
+            from lib.ui.tools_handler import ToolsHandler
+            tools_handler = ToolsHandler()
+            return tools_handler._handle_local_episodes_search(plugin_context)
+        except Exception as e:
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
+            logger.error("Error handling local episodes search: %s", e)
+            return DialogResponse(success=False, message="Error opening local episodes search")
+
+    def _handle_search_history(self, plugin_context: Any, payload: dict) -> DialogResponse:
+        """Handle search history"""
+        try:
+            from lib.ui.tools_handler import ToolsHandler
+            tools_handler = ToolsHandler()
+            return tools_handler._handle_search_history(plugin_context)
+        except Exception as e:
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
+            logger.error("Error handling search history: %s", e)
+            return DialogResponse(success=False, message="Error opening search history")
