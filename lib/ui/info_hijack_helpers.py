@@ -121,19 +121,38 @@ def _wait_for_info_dialog(timeout=10.0):
     _log("_wait_for_info_dialog: TIMEOUT (%.3fs)", xbmc.LOGWARNING, t_end - t_start)
     return False
 
-def verify_list_focus() -> bool:
-    """Check if focus is actually on a content item (not parent dir) and in a list view"""
+class ExpectedTarget:
+    """Structure to hold expected target item information for focus verification"""
+    def __init__(self, db_type: str = None, db_id: int = None, filename: str = None, 
+                 filename_no_ext: str = None, expected_index: int = None, 
+                 expected_label: str = None, expected_year: str = None):
+        self.db_type = db_type
+        self.db_id = db_id  
+        self.filename = filename
+        self.filename_no_ext = filename_no_ext
+        self.expected_index = expected_index
+        self.expected_label = expected_label
+        self.expected_year = expected_year
+
+def verify_list_focus(expected: ExpectedTarget = None) -> bool:
+    """Check if focus is on the intended item with comprehensive identity verification"""
     try:
         # Get detailed focus information for debugging
         view_mode = get_cached_info("Container.Viewmode").lower().strip()
         current_item_label = get_cached_info("Container.ListItem().Label")
-        current_item_index = get_cached_info("Container.CurrentItem")
+        current_item_index = int(get_cached_info("Container.CurrentItem") or "0")
         num_items = get_cached_info("Container.NumItems") 
         current_window = get_cached_info("System.CurrentWindow")
         current_control = get_cached_info("System.CurrentControlId")
         container_path = get_cached_info("Container.FolderPath")
         
-        # Comprehensive debug output to see what the system thinks is focused
+        # Get additional identity information if available
+        current_dbid = get_cached_info("Container.ListItem().DBID")
+        current_dbtype = get_cached_info("Container.ListItem().DBType")  
+        current_filepath = get_cached_info("Container.ListItem().FilenameAndPath")
+        current_year = get_cached_info("Container.ListItem().Year")
+        
+        # Comprehensive debug output
         _log("verify_list_focus DEBUG - Focus state analysis:", xbmc.LOGDEBUG)
         _log("  Current window: %s", xbmc.LOGDEBUG, current_window)
         _log("  Current control: %s", xbmc.LOGDEBUG, current_control) 
@@ -142,20 +161,88 @@ def verify_list_focus() -> bool:
         _log("  Focused item label: '%s'", xbmc.LOGDEBUG, current_item_label)
         _log("  Current item index: %s", xbmc.LOGDEBUG, current_item_index)
         _log("  Total items in container: %s", xbmc.LOGDEBUG, num_items)
+        _log("  Current DBID: %s", xbmc.LOGDEBUG, current_dbid)
+        _log("  Current DBType: %s", xbmc.LOGDEBUG, current_dbtype)
+        _log("  Current filepath: %s", xbmc.LOGDEBUG, current_filepath)
+        _log("  Current year: %s", xbmc.LOGDEBUG, current_year)
         
-        # First check: Are we actually focused on a content item (not parent "..")?
+        if expected:
+            _log("  Expected target - DBID: %s, DBType: %s, filename: %s, index: %s, label: %s, year: %s", 
+                 xbmc.LOGDEBUG, expected.db_id, expected.db_type, expected.filename_no_ext, 
+                 expected.expected_index, expected.expected_label, expected.expected_year)
+        
+        # Step 1: Ensure we're focused on list control (not a side panel)
+        if current_control != str(LIST_ID):
+            _log("verify_list_focus: FAILED - Not focused on list control (current: %s, expected: %s)", 
+                 xbmc.LOGDEBUG, current_control, LIST_ID)
+            return False
+        
+        # Step 2: Basic sanity - not on parent directory  
         if current_item_label == ".." or current_item_label.strip() == "..":
-            _log("verify_list_focus: FAILED - Focus is on parent directory item '..' - need to navigate to content", xbmc.LOGDEBUG)
+            _log("verify_list_focus: FAILED - Focus is on parent directory '..' - need navigation", xbmc.LOGDEBUG)
             return False
             
-        # Second check: Do we have a meaningful focused item?
+        # Step 3: Must have some focused item
         if not current_item_label or current_item_label.strip() == "":
-            _log("verify_list_focus: FAILED - No focused item label detected", xbmc.LOGDEBUG)
+            _log("verify_list_focus: FAILED - No focused item detected", xbmc.LOGDEBUG)
             return False
             
-        # Third check: Are we in a recognizable list view?
+        # Step 4: If we have expected target, perform identity verification (priority order)
+        if expected:
+            # Priority 1: Match DBID and DBType (most reliable)
+            if expected.db_id and expected.db_type and current_dbid and current_dbtype:
+                if str(current_dbid) == str(expected.db_id) and current_dbtype.lower() == expected.db_type.lower():
+                    _log("verify_list_focus: SUCCESS - Perfect match on DBID %s and DBType %s", 
+                         xbmc.LOGDEBUG, current_dbid, current_dbtype)
+                    return True
+                else:
+                    _log("verify_list_focus: FAILED - DBID/DBType mismatch (current: %s/%s, expected: %s/%s)", 
+                         xbmc.LOGDEBUG, current_dbid, current_dbtype, expected.db_id, expected.db_type)
+                    return False
+                    
+            # Priority 2: Match filename/path
+            if expected.filename_no_ext and current_filepath:
+                if expected.filename_no_ext in current_filepath:
+                    _log("verify_list_focus: SUCCESS - Filename match ('%s' in '%s')", 
+                         xbmc.LOGDEBUG, expected.filename_no_ext, current_filepath)
+                    return True
+                else:
+                    _log("verify_list_focus: FAILED - Filename mismatch ('%s' not in '%s')", 
+                         xbmc.LOGDEBUG, expected.filename_no_ext, current_filepath)
+                    return False
+                    
+            # Priority 3: Match expected index position
+            if expected.expected_index is not None:
+                if current_item_index == expected.expected_index:
+                    _log("verify_list_focus: SUCCESS - Index match (position %s)", xbmc.LOGDEBUG, current_item_index)
+                    return True
+                else:
+                    _log("verify_list_focus: FAILED - Index mismatch (current: %s, expected: %s)", 
+                         xbmc.LOGDEBUG, current_item_index, expected.expected_index)
+                    return False
+                    
+            # Priority 4: Label + year heuristic (last resort)
+            if expected.expected_label:
+                label_match = expected.expected_label.lower() in current_item_label.lower()
+                year_match = (not expected.expected_year or 
+                            (current_year and expected.expected_year in current_year))
+                
+                if label_match and year_match:
+                    _log("verify_list_focus: SUCCESS - Label+year heuristic match", xbmc.LOGDEBUG)
+                    return True
+                else:
+                    _log("verify_list_focus: FAILED - Label+year mismatch (label_match: %s, year_match: %s)", 
+                         xbmc.LOGDEBUG, label_match, year_match)
+                    return False
+                    
+            # If expected was provided but no matches found
+            _log("verify_list_focus: FAILED - Expected target provided but no identity matches found", xbmc.LOGDEBUG)
+            return False
+        
+        # Step 5: If no expected target, just verify we're in a valid list view with content
         if not view_mode:
-            _log("verify_list_focus: WARNING - No viewmode detected, but we have focused content item '%s' - assuming valid", xbmc.LOGDEBUG, current_item_label)
+            _log("verify_list_focus: WARNING - No viewmode detected, but have content item '%s' - assuming valid", 
+                 xbmc.LOGDEBUG, current_item_label)
             return True
             
         # Define view types  
@@ -164,20 +251,19 @@ def verify_list_focus() -> bool:
         HORIZONTAL_VIEWS = {"wall", "poster", "panel", "thumbs", "iconwall", "fanart",
                            "shift", "showcase", "thumbnails", "icons", "grid", "wrap"}
         
-        # Check if we're in any recognizable view type
         in_list_view = (view_mode in VERTICAL_VIEWS or view_mode in HORIZONTAL_VIEWS or
                        any(v in view_mode for v in VERTICAL_VIEWS | HORIZONTAL_VIEWS))
         
         if not in_list_view:
-            _log("verify_list_focus: FAILED - Unknown viewmode '%s', may not be a standard list view", xbmc.LOGDEBUG, view_mode)
+            _log("verify_list_focus: FAILED - Unknown viewmode '%s'", xbmc.LOGDEBUG, view_mode)
             return False
             
-        # All checks passed - we're focused on actual content in a list view
-        _log("verify_list_focus: SUCCESS - Focused on content item '%s' in %s view", xbmc.LOGDEBUG, current_item_label, view_mode)
+        _log("verify_list_focus: SUCCESS - Valid content focus in %s view (no specific target expected)", 
+             xbmc.LOGDEBUG, view_mode)
         return True
         
     except Exception as e:
-        _log("Error in verify_list_focus: %s - defaulting to FALSE for safety", xbmc.LOGWARNING, e)
+        _log("Error in verify_list_focus: %s - defaulting to FALSE", xbmc.LOGWARNING, e)
         return False
 
 def _capture_navigation_state() -> dict:
@@ -352,18 +438,179 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
         _log("Error in focus_list_manual: %s - graceful fallback failed (took %.3fs)", xbmc.LOGERROR, e, t_focus_end - t_focus_start)
         return False
 
-def focus_list(control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
-    """Optimized list focusing: check if already focused, then fallback to manual focus"""
+def focus_list(expected: ExpectedTarget = None, control_id: Optional[int] = None, tries: int = 20, step_ms: int = 30) -> bool:
+    """Complete focus logic: verify intended item focus, then comprehensive navigation with fallbacks"""
     t_focus_start = time.perf_counter()
     
-    # First check if list control is already focused (should be automatic after XSP navigation)
-    if verify_list_focus():
+    _log("focus_list: Starting comprehensive focus verification and navigation", xbmc.LOGDEBUG)
+    
+    # Step 1: Ensure we're focused on the list control first
+    current_control = get_cached_info("System.CurrentControlId")
+    if current_control != str(LIST_ID):
+        _log("focus_list: Setting focus to list control %s (currently on %s)", xbmc.LOGDEBUG, LIST_ID, current_control)
+        xbmc.executebuiltin(f"Control.SetFocus({LIST_ID})")
+        xbmc.sleep(step_ms * 2)  # Give it time to focus
+        
+        # Re-check
+        current_control = get_cached_info("System.CurrentControlId") 
+        if current_control != str(LIST_ID):
+            _log("focus_list: FAILED - Could not focus list control (still on %s)", xbmc.LOGWARNING, current_control)
+            return False
+    
+    # Step 2: Check if already focused on intended item
+    if verify_list_focus(expected):
         t_focus_end = time.perf_counter()
-        _log("focus_list: List already focused - substep 5 complete (%.3fs)", xbmc.LOGDEBUG, t_focus_end - t_focus_start)
+        _log("focus_list: Already focused on intended item - step 5 complete (%.3fs)", xbmc.LOGDEBUG, t_focus_end - t_focus_start)
         return True
-    else:
-        _log("focus_list: Manual focus needed - using focus_list_manual()")
-        return focus_list_manual(control_id, tries, step_ms)
+    
+    # Step 3: Need navigation - use comprehensive manual focus
+    _log("focus_list: Manual navigation required - using focus_list_manual_comprehensive()")
+    return focus_list_manual_comprehensive(expected, control_id, tries, step_ms)
+
+def focus_list_manual_comprehensive(expected: ExpectedTarget = None, control_id: Optional[int] = None, tries: int = 3, step_ms: int = 100) -> bool:
+    """Comprehensive navigation with viewtype detection, validation, and robust fallbacks"""
+    t_focus_start = time.perf_counter()
+    
+    try:
+        _log("focus_list_manual_comprehensive: Starting navigation with %d tries", xbmc.LOGDEBUG, tries)
+        
+        # Capture initial container state for stability checks
+        original_container_path = get_cached_info("Container.FolderPath")
+        original_num_items = get_cached_info("Container.NumItems")
+        
+        def is_container_stable():
+            """Check if we're still in the same container"""
+            current_path = get_cached_info("Container.FolderPath")
+            current_items = get_cached_info("Container.NumItems")
+            return (current_path == original_container_path and 
+                   current_items == original_num_items)
+        
+        # Step 1: Determine navigation direction based on viewtype
+        view_mode = get_cached_info("Container.Viewmode").lower().strip()
+        _log("focus_list_manual_comprehensive: Detected viewmode = '%s'", xbmc.LOGDEBUG, view_mode)
+        
+        VERTICAL_VIEWS = {"list", "widelist", "lowlist", "bannerlist", "biglist", 
+                         "infolist", "detaillist", "episodes", "songs"}
+        HORIZONTAL_VIEWS = {"wall", "poster", "panel", "thumbs", "iconwall", "fanart",
+                           "shift", "showcase", "thumbnails", "icons", "grid", "wrap"}
+        
+        primary_direction = None
+        fallback_direction = None
+        
+        if view_mode in VERTICAL_VIEWS or any(v in view_mode for v in VERTICAL_VIEWS):
+            primary_direction = "Action(Down)"
+            fallback_direction = "Action(Up)"
+            _log("focus_list_manual_comprehensive: Using vertical navigation (Down primary)", xbmc.LOGDEBUG)
+            
+        elif view_mode in HORIZONTAL_VIEWS or any(v in view_mode for v in HORIZONTAL_VIEWS):
+            primary_direction = "Action(Right)"
+            fallback_direction = "Action(Left)"
+            _log("focus_list_manual_comprehensive: Using horizontal navigation (Right primary)", xbmc.LOGDEBUG)
+            
+        else:
+            # Unknown viewtype - use intelligent probing
+            _log("focus_list_manual_comprehensive: Unknown viewmode - probing orientation", xbmc.LOGDEBUG)
+            
+            if _test_navigation_direction("Action(Right)", "Action(Left)", step_ms):
+                primary_direction = "Action(Right)"
+                fallback_direction = "Action(Left)"
+                _log("focus_list_manual_comprehensive: Probe result - horizontal navigation works", xbmc.LOGDEBUG)
+            elif _test_navigation_direction("Action(Down)", "Action(Up)", step_ms):
+                primary_direction = "Action(Down)"
+                fallback_direction = "Action(Up)"
+                _log("focus_list_manual_comprehensive: Probe result - vertical navigation works", xbmc.LOGDEBUG)
+            else:
+                _log("focus_list_manual_comprehensive: FAILED - No working navigation directions found", xbmc.LOGWARNING)
+                return False
+        
+        # Step 2: Primary direction navigation attempts with validation
+        for attempt in range(tries):
+            _log("focus_list_manual_comprehensive: Attempt %d - sending %s", xbmc.LOGDEBUG, attempt + 1, primary_direction)
+            
+            with navigation_action(grace_ms=step_ms):
+                xbmc.executebuiltin(primary_direction)
+                xbmc.sleep(step_ms)
+            
+            # Check container stability
+            if not is_container_stable():
+                _log("focus_list_manual_comprehensive: Container became unstable - aborting navigation", xbmc.LOGWARNING)
+                return False
+            
+            # Check if we've reached intended item
+            if verify_list_focus(expected):
+                t_focus_end = time.perf_counter()
+                _log("focus_list_manual_comprehensive: SUCCESS - Found intended item on attempt %d (%.3fs)", 
+                     xbmc.LOGDEBUG, attempt + 1, t_focus_end - t_focus_start)
+                return True
+                
+        _log("focus_list_manual_comprehensive: Primary direction exhausted - trying fallbacks", xbmc.LOGDEBUG)
+        
+        # Step 3: Fallback strategies
+        
+        # Fallback 1: Action(First) to reset position, then navigate
+        _log("focus_list_manual_comprehensive: Fallback 1 - Action(First) reset", xbmc.LOGDEBUG)
+        with navigation_action(grace_ms=step_ms):
+            xbmc.executebuiltin("Action(First)")
+            xbmc.sleep(step_ms * 2)
+        
+        # Check if we're on parent ".." after Action(First)
+        current_label = get_cached_info("Container.ListItem().Label")
+        if current_label == ".." or current_label.strip() == "..":
+            _log("focus_list_manual_comprehensive: After Action(First), on parent - sending one Down", xbmc.LOGDEBUG)
+            with navigation_action(grace_ms=step_ms):
+                xbmc.executebuiltin("Action(Down)")
+                xbmc.sleep(step_ms)
+        
+        # Check if this fixed it
+        if verify_list_focus(expected):
+            t_focus_end = time.perf_counter()
+            _log("focus_list_manual_comprehensive: SUCCESS - Action(First) fallback worked (%.3fs)", 
+                 xbmc.LOGDEBUG, t_focus_end - t_focus_start)
+            return True
+        
+        # Fallback 2: Try opposite direction once, then primary
+        if fallback_direction:
+            _log("focus_list_manual_comprehensive: Fallback 2 - trying opposite direction %s", xbmc.LOGDEBUG, fallback_direction)
+            with navigation_action(grace_ms=step_ms):
+                xbmc.executebuiltin(fallback_direction)
+                xbmc.sleep(step_ms)
+                
+            # Then try primary again
+            with navigation_action(grace_ms=step_ms):
+                xbmc.executebuiltin(primary_direction)
+                xbmc.sleep(step_ms)
+            
+            if verify_list_focus(expected):
+                t_focus_end = time.perf_counter()
+                _log("focus_list_manual_comprehensive: SUCCESS - Opposite direction fallback worked (%.3fs)", 
+                     xbmc.LOGDEBUG, t_focus_end - t_focus_start)
+                return True
+        
+        # Fallback 3: Re-focus control and try one more primary navigation
+        _log("focus_list_manual_comprehensive: Fallback 3 - re-focus control and final attempt", xbmc.LOGDEBUG)
+        xbmc.executebuiltin(f"Control.SetFocus({LIST_ID})")
+        xbmc.sleep(step_ms * 2)
+        
+        with navigation_action(grace_ms=step_ms):
+            xbmc.executebuiltin(primary_direction)
+            xbmc.sleep(step_ms)
+        
+        if verify_list_focus(expected):
+            t_focus_end = time.perf_counter()
+            _log("focus_list_manual_comprehensive: SUCCESS - Control re-focus fallback worked (%.3fs)", 
+                 xbmc.LOGDEBUG, t_focus_end - t_focus_start)
+            return True
+        
+        # All attempts exhausted
+        t_focus_end = time.perf_counter()
+        _log("focus_list_manual_comprehensive: FAILED - All navigation attempts exhausted (%.3fs)", 
+             xbmc.LOGWARNING, t_focus_end - t_focus_start)
+        return False
+        
+    except Exception as e:
+        t_focus_end = time.perf_counter()
+        _log("Error in focus_list_manual_comprehensive: %s (took %.3fs)", xbmc.LOGERROR, e, t_focus_end - t_focus_start)
+        return False
 
 def _write_text(path_special: str, text: str) -> bool:
     try:
