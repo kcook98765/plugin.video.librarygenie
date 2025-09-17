@@ -115,30 +115,6 @@ class ActionResponse:
                 pass
 
 
-class ErrorResponse:
-    """Response for error conditions"""
-    
-    def __init__(self, error_message: str, error_code: Optional[str] = None, 
-                 show_to_user: bool = True):
-        self.error_message = error_message
-        self.error_code = error_code
-        self.show_to_user = show_to_user
-
-    def handle_error(self, context):
-        """Handle error with appropriate user feedback"""
-        context.logger.error("Handler error: %s", self.error_message)
-
-        if self.show_to_user:
-            try:
-                import xbmcgui
-                xbmcgui.Dialog().notification(
-                    context.addon.getLocalizedString(35002),  # Error title
-                    self.error_message,
-                    xbmcgui.NOTIFICATION_ERROR
-                )
-            except Exception:
-                pass
-
 
 class ListResponse:
     """Response data for list-based UI actions"""
