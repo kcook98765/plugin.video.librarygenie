@@ -796,9 +796,9 @@ class ListsHandler:
 
             # Add pagination controls if needed
             if pagination_info.total_pages > 1:
-                # Build current page URL parameters
-                base_url = context.build_url('show_list', list_id=list_id)
-                url_params = {}  # Don't duplicate list_id since it's already in base_url
+                # Build base URL for pagination navigation
+                base_url = context.build_url('show_list')
+                url_params = {'list_id': list_id}  # Ensure list_id is preserved in pagination URLs
                 
                 # Insert pagination controls into list_items
                 list_items = pagination_manager.insert_pagination_items(
