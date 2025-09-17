@@ -139,6 +139,7 @@ class ResponseHandler:
                 navigate_on_failure = getattr(response, 'navigate_on_failure', None)
                 if navigate_on_failure == 'return_to_tools_location':
                     # Navigate back to the stored tools return location
+                    import xbmc
                     from lib.ui.session_state import get_session_state
                     session_state = get_session_state()
                     if session_state and session_state.get_tools_return_location():
