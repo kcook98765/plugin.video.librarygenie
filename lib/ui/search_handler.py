@@ -186,7 +186,8 @@ class SearchHandler:
                 return False
 
             # Find the most recently created list by highest ID (since lists are ordered by name, not creation time)
-            latest = max(lists, key=lambda x: x.get('id', 0))
+            # Convert ID to int for proper numeric comparison
+            latest = max(lists, key=lambda x: int(x.get('id', 0)))
             list_id = latest.get('id')
             if not list_id:
                 return False
