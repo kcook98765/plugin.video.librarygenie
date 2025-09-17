@@ -301,6 +301,70 @@ class ListItemArtManager:
         except Exception as e:
             self.logger.error("ART: Even fallback art failed: %s", e)
             return False
+
+    def build_art_dict(self, item: Dict[str, Any]) -> Dict[str, str]:
+        """Build artwork dictionary from item data with version-specific handling"""
+        import json
+        import urllib.parse
+        import re
+        
+        art = {}
+        
+        # Get art data from the art JSON field only
+        item_art = item.get('art')
+        if item_art:
+            # Handle both dict and JSON string formats
+            if isinstance(item_art, str):
+                try:
+                    item_art = json.loads(item_art)
+                except (json.JSONDecodeError, ValueError):
+                    item_art = {}
+
+            if isinstance(item_art, dict):
+                # Check Kodi version once for efficiency
+                from lib.utils.kodi_version import get_kodi_major_version
+                kodi_major = get_kodi_major_version()
+                is_v19 = (kodi_major == 19)
+                
+                # Copy all art keys from the art dict
+                for art_key in ['poster', 'fanart', 'thumb', 'banner', 'landscape',
+                               'clearlogo', 'clearart', 'discart', 'icon']:
+                    if art_key in item_art and item_art[art_key]:
+                        art_value = item_art[art_key]
+                        
+                        # V19 Fix: Normalize to canonical format for image:// URLs
+                        if is_v19 and art_value and art_value.startswith('image://'):
+                            try:
+                                # Extract inner URL and normalize encoding
+                                if len(art_value) > 8:
+                                    inner_url = art_value[8:]
+                                    inner_content = inner_url.rstrip('/')
+                                    
+                                    if inner_content:
+                                        # Check if already encoded
+                                        has_percent = bool(re.search(r'%[0-9A-Fa-f]{2}', inner_content))
+                                        has_unescaped = bool(re.search(r'[:/\?#\[\]@!$&\'()*+,;= ]', inner_content))
+                                        
+                                        if has_percent and not has_unescaped:
+                                            normalized_url = f"image://{inner_content}/"
+                                        else:
+                                            encoded_inner = urllib.parse.quote(inner_content, safe='')
+                                            normalized_url = f"image://{encoded_inner}/"
+                                        
+                                        art_value = normalized_url
+                                        
+                            except Exception as e:
+                                self.logger.error("V19 ART: Failed to normalize %s URL: %s", art_key, e)
+                        
+                        art[art_key] = art_value
+
+        # If we have poster but no thumb/icon, set them for list view compatibility
+        if art.get('poster') and not art.get('thumb'):
+            art['thumb'] = art['poster']
+        if art.get('poster') and not art.get('icon'):
+            art['icon'] = art['poster']
+
+        return art
     
     def apply_type_specific_art(self, list_item: xbmcgui.ListItem, item_type: str, 
                                resource_path_func: Optional[Callable[[str], str]] = None) -> bool:
