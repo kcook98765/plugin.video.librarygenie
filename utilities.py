@@ -23,6 +23,7 @@ if lib_path not in sys.path:
 
 # Now import using absolute paths from lib/
 from utils.kodi_log import log, log_info, log_error
+from utils.error_handler import handle_error_with_notification, handle_success_with_notification
 
 
 def main():
@@ -61,21 +62,20 @@ def main():
         elif action == "deactivate_ai_search":
             handle_deactivate_ai_search()
         else:
-            log_error(f"Unknown action: {action}")
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
+            handle_error_with_notification(
+                "utilities.main",
                 f"Unknown action: {action}",
-                xbmcgui.NOTIFICATION_ERROR
+                f"Unknown action: {action}"
             )
     
     except Exception as e:
-        log_error(f"Error in utilities handler for action '{action}': {e}")
         import traceback
         log_error(f"Utilities handler error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
+        handle_error_with_notification(
+            "utilities.main",
+            f"Error in utilities handler for action '{action}': {e}",
             f"Error in {action}",
-            xbmcgui.NOTIFICATION_ERROR
+            exception=e
         )
 
 
@@ -89,10 +89,10 @@ def handle_set_default_list():
         
         query_manager = get_query_manager()
         if not query_manager or not query_manager.initialize():
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Database not available",
-                xbmcgui.NOTIFICATION_ERROR
+            handle_error_with_notification(
+                "utilities.handle_set_default_list",
+                "Database initialization failed",
+                "Database not available"
             )
             return
         
@@ -171,28 +171,28 @@ def handle_set_default_list():
                 # Update the display setting
                 _update_default_list_display(config, selected_list['id'])
                 
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
+                handle_success_with_notification(
+                    "utilities.handle_set_default_list",
                     f"Default list set to: {selected_list['name']}",
-                    xbmcgui.NOTIFICATION_INFO
+                    f"Default list set to: {selected_list['name']}"
                 )
                 log_info(f"Default list set to: {selected_list['name']} (ID: {selected_list['id']})")
                 
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    f"Default list updated. Click OK to save settings.",
-                    xbmcgui.NOTIFICATION_INFO
+                handle_success_with_notification(
+                    "utilities.handle_set_default_list",
+                    "Default list updated",
+                    "Default list updated. Click OK to save settings."
                 )
                 return
         
     except Exception as e:
-        log_error(f"Error in handle_set_default_list: {e}")
         import traceback
         log_error(f"Set default list error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
+        handle_error_with_notification(
+            "utilities.handle_set_default_list",
+            f"Error in handle_set_default_list: {e}",
             f"Error setting default list: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
+            exception=e
         )
 
 
