@@ -717,18 +717,21 @@ class ListsHandler:
             from lib.ui.pagination_manager import get_pagination_manager
             pagination_manager = get_pagination_manager()
             
-            # Get total count first for pagination calculation (convert list_id to int if needed)
-            try:
-                list_id_int = int(list_id)
-                total_items = query_manager.get_list_item_count(list_id_int)
-            except (ValueError, TypeError):
-                total_items = query_manager.get_list_item_count(list_id)
+            # Get total count first for pagination calculation
+            # Convert list_id to int if the method expects it
+            if hasattr(query_manager, 'get_list_item_count'):
+                try:
+                    list_id_int = int(list_id)
+                    total_items = query_manager.get_list_item_count(list_id_int)
+                except (ValueError, TypeError, AttributeError):
+                    # Fallback to string version or alternative method
+                    total_items = len(query_manager.get_list_items(list_id))
             
             # Calculate pagination
             pagination_info = pagination_manager.calculate_pagination(
                 total_items=total_items,
                 current_page=current_page,
-                base_page_size=100  # Base size for auto mode calculation
+                base_page_size=10  # Smaller page size for testing pagination
             )
             
             # Get list items with pagination
