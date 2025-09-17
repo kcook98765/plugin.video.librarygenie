@@ -134,6 +134,22 @@ class ResponseHandler:
                     # don't do any navigation - let the tools handler's direct navigation work
                     context.logger.debug("RESPONSE HANDLER: Success response with no navigation flags - letting direct navigation work")
 
+            else:
+                # Handle failure navigation
+                navigate_on_failure = getattr(response, 'navigate_on_failure', None)
+                if navigate_on_failure == 'return_to_tools_location':
+                    # Navigate back to the stored tools return location
+                    from lib.ui.session_state import get_session_state
+                    session_state = get_session_state()
+                    if session_state and session_state.get_tools_return_location():
+                        context.logger.debug("RESPONSE HANDLER: Navigating back to tools return location: %s", session_state.get_tools_return_location())
+                        xbmc.executebuiltin(f'Container.Update("{session_state.get_tools_return_location()}",replace)')
+                        # Clear the return location after using it
+                        session_state.clear_tools_return_location()
+                        return
+                    else:
+                        context.logger.warning("RESPONSE HANDLER: No tools return location found for return navigation")
+
         except Exception as e:
             context.logger.error("Error handling dialog response: %s", e)
             # Fallback error notification
@@ -266,6 +282,17 @@ class ResponseHandler:
                 elif navigation_target == 'favorites':
                     cache_busted_url = context.build_cache_busted_url("kodi_favorites")
                     xbmc.executebuiltin(f'Container.Update("{cache_busted_url}",replace)')
+                elif navigation_target == 'return_to_tools_location':
+                    # Navigate back to the stored tools return location
+                    from lib.ui.session_state import get_session_state
+                    session_state = get_session_state()
+                    if session_state and session_state.get_tools_return_location():
+                        self.logger.debug("RESPONSE HANDLER: Navigating back to tools return location: %s", session_state.get_tools_return_location())
+                        xbmc.executebuiltin(f'Container.Update("{session_state.get_tools_return_location()}",replace)')
+                        # Clear the return location after using it
+                        session_state.clear_tools_return_location()
+                    else:
+                        self.logger.warning("RESPONSE HANDLER: No tools return location found for return navigation")
 
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
                 return True

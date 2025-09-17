@@ -87,7 +87,15 @@ class ToolsHandler:
 
             if selected_index < 0:  # Native cancel (back button, ESC, etc.)
                 self.logger.debug("TOOLS DEBUG: Favorites tools cancelled (selected_index: %s)", selected_index)
-                return DialogResponse(success=False)
+                # Check for stored return location and navigate back to it
+                from lib.ui.session_state import get_session_state
+                session_state = get_session_state()
+                if session_state and session_state.get_tools_return_location():
+                    self.logger.debug("TOOLS DEBUG: Returning to stored location: %s", session_state.get_tools_return_location())
+                    return DialogResponse(success=False, navigate_on_failure='return_to_tools_location')
+                else:
+                    self.logger.debug("TOOLS DEBUG: No stored return location, staying in current view")
+                    return DialogResponse(success=False)
 
             # Handle selected option
             if selected_index == 0:  # Scan Favorites
@@ -193,7 +201,15 @@ class ToolsHandler:
 
             if selected_index < 0:  # Native cancel (back button, ESC, etc.)
                 self.logger.debug("TOOLS DEBUG: User list tools cancelled (selected_index: %s)", selected_index)
-                return DialogResponse(success=False)
+                # Check for stored return location and navigate back to it
+                from lib.ui.session_state import get_session_state
+                session_state = get_session_state()
+                if session_state and session_state.get_tools_return_location():
+                    self.logger.debug("TOOLS DEBUG: Returning to stored location: %s", session_state.get_tools_return_location())
+                    return DialogResponse(success=False, navigate_on_failure='return_to_tools_location')
+                else:
+                    self.logger.debug("TOOLS DEBUG: No stored return location, staying in current view")
+                    return DialogResponse(success=False)
 
             # Handle selected option
             if is_search_history:
