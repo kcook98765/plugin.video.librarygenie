@@ -153,7 +153,7 @@ class ToolsHandler:
             if is_search_history:
                 # Special options for search history lists
                 options = [
-                    "[COLOR lightgreen]📋 Move to New List[/COLOR]",
+                    "[COLOR lightgreen]Move to New List[/COLOR]",
                     f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
                     f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]"  # "Delete %s"
                 ]
@@ -1272,9 +1272,9 @@ class ToolsHandler:
 
             # Main lists menu tools - enhanced with search (Kodi Favorites removed as it's now a regular list)
             tools_options = [
-                f"🔍 {L(33000)}",  # Local Movie Search
-                "🔎 Local Episodes Search",  # Local Episodes Search
-                "📊 Search History",
+                f"[COLOR lightblue]{L(33000)}[/COLOR]",  # Local Movie Search
+                "[COLOR lightblue]Local Episodes Search[/COLOR]",  # Local Episodes Search
+                "[COLOR yellow]Search History[/COLOR]",
                 "---",  # Separator
                 "Create New List",
                 "Create New Folder",
@@ -1289,7 +1289,7 @@ class ToolsHandler:
             from lib.remote.ai_search_client import get_ai_search_client
             ai_client = get_ai_search_client()
             if ai_client.is_activated():
-                tools_options.insert(1, f"🤖 {L(34100)}")  # AI Movie Search
+                tools_options.insert(1, f"[COLOR cyan]{L(34100)}[/COLOR]")  # AI Movie Search
 
 
             # Debug logging for lists main tools options
@@ -1307,13 +1307,13 @@ class ToolsHandler:
 
             # Handle main lists menu actions
             selected_option = tools_options[selected_index]
-            if selected_option == f"🔍 {L(33000)}":  # Local Movie Search
+            if selected_option == f"[COLOR lightblue]{L(33000)}[/COLOR]":  # Local Movie Search
                 return self._handle_local_search(context)
             elif selected_option == "🔎 Local Episodes Search":  # Local Episodes Search
                 return self._handle_local_episodes_search(context)
             elif selected_option == f"🤖 {L(34100)}":  # AI Movie Search
                 return self._handle_ai_search(context)
-            elif selected_option == "📊 Search History":
+            elif selected_option == "[COLOR yellow]Search History[/COLOR]":
                 return self._handle_search_history(context)
             elif selected_option == "Create New List":
                 return self._handle_create_list(context)

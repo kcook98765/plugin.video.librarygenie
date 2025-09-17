@@ -53,7 +53,7 @@ class MenuBuilder:
                     breadcrumb_text = breadcrumb_helper.get_breadcrumb_for_tools_label_raw(breadcrumb_path)
                     description_text = breadcrumb_helper.get_breadcrumb_for_tools_description_raw(breadcrumb_path)
                     
-                    tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
+                    tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}")
                     tools_item.setInfo('video', {'plot': description_text})
                     tools_item.setProperty('IsPlayable', 'false')
                     tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})

@@ -57,7 +57,7 @@ class FavoritesHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
             
-            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
+            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}")
             tools_item.setInfo('video', {'plot': description_text + "Tools and options for favorites"})
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
