@@ -48,7 +48,7 @@ class FolderOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             result = self.query_manager.create_folder(folder_name.strip())
@@ -57,7 +57,7 @@ class FolderOperations:
                 if result["error"] == "duplicate_name":
                     message = f"Folder '{folder_name}' already exists" # This string should also be localized
                 else:
-                    message = "Failed to create folder" # This string should also be localized
+                    message = L(37021)  # "Failed to create folder" (red color)
 
                 return DialogResponse(
                     success=False,
@@ -88,7 +88,7 @@ class FolderOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get current folder info
@@ -96,7 +96,7 @@ class FolderOperations:
             if not folder_info:
                 return DialogResponse(
                     success=False,
-                    message="Folder not found" # This string should also be localized
+                    message=L(37020)  # "Folder not found" (red color)
                 )
             folder_name = folder_info.get('name', 'Unnamed Folder')
 
@@ -163,7 +163,7 @@ class FolderOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get current folder info
@@ -171,7 +171,7 @@ class FolderOperations:
             if not folder_info:
                 return DialogResponse(
                     success=False,
-                    message="Folder not found" # This string should also be localized
+                    message=L(37020)  # "Folder not found" (red color)
                 )
 
             # Get new name from user
@@ -223,7 +223,7 @@ class FolderOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get current list info
@@ -303,7 +303,7 @@ class FolderOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get current folder info
@@ -311,7 +311,7 @@ class FolderOperations:
             if not folder_info:
                 return DialogResponse(
                     success=False,
-                    message="Folder not found" # This string should also be localized
+                    message=L(37020)  # "Folder not found" (red color)
                 )
 
             folder_name = folder_info.get('name', 'Unnamed Folder')

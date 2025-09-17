@@ -48,7 +48,7 @@ class ListOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             result = self.query_manager.create_list(list_name.strip())
@@ -57,7 +57,7 @@ class ListOperations:
                 if result["error"] == "duplicate_name":
                     message = f"List '{list_name}' already exists" # This string should also be localized
                 else:
-                    message = "Failed to create list" # This string should also be localized
+                    message = L(30507)  # "Failed to create list" (red color)
 
                 return DialogResponse(
                     success=False,
@@ -88,7 +88,7 @@ class ListOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get current list info
@@ -96,7 +96,7 @@ class ListOperations:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message="List not found" # This string should also be localized
+                    message=L(37019)  # "List not found" (red color)
                 )
             list_name = list_info.get('name', 'Unnamed List')
 
@@ -151,7 +151,7 @@ class ListOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get current list info
@@ -159,7 +159,7 @@ class ListOperations:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message="List not found" # This string should also be localized
+                    message=L(37019)  # "List not found" (red color)
                 )
 
             # Get new name from user
@@ -208,7 +208,7 @@ class ListOperations:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get list and item info
@@ -216,7 +216,7 @@ class ListOperations:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message="List not found" # This string should also be localized
+                    message=L(37019)  # "List not found" (red color)
                 )
 
             # Get item info to show in confirmation - search through list items to find the specific item
@@ -279,7 +279,7 @@ class ListOperations:
                 context.logger.error("Failed to initialize query manager for set_default_list")
                 return DialogResponse(
                     success=False,
-                    message="Database error"
+                    message=L(34306)  # "Database error" (red color)
                 )
 
             # Get all available lists
