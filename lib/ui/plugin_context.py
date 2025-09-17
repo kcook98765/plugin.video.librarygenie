@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 import xbmcaddon
 from lib.utils.kodi_log import get_kodi_logger
 from lib.auth.state import is_authorized
+from lib.ui.localization import L
 
 
 class PluginContext:
@@ -217,7 +218,7 @@ class PluginContext:
 
             # Add Tools & Options for folder
             menu_items.append({
-                'label': f"Tools & Options for '{folder_name}'",
+                'label': f"{L(36000)} for '{folder_name}'",
                 'url': self.build_url('show_tools', list_type='folder', list_id=folder_id),
                 'is_folder': True,
                 'description': "Manage this folder"

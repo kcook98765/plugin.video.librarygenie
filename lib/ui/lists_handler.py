@@ -247,7 +247,7 @@ class ListsHandler:
                 description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, query_manager)
                 
                 menu_items.append({
-                    'label': f"Tools & Options {breadcrumb_text}",
+                    'label': f"{L(36000)} {breadcrumb_text}",
                     'url': context.build_url('show_list_tools', list_type='lists_main'),
                     'is_folder': True,
                     'icon': "DefaultAddonProgram.png",
@@ -256,7 +256,7 @@ class ListsHandler:
 
                 # Add "Create First List" option
                 menu_items.append({
-                    'label': "+ Create Your First List",
+                    'label': f"+ {L(37018)}",
                     'url': context.build_url('create_list_execute'),
                     'is_folder': True,
                     'icon': "DefaultAddSource.png",
@@ -618,7 +618,7 @@ class ListsHandler:
             if not lists_in_folder:
                 renderer = get_listitem_renderer()
                 empty_item = renderer.create_simple_listitem(
-                    title="Folder is empty",  # This string should also be localized
+                    title="Folder is empty",  # TODO: Add L() ID for this
                     description='This folder contains no lists',  # This string should also be localized
                     action='noop'
                 )
@@ -747,7 +747,7 @@ class ListsHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
             
-            tools_item = xbmcgui.ListItem(label=f"Tools & Options {breadcrumb_text}")
+            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
             tools_item.setInfo('video', {'plot': description_text + "Tools and options for this list"})
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -764,7 +764,7 @@ class ListsHandler:
                 context.logger.debug("List is empty")
                 renderer = get_listitem_renderer()
                 empty_item = renderer.create_simple_listitem(
-                    title="List is empty",  # This string should also be localized
+                    title=L(30602),
                     description='This list contains no items',  # This string should also be localized
                     action='noop'
                 )
@@ -935,7 +935,7 @@ class ListsHandler:
             if not search_lists:
                 renderer = get_listitem_renderer()
                 empty_item = renderer.create_simple_listitem(
-                    title="No search history",
+                    title="No search history",  # TODO: Add L() ID for this
                     description='Search results will appear here',
                     action='noop'
                 )
