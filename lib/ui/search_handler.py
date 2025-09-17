@@ -185,11 +185,13 @@ class SearchHandler:
             if not lists:
                 return False
 
-            latest = lists[0]
+            # Find the most recently created list by highest ID (since lists are ordered by name, not creation time)
+            latest = max(lists, key=lambda x: x.get('id', 0))
             list_id = latest.get('id')
             if not list_id:
                 return False
 
+            self._debug(f"Redirecting to most recent search history list ID: {list_id}")
             list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
             xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
             self._end_directory(succeeded=True, update=True)
