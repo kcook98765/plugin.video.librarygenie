@@ -247,7 +247,7 @@ class ListsHandler:
                 description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, query_manager)
                 
                 menu_items.append({
-                    'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
+                    'label': f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}",
                     'url': context.build_url('show_list_tools', list_type='lists_main'),
                     'is_folder': True,
                     'icon': "DefaultAddonProgram.png",
@@ -329,7 +329,7 @@ class ListsHandler:
             breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
 
             menu_items.append({
-                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
+                'label': f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}",
                 'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
@@ -565,7 +565,7 @@ class ListsHandler:
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_folder", {"folder_id": folder_id}, query_manager)
             
             menu_items.append({
-                'label': f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}",
+                'label': f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}",
                 'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id, folder_id=folder_id),
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
@@ -747,7 +747,7 @@ class ListsHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
             
-            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]⚙️ Tools & Options[/COLOR] {breadcrumb_text}")
+            tools_item = xbmcgui.ListItem(label=f"[COLOR yellow]Tools & Options[/COLOR] {breadcrumb_text}")
             tools_item.setInfo('video', {'plot': description_text + "Tools and options for this list"})
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})

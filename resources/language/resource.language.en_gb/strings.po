@@ -2079,3 +2079,66 @@ msgctxt "#35551"
 msgid "Number of items to show per page when Manual mode is selected. Lower values improve performance on older devices."
 msgstr ""
 
+# Context Menu with LG Prefix - Improved Navigation
+msgctxt "#37100"
+msgid "LG Search"
+msgstr ""
+
+msgctxt "#37101"  
+msgid "LG Quick Add"
+msgstr ""
+
+msgctxt "#37102"
+msgid "LG Add to List..."
+msgstr ""
+
+msgctxt "#37103"
+msgid "LG Remove from List"
+msgstr ""
+
+msgctxt "#37104"
+msgid "LG more..."
+msgstr ""
+
+msgctxt "#37105"
+msgid "LG Search/Favorites"
+msgstr ""
+
+# Search Submenu Options
+msgctxt "#37200"
+msgid "Local Movie Search"
+msgstr ""
+
+msgctxt "#37201"
+msgid "Local TV Search"
+msgstr ""
+
+msgctxt "#37202"
+msgid "AI Movie Search"
+msgstr ""
+
+msgctxt "#37203"
+msgid "Search History"
+msgstr ""
+
+msgctxt "#37204"
+msgid "Kodi Favorites"
+msgstr ""
+
+# Context Indicators (ASCII-based)
+msgctxt "#37300"
+msgid "[LibraryGenie]"
+msgstr ""
+
+msgctxt "#37301"
+msgid "[Library]"
+msgstr ""
+
+msgctxt "#37302"
+msgid "[External]"
+msgstr ""
+
+msgctxt "#37303"
+msgid "[In List: %s]"
+msgstr ""
+
