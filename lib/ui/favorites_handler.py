@@ -14,6 +14,7 @@ from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
+from lib.utils.error_handler import create_error_handler
 
 
 class FavoritesHandler:
@@ -21,6 +22,7 @@ class FavoritesHandler:
 
     def __init__(self):
         self.logger = get_kodi_logger('lib.ui.favorites_handler')
+        self.error_handler = create_error_handler('lib.ui.favorites_handler')
 
     def show_favorites_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main Kodi favorites menu"""
@@ -415,31 +417,25 @@ class FavoritesHandler:
                     xbmc.executebuiltin('Container.Refresh')
 
                 if response.message:
-                    import xbmcgui
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
+                    self.error_handler.log_and_notify_success(
+                        f"Favorites scan completed: {response.message}",
                         response.message,
-                        xbmcgui.NOTIFICATION_INFO,
                         5000
                     )
             elif isinstance(response, DialogResponse):
                 # Show error message
-                import xbmcgui
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
+                self.error_handler.log_and_notify_error(
+                    f"Favorites scan failed: {response.message or 'Unknown error'}",
                     response.message or "Scan failed",
-                    xbmcgui.NOTIFICATION_ERROR,
-                    5000
+                    timeout_ms=5000
                 )
 
         except Exception as e:
-            self.logger.error("Error in scan favorites handler: %s", e)
-            import xbmcgui
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Error scanning favorites",
-                xbmcgui.NOTIFICATION_ERROR,
-                3000
+            self.error_handler.handle_exception(
+                "scan favorites handler",
+                e,
+                "scanning favorites",
+                timeout_ms=3000
             )
 
     def handle_save_favorites_as(self, context: PluginContext) -> None:
@@ -448,11 +444,9 @@ class FavoritesHandler:
             response = self.save_favorites_as(context)
 
             if isinstance(response, DialogResponse) and response.success:
-                import xbmcgui
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
+                self.error_handler.log_and_notify_success(
+                    f"Favorites saved as new list: {response.message or 'Success'}",
                     response.message or "Favorites saved as new list",
-                    xbmcgui.NOTIFICATION_INFO,
                     5000
                 )
 
@@ -463,22 +457,18 @@ class FavoritesHandler:
 
             elif isinstance(response, DialogResponse):
                 if response.message:
-                    import xbmcgui
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
+                    self.error_handler.log_and_notify_error(
+                        f"Failed to save favorites as new list: {response.message}",
                         response.message,
-                        xbmcgui.NOTIFICATION_ERROR,
-                        5000
+                        timeout_ms=5000
                     )
 
         except Exception as e:
-            self.logger.error("Error in save favorites as handler: %s", e)
-            import xbmcgui
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Error saving favorites",
-                xbmcgui.NOTIFICATION_ERROR,
-                3000
+            self.error_handler.handle_exception(
+                "save favorites as handler",
+                e,
+                "saving favorites",
+                timeout_ms=3000
             )
 
     def _convert_favorite_to_list_item_data(self, favorite: Dict[str, Any]) -> Dict[str, Any]:

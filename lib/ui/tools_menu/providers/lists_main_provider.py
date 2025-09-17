@@ -16,6 +16,9 @@ from lib.ui.response_types import DialogResponse
 class ListsMainToolsProvider(BaseToolsProvider):
     """Provider for lists main menu tools"""
     
+    def __init__(self):
+        super().__init__()
+    
     def build_tools(self, context: ToolsContext, plugin_context: Any) -> List[ToolAction]:
         """Build main lists tools menu"""
         try:

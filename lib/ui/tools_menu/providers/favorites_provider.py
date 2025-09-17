@@ -16,6 +16,9 @@ from lib.ui.response_types import DialogResponse
 class FavoritesToolsProvider(BaseToolsProvider):
     """Provider for favorites tools"""
     
+    def __init__(self):
+        super().__init__()
+    
     def build_tools(self, context: ToolsContext, plugin_context: Any) -> List[ToolAction]:
         """Build favorites tools menu"""
         return [
@@ -33,30 +36,20 @@ class FavoritesToolsProvider(BaseToolsProvider):
     
     def _handle_scan_favorites(self, plugin_context: Any, payload: dict) -> DialogResponse:
         """Handle scanning favorites"""
-        try:
-            from lib.ui.favorites_handler import FavoritesHandler
+        from lib.ui.favorites_handler import FavoritesHandler
+        
+        def scan_operation():
             favorites_handler = FavoritesHandler()
             return favorites_handler.scan_favorites(plugin_context)
-        except Exception as e:
-            from lib.utils.kodi_log import get_kodi_logger
-            logger = get_kodi_logger('lib.ui.tools_menu.favorites_provider')
-            logger.error("Error handling scan favorites: %s", e)
-            return DialogResponse(
-                success=False,
-                message="Error scanning favorites"
-            )
+            
+        return self._handle_with_error_logging("scan_favorites", scan_operation)
     
     def _handle_save_as_list(self, plugin_context: Any, payload: dict) -> DialogResponse:
         """Handle saving favorites as new list"""
-        try:
-            from lib.ui.favorites_handler import FavoritesHandler
+        from lib.ui.favorites_handler import FavoritesHandler
+        
+        def save_operation():
             favorites_handler = FavoritesHandler()
             return favorites_handler.save_favorites_as(plugin_context)
-        except Exception as e:
-            from lib.utils.kodi_log import get_kodi_logger
-            logger = get_kodi_logger('lib.ui.tools_menu.favorites_provider')
-            logger.error("Error handling save as list: %s", e)
-            return DialogResponse(
-                success=False,
-                message="Error saving as list"
-            )
+            
+        return self._handle_with_error_logging("save_as_list", save_operation)
