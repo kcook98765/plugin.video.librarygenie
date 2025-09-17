@@ -171,7 +171,7 @@ class BreadcrumbHelper:
             return self.format_breadcrumb_for_tools_label(breadcrumb_str)
         except Exception as e:
             self.logger.error("Error generating tools breadcrumb: %s", e)
-            return "[COLOR gray]• Lists[/COLOR]"
+            return "• Lists"
 
     def get_breadcrumb_for_tools_description(self, action: str, context_params: dict, query_manager=None) -> str:
         """Generate breadcrumb text for Tools & Options description integration"""
@@ -198,8 +198,8 @@ class BreadcrumbHelper:
     def format_breadcrumb_for_tools_label(self, breadcrumb_path: str) -> str:
         """Format breadcrumb for Tools & Options label: '• path'"""
         if breadcrumb_path and breadcrumb_path.strip():
-            return f"[COLOR gray]• {breadcrumb_path}[/COLOR]"
-        return "[COLOR gray]• Lists[/COLOR]"
+            return f"• {breadcrumb_path}"
+        return "• Lists"
 
     def format_breadcrumb_for_tools_description(self, breadcrumb_path: str) -> str:
         """Format breadcrumb for Tools & Options description: 'path • '"""
@@ -249,7 +249,7 @@ class BreadcrumbHelper:
             return label, description
         except Exception as e:
             self.logger.error("Error generating formatted tools breadcrumb: %s", e)
-            return "[COLOR gray]• Lists[/COLOR]", "Lists • "
+            return "• Lists", "Lists • "
 
     def get_directory_title_breadcrumb(self, action: str, context_params: dict, query_manager=None, max_length: int = 50) -> str:
         """Get formatted directory title breadcrumb"""
