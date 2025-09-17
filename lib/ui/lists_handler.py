@@ -680,7 +680,10 @@ class ListsHandler:
     def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
         """Display contents of a specific list"""
         try:
-            context.logger.debug("Displaying list %s", list_id)
+            # Add detailed pagination debugging
+            page_param = context.get_param('page', '1')
+            context.logger.debug("🔍 PAGINATION DEBUG: Displaying list %s, page param: %s, all params: %s", 
+                               list_id, page_param, dict(context.params))
 
             # Check for custom parent path to fix navigation from search results
             parent_path = context.get_param('parent_path')
@@ -714,8 +717,12 @@ class ListsHandler:
             from lib.ui.pagination_manager import get_pagination_manager
             pagination_manager = get_pagination_manager()
             
-            # Get total count first for pagination calculation
-            total_items = query_manager.get_list_item_count(list_id)
+            # Get total count first for pagination calculation (convert list_id to int if needed)
+            try:
+                list_id_int = int(list_id)
+                total_items = query_manager.get_list_item_count(list_id_int)
+            except (ValueError, TypeError):
+                total_items = query_manager.get_list_item_count(list_id)
             
             # Calculate pagination
             pagination_info = pagination_manager.calculate_pagination(
@@ -799,6 +806,20 @@ class ListsHandler:
                 # Build base URL for pagination navigation
                 base_url = context.build_url('show_list')
                 url_params = {'list_id': list_id}  # Ensure list_id is preserved in pagination URLs
+                
+                context.logger.debug("🔍 PAGINATION DEBUG: Creating pagination controls with base_url='%s', url_params=%s", 
+                                   base_url, url_params)
+                
+                # Create pagination items first to see the URLs
+                pagination_items = pagination_manager.create_pagination_items(
+                    pagination_info=pagination_info,
+                    base_url=base_url,
+                    url_params=url_params
+                )
+                
+                for item in pagination_items:
+                    context.logger.debug("🔍 PAGINATION DEBUG: Generated pagination URL: %s -> %s", 
+                                       item['title'], item['url'])
                 
                 # Insert pagination controls into list_items
                 list_items = pagination_manager.insert_pagination_items(
