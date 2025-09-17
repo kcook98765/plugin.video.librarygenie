@@ -14,6 +14,11 @@ from lib.ui.listitem_builder import ListItemBuilder
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.localization import L
 from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v21_plus
+from lib.utils.listitem_utils import (
+    ListItemMetadataManager, 
+    ListItemArtManager, 
+    ContextMenuBuilder
+)
 
 
 class ListItemRenderer:
@@ -29,6 +34,11 @@ class ListItemRenderer:
         self.builder = ListItemBuilder(addon_handle, addon_id, context)
         # Alias for compatibility
         self.listitem_builder = self.builder
+        
+        # Initialize consolidated utilities
+        self.metadata_manager = ListItemMetadataManager(addon_id)
+        self.art_manager = ListItemArtManager(addon_id)
+        self.context_menu_builder = ContextMenuBuilder(addon_id)
 
     def _translate_path(self, path: str) -> str:
         """Translate path using Kodi V19+ API"""
@@ -43,37 +53,8 @@ class ListItemRenderer:
         return self._translate_path(os.path.join(base, 'resources', name))
 
     def _apply_art(self, list_item: xbmcgui.ListItem, kind: str):
-        """Apply version-aware art based on folder type"""        
-        try:
-            if kind == 'list':
-                # For "List" folders (user lists)
-                icon_name = 'list_playlist_icon.png'
-                thumb_name = 'list_playlist.jpg'
-            else:
-                # For "Folder" folders (organizational folders)
-                icon_name = 'list_folder_icon.png'
-                thumb_name = 'list_folder.jpg'
-            
-            icon = self._resource_path(icon_name)
-            thumb = self._resource_path(thumb_name)
-            
-            # Apply the art
-            list_item.setArt({
-                'icon': icon,
-                'thumb': thumb
-            })
-            
-        except Exception as e:
-            # Fallback if setArt() fails
-            self.logger.error("Failed to set custom art for %s: %s", kind, e)
-            
-            try:
-                list_item.setArt({
-                    'icon': 'DefaultFolder.png',
-                    'thumb': 'DefaultFolder.png'
-                })
-            except Exception as fallback_error:
-                self.logger.error("Even fallback art failed: %s", fallback_error)
+        """Apply version-aware art based on folder type - CONSOLIDATED"""        
+        self.art_manager.apply_type_specific_art(list_item, kind, self._resource_path)
 
     def render_lists(self, lists: List[Dict[str, Any]], folder_id: Optional[int] = None) -> bool:
         """
@@ -209,38 +190,8 @@ class ListItemRenderer:
             name = list_data.get('name', 'Unnamed List')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info - version-specific approach
-            kodi_major = get_kodi_major_version()
-            if kodi_major >= 21:
-                # v21+: Use InfoTagVideo ONLY - completely avoid setInfo() to prevent deprecation warnings
-                try:
-                    video_info_tag = list_item.getVideoInfoTag()
-                    video_info_tag.setTitle(name)
-                    video_info_tag.setPlot(f"User list: {name}")
-                    self.logger.debug("LIST ITEM v21+: Set metadata via InfoTagVideo for '%s'", name)
-                except Exception as e:
-                    self.logger.error("LIST ITEM v21+: InfoTagVideo failed for '%s': %s", name, e)
-                    # No fallback to setInfo() on v21+ to avoid deprecation warnings
-            elif kodi_major == 20:
-                # v20: Try InfoTagVideo first, fallback to setInfo() if needed
-                try:
-                    video_info_tag = list_item.getVideoInfoTag()
-                    video_info_tag.setTitle(name)
-                    video_info_tag.setPlot(f"User list: {name}")
-                    self.logger.debug("LIST ITEM v20: Set metadata via InfoTagVideo for '%s'", name)
-                except Exception as e:
-                    self.logger.warning("LIST ITEM v20: InfoTagVideo failed for '%s': %s, falling back to setInfo()", name, e)
-                    list_item.setInfo('video', {
-                        'title': name,
-                        'plot': f"User list: {name}"
-                    })
-            else:
-                # v19: Use setInfo() only
-                list_item.setInfo('video', {
-                    'title': name,
-                    'plot': f"User list: {name}"
-                })
-                self.logger.debug("LIST ITEM v19: Set metadata via setInfo for '%s'", name)
+            # Set basic info - CONSOLIDATED
+            self.metadata_manager.set_basic_metadata(list_item, name, f"User list: {name}", "list")
 
             # Set list playlist icon
             self._apply_art(list_item, 'list')
@@ -260,38 +211,8 @@ class ListItemRenderer:
             name = folder_data.get('name', 'Unnamed Folder')
             list_item = xbmcgui.ListItem(label=name)
 
-            # Set basic info - version-specific approach
-            kodi_major = get_kodi_major_version()
-            if kodi_major >= 21:
-                # v21+: Use InfoTagVideo ONLY - completely avoid setInfo() to prevent deprecation warnings
-                try:
-                    video_info_tag = list_item.getVideoInfoTag()
-                    video_info_tag.setTitle(name)
-                    video_info_tag.setPlot(f"Folder: {name}")
-                    self.logger.debug("FOLDER ITEM v21+: Set metadata via InfoTagVideo for '%s'", name)
-                except Exception as e:
-                    self.logger.error("FOLDER ITEM v21+: InfoTagVideo failed for '%s': %s", name, e)
-                    # No fallback to setInfo() on v21+ to avoid deprecation warnings
-            elif kodi_major == 20:
-                # v20: Try InfoTagVideo first, fallback to setInfo() if needed
-                try:
-                    video_info_tag = list_item.getVideoInfoTag()
-                    video_info_tag.setTitle(name)
-                    video_info_tag.setPlot(f"Folder: {name}")
-                    self.logger.debug("FOLDER ITEM v20: Set metadata via InfoTagVideo for '%s'", name)
-                except Exception as e:
-                    self.logger.warning("FOLDER ITEM v20: InfoTagVideo failed for '%s': %s, falling back to setInfo()", name, e)
-                    list_item.setInfo('video', {
-                        'title': name,
-                        'plot': f"Folder: {name}"
-                    })
-            else:
-                # v19: Use setInfo() only
-                list_item.setInfo('video', {
-                    'title': name,
-                    'plot': f"Folder: {name}"
-                })
-                self.logger.debug("FOLDER ITEM v19: Set metadata via setInfo for '%s'", name)
+            # Set basic info - CONSOLIDATED
+            self.metadata_manager.set_basic_metadata(list_item, name, f"Folder: {name}", "folder")
 
             # Set folder icon
             self._apply_art(list_item, 'folder')
@@ -306,105 +227,24 @@ class ListItemRenderer:
             return None
 
     def _set_list_context_menu(self, list_item: xbmcgui.ListItem, list_data: Dict[str, Any]):
-        """Set context menu for list items"""
-        context_items = []
+        """Set context menu for list items - CONSOLIDATED"""
         list_id = list_data.get('id', '')
-
-        # Rename list
-        context_items.append((
-            L(31020),  # "Rename"
-            f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={list_id})"
-        ))
-
-        # Delete list
-        context_items.append((
-            L(31021),  # "Delete"
-            f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={list_id})"
-        ))
-
-        # Export list
-        context_items.append((
-            L(31022),  # "Export"
-            f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={list_id})"
-        ))
-
+        context_items = self.context_menu_builder.build_context_menu(list_id, 'list')
         list_item.addContextMenuItems(context_items)
 
     def _set_folder_context_menu(self, list_item: xbmcgui.ListItem, folder_data: Dict[str, Any]):
-        """Set context menu for folder items"""
-        context_items = []
+        """Set context menu for folder items - CONSOLIDATED"""
         folder_id = folder_data.get('id', '')
         folder_name = folder_data.get('name', '')
-
-        # Don't add rename/delete options for reserved Search History folder
-        if folder_name != "Search History":
-            # Rename folder
-            context_items.append((
-                L(31020),  # "Rename"
-                f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={folder_id})"
-            ))
-
-            # Delete folder
-            context_items.append((
-                L(31021),  # "Delete"
-                f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={folder_id})"
-            ))
-
+        # Check if this is a protected folder (currently only "Search History")
+        is_protected = folder_name == "Search History"
+        context_items = self.context_menu_builder.build_context_menu(folder_id, 'folder', folder_name, is_protected)
         list_item.addContextMenuItems(context_items)
 
     def create_simple_listitem(self, title: str, description: Optional[str] = None, action: Optional[str] = None, icon: Optional[str] = None) -> xbmcgui.ListItem:
-        """Create a simple ListItem for menu items (compatibility method for MenuBuilder)"""
-        try:
-            kodi_major = get_kodi_major_version()
-            list_item = xbmcgui.ListItem(label=title)
-
-            # Set basic info - version-specific approach
-            if kodi_major >= 21:
-                # v21+: Use InfoTagVideo ONLY - completely avoid setInfo() to prevent deprecation warnings
-                try:
-                    video_info_tag = list_item.getVideoInfoTag()
-                    video_info_tag.setTitle(title)
-                    if description:
-                        video_info_tag.setPlot(description)
-                except Exception as e:
-                    self.logger.error("SIMPLE LISTITEM v21+: InfoTagVideo failed for '%s': %s", title, e)
-                    # No fallback to setInfo() on v21+ to avoid deprecation warnings
-            elif kodi_major == 20:
-                # v20: Try InfoTagVideo first, fallback to setInfo() if needed
-                try:
-                    video_info_tag = list_item.getVideoInfoTag()
-                    video_info_tag.setTitle(title)
-                    if description:
-                        video_info_tag.setPlot(description)
-                except Exception as e:
-                    self.logger.warning("SIMPLE LISTITEM v20: InfoTagVideo failed for '%s': %s, falling back to setInfo()", title, e)
-                    info = {'title': title}
-                    if description:
-                        info['plot'] = description
-                    list_item.setInfo('video', info)
-            else:
-                # v19: Use setInfo() only
-                info = {'title': title}
-                if description:
-                    info['plot'] = description
-                list_item.setInfo('video', info)
-
-            # Set icon/artwork
-            art = {}
-            if icon:
-                art['icon'] = icon
-                art['thumb'] = icon
-            else:
-                art['icon'] = 'DefaultFolder.png'
-                art['thumb'] = 'DefaultFolder.png'
-
-            list_item.setArt(art)
-            return list_item
-
-        except Exception as e:
-            self.logger.error("SIMPLE LISTITEM: Failed to create simple listitem for '%s': %s", title, e)
-            # Return basic listitem on error
-            return xbmcgui.ListItem(label=title)
+        """Create a simple ListItem for menu items (compatibility method for MenuBuilder) - CONSOLIDATED"""
+        from lib.utils.listitem_utils import create_simple_listitem
+        return create_simple_listitem(title, description, self.addon_id, False, icon)
 
     def create_movie_listitem(self, item: Dict[str, Any], base_url: str, action: str) -> Optional[xbmcgui.ListItem]:
         """Create a rich ListItem for a movie with proper metadata and artwork"""
