@@ -13,13 +13,6 @@ from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
-from lib.ui.tools_menu import ToolsMenuService, ToolsContext
-from lib.ui.tools_menu.providers import (
-    FavoritesToolsProvider, 
-    UserListToolsProvider,
-    FolderToolsProvider,
-    ListsMainToolsProvider
-)
 
 
 class ToolsHandler:
@@ -27,6 +20,7 @@ class ToolsHandler:
 
     def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_kodi_logger('lib.ui.tools_handler')
+        self.context = context
         try:
             from lib.ui.listitem_builder import ListItemBuilder
             if context:
@@ -39,17 +33,36 @@ class ToolsHandler:
         except ImportError:
             self.listitem_builder = None
             
-        # Initialize centralized tools menu system
-        self.tools_service = ToolsMenuService()
-        self._register_providers()
+        # Tools menu system is lazy loaded on first use for better startup performance
+        self._tools_service = None
+
+    @property
+    def tools_service(self):
+        """Lazy load tools menu system only when tools are actually used"""
+        if self._tools_service is None:
+            self.logger.debug("LAZY LOAD: Loading ToolsMenuService on first use")
+            from lib.ui.tools_menu import ToolsMenuService
+            self._tools_service = ToolsMenuService()
+            self._register_providers()
+        return self._tools_service
 
     def _register_providers(self) -> None:
         """Register tools providers for different contexts"""
         try:
-            self.tools_service.register_provider("favorites", FavoritesToolsProvider())
-            self.tools_service.register_provider("user_list", UserListToolsProvider())
-            self.tools_service.register_provider("folder", FolderToolsProvider())
-            self.tools_service.register_provider("lists_main", ListsMainToolsProvider())
+            from lib.ui.tools_menu.providers import (
+                FavoritesToolsProvider, 
+                UserListToolsProvider,
+                FolderToolsProvider,
+                ListsMainToolsProvider
+            )
+            
+            # Register providers with the tools service
+            # Note: we access _tools_service directly since this method is called from the property
+            service = self._tools_service
+            service.register_provider("favorites", FavoritesToolsProvider())
+            service.register_provider("user_list", UserListToolsProvider())
+            service.register_provider("folder", FolderToolsProvider())
+            service.register_provider("lists_main", ListsMainToolsProvider())
             self.logger.debug("All tools providers registered successfully")
         except Exception as e:
             self.logger.error("Error registering tools providers: %s", e)
@@ -60,6 +73,7 @@ class ToolsHandler:
             self.logger.debug("Showing tools & options for list_type: %s, list_id: %s", list_type, list_id)
 
             # Create tools context
+            from lib.ui.tools_menu import ToolsContext
             tools_context = ToolsContext(
                 list_type=list_type,
                 list_id=list_id,
