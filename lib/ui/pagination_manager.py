@@ -226,13 +226,18 @@ class PaginationManager:
         if not params:
             return base_url
             
-        # Join parameters
-        param_strings = [f"{key}={value}" for key, value in params.items()]
+        # URL encode parameter values to handle special characters
+        import urllib.parse
+        param_strings = [f"{key}={urllib.parse.quote_plus(str(value))}" for key, value in params.items()]
         param_string = "&".join(param_strings)
         
         # Add to base URL
         separator = "&" if "?" in base_url else "?"
-        return f"{base_url}{separator}{param_string}"
+        final_url = f"{base_url}{separator}{param_string}"
+        
+        # Debug logging
+        logger.debug("🔍 URL BUILD: base='%s' + params=%s = '%s'", base_url, params, final_url)
+        return final_url
         
     def get_pagination_status_info(self, pagination_info: PaginationInfo) -> Dict[str, str]:
         """

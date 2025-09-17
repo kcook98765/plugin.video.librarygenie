@@ -735,16 +735,24 @@ class ListsHandler:
             )
             
             # Get list items with pagination
-            context.logger.debug("Getting list items from query_manager for list_id=%s (page %d/%d)", 
+            context.logger.debug("🔍 QUERY DEBUG: Getting list items for list_id=%s (page %d/%d)", 
                                list_id, pagination_info.current_page, pagination_info.total_pages)
+            context.logger.debug("🔍 QUERY DEBUG: Using limit=%d, offset=%d", 
+                               pagination_info.page_size, pagination_info.start_index)
+            
             list_items = query_manager.get_list_items(
                 list_id,
                 limit=pagination_info.page_size,
                 offset=pagination_info.start_index
             )
-            context.logger.debug("Query manager returned %s items (showing %d-%d of %d total)", 
+            
+            context.logger.debug("🔍 QUERY DEBUG: Query returned %s items (expected %d-%d of %d total)", 
                                len(list_items), pagination_info.start_index + 1, 
                                pagination_info.end_index, pagination_info.total_items)
+            
+            if not list_items and pagination_info.current_page > 1:
+                context.logger.error("🔍 QUERY DEBUG: EMPTY RESULT on page %d! This suggests pagination issue.", 
+                                   pagination_info.current_page)
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
@@ -823,6 +831,10 @@ class ListsHandler:
                 for item in pagination_items:
                     context.logger.debug("🔍 PAGINATION DEBUG: Generated pagination URL: %s -> %s", 
                                        item['title'], item['url'])
+                    
+                # Manual URL construction test
+                expected_next_url = f"{base_url}&list_id={list_id}&page=2"
+                context.logger.debug("🔍 PAGINATION DEBUG: Expected next URL should be: %s", expected_next_url)
                 
                 # Insert pagination controls into list_items
                 list_items = pagination_manager.insert_pagination_items(
