@@ -146,6 +146,7 @@ class PaginationManager:
             prev_params = url_params.copy()
             prev_params['page'] = str(pagination_info.current_page - 1)
             prev_url = self._build_url(base_url, prev_params)
+            logger.debug("🔍 PAGINATION URL DEBUG: Previous page URL = '%s'", prev_url)
             
             navigation_items.append({
                 'title': f'← Previous Page ({pagination_info.current_page - 1}/{pagination_info.total_pages})',
@@ -161,6 +162,7 @@ class PaginationManager:
             next_params = url_params.copy()
             next_params['page'] = str(pagination_info.current_page + 1)
             next_url = self._build_url(base_url, next_params)
+            logger.debug("🔍 PAGINATION URL DEBUG: Next page URL = '%s'", next_url)
             
             navigation_items.append({
                 'title': f'Next Page ({pagination_info.current_page + 1}/{pagination_info.total_pages}) →',
