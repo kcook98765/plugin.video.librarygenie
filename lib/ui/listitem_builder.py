@@ -107,20 +107,13 @@ class ListItemBuilder:
             self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
-            # Try to use replaceWindow for pagination navigation (if supported by Kodi version)
-            page_param = self.context.get_param('page')
-            replace_window = page_param is not None  # Replace if ANY page param exists
+            # Use updateListing for pagination to control navigation history
+            current_page = int(self.context.get_param('page', '1'))
+            update_listing = current_page > 1  # Replace current listing for page 2+, create new entry for page 1
             
-            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True)", self.addon_handle)
-            try:
-                # Try with replaceWindow parameter (supported in newer Kodi versions)
-                if replace_window:
-                    xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, replaceWindow=True)
-                else:
-                    xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
-            except TypeError:
-                # Fallback for older Kodi versions that don't support replaceWindow
-                xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
+            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True, updateListing=%s)", 
+                             self.addon_handle, update_listing)
+            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=update_listing)
             
             # Calculate and log complete build time
             build_end_time = time.time()
