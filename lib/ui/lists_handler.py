@@ -717,11 +717,11 @@ class ListsHandler:
             # Get total count first for pagination calculation
             total_items = query_manager.get_list_item_count(list_id)
             
-            # Calculate pagination  
+            # Calculate pagination using settings-based page size
             pagination_info = pagination_manager.calculate_pagination(
                 total_items=total_items,
                 current_page=current_page,
-                base_page_size=25  # Standard page size
+                base_page_size=100  # Base size for auto mode calculation
             )
             
             # Get list items with pagination
