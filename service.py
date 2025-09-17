@@ -823,7 +823,7 @@ class LibraryGenieService:
         log_info("Starting AI search synchronization")
 
         # Show start notification
-        self._show_notification(L(34103))  # "Sync in progress..."
+        self._show_notification(L(94103))  # "Sync in progress..."
 
         try:
             # Test connection first
@@ -831,7 +831,7 @@ class LibraryGenieService:
             if not connection_test.get('success'):
                 error_msg = connection_test.get('error', 'Unknown error')
                 log_warning(f"AI search connection failed: {error_msg}")
-                self._show_notification(f"{L(34105)}: {error_msg}", xbmcgui.NOTIFICATION_ERROR)  # "Sync failed: ..."
+                self._show_notification(f"{L(94105)}: {error_msg}", xbmcgui.NOTIFICATION_ERROR)  # "Sync failed: ..."
                 return
 
             # Get current library version for delta sync (optional - endpoint may not exist)
@@ -864,7 +864,7 @@ class LibraryGenieService:
 
             if not movies_with_imdb:
                 log_info("No movies with IMDb IDs found, skipping sync")
-                self._show_notification(L(30016), xbmcgui.NOTIFICATION_WARNING)  # "No results found" (reusing existing string)
+                self._show_notification(L(90016), xbmcgui.NOTIFICATION_WARNING)  # "No results found" (reusing existing string)
                 return
 
             # Sync in batches with rate limiting
@@ -890,14 +890,14 @@ class LibraryGenieService:
                     # Show progress notification for significant batches
                     if total_batches > 1:
                         self._show_notification(
-                            f"{L(34401)} {batch_num}/{total_batches}",  # "Processing... X/Y"
+                            f"{L(94401)} {batch_num}/{total_batches}",  # "Processing... X/Y"
                             time_ms=3000
                         )
                 else:
                     error_msg = result.get('error', 'Unknown error') if result else 'No response'
                     log_error(f"Batch {batch_num} sync failed: {error_msg}")
                     self._show_notification(
-                        f"{L(34105)}: {error_msg}",  # "Sync failed: ..."
+                        f"{L(94105)}: {error_msg}",  # "Sync failed: ..."
                         xbmcgui.NOTIFICATION_ERROR
                     )
 
@@ -910,14 +910,14 @@ class LibraryGenieService:
 
             # Show completion notification with summary
             self._show_notification(
-                f"{L(34104)} - {len(movies_with_imdb)} movies",  # "Sync completed successfully - X movies"
+                f"{L(94104)} - {len(movies_with_imdb)} movies",  # "Sync completed successfully - X movies"
                 time_ms=8000
             )
 
         except Exception as e:
             log_error(f"AI sync failed: {e}")
             self._show_notification(
-                f"{L(34105)}: {str(e)}",  # "Sync failed: ..."
+                f"{L(94105)}: {str(e)}",  # "Sync failed: ..."
                 xbmcgui.NOTIFICATION_ERROR,
                 time_ms=8000
             )

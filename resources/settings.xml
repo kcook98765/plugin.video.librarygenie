@@ -3,24 +3,24 @@
   <section id="plugin.video.librarygenie">
     
     <!-- BASIC SETTINGS (Level 0) - Essential user preferences -->
-    <category id="general" label="30000" help="">
-      <group id="1" label="30020">
-        <setting id="confirm_destructive_actions" type="boolean" label="30021" help="35501">
+    <category id="general" label="90000" help="">
+      <group id="1" label="90020">
+        <setting id="confirm_destructive_actions" type="boolean" label="90021" help="95501">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="show_missing_indicators" type="boolean" label="30043" help="35503">
+        <setting id="show_missing_indicators" type="boolean" label="90043" help="95503">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="info_hijack_enabled" type="boolean" label="32087" help="35545">
+        <setting id="info_hijack_enabled" type="boolean" label="92087" help="95545">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="search_page_size" type="integer" label="30025" help="35502">
+        <setting id="search_page_size" type="integer" label="90025" help="95502">
           <level>0</level>
           <default>200</default>
           <constraints>
@@ -34,23 +34,23 @@
         </setting>
       </group>
       
-      <group id="2" label="30030">
-        <setting id="sync_movies" type="boolean" label="30034" help="35508">
+      <group id="2" label="90030">
+        <setting id="sync_movies" type="boolean" label="90034" help="95508">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="soft_delete_removed_items" type="boolean" label="30032" help="35506">
+        <setting id="soft_delete_removed_items" type="boolean" label="90032" help="95506">
           <level>1</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="sync_tv_episodes" type="boolean" label="30033" help="35507">
+        <setting id="sync_tv_episodes" type="boolean" label="90033" help="95507">
           <level>1</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="manual_library_sync" type="action" label="30035" help="35509">
+        <setting id="manual_library_sync" type="action" label="90035" help="95509">
           <level>1</level>
           <data>RunScript(plugin.video.librarygenie,manual_library_sync)</data>
           <constraints>
@@ -64,14 +64,14 @@
     </category>
 
     <!-- LISTS SETTINGS (Level 0-1) - List management features -->
-    <category id="lists" label="30200" help="">
-      <group id="3" label="30040">
-        <setting id="quick_add_enabled" type="boolean" label="30042" help="35510">
+    <category id="lists" label="90200" help="">
+      <group id="3" label="90040">
+        <setting id="quick_add_enabled" type="boolean" label="90042" help="95510">
           <level>0</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="set_default_list_action" type="action" label="30041" help="">
+        <setting id="set_default_list_action" type="action" label="90041" help="">
           <level>0</level>
           <dependencies>
             <dependency type="enable" setting="quick_add_enabled" operator="is">true</dependency>
@@ -84,7 +84,7 @@
             <heading>30041</heading>
           </control>
         </setting>
-        <setting id="default_list_display" type="string" label="30045" help="">
+        <setting id="default_list_display" type="string" label="90045" help="">
           <level>0</level>
           <default>None selected</default>
           <dependencies>
@@ -100,13 +100,13 @@
         </setting>
       </group>
       
-      <group id="4" label="30050">
-        <setting id="favorites_integration_enabled" type="boolean" label="30051" help="35511">
+      <group id="4" label="90050">
+        <setting id="favorites_integration_enabled" type="boolean" label="90051" help="95511">
           <level>0</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="show_unmapped_favorites" type="boolean" label="30053" help="35512">
+        <setting id="show_unmapped_favorites" type="boolean" label="90053" help="95512">
           <level>1</level>
           <default>false</default>
           <dependencies>
@@ -114,7 +114,7 @@
           </dependencies>
           <control type="toggle"/>
         </setting>
-        <setting id="favorites_batch_processing" type="boolean" label="30054" help="35513">
+        <setting id="favorites_batch_processing" type="boolean" label="90054" help="95513">
           <level>1</level>
           <default>true</default>
           <dependencies>
@@ -124,8 +124,8 @@
         </setting>
       </group>
       
-      <group id="5" label="30070">
-        <setting id="shortlist_import_action" type="action" label="30071" help="">
+      <group id="5" label="90070">
+        <setting id="shortlist_import_action" type="action" label="90071" help="">
           <level>1</level>
           <data>RunScript(plugin.video.librarygenie,import_shortlist)</data>
           <constraints>
@@ -135,7 +135,7 @@
             <heading>30071</heading>
           </control>
         </setting>
-        <setting id="shortlist_clear_before_import" type="boolean" label="30072" help="35514">
+        <setting id="shortlist_clear_before_import" type="boolean" label="90072" help="95514">
           <level>1</level>
           <default>true</default>
           <control type="toggle"/>
@@ -145,9 +145,9 @@
 
 
     <!-- BACKUP & STORAGE SETTINGS (Level 2) - Advanced backup features -->
-    <category id="backup" label="30500" help="">
-      <group id="7" label="30550">
-        <setting id="export_location" type="path" label="30551" help="35546">
+    <category id="backup" label="90500" help="">
+      <group id="7" label="90550">
+        <setting id="export_location" type="path" label="90551" help="95546">
           <level>2</level>
           <default></default>
           <constraints>
@@ -161,20 +161,20 @@
         </setting>
       </group>
       
-      <group id="8" label="30510">
-        <setting id="backup_enabled" type="boolean" label="30511" help="35525">
+      <group id="8" label="90510">
+        <setting id="backup_enabled" type="boolean" label="90511" help="95525">
           <level>2</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_interval" type="integer" label="30512" help="35526">
+        <setting id="backup_interval" type="integer" label="90512" help="95526">
           <level>2</level>
           <default>0</default>
           <constraints>
             <options>
-              <option label="30562">0</option>
-              <option label="30563">1</option>
-              <option label="30564">2</option>
+              <option label="90562">0</option>
+              <option label="90563">1</option>
+              <option label="90564">2</option>
             </options>
           </constraints>
           <dependencies>
@@ -184,7 +184,7 @@
             <heading>30512</heading>
           </control>
         </setting>
-        <setting id="backup_retention_count" type="integer" label="30513" help="35527">
+        <setting id="backup_retention_count" type="integer" label="90513" help="95527">
           <level>2</level>
           <default>5</default>
           <constraints>
@@ -198,38 +198,38 @@
         </setting>
       </group>
       
-      <group id="9" label="30520">
-        <setting id="backup_include_settings" type="boolean" label="30521" help="35528">
+      <group id="9" label="90520">
+        <setting id="backup_include_settings" type="boolean" label="90521" help="95528">
           <level>2</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_include_non_library" type="boolean" label="30522" help="35529">
+        <setting id="backup_include_non_library" type="boolean" label="90522" help="95529">
           <level>2</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_include_folders" type="boolean" label="30523" help="35530">
+        <setting id="backup_include_folders" type="boolean" label="90523" help="95530">
           <level>2</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
       </group>
       
-      <group id="10" label="30530">
-        <setting id="backup_storage_type" type="integer" label="30531" help="35531">
+      <group id="10" label="90530">
+        <setting id="backup_storage_type" type="integer" label="90531" help="95531">
           <level>2</level>
           <default>0</default>
           <constraints>
             <options>
-              <option label="30565">0</option>
+              <option label="90565">0</option>
             </options>
           </constraints>
           <control type="list" format="integer">
             <heading>30531</heading>
           </control>
         </setting>
-        <setting id="backup_storage_location" type="path" label="30532" help="">
+        <setting id="backup_storage_location" type="path" label="90532" help="">
           <level>2</level>
           <default>special://userdata/addon_data/plugin.video.librarygenie/backups/</default>
           <constraints>
@@ -243,8 +243,8 @@
         </setting>
       </group>
       
-      <group id="11" label="30540">
-        <setting id="backup_manual_action" type="action" label="30542" help="">
+      <group id="11" label="90540">
+        <setting id="backup_manual_action" type="action" label="90542" help="">
           <level>2</level>
           <data>RunScript(plugin.video.librarygenie,manual_backup)</data>
           <constraints>
@@ -254,7 +254,7 @@
             <heading>30542</heading>
           </control>
         </setting>
-        <setting id="backup_restore_action" type="action" label="30543" help="">
+        <setting id="backup_restore_action" type="action" label="90543" help="">
           <level>2</level>
           <data>RunScript(plugin.video.librarygenie,restore_backup)</data>
           <constraints>
@@ -268,9 +268,9 @@
     </category>
 
     <!-- ADVANCED SETTINGS (Level 2) - Performance tuning -->
-    <category id="advanced" label="30300" help="">
-      <group id="12" label="30310">
-        <setting id="jsonrpc_page_size" type="integer" label="30311" help="35535">
+    <category id="advanced" label="90300" help="">
+      <group id="12" label="90310">
+        <setting id="jsonrpc_page_size" type="integer" label="90311" help="95535">
           <level>2</level>
           <default>200</default>
           <constraints>
@@ -282,7 +282,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="jsonrpc_timeout_seconds" type="integer" label="30312" help="35536">
+        <setting id="jsonrpc_timeout_seconds" type="integer" label="90312" help="95536">
           <level>2</level>
           <default>10</default>
           <constraints>
@@ -296,8 +296,8 @@
         </setting>
       </group>
       
-      <group id="13" label="30320">
-        <setting id="db_batch_size" type="integer" label="30321" help="35537">
+      <group id="13" label="90320">
+        <setting id="db_batch_size" type="integer" label="90321" help="95537">
           <level>2</level>
           <default>200</default>
           <constraints>
@@ -309,7 +309,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="db_busy_timeout_ms" type="integer" label="30322" help="35538">
+        <setting id="db_busy_timeout_ms" type="integer" label="90322" help="95538">
           <level>2</level>
           <default>3000</default>
           <constraints>
@@ -323,21 +323,21 @@
         </setting>
       </group>
       
-      <group id="18" label="30330">
-        <setting id="list_pagination_mode" type="integer" label="30331" help="35550">
+      <group id="18" label="90330">
+        <setting id="list_pagination_mode" type="integer" label="90331" help="95550">
           <level>2</level>
           <default>0</default>
           <constraints>
             <options>
-              <option label="30571">0</option>
-              <option label="30572">1</option>
+              <option label="90571">0</option>
+              <option label="90572">1</option>
             </options>
           </constraints>
           <control type="list" format="integer">
             <heading>30331</heading>
           </control>
         </setting>
-        <setting id="list_manual_page_size" type="integer" label="30332" help="35551">
+        <setting id="list_manual_page_size" type="integer" label="90332" help="95551">
           <level>2</level>
           <default>50</default>
           <constraints>
@@ -356,9 +356,9 @@
     </category>
 
     <!-- REMOTE SERVICES SETTINGS (Level 3) - Expert/Debug features -->
-    <category id="remote" label="30400" help="">
-      <group id="14" label="30410">
-        <setting id="ai_search_authorize_action" type="action" label="30435" help="">
+    <category id="remote" label="90400" help="">
+      <group id="14" label="90410">
+        <setting id="ai_search_authorize_action" type="action" label="90435" help="">
           <level>3</level>
           <data>RunScript(plugin.video.librarygenie,authorize_ai_search)</data>
           <constraints>
@@ -368,7 +368,7 @@
             <heading>30435</heading>
           </control>
         </setting>
-        <setting id="remote_server_url" type="string" label="30411" help="35540">
+        <setting id="remote_server_url" type="string" label="90411" help="95540">
           <level>3</level>
           <default></default>
           <dependencies>
@@ -381,12 +381,12 @@
             <heading>30411</heading>
           </control>
         </setting>
-        <setting id="ai_search_activated" type="boolean" label="30423" help="30424">
+        <setting id="ai_search_activated" type="boolean" label="90423" help="90424">
           <level>4</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="ai_search_deactivate_action" type="action" label="30470" help="">
+        <setting id="ai_search_deactivate_action" type="action" label="90470" help="">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
@@ -399,14 +399,14 @@
             <heading>30470</heading>
           </control>
         </setting>
-        <setting id="ai_search_sync_interval" type="integer" label="30425" help="30426">
+        <setting id="ai_search_sync_interval" type="integer" label="90425" help="90426">
           <level>3</level>
           <default>1</default>
           <constraints>
             <options>
-              <option label="30461">0</option>
-              <option label="30462">1</option>
-              <option label="30463">2</option>
+              <option label="90461">0</option>
+              <option label="90462">1</option>
+              <option label="90463">2</option>
             </options>
           </constraints>
           <dependencies>
@@ -416,7 +416,7 @@
             <heading>30425</heading>
           </control>
         </setting>
-        <setting id="ai_search_replace_sync_action" type="action" label="30449" help="">
+        <setting id="ai_search_replace_sync_action" type="action" label="90449" help="">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
@@ -429,7 +429,7 @@
             <heading>30449</heading>
           </control>
         </setting>
-        <setting id="ai_search_regular_sync_action" type="action" label="30464" help="">
+        <setting id="ai_search_regular_sync_action" type="action" label="90464" help="">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
@@ -444,8 +444,8 @@
         </setting>
       </group>
       
-      <group id="15" label="30420">
-        <setting id="device_name" type="string" label="30412" help="35541">
+      <group id="15" label="90420">
+        <setting id="device_name" type="string" label="90412" help="95541">
           <level>3</level>
           <default>Kodi</default>
           <dependencies>
@@ -458,7 +458,7 @@
             <heading>30412</heading>
           </control>
         </setting>
-        <setting id="background_interval_minutes" type="integer" label="30451" help="35543">
+        <setting id="background_interval_minutes" type="integer" label="90451" help="95543">
           <level>3</level>
           <default>5</default>
           <dependencies>
@@ -472,7 +472,7 @@
             <heading>30451</heading>
           </control>
         </setting>
-        <setting id="background_token_refresh" type="boolean" label="32086" help="35544">
+        <setting id="background_token_refresh" type="boolean" label="92086" help="95544">
           <level>3</level>
           <default>true</default>
           <dependencies>
@@ -484,9 +484,9 @@
     </category>
 
     <!-- UI SETTINGS (Level 0) - Interface customization -->
-    <category id="ui" label="30020" help="">
-      <group id="16" label="30020">
-        <setting id="enable_colorized_labels" type="boolean" label="30180" help="35020">
+    <category id="ui" label="90020" help="">
+      <group id="16" label="90020">
+        <setting id="enable_colorized_labels" type="boolean" label="90180" help="95020">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
