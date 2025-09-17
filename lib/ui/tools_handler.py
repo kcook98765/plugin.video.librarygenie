@@ -13,6 +13,13 @@ from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.tools_menu import ToolsMenuService, ToolsContext
+from lib.ui.tools_menu.providers import (
+    FavoritesToolsProvider, 
+    UserListToolsProvider,
+    FolderToolsProvider,
+    ListsMainToolsProvider
+)
 
 
 class ToolsHandler:
@@ -31,32 +38,64 @@ class ToolsHandler:
                 self.listitem_builder = None
         except ImportError:
             self.listitem_builder = None
+            
+        # Initialize centralized tools menu system
+        self.tools_service = ToolsMenuService()
+        self._register_providers()
+
+    def _register_providers(self) -> None:
+        """Register tools providers for different contexts"""
+        try:
+            self.tools_service.register_provider("favorites", FavoritesToolsProvider())
+            self.tools_service.register_provider("user_list", UserListToolsProvider())
+            self.tools_service.register_provider("folder", FolderToolsProvider())
+            self.tools_service.register_provider("lists_main", ListsMainToolsProvider())
+            self.logger.debug("All tools providers registered successfully")
+        except Exception as e:
+            self.logger.error("Error registering tools providers: %s", e)
 
     def show_list_tools(self, context: PluginContext, list_type: str, list_id: Optional[str] = None) -> DialogResponse:
-        """Show tools & options modal for different list types"""
+        """Show tools & options modal for different list types using centralized system"""
         try:
             self.logger.debug("Showing tools & options for list_type: %s, list_id: %s", list_type, list_id)
 
-            if list_type == "favorites":
-                return self._show_favorites_tools(context)
-            elif list_type == "user_list" and list_id:
-                return self._show_user_list_tools(context, list_id)
-            elif list_type == "folder" and list_id:
-                return self._show_folder_tools(context, list_id)
-            elif list_type == "lists_main":
-                return self._show_lists_main_tools(context)
-            else:
+            # Create tools context
+            tools_context = ToolsContext(
+                list_type=list_type,
+                list_id=list_id,
+                folder_id=list_id if list_type == "folder" else None
+            )
+            
+            # Build menu actions using centralized system
+            actions = self.tools_service.build_menu(tools_context, context)
+            if not actions:
                 return DialogResponse(
                     success=False,
                     message=L(30504)  # "Operation failed"
                 )
+            
+            # Determine appropriate title based on context
+            title = self._get_tools_title(list_type)
+            
+            # Show centralized tools menu
+            return self.tools_service.show_menu(title, actions, context)
 
         except Exception as e:
             self.logger.error("Error showing list tools: %s", e)
             return DialogResponse(
                 success=False,
-                message=context.addon.getLocalizedString(30504)  # "Operation failed"
+                message=L(30504)  # "Operation failed"
             )
+    
+    def _get_tools_title(self, list_type: str) -> str:
+        """Get appropriate title for tools menu based on context"""
+        titles = {
+            "favorites": L(36013),  # "Favorites Tools & Options"
+            "user_list": L(36014),  # "List Tools & Options"
+            "folder": L(36015),     # "Folder Tools & Options"
+            "lists_main": "Tools & Options"  # TODO: Add to localization
+        }
+        return titles.get(list_type, "Tools & Options")
 
     def _show_favorites_tools(self, context: PluginContext) -> DialogResponse:
         """Show tools specific to Kodi favorites"""

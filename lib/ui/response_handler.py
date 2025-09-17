@@ -312,7 +312,8 @@ class ResponseHandler:
         """
         try:
             if isinstance(response, DialogResponse):
-                return self.handle_dialog_response(response, context)
+                self.handle_dialog_response(response, context)
+                return True
             elif isinstance(response, DirectoryResponse):
                 return self.handle_directory_response(response, context)
             else:
@@ -380,15 +381,27 @@ class ResponseHandler:
             # Handle navigation based on response flags - don't continue processing after navigation
             if response.navigate_to_main:
                 self.logger.debug("RESPONSE HANDLER: Navigating to main menu")
-                context.navigate_to_main_menu()
+                from lib.ui.session_state import get_session_state
+                session_state = get_session_state()
+                session_state.bump_refresh_token()
+                main_url = context.build_cache_busted_url("main_menu")
+                xbmc.executebuiltin(f'Container.Update("{main_url}",replace)')
                 return
             elif response.navigate_to_lists:
                 self.logger.debug("RESPONSE HANDLER: Navigating to lists menu")
-                context.navigate_to_lists_menu()
+                from lib.ui.session_state import get_session_state
+                session_state = get_session_state()
+                session_state.bump_refresh_token()
+                lists_url = context.build_cache_busted_url("lists")
+                xbmc.executebuiltin(f'Container.Update("{lists_url}",replace)')
                 return
             elif response.navigate_to_folder:
                 self.logger.debug("RESPONSE HANDLER: Navigating to folder: %s", response.navigate_to_folder)
-                context.navigate_to_folder(response.navigate_to_folder)
+                from lib.ui.session_state import get_session_state
+                session_state = get_session_state()
+                session_state.bump_refresh_token()
+                folder_url = context.build_cache_busted_url("show_folder", folder_id=response.navigate_to_folder)
+                xbmc.executebuiltin(f'Container.Update("{folder_url}",replace)')
                 return
             elif response.refresh_needed:
                 self.logger.debug("RESPONSE HANDLER: Refreshing current container")
