@@ -107,9 +107,10 @@ class ListItemBuilder:
             self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
-            # Use replaceWindow=True for pagination pages (page > 1) to improve back navigation UX
-            current_page = int(self.context.get_param('page', '1'))
-            replace_window = current_page > 1  # Replace in history for pagination pages
+            # Use replaceWindow=True for ANY pagination navigation to improve back navigation UX
+            # Only direct list access (no page param) should use normal history
+            page_param = self.context.get_param('page')
+            replace_window = page_param is not None  # Replace if ANY page param exists (even page=1 via pagination)
             
             self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True, replaceWindow=%s)", 
                              self.addon_handle, replace_window)
