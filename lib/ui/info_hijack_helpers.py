@@ -122,15 +122,43 @@ def _wait_for_info_dialog(timeout=10.0):
     return False
 
 def verify_list_focus() -> bool:
-    """Simple check if we're in a list view using Container.Viewmode"""
+    """Check if focus is actually on a content item (not parent dir) and in a list view"""
     try:
+        # Get detailed focus information for debugging
         view_mode = get_cached_info("Container.Viewmode").lower().strip()
+        current_item_label = get_cached_info("Container.ListItem().Label")
+        current_item_index = get_cached_info("Container.CurrentItem")
+        num_items = get_cached_info("Container.NumItems") 
+        current_window = get_cached_info("System.CurrentWindow")
+        current_control = get_cached_info("System.CurrentControlId")
+        container_path = get_cached_info("Container.FolderPath")
         
+        # Comprehensive debug output to see what the system thinks is focused
+        _log("verify_list_focus DEBUG - Focus state analysis:", xbmc.LOGDEBUG)
+        _log("  Current window: %s", xbmc.LOGDEBUG, current_window)
+        _log("  Current control: %s", xbmc.LOGDEBUG, current_control) 
+        _log("  Container path: %s", xbmc.LOGDEBUG, container_path)
+        _log("  View mode: '%s'", xbmc.LOGDEBUG, view_mode)
+        _log("  Focused item label: '%s'", xbmc.LOGDEBUG, current_item_label)
+        _log("  Current item index: %s", xbmc.LOGDEBUG, current_item_index)
+        _log("  Total items in container: %s", xbmc.LOGDEBUG, num_items)
+        
+        # First check: Are we actually focused on a content item (not parent "..")?
+        if current_item_label == ".." or current_item_label.strip() == "..":
+            _log("verify_list_focus: FAILED - Focus is on parent directory item '..' - need to navigate to content", xbmc.LOGDEBUG)
+            return False
+            
+        # Second check: Do we have a meaningful focused item?
+        if not current_item_label or current_item_label.strip() == "":
+            _log("verify_list_focus: FAILED - No focused item label detected", xbmc.LOGDEBUG)
+            return False
+            
+        # Third check: Are we in a recognizable list view?
         if not view_mode:
-            _log("No viewmode detected - assuming we're in a list view")
+            _log("verify_list_focus: WARNING - No viewmode detected, but we have focused content item '%s' - assuming valid", xbmc.LOGDEBUG, current_item_label)
             return True
             
-        # Define view types
+        # Define view types  
         VERTICAL_VIEWS = {"list", "widelist", "lowlist", "bannerlist", "biglist", 
                          "infolist", "detaillist", "episodes", "songs"}
         HORIZONTAL_VIEWS = {"wall", "poster", "panel", "thumbs", "iconwall", "fanart",
@@ -140,12 +168,17 @@ def verify_list_focus() -> bool:
         in_list_view = (view_mode in VERTICAL_VIEWS or view_mode in HORIZONTAL_VIEWS or
                        any(v in view_mode for v in VERTICAL_VIEWS | HORIZONTAL_VIEWS))
         
-        _log("verify_list_focus: viewmode='%s', in_list_view=%s", xbmc.LOGDEBUG, view_mode, in_list_view)
-        return in_list_view
+        if not in_list_view:
+            _log("verify_list_focus: FAILED - Unknown viewmode '%s', may not be a standard list view", xbmc.LOGDEBUG, view_mode)
+            return False
+            
+        # All checks passed - we're focused on actual content in a list view
+        _log("verify_list_focus: SUCCESS - Focused on content item '%s' in %s view", xbmc.LOGDEBUG, current_item_label, view_mode)
+        return True
         
     except Exception as e:
-        _log("Error in verify_list_focus: %s - assuming we're in a list view", xbmc.LOGWARNING, e)
-        return True
+        _log("Error in verify_list_focus: %s - defaulting to FALSE for safety", xbmc.LOGWARNING, e)
+        return False
 
 def _capture_navigation_state() -> dict:
     """Capture current navigation state for safe testing"""
