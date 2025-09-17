@@ -76,9 +76,7 @@ class ToolsHandler:
                 # Refresh operations
                 scan_option,
                 # Additive operations
-                f"[COLOR lightgreen]{L(36002)}[/COLOR]",  # "Save As New List"
-                # Cancel
-                f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                f"[COLOR lightgreen]{L(36002)}[/COLOR]"  # "Save As New List"
             ]
 
             # Show selection dialog
@@ -87,7 +85,7 @@ class ToolsHandler:
 
             self.logger.debug("TOOLS DEBUG: User selected option %s from favorites tools dialog", selected_index)
 
-            if selected_index < 0 or selected_index == 2:  # Cancel
+            if selected_index < 0:  # Native cancel (back button, ESC, etc.)
                 self.logger.debug("TOOLS DEBUG: Favorites tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 
@@ -157,8 +155,7 @@ class ToolsHandler:
                 options = [
                     "[COLOR lightgreen]📋 Move to New List[/COLOR]",
                     f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
-                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]",  # "Delete %s"
-                    f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]"  # "Delete %s"
                 ]
 
                 # Debug logging for search history list tools options
@@ -166,8 +163,7 @@ class ToolsHandler:
             elif is_kodi_favorites:
                 # Special options for Kodi Favorites - limited to copy only, no modifications
                 options = [
-                    f"[COLOR lightgreen]{L(36002)}[/COLOR]",  # "Save As New List"
-                    f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                    f"[COLOR lightgreen]{L(36002)}[/COLOR]"  # "Save As New List"
                 ]
 
                 # Debug logging for Kodi Favorites list tools options
@@ -183,9 +179,7 @@ class ToolsHandler:
                     # Export operations
                     f"[COLOR white]{L(36053).replace('%s', short_name)}[/COLOR]",  # "Export %s"
                     # Destructive operations
-                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]",  # "Delete %s"
-                    # Cancel
-                    f"[COLOR gray]{L(36003)}[/COLOR]"  # "Cancel"
+                    f"[COLOR red]{L(36054).replace('%s', short_name)}[/COLOR]"  # "Delete %s"
                 ]
 
                 # Debug logging for standard list tools options
@@ -197,13 +191,13 @@ class ToolsHandler:
 
             self.logger.debug("TOOLS DEBUG: User selected option %s from user list tools dialog (is_search_history: %s, is_kodi_favorites: %s)", selected_index, is_search_history, is_kodi_favorites)
 
-            if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
+            if selected_index < 0:  # Native cancel (back button, ESC, etc.)
                 self.logger.debug("TOOLS DEBUG: User list tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 
             # Handle selected option
             if is_search_history:
-                # Search history list: Move(0), Export(1), Delete(2), Cancel(3)
+                # Search history list: Move(0), Export(1), Delete(2)
                 if selected_index == 0:  # Move to new list
                     return self._copy_search_history_to_list(context, list_id)
                 elif selected_index == 1:  # Export
@@ -227,13 +221,13 @@ class ToolsHandler:
 
                     return result
             elif is_kodi_favorites:
-                # Kodi Favorites list: Save As New List(0), Cancel(1)
+                # Kodi Favorites list: Save As New List(0)
                 if selected_index == 0:  # Save As New List
                     from lib.ui.favorites_handler import FavoritesHandler
                     favorites_handler = FavoritesHandler()
                     return favorites_handler.save_favorites_as(context)
             else:
-                # Standard list: Merge(0), Rename(1), Move(2), Export(3), Delete(4), Cancel(5)
+                # Standard list: Merge(0), Rename(1), Move(2), Export(3), Delete(4)
                 if selected_index == 0:  # Merge lists
                     return self._merge_lists(context, list_id)
                 elif selected_index == 1:  # Rename
@@ -327,8 +321,7 @@ class ToolsHandler:
                 # Debug logging for standard folder
                 self.logger.debug("TOOLS DEBUG: Added standard options for folder '%s'", folder_info['name'])
 
-            # Cancel
-            options.append(f"[COLOR gray]{L(36003)}[/COLOR]")  # "Cancel"
+            # No explicit cancel needed - native cancellation via back button/ESC available
 
             # Debug logging for final folder tools options
             self.logger.debug("TOOLS DEBUG: Built %s options for folder '%s' (reserved: %s):", len(options), folder_info['name'], is_reserved)
@@ -339,19 +332,19 @@ class ToolsHandler:
 
             self.logger.debug("TOOLS DEBUG: User selected option %s from folder tools dialog (is_reserved: %s)", selected_index, is_reserved)
 
-            if selected_index < 0 or selected_index == len(options) - 1:  # Cancel
+            if selected_index < 0:  # Native cancel (back button, ESC, etc.)
                 self.logger.debug("TOOLS DEBUG: Folder tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 
             # Handle selected option - calculate indices based on reserved status
             if is_reserved:
-                # Search History folder: Export(0), Clear All(1), Cancel(2)
+                # Search History folder: Export(0), Clear All(1)
                 if selected_index == 0:  # Export
                     return self._export_folder_lists(context, folder_id)
                 elif selected_index == 1:  # Clear all search history
                     return self._clear_search_history_folder(context, folder_id)
             else:
-                # Regular folder: Create List(0), Create Subfolder(1), Rename(2), Move(3), Export(4), Delete(5), Cancel(6)
+                # Regular folder: Create List(0), Create Subfolder(1), Rename(2), Move(3), Export(4), Delete(5)
                 if selected_index == 0:  # Create new list
                     return self._create_list_in_folder(context, folder_id)
                 elif selected_index == 1:  # Create subfolder
@@ -1308,7 +1301,7 @@ class ToolsHandler:
 
             self.logger.debug("TOOLS DEBUG: User selected option %s from lists main tools dialog", selected_index)
 
-            if selected_index < 0 or selected_index == len(tools_options) - 1:  # Cancel
+            if selected_index < 0:  # Native cancel (back button, ESC, etc.)
                 self.logger.debug("TOOLS DEBUG: Lists main tools cancelled (selected_index: %s)", selected_index)
                 return DialogResponse(success=False)
 

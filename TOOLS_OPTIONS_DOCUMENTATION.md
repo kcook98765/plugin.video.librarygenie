@@ -14,7 +14,8 @@ Every Tools & Options dialog is organized by operation type with color-coded opt
 - **🟡 Modification Operations** (yellow) 
 - **⚪ Export/Information Operations** (white)
 - **🔴 Destructive Operations** (red)
-- **🔘 Cancel** (gray)
+
+**Note**: Native cancellation is available via back button, ESC key, or other native Kodi cancel gestures.
 
 ## Context Detection System
 
@@ -33,8 +34,7 @@ The Tools & Options system activates based on `list_type` parameter:
 
 **Available Actions:**
 - **🟢 Scan Favorites** (with timestamp display)
-- **🟢 Save As New List** 
-- **🔘 Cancel**
+- **🟢 Save As New List**
 
 **Action Details:**
 - **Scan Favorites**: Refreshes mapping between Kodi favorites and library items
@@ -63,7 +63,6 @@ The Tools & Options system activates based on `list_type` parameter:
 - **🟡 Move [ListName] to Folder** - Relocate to different folder
 - **⚪ Export [ListName]** - Export list data
 - **🔴 Delete [ListName]** - Remove list entirely
-- **🔘 Cancel**
 
 **Action Details:**
 
@@ -103,7 +102,6 @@ The Tools & Options system activates based on `list_type` parameter:
 - **🟢 Copy to New List** - Convert search results to regular list
 - **⚪ Export [SearchName]** - Export search results
 - **🔴 Delete [SearchName]** - Remove search history entry
-- **🔘 Cancel**
 
 **Action Details:**
 
@@ -131,7 +129,6 @@ The Tools & Options system activates based on `list_type` parameter:
 - **🟡 Move '[FolderName]' to Parent Folder** - Relocate folder
 - **⚪ Export All Lists in '[FolderName]'** - Bulk export
 - **🔴 Delete '[FolderName]'** - Remove folder and contents
-- **🔘 Cancel**
 
 **Action Details:**
 
@@ -173,7 +170,6 @@ The Tools & Options system activates based on `list_type` parameter:
 **Available Actions:**
 - **⚪ Export All Lists in 'Search History'** - Bulk export search results
 - **🟡 Clear All Search History** - Remove all search history lists
-- **🔘 Cancel**
 
 **Action Details:**
 
@@ -203,7 +199,6 @@ The Tools & Options system activates based on `list_type` parameter:
 - **🟡 Force Library Rescan** - Refresh library data
 - **🟡 Clear Search History** - Remove all search data
 - **🟡 Reset Preferences** - Reset user settings
-- **🔘 Cancel**
 
 **Action Details:**
 
@@ -267,7 +262,6 @@ The Tools & Options system activates based on `list_type` parameter:
 - **Yellow**: Modification operations that change existing content
 - **White**: Information/export operations that don't modify data
 - **Red**: Destructive operations requiring confirmation
-- **Gray**: Cancel/exit options
 
 ### Name Display Logic
 For context menus, long names are shortened for readability:
@@ -313,7 +307,7 @@ Different actions set specific navigation flags:
 - **Destructive Operations**: Always require explicit confirmation
 - **Bulk Operations**: Show counts and scope before execution
 - **Irreversible Actions**: Clear warning about permanence
-- **Cancel Options**: Always provide escape mechanism
+- **Native Cancellation**: Always available via back button, ESC key, or other native Kodi cancel gestures
 
 ### Error Recovery
 - **Graceful Degradation**: Continue operation if non-critical errors
