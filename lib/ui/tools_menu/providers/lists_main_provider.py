@@ -109,7 +109,7 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._create_list_in_root(plugin_context)
+            return tools_handler._handle_create_list(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
@@ -133,7 +133,7 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._handle_import(plugin_context)
+            return tools_handler._handle_import_lists(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
@@ -145,7 +145,7 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._handle_export_all(plugin_context)
+            return tools_handler._handle_export_all_lists(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
@@ -157,7 +157,7 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._handle_backup(plugin_context)
+            return tools_handler._handle_create_backup(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
@@ -169,7 +169,7 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._handle_restore(plugin_context)
+            return tools_handler._handle_restore_backup_from_tools(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
@@ -181,7 +181,7 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._handle_settings(plugin_context)
+            return tools_handler._handle_open_settings(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
