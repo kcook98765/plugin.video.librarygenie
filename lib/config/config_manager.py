@@ -560,6 +560,28 @@ class ConfigManager:
         except Exception:
             return False
 
+    def ensure_colorization_setting_migrated(self):
+        """One-time migration to fix enable_colorized_labels setting if cached incorrectly"""
+        try:
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.config.config_manager')
+            
+            # Check if setting is currently empty string (indicating the bug)
+            str_value = self._addon.getSettingString('enable_colorized_labels')
+            if str_value == '':
+                # Reset to default value and clear cache
+                default_value = self._defaults.get('enable_colorized_labels', True)
+                self._addon.setSettingBool('enable_colorized_labels', default_value)
+                self.invalidate('enable_colorized_labels')
+                logger.info("Migrated enable_colorized_labels setting to default value: %s", default_value)
+                return True
+            return False
+        except Exception as e:
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.config.config_manager')
+            logger.warning("Failed to migrate enable_colorized_labels setting: %s", e)
+            return False
+
     def get_backup_preferences(self) -> Dict[str, Any]:
         """Get backup-related preferences with defaults"""
         return {
