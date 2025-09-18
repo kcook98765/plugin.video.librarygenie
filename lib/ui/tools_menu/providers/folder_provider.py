@@ -40,13 +40,13 @@ class FolderToolsProvider(BaseToolsProvider):
                 return [
                     self._create_action(
                         action_id="export_folder",
-                        label=L(96012).replace('%s', folder_name),  # "Export All Lists in '%s'"
+                        label=L(36012).replace('%s', folder_name),  # "Export All Lists in '%s'"
                         handler=self._handle_export_folder,
                         payload={"folder_id": context.folder_id}
                     ),
                     self._create_action(
                         action_id="clear_search_history",
-                        label=L(97023),  # "Clear All Search History"
+                        label=L(37023),  # "Clear All Search History"
                         handler=self._handle_clear_search_history,
                         payload={"folder_id": context.folder_id},
                         needs_confirmation=ConfirmSpec(
@@ -61,13 +61,13 @@ class FolderToolsProvider(BaseToolsProvider):
                     # Creation operations
                     self._create_action(
                         action_id="create_list",
-                        label=L(96009).replace('%s', folder_name),  # "Create New List in '%s'"
+                        label=L(36009).replace('%s', folder_name),  # "Create New List in '%s'"
                         handler=self._handle_create_list,
                         payload={"folder_id": context.folder_id}
                     ),
                     self._create_action(
                         action_id="create_subfolder",
-                        label=L(96010).replace('%s', folder_name),  # "Create New Subfolder in '%s'"
+                        label=L(36010).replace('%s', folder_name),  # "Create New Subfolder in '%s'"
                         handler=self._handle_create_subfolder,
                         payload={"folder_id": context.folder_id}
                     ),
@@ -75,13 +75,13 @@ class FolderToolsProvider(BaseToolsProvider):
                     # Management operations
                     self._create_action(
                         action_id="rename_folder",
-                        label=L(96005).replace('%s', folder_name),  # "Rename '%s'"
+                        label=L(36005).replace('%s', folder_name),  # "Rename '%s'"
                         handler=self._handle_rename_folder,
                         payload={"folder_id": context.folder_id}
                     ),
                     self._create_action(
                         action_id="move_folder", 
-                        label=L(96011).replace('%s', folder_name),  # "Move '%s' to Folder"
+                        label=L(36011).replace('%s', folder_name),  # "Move '%s' to Folder"
                         handler=self._handle_move_folder,
                         payload={"folder_id": context.folder_id}
                     ),
@@ -89,7 +89,7 @@ class FolderToolsProvider(BaseToolsProvider):
                     # Export operations
                     self._create_action(
                         action_id="export_folder",
-                        label=L(96012).replace('%s', folder_name),  # "Export All Lists in '%s'"
+                        label=L(36012).replace('%s', folder_name),  # "Export All Lists in '%s'"
                         handler=self._handle_export_folder,
                         payload={"folder_id": context.folder_id}
                     ),
@@ -97,7 +97,7 @@ class FolderToolsProvider(BaseToolsProvider):
                     # Destructive operations
                     self._create_action(
                         action_id="delete_folder",
-                        label=L(96008).replace('%s', folder_name),  # "Delete '%s'"
+                        label=L(36008).replace('%s', folder_name),  # "Delete '%s'"
                         handler=self._handle_delete_folder,
                         payload={"folder_id": context.folder_id},
                         needs_confirmation=ConfirmSpec(
