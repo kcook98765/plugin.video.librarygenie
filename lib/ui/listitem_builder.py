@@ -305,9 +305,9 @@ class ListItemBuilder:
             self._set_enhanced_episode_formatting(li, item, display_label, is_episode)
 
             # Handle metadata setting based on Kodi version - CONSOLIDATED
-            plot_text = item.get('plot', '')
+            # For library items, use comprehensive metadata to ensure V19 gets all fields like the old method
             metadata_title = display_label if is_episode else title
-            self.metadata_manager.set_basic_metadata(li, metadata_title, plot_text, "video")
+            self.metadata_manager.set_comprehensive_metadata(li, item, title_override=metadata_title)
             
             # Handle DB linking for library items
             kodi_major = get_kodi_major_version()
