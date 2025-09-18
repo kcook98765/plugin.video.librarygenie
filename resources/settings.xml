@@ -20,7 +20,7 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="search_page_size" type="integer" label="30025" help="35502">
+        <setting id="search_page_size" type="integer" label="30025" help="35552">
           <level>0</level>
           <default>200</default>
           <constraints>

@@ -2099,6 +2099,10 @@ msgctxt "#35551"
 msgid "Number of items to show per page when Manual mode is selected. Lower values improve performance on older devices."
 msgstr ""
 
+msgctxt "#35552"
+msgid "Controls how many search results are displayed per page. Lower values load faster, higher values show more results at once."
+msgstr ""
+
 # Context Menu with LG Prefix - Improved Navigation
 msgctxt "#37100"
 msgid "LG Search"
