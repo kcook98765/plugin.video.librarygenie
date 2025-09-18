@@ -262,7 +262,7 @@ class ListItemMetadataManager:
                         info['genre'] = ', '.join(genre_list) if isinstance(genre_list, list) else item_data['genre']
                     else:
                         # Handle as regular string
-                        info['genre'] = item_data['genre']
+                        info['genre'] = str(item_data['genre'])
                 except (json.JSONDecodeError, ValueError):
                     # Fallback for malformed JSON
                     info['genre'] = item_data['genre']
@@ -303,7 +303,7 @@ class ListItemMetadataManager:
                         info['director'] = ', '.join(director_list) if isinstance(director_list, list) else item_data['director']
                     else:
                         # Handle as regular string
-                        info['director'] = item_data['director']
+                        info['director'] = str(item_data['director'])
                 except (json.JSONDecodeError, ValueError):
                     # Fallback for malformed JSON
                     info['director'] = item_data['director']
