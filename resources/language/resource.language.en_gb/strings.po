@@ -1725,7 +1725,7 @@ msgid "Please configure the Remote API Base URL in addon settings before authori
 msgstr ""
 
 msgctxt "#37022"
-msgid "Could not contact server:"
+msgid "Move to New List"
 msgstr ""
 
 msgctxt "#37023"
