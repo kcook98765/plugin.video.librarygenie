@@ -144,6 +144,39 @@ class ListItemMetadataManager:
             if item_data.get('genre'):
                 video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
             
+            if item_data.get('votes'):
+                try:
+                    video_info_tag.setVotes(int(item_data['votes']))
+                except (ValueError, TypeError):
+                    pass
+                    
+            if item_data.get('duration'):
+                try:
+                    video_info_tag.setDuration(int(item_data['duration']))
+                except (ValueError, TypeError):
+                    pass
+                    
+            if item_data.get('mpaa'):
+                video_info_tag.setMpaa(item_data['mpaa'])
+                
+            if item_data.get('director'):
+                video_info_tag.setDirectors([item_data['director']] if isinstance(item_data['director'], str) else item_data['director'])
+                
+            if item_data.get('studio'):
+                video_info_tag.setStudios([item_data['studio']] if isinstance(item_data['studio'], str) else item_data['studio'])
+                
+            if item_data.get('country'):
+                video_info_tag.setCountries([item_data['country']] if isinstance(item_data['country'], str) else item_data['country'])
+                
+            if item_data.get('writer'):
+                video_info_tag.setWriters([item_data['writer']] if isinstance(item_data['writer'], str) else item_data['writer'])
+                
+            if item_data.get('imdbnumber'):
+                video_info_tag.setIMDbNumber(item_data['imdbnumber'])
+                
+            if item_data.get('tmdb_id'):
+                video_info_tag.setUniqueId(str(item_data['tmdb_id']), 'tmdb')
+            
             # Episode-specific fields
             if item_data.get('media_type') == 'episode':
                 if item_data.get('tvshowtitle'):
@@ -152,6 +185,8 @@ class ListItemMetadataManager:
                     video_info_tag.setSeason(int(item_data['season']))
                 if item_data.get('episode') is not None:
                     video_info_tag.setEpisode(int(item_data['episode']))
+                if item_data.get('aired'):
+                    video_info_tag.setFirstAired(item_data['aired'])
             
             self.logger.debug("METADATA: Set comprehensive InfoTagVideo metadata for '%s'", title)
             return True
@@ -187,6 +222,39 @@ class ListItemMetadataManager:
             if item_data.get('genre'):
                 info['genre'] = item_data['genre']
             
+            if item_data.get('votes'):
+                try:
+                    info['votes'] = str(int(item_data['votes']))
+                except (ValueError, TypeError):
+                    pass
+                    
+            if item_data.get('duration'):
+                try:
+                    info['duration'] = str(int(item_data['duration']))
+                except (ValueError, TypeError):
+                    pass
+                    
+            if item_data.get('mpaa'):
+                info['mpaa'] = item_data['mpaa']
+                
+            if item_data.get('director'):
+                info['director'] = item_data['director']
+                
+            if item_data.get('studio'):
+                info['studio'] = item_data['studio']
+                
+            if item_data.get('country'):
+                info['country'] = item_data['country']
+                
+            if item_data.get('writer'):
+                info['writer'] = item_data['writer']
+                
+            if item_data.get('imdbnumber'):
+                info['imdbnumber'] = item_data['imdbnumber']
+                
+            if item_data.get('tmdb_id'):
+                info['tmdb'] = str(item_data['tmdb_id'])
+            
             # Episode-specific fields
             if item_data.get('media_type') == 'episode':
                 if item_data.get('tvshowtitle'):
@@ -195,6 +263,8 @@ class ListItemMetadataManager:
                     info['season'] = str(int(item_data['season']))
                 if item_data.get('episode') is not None:
                     info['episode'] = str(int(item_data['episode']))
+                if item_data.get('aired'):
+                    info['aired'] = item_data['aired']
             
             info['mediatype'] = item_data.get('media_type', 'movie')
             
