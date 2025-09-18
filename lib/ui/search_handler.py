@@ -79,7 +79,7 @@ class SearchHandler:
         """Prompt user for search keywords"""
         try:
             terms = xbmcgui.Dialog().input(
-                L(33002),  # "Enter search terms"
+                L(93002),  # "Enter search terms"
                 type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None
@@ -158,7 +158,7 @@ class SearchHandler:
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
                     # Use f-string formatting to avoid string formatting errors
-                    base_message = L(32102)  # Should be "Search saved: %d items" or similar
+                    base_message = L(92102)  # Should be "Search saved: %d items" or similar
                     if '%d' in base_message:
                         formatted_message = base_message % added
                     elif '{' in base_message:
@@ -204,7 +204,7 @@ class SearchHandler:
 
     def _show_no_results_message(self, search_terms: str):
         """Show message when no results found"""
-        self._notify_info(L(32101).format(search_terms))  # "No results found for '{0}'"
+        self._notify_info(L(92101).format(search_terms))  # "No results found for '{0}'"
 
     # Helper methods
     def _ensure_handle_from_context(self, context):

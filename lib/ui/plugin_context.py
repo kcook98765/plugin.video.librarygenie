@@ -218,7 +218,7 @@ class PluginContext:
 
             # Add Tools & Options for folder
             menu_items.append({
-                'label': f"{L(36000)} for '{folder_name}'",
+                'label': f"{L(96000)} for '{folder_name}'",
                 'url': self.build_url('show_tools', list_type='folder', list_id=folder_id),
                 'is_folder': True,
                 'description': "Manage this folder"
