@@ -227,6 +227,7 @@ class ListItemMetadataManager:
     
     def _set_comprehensive_setinfo(self, list_item: xbmcgui.ListItem, item_data: Dict[str, Any], title: str) -> bool:
         """Set comprehensive metadata using setInfo"""
+        import json
         try:
             info = {'title': title}
             
@@ -250,7 +251,17 @@ class ListItemMetadataManager:
                     pass
             
             if item_data.get('genre'):
-                info['genre'] = item_data['genre']
+                try:
+                    # Handle V20+ JSON-formatted genre data for V19 setInfo compatibility
+                    if isinstance(item_data['genre'], str) and item_data['genre'].startswith('['):
+                        genre_list = json.loads(item_data['genre'])
+                        info['genre'] = ', '.join(genre_list) if isinstance(genre_list, list) else item_data['genre']
+                    else:
+                        # Handle as regular string
+                        info['genre'] = item_data['genre']
+                except (json.JSONDecodeError, ValueError):
+                    # Fallback for malformed JSON
+                    info['genre'] = item_data['genre']
             
             if item_data.get('votes'):
                 try:
@@ -277,7 +288,17 @@ class ListItemMetadataManager:
                 info['mpaa'] = item_data['mpaa']
                 
             if item_data.get('director'):
-                info['director'] = item_data['director']
+                try:
+                    # Handle V20+ JSON-formatted director data for V19 setInfo compatibility
+                    if isinstance(item_data['director'], str) and item_data['director'].startswith('['):
+                        director_list = json.loads(item_data['director'])
+                        info['director'] = ', '.join(director_list) if isinstance(director_list, list) else item_data['director']
+                    else:
+                        # Handle as regular string
+                        info['director'] = item_data['director']
+                except (json.JSONDecodeError, ValueError):
+                    # Fallback for malformed JSON
+                    info['director'] = item_data['director']
                 
             if item_data.get('studio'):
                 info['studio'] = item_data['studio']
