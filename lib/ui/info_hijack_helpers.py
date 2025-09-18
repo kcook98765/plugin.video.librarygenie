@@ -931,9 +931,9 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         end_nav_time = time.perf_counter()
         current_window_after = xbmcgui.getCurrentWindowId()
         current_path = xbmc.getInfoLabel("Container.FolderPath")
-        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
+        # OPTIMIZATION: Removed expensive Container.NumItems call - XSP structure is predictable
         logger.debug("%s SUBSTEP 4 COMPLETE: Videos window loaded in %.3fs", LOG_PREFIX, end_nav_time - start_nav_time)
-        logger.debug("%s SUBSTEP 4 STATUS: Window %d→%d, path='%s', items=%s", LOG_PREFIX, current_window_before, current_window_after, current_path, num_items)
+        logger.debug("%s SUBSTEP 4 STATUS: Window %d→%d, path='%s'", LOG_PREFIX, current_window_before, current_window_after, current_path)
         substep4_end = time.perf_counter()
         logger.debug("%s ⏱️ SUBSTEP 4 TIMING: %.3fs (wait: %.3fs)", LOG_PREFIX, substep4_end - substep4_start, wait_end - wait_start)
         logger.debug("%s ⏱️ SUBSTEP 3+4 COMBINED TIMING: %.3fs", LOG_PREFIX, substep4_end - substep3_start)
@@ -943,10 +943,14 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         logger.debug("%s SUBSTEP 5: Focusing list to locate %s %d", LOG_PREFIX, db_type, db_id)
         
         # Create expected target for focus verification
+        # OPTIMIZATION: Simplified XSP index logic - check if on parent instead of counting items
+        current_label = xbmc.getInfoLabel('ListItem.Label')
+        expected_index = 1 if current_label == ".." else 0  # If on parent, target is at index 1
+        
         expected = ExpectedTarget(
             db_type=db_type,
             db_id=db_id,
-            expected_index=1 if num_items >= 2 else 0  # Usually index 1 if parent ".." exists, else 0
+            expected_index=expected_index
         )
         
         start_focus_time = time.perf_counter()
@@ -967,14 +971,14 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         # Get current item details for verification
         final_item_label = xbmc.getInfoLabel('ListItem.Label')
         final_item_dbid = xbmc.getInfoLabel('ListItem.DBID')
-        final_item_position = int(xbmc.getInfoLabel('Container.CurrentItem') or '0')
+        # OPTIMIZATION: Removed expensive Container.CurrentItem call - only used for debug logging
         
         # Verify we're not on parent item (should be handled by optimized focus_list_manual)
         if final_item_label == ".." or final_item_label.strip() == "..":
             logger.warning("%s ❌ SUBSTEP 6 FAILED: Still on parent item - focus_list_manual should have handled this", LOG_PREFIX)
             return False
         
-        logger.debug("%s SUBSTEP 6 COMPLETE: On target item - Position: %s, Label: '%s', DBID: %s", LOG_PREFIX, final_item_position, final_item_label, final_item_dbid)
+        logger.debug("%s SUBSTEP 6 COMPLETE: On target item - Label: '%s', DBID: %s", LOG_PREFIX, final_item_label, final_item_dbid)
         substep6_end = time.perf_counter()
         logger.debug("%s ⏱️ SUBSTEP 6 TIMING: %.3fs", LOG_PREFIX, substep6_end - substep6_start)
         
