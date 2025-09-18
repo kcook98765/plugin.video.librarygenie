@@ -40,11 +40,6 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="soft_delete_removed_items" type="boolean" label="30032" help="35506">
-          <level>1</level>
-          <default>true</default>
-          <control type="toggle"/>
-        </setting>
         <setting id="sync_tv_episodes" type="boolean" label="30033" help="35507">
           <level>1</level>
           <default>false</default>

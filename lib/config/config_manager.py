@@ -25,7 +25,6 @@ class ConfigManager:
         self._defaults = {
             # General settings
             "confirm_destructive_actions": True,
-            "soft_delete_removed_items": True,
             "default_list_id": "",
             "quick_add_enabled": False,
             "show_missing_indicators": True,
@@ -363,7 +362,6 @@ class ConfigManager:
             # General settings
             "confirm_destructive_actions",
             "track_library_changes",
-            "soft_delete_removed_items",
             "quick_add_enabled",
             "show_missing_indicators",
             "show_unmapped_favorites",
