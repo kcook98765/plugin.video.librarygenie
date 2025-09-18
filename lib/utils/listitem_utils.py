@@ -117,6 +117,7 @@ class ListItemMetadataManager:
     
     def _set_comprehensive_infotag(self, list_item: xbmcgui.ListItem, item_data: Dict[str, Any], title: str) -> bool:
         """Set comprehensive metadata using InfoTagVideo"""
+        import json
         try:
             video_info_tag = list_item.getVideoInfoTag()
             
@@ -142,7 +143,17 @@ class ListItemMetadataManager:
                     pass
             
             if item_data.get('genre'):
-                video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
+                try:
+                    # V20+ stores genre as JSON array, parse it back to list
+                    if isinstance(item_data['genre'], str) and item_data['genre'].startswith('['):
+                        genre_list = json.loads(item_data['genre'])
+                        video_info_tag.setGenres(genre_list if isinstance(genre_list, list) else [item_data['genre']])
+                    else:
+                        # Handle as string or already parsed list
+                        video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
+                except (json.JSONDecodeError, ValueError):
+                    # Fallback for malformed JSON or non-JSON strings
+                    video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
             
             if item_data.get('votes'):
                 try:
@@ -169,7 +180,17 @@ class ListItemMetadataManager:
                 video_info_tag.setMpaa(item_data['mpaa'])
                 
             if item_data.get('director'):
-                video_info_tag.setDirectors([item_data['director']] if isinstance(item_data['director'], str) else item_data['director'])
+                try:
+                    # V20+ stores director as JSON array, parse it back to list
+                    if isinstance(item_data['director'], str) and item_data['director'].startswith('['):
+                        director_list = json.loads(item_data['director'])
+                        video_info_tag.setDirectors(director_list if isinstance(director_list, list) else [item_data['director']])
+                    else:
+                        # Handle as string or already parsed list
+                        video_info_tag.setDirectors([item_data['director']] if isinstance(item_data['director'], str) else item_data['director'])
+                except (json.JSONDecodeError, ValueError):
+                    # Fallback for malformed JSON or non-JSON strings
+                    video_info_tag.setDirectors([item_data['director']] if isinstance(item_data['director'], str) else item_data['director'])
                 
             if item_data.get('studio'):
                 video_info_tag.setStudios([item_data['studio']] if isinstance(item_data['studio'], str) else item_data['studio'])
