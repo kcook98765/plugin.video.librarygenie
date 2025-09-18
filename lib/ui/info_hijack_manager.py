@@ -113,9 +113,11 @@ class InfoHijackManager:
         # Handle dialog open detection - this is where we trigger hijack
         if dialog_active:
             if not self._native_info_was_open and not self._in_progress:
-                # Check if this is a hijackable dialog with armed item
-                armed = get_cached_info('ListItem.Property(LG.InfoHijack.Armed)') == '1'
-                listitem_label = get_cached_info('ListItem.Label')
+                # OPTIMIZATION: Batch collect all hijack properties in single call to eliminate API overhead
+                hijack_properties = self._collect_hijack_properties_batch()
+                
+                armed = hijack_properties['armed']
+                listitem_label = hijack_properties['label']
                 
                 # Debug: Always log dialog detection with armed state (optimized: removed container path)
                 log(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}'")
@@ -123,14 +125,9 @@ class InfoHijackManager:
                 if armed:
                     log("HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
                     
-                    # Get hijack data (reuse listitem_label from above)
-                    hijack_dbid_prop = get_cached_info('ListItem.Property(LG.InfoHijack.DBID)')
-                    hijack_dbtype_prop = get_cached_info('ListItem.Property(LG.InfoHijack.DBType)')
-                    native_dbid = get_cached_info('ListItem.DBID')
-                    native_dbtype = get_cached_info('ListItem.DBTYPE')
-                    
-                    dbid = hijack_dbid_prop or native_dbid
-                    dbtype = (hijack_dbtype_prop or native_dbtype or '').lower()
+                    # Use batched property data
+                    dbid = hijack_properties['dbid']
+                    dbtype = hijack_properties['dbtype']
                     
                     if dbid and dbtype:
                         log(f"HIJACK: Target - DBID={dbid}, DBType={dbtype}, Label='{listitem_label}'")
@@ -622,6 +619,58 @@ class InfoHijackManager:
         xbmc.sleep(100)
         self._logger.debug("HIJACK: Navigation assumed complete %s", context)
         return True
+
+    def _collect_hijack_properties_batch(self):
+        """
+        Collect all hijack properties in a single batch to minimize API calls.
+        Returns processed hijack data ready for use.
+        """
+        try:
+            from lib.ui.navigation_cache import get_navigation_cache
+            
+            # Define all properties we need for hijack detection
+            property_labels = [
+                'ListItem.Property(LG.InfoHijack.Armed)',
+                'ListItem.Label',
+                'ListItem.Property(LG.InfoHijack.DBID)',
+                'ListItem.Property(LG.InfoHijack.DBType)',
+                'ListItem.DBID',
+                'ListItem.DBTYPE'
+            ]
+            
+            # Batch collect all properties in single call
+            cache = get_navigation_cache()
+            raw_properties = cache.get_many(property_labels)
+            
+            # Process and return structured data
+            return {
+                'armed': raw_properties.get('ListItem.Property(LG.InfoHijack.Armed)', '') == '1',
+                'label': raw_properties.get('ListItem.Label', ''),
+                'dbid': (
+                    raw_properties.get('ListItem.Property(LG.InfoHijack.DBID)') or 
+                    raw_properties.get('ListItem.DBID', '')
+                ),
+                'dbtype': (
+                    raw_properties.get('ListItem.Property(LG.InfoHijack.DBType)') or 
+                    raw_properties.get('ListItem.DBTYPE', '')
+                ).lower()
+            }
+            
+        except Exception as e:
+            self._logger.debug("BATCH COLLECTION: Failed to collect hijack properties: %s", e)
+            # Fallback to individual calls if batch fails
+            return {
+                'armed': get_cached_info('ListItem.Property(LG.InfoHijack.Armed)') == '1',
+                'label': get_cached_info('ListItem.Label'),
+                'dbid': (
+                    get_cached_info('ListItem.Property(LG.InfoHijack.DBID)') or 
+                    get_cached_info('ListItem.DBID')
+                ),
+                'dbtype': (
+                    get_cached_info('ListItem.Property(LG.InfoHijack.DBType)') or 
+                    get_cached_info('ListItem.DBTYPE')
+                ).lower()
+            }
 
     def _debug_scan_container(self):
         """Debug method to scan container for armed items (minimal logging)"""
