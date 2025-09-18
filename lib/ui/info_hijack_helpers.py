@@ -434,6 +434,48 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
         _log("Error in focus_list_manual: %s - graceful fallback failed (took %.3fs)", xbmc.LOGERROR, e, t_focus_end - t_focus_start)
         return False
 
+def focus_list_xsp_optimized(expected_index: int = 0, tries: int = 3, step_ms: int = 100) -> bool:
+    """Optimized focus for XSP context - no expensive verify_list_focus calls needed
+    
+    XSP structure is predictable:
+    - Index 0: Target item (if no parent) 
+    - Index 1: Target item (if parent ".." exists at index 0)
+    """
+    t_focus_start = time.perf_counter()
+    
+    _log("focus_list_xsp_optimized: Starting optimized XSP focus (expected_index=%d)", xbmc.LOGDEBUG, expected_index)
+    
+    # Check current item label - if it's parent "..", navigate to target
+    current_label = get_cached_info("Container.ListItem().Label")
+    if current_label == ".." or current_label.strip() == "..":
+        _log("focus_list_xsp_optimized: Currently on parent '..', navigating to target at index %d", xbmc.LOGDEBUG, expected_index)
+        
+        # Simple navigation - just move to the target index
+        for attempt in range(tries):
+            _log("focus_list_xsp_optimized: Navigation attempt %d", xbmc.LOGDEBUG, attempt + 1)
+            
+            with navigation_action(grace_ms=step_ms):
+                xbmc.executebuiltin("Action(Down)")  # Move from parent to content
+                xbmc.sleep(step_ms)
+            
+            # Check if we moved off parent
+            new_label = get_cached_info("Container.ListItem().Label")
+            if new_label != ".." and new_label.strip() != "..":
+                t_focus_end = time.perf_counter()
+                _log("focus_list_xsp_optimized: SUCCESS - Moved to target item '%s' (%.3fs)", xbmc.LOGDEBUG, new_label, t_focus_end - t_focus_start)
+                return True
+            
+            _log("focus_list_xsp_optimized: Still on parent after attempt %d", xbmc.LOGDEBUG, attempt + 1)
+        
+        t_focus_end = time.perf_counter()
+        _log("focus_list_xsp_optimized: FAILED - Could not move off parent (%.3fs)", xbmc.LOGWARNING, t_focus_end - t_focus_start)
+        return False
+    else:
+        # Already on content item - assume it's correct since XSP guarantees target item
+        t_focus_end = time.perf_counter()
+        _log("focus_list_xsp_optimized: Already on content item '%s' - assuming correct (%.3fs)", xbmc.LOGDEBUG, current_label, t_focus_end - t_focus_start)
+        return True
+
 def focus_list(expected: Optional[ExpectedTarget] = None, control_id: Optional[int] = None, tries: int = 3, step_ms: int = 100) -> bool:
     """Simplified, skin-agnostic focus logic that works with any container"""
     t_focus_start = time.perf_counter()
@@ -908,7 +950,8 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         )
         
         start_focus_time = time.perf_counter()
-        if not focus_list(expected):
+        # OPTIMIZATION: Use simplified XSP focus instead of expensive verify_list_focus calls
+        if not focus_list_xsp_optimized(expected_index=expected.expected_index):
             end_focus_time = time.perf_counter()
             logger.warning("%s ❌ SUBSTEP 5 FAILED: Failed to focus list control after %.3fs", LOG_PREFIX, end_focus_time - start_focus_time)
             return False

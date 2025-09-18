@@ -237,42 +237,37 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - trust Kodi's automatic navigation"""
+        """Handle the native info dialog being closed - optimized to trust Kodi's navigation"""
         try:
-            self._logger.debug("HIJACK STEP 5: Native info dialog closed, checking navigation state")
+            self._logger.debug("HIJACK STEP 5: Native info dialog closed, trusting Kodi's navigation")
             
-            # Wait for dialog closing animation to complete
-            self._wait_for_animations_to_complete("after dialog close")
+            # OPTIMIZATION: Minimal wait for dialog closing, trust Kodi's navigation history
+            xbmc.sleep(300)  # Reduced from complex animation waiting
             
-            # Check current state after dialog close
-            current_path = get_cached_info("Container.FolderPath")
+            # OPTIMIZATION: Minimal XSP detection - single Container.FolderPath check only when needed
             current_window = get_cached_info("System.CurrentWindow")
-            self._logger.debug("HIJACK: Current state after dialog close - Path: '%s', Window: '%s'", current_path, current_window)
             
-            # Check if we're on our own LibraryGenie hijack XSP content that needs navigation
-            if self._is_on_librarygenie_hijack_xsp(current_path):
-                self._logger.debug("HIJACK: ✋ Detected XSP path: '%s', executing back to return to plugin", current_path)
+            # If we're in Videos window, check if we're actually on our XSP before executing back
+            if current_window == "Videos":
+                # Single non-polled Container.FolderPath check to verify we're on our XSP
+                current_path = get_cached_info("Container.FolderPath")
                 
-                # Wait for all animations to complete before executing back
-                self._wait_for_animations_to_complete("XSP navigation")
-                self._logger.debug("HIJACK: Executing back command to exit XSP")
-                
-                # Single back command when animations are complete
-                with navigation_action():
-                    xbmc.executebuiltin('Action(Back)')
-                
-                # Brief wait for navigation
-                self._wait_for_navigation_complete("XSP exit")
-                
-                final_path = get_cached_info("Container.FolderPath")
-                if final_path and 'plugin.video.librarygenie' in final_path:
-                    self._logger.debug("HIJACK: ✅ Successfully returned to plugin: '%s'", final_path)
-            else:
-                # Already back in plugin content - Kodi's navigation history worked correctly
-                if current_path and 'plugin.video.librarygenie' in current_path:
-                    self._logger.info("HIJACK: ✅ Already back in plugin content (Kodi navigation history): '%s'", current_path)
+                if self._is_on_librarygenie_hijack_xsp(current_path):
+                    self._logger.debug("HIJACK: On LG XSP - executing back to return to plugin")
+                    
+                    with navigation_action():
+                        xbmc.executebuiltin('Action(Back)')
+                    
+                    # Brief wait for back command to execute
+                    xbmc.sleep(200)
+                    
+                    self._logger.debug("HIJACK: ✅ Back executed from XSP")
                 else:
-                    self._logger.warning("HIJACK: Unexpected path after dialog close: '%s'", current_path)
+                    # Already in plugin content or other content - don't navigate
+                    self._logger.debug("HIJACK: ✅ In Videos window but not on LG XSP - trusting Kodi navigation")
+            else:
+                # Not in Videos window - likely already navigated correctly
+                self._logger.debug("HIJACK: ✅ Not in Videos window - trusting Kodi navigation worked correctly")
             
             self._cleanup_properties()
                 
