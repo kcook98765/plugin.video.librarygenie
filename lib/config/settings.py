@@ -32,10 +32,6 @@ class SettingsManager:
 
     # Library Settings
 
-    def get_soft_delete_removed(self) -> bool:
-        """Get soft delete removed items setting"""
-        config = get_config()
-        return config.get_bool('soft_delete_removed_items', True)
 
     def get_sync_movies(self) -> bool:
         """Get sync movies during library scan setting"""

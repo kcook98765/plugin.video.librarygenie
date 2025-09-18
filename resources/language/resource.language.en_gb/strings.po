@@ -57,9 +57,6 @@ msgctxt "#30031"
 msgid "Track library changes in background"
 msgstr ""
 
-msgctxt "#30032"
-msgid "Soft delete removed items (recommended)"
-msgstr ""
 
 msgctxt "#30033"
 msgid "Sync TV episodes during library scan"
@@ -1870,9 +1867,6 @@ msgctxt "#35505"
 msgid "Automatically detects when movies are added or removed from your Kodi library in the background."
 msgstr ""
 
-msgctxt "#35506"
-msgid "Keeps removed movies in lists but marks them as deleted instead of permanently removing them."
-msgstr ""
 
 msgctxt "#35507"
 msgid "Proactively syncs TV episodes during library scans for faster list building. Increases database size and scan time."
