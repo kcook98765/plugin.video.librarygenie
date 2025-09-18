@@ -452,9 +452,9 @@ class ContextMenuBuilder:
                 try:
                     from lib.ui.localization import L
                     context_items.extend([
-                        (L(91020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
-                        (L(91021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
-                        (L(91022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")   # "Export"
+                        (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
+                        (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
+                        (L(31022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")   # "Export"
                     ])
                 except ImportError:
                     # Fallback if localization not available
@@ -470,8 +470,8 @@ class ContextMenuBuilder:
                     try:
                         from lib.ui.localization import L
                         context_items.extend([
-                            (L(91020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),  # "Rename"
-                            (L(91021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})")   # "Delete"
+                            (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),  # "Rename"
+                            (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})")   # "Delete"
                         ])
                     except ImportError:
                         # Fallback if localization not available

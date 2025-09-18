@@ -53,19 +53,19 @@ class UserListToolsProvider(BaseToolsProvider):
                 return [
                     self._create_action(
                         action_id="move_to_new_list",
-                        label=L(97022),  # "Move to New List"
+                        label=L(37022),  # "Move to New List"
                         handler=self._handle_move_to_new_list,
                         payload={"list_id": context.list_id}
                     ),
                     self._create_action(
                         action_id="export_list",
-                        label=L(96053).replace('%s', short_name),  # "Export %s"
+                        label=L(36053).replace('%s', short_name),  # "Export %s"
                         handler=self._handle_export_list,
                         payload={"list_id": context.list_id}
                     ),
                     self._create_action(
                         action_id="delete_list",
-                        label=L(96054).replace('%s', short_name),  # "Delete %s"
+                        label=L(36054).replace('%s', short_name),  # "Delete %s"
                         handler=self._handle_delete_list,
                         payload={"list_id": context.list_id, "is_search_history": True},
                         needs_confirmation=ConfirmSpec(
@@ -78,7 +78,7 @@ class UserListToolsProvider(BaseToolsProvider):
                 return [
                     self._create_action(
                         action_id="save_as_list",
-                        label=L(96002),  # "Save As New List"
+                        label=L(36002),  # "Save As New List"
                         handler=self._handle_save_as_list
                     )
                 ]
@@ -87,31 +87,31 @@ class UserListToolsProvider(BaseToolsProvider):
                 return [
                     self._create_action(
                         action_id="merge_lists",
-                        label=L(96004).replace('%s', short_name),  # "Merge Into %s"
+                        label=L(36004).replace('%s', short_name),  # "Merge Into %s"
                         handler=self._handle_merge_lists,
                         payload={"list_id": context.list_id}
                     ),
                     self._create_action(
                         action_id="rename_list",
-                        label=L(96005).replace('%s', short_name),  # "Rename '%s'"
+                        label=L(36005).replace('%s', short_name),  # "Rename '%s'"
                         handler=self._handle_rename_list,
                         payload={"list_id": context.list_id}
                     ),
                     self._create_action(
                         action_id="move_list",
-                        label=L(96011).replace('%s', short_name),  # "Move '%s' to Folder"
+                        label=L(36011).replace('%s', short_name),  # "Move '%s' to Folder"
                         handler=self._handle_move_list,
                         payload={"list_id": context.list_id}
                     ),
                     self._create_action(
                         action_id="export_list",
-                        label=L(96053).replace('%s', short_name),  # "Export %s"
+                        label=L(36053).replace('%s', short_name),  # "Export %s"
                         handler=self._handle_export_list,
                         payload={"list_id": context.list_id}
                     ),
                     self._create_action(
                         action_id="delete_list",
-                        label=L(96054).replace('%s', short_name),  # "Delete %s"
+                        label=L(36054).replace('%s', short_name),  # "Delete %s"
                         handler=self._handle_delete_list,
                         payload={"list_id": context.list_id},
                         needs_confirmation=ConfirmSpec(
