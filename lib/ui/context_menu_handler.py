@@ -84,7 +84,7 @@ class ContextItem:
         # Add AI Search option if available
         if ai_search_available:
             menu_items.append({
-                'label': f"🤖 {L(34100)}",  # AI Movie Search
+                'label': f"🤖 {L(94100)}",  # AI Movie Search
                 'action': 'ai_search',
                 'params': {
                     'query': f"Search for '{item_info.get('title', 'Unknown')}' ({item_info.get('year', '')})",
@@ -96,7 +96,7 @@ class ContextItem:
         # Add Similar Movies option if AI search is available and item has IMDb ID
         if ai_search_available and has_imdb_id:
             menu_items.append({
-                'label': f"🎬 {L(34106)}",  # Similar Movies
+                'label': f"🎬 {L(94106)}",  # Similar Movies
                 'action': 'find_similar_movies',
                 'params': {
                     'imdb_id': imdb_id,
@@ -109,7 +109,7 @@ class ContextItem:
         # Add Quick Add option if enabled
         if self._should_show_quick_add(context_info):
             menu_items.append({
-                'label': f"⚡ {L(31001)}",  # Quick Add to Default List
+                'label': f"⚡ {L(91001)}",  # Quick Add to Default List
                 'action': self._get_quick_add_action(context_info),
                 'params': self._get_quick_add_params(context_info, item_info)
             })
@@ -120,7 +120,7 @@ class ContextItem:
 
         # Add standard actions like "View Details"
         menu_items.append({
-            'label': L(31000),  # View Details
+            'label': L(91000),  # View Details
             'action': 'view_details',
             'params': {
                 'item_id': item_info.get('id'),

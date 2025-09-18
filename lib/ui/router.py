@@ -307,7 +307,7 @@ class Router:
             # Show error to user
             try:
                 xbmcgui.Dialog().notification(
-                    context.addon.getLocalizedString(35002),
+                    context.addon.getLocalizedString(95002),
                     f"Error in {action}",
                     xbmcgui.NOTIFICATION_ERROR
                 )
@@ -370,7 +370,7 @@ class Router:
                 self.logger.error("Cannot remove from list: missing item_id, dbtype, or dbid.")
                 try:
                     xbmcgui.Dialog().notification(
-                        context.addon.getLocalizedString(35002),
+                        context.addon.getLocalizedString(95002),
                         "Could not remove item from list.",
                         xbmcgui.NOTIFICATION_ERROR
                     )

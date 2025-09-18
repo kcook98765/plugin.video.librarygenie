@@ -57,7 +57,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30035</heading>
+            <heading>90035</heading>
           </control>
         </setting>
       </group>
@@ -81,7 +81,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30041</heading>
+            <heading>90041</heading>
           </control>
         </setting>
         <setting id="default_list_display" type="string" label="90045" help="">
@@ -95,7 +95,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string">
-            <heading>30045</heading>
+            <heading>90045</heading>
           </control>
         </setting>
       </group>
@@ -132,7 +132,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30071</heading>
+            <heading>90071</heading>
           </control>
         </setting>
         <setting id="shortlist_clear_before_import" type="boolean" label="90072" help="95514">
@@ -154,7 +154,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="path">
-            <heading>30551</heading>
+            <heading>90551</heading>
             <maskedit>false</maskedit>
             <browse>directory</browse>
           </control>
@@ -181,7 +181,7 @@
             <dependency type="enable" setting="backup_enabled" operator="is">true</dependency>
           </dependencies>
           <control type="list" format="integer">
-            <heading>30512</heading>
+            <heading>90512</heading>
           </control>
         </setting>
         <setting id="backup_retention_count" type="integer" label="90513" help="95527">
@@ -226,7 +226,7 @@
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>30531</heading>
+            <heading>90531</heading>
           </control>
         </setting>
         <setting id="backup_storage_location" type="path" label="90532" help="">
@@ -236,7 +236,7 @@
             <allowempty>false</allowempty>
           </constraints>
           <control type="button" format="path">
-            <heading>30532</heading>
+            <heading>90532</heading>
             <maskedit>false</maskedit>
             <browse>directory</browse>
           </control>
@@ -251,7 +251,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30542</heading>
+            <heading>90542</heading>
           </control>
         </setting>
         <setting id="backup_restore_action" type="action" label="90543" help="">
@@ -261,7 +261,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30543</heading>
+            <heading>90543</heading>
           </control>
         </setting>
       </group>
@@ -334,7 +334,7 @@
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>30331</heading>
+            <heading>90331</heading>
           </control>
         </setting>
         <setting id="list_manual_page_size" type="integer" label="90332" help="95551">
@@ -365,7 +365,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30435</heading>
+            <heading>90435</heading>
           </control>
         </setting>
         <setting id="remote_server_url" type="string" label="90411" help="95540">
@@ -378,7 +378,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string">
-            <heading>30411</heading>
+            <heading>90411</heading>
           </control>
         </setting>
         <setting id="ai_search_activated" type="boolean" label="90423" help="90424">
@@ -396,7 +396,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30470</heading>
+            <heading>90470</heading>
           </control>
         </setting>
         <setting id="ai_search_sync_interval" type="integer" label="90425" help="90426">
@@ -413,7 +413,7 @@
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
           </dependencies>
           <control type="list" format="integer">
-            <heading>30425</heading>
+            <heading>90425</heading>
           </control>
         </setting>
         <setting id="ai_search_replace_sync_action" type="action" label="90449" help="">
@@ -426,7 +426,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30449</heading>
+            <heading>90449</heading>
           </control>
         </setting>
         <setting id="ai_search_regular_sync_action" type="action" label="90464" help="">
@@ -439,7 +439,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30464</heading>
+            <heading>90464</heading>
           </control>
         </setting>
       </group>
@@ -455,7 +455,7 @@
             <allowempty>false</allowempty>
           </constraints>
           <control type="edit" format="string">
-            <heading>30412</heading>
+            <heading>90412</heading>
           </control>
         </setting>
         <setting id="background_interval_minutes" type="integer" label="90451" help="95543">
@@ -469,7 +469,7 @@
             <maximum>1440</maximum>
           </constraints>
           <control type="edit" format="integer">
-            <heading>30451</heading>
+            <heading>90451</heading>
           </control>
         </setting>
         <setting id="background_token_refresh" type="boolean" label="92086" help="95544">

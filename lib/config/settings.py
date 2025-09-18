@@ -183,7 +183,7 @@ class SettingsManager:
         """Get device name for authentication"""
         config = get_config()
         value = config.get('device_name', "Kodi")
-        return value if value else L(30412)  # "Device name"
+        return value if value else L(90412)  # "Device name"
 
     def get_auth_polling_interval(self) -> int:
         """Get authentication polling interval in seconds (hard-coded to 5 seconds)"""
@@ -317,7 +317,7 @@ class SettingsManager:
         try:
             # This would require iterating through all settings and resetting them
             # For now, we'll log the action
-            self.logger.info(L(34503))  # "Setting restored to default"
+            self.logger.info(L(94503))  # "Setting restored to default"
         except Exception as e:
             self.logger.error("Failed to reset settings: %s", e)
 
@@ -333,19 +333,19 @@ class SettingsManager:
                 self.logger.warning("JSON-RPC page size too high, using maximum")
                 return False
 
-            self.logger.info(L(34504))  # "Configuration validated"
+            self.logger.info(L(94504))  # "Configuration validated"
             return True
         except Exception as e:
-            self.logger.error("%s: %s", L(34505), e)  # "Configuration validation failed"
+            self.logger.error("%s: %s", L(94505), e)  # "Configuration validation failed"
             return False
 
     def get_validation_status_message(self, is_valid: bool) -> str:
         """Get localized validation status message"""
-        return L(34504) if is_valid else L(34505)  # "Configuration validated" or "Configuration validation failed"
+        return L(94504) if is_valid else L(94505)  # "Configuration validated" or "Configuration validation failed"
 
     def get_setting_save_message(self, success: bool) -> str:
         """Get localized setting save message"""
-        return L(34501) if success else L(34502)  # "Setting saved successfully" or "Failed to save setting"
+        return L(94501) if success else L(94502)  # "Setting saved successfully" or "Failed to save setting"
 
     def get_backup_preferences(self) -> Dict[str, Any]:
         """Get backup-related preferences with defaults"""

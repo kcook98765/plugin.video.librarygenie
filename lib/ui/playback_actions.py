@@ -216,7 +216,7 @@ class PlaybackActionHandler:
         
         # Show user-friendly error dialog
         dialog = xbmcgui.Dialog()
-        dialog.ok(L(35001) or "Playback Error", 
+        dialog.ok(L(95001) or "Playback Error", 
                  f"Unable to play movie.\n{error_message}\n\nPlease check that the file exists and is accessible.")
         
     def get_movie_file_path(self, kodi_id: int) -> Optional[str]:
@@ -281,8 +281,8 @@ class PlaybackContextMenuHandler:
             success = self.playback_handler.queue_movie(kodi_id)
             if success:
                 # Show confirmation
-                xbmcgui.Dialog().notification(L(35002) or "LibraryGenie", 
-                                            L(35010) or "Movie added to playlist", 
+                xbmcgui.Dialog().notification(L(95002) or "LibraryGenie", 
+                                            L(95010) or "Movie added to playlist", 
                                             xbmcgui.NOTIFICATION_INFO, 2000)
         
         elif action == "show_info":
@@ -300,10 +300,10 @@ class PlaybackContextMenuHandler:
     def _fallback_string_getter(self, string_id: int) -> str:
         """Fallback string getter"""
         strings = {
-            35001: "Play",
-            35002: "Resume",
-            35003: "Add to Queue", 
-            35004: "Movie Information"
+            95001: "Play",
+            95002: "Resume",
+            95003: "Add to Queue", 
+            95004: "Movie Information"
         }
         return strings.get(string_id, f"String {string_id}")
 
