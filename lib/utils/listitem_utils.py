@@ -150,9 +150,18 @@ class ListItemMetadataManager:
                 except (ValueError, TypeError):
                     pass
                     
-            if item_data.get('duration'):
+            # Handle duration - prefer duration_seconds if available, else convert from minutes
+            if item_data.get('duration_seconds'):
                 try:
-                    video_info_tag.setDuration(int(item_data['duration']))
+                    video_info_tag.setDuration(int(item_data['duration_seconds']))
+                except (ValueError, TypeError):
+                    pass
+            elif item_data.get('duration'):
+                try:
+                    # Duration is stored in minutes, but InfoTagVideo.setDuration expects seconds
+                    duration_minutes = int(item_data['duration'])
+                    duration_seconds = duration_minutes * 60
+                    video_info_tag.setDuration(duration_seconds)
                 except (ValueError, TypeError):
                     pass
                     
@@ -228,9 +237,18 @@ class ListItemMetadataManager:
                 except (ValueError, TypeError):
                     pass
                     
-            if item_data.get('duration'):
+            # Handle duration - prefer duration_seconds if available, else convert from minutes
+            if item_data.get('duration_seconds'):
                 try:
-                    info['duration'] = str(int(item_data['duration']))
+                    info['duration'] = str(int(item_data['duration_seconds']))
+                except (ValueError, TypeError):
+                    pass
+            elif item_data.get('duration'):
+                try:
+                    # Duration is stored in minutes, but V19 needs seconds
+                    duration_minutes = int(item_data['duration'])
+                    duration_seconds = duration_minutes * 60
+                    info['duration'] = str(duration_seconds)
                 except (ValueError, TypeError):
                     pass
                     
