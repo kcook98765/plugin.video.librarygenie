@@ -252,8 +252,12 @@ class ListItemMetadataManager:
             
             if item_data.get('genre'):
                 try:
-                    # Handle V20+ JSON-formatted genre data for V19 setInfo compatibility
-                    if isinstance(item_data['genre'], str) and item_data['genre'].startswith('['):
+                    # Handle different genre formats for V19 setInfo compatibility
+                    if isinstance(item_data['genre'], list):
+                        # Already a Python list - join to comma-separated string
+                        info['genre'] = ', '.join(item_data['genre'])
+                    elif isinstance(item_data['genre'], str) and item_data['genre'].lstrip().startswith('['):
+                        # V20+ JSON-formatted genre data - parse and join
                         genre_list = json.loads(item_data['genre'])
                         info['genre'] = ', '.join(genre_list) if isinstance(genre_list, list) else item_data['genre']
                     else:
@@ -289,8 +293,12 @@ class ListItemMetadataManager:
                 
             if item_data.get('director'):
                 try:
-                    # Handle V20+ JSON-formatted director data for V19 setInfo compatibility
-                    if isinstance(item_data['director'], str) and item_data['director'].startswith('['):
+                    # Handle different director formats for V19 setInfo compatibility
+                    if isinstance(item_data['director'], list):
+                        # Already a Python list - join to comma-separated string
+                        info['director'] = ', '.join(item_data['director'])
+                    elif isinstance(item_data['director'], str) and item_data['director'].lstrip().startswith('['):
+                        # V20+ JSON-formatted director data - parse and join
                         director_list = json.loads(item_data['director'])
                         info['director'] = ', '.join(director_list) if isinstance(director_list, list) else item_data['director']
                     else:
