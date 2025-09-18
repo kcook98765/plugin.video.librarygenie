@@ -292,6 +292,9 @@ class ListItemBuilder:
                     li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
                     li.setProperty("LG.InfoHijack.DBType", media_type)
                     self.logger.debug("🎯 HIJACK ARMED: '%s' - DBID=%s, DBType=%s", title, kodi_id, media_type)
+                    
+                    # OPTIMIZATION: Pre-populate navigation cache to eliminate cache misses during hijack detection
+                    self._preload_hijack_cache_properties(title, kodi_id, media_type)
                 else:
                     # Setting is disabled - do not arm hijack
                     self.logger.debug("📱 HIJACK DISABLED: '%s' - use_native_kodi_info setting is off", title)
@@ -342,6 +345,42 @@ class ListItemBuilder:
         except Exception as e:
             self.logger.error("LIB ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
             return None
+
+    def _preload_hijack_cache_properties(self, title: str, kodi_id, media_type: str):
+        """
+        Pre-populate navigation cache with hijack properties to eliminate cache misses
+        during hijack detection.
+        """
+        try:
+            from lib.ui.navigation_cache import get_navigation_cache
+            import time
+            
+            cache = get_navigation_cache()
+            now = time.monotonic()
+            
+            # Pre-populate cache with hijack properties that will be accessed during hijack detection
+            hijack_properties = {
+                'ListItem.Property(LG.InfoHijack.Armed)': '1',
+                'ListItem.Property(LG.InfoHijack.DBID)': str(kodi_id) if kodi_id is not None else '0',
+                'ListItem.Property(LG.InfoHijack.DBType)': media_type,
+                'ListItem.Label': title,
+                'ListItem.DBID': str(kodi_id) if kodi_id is not None else '',
+                'ListItem.DBTYPE': media_type
+            }
+            
+            # Populate cache directly to avoid API calls during hijack
+            with cache._lock:
+                for label, value in hijack_properties.items():
+                    cache._cache[label] = {
+                        'value': value,
+                        'timestamp': now,
+                        'generation': cache._generation
+                    }
+            
+            self.logger.debug("🚀 CACHE PRELOAD: Pre-populated %d hijack properties for '%s'", len(hijack_properties), title)
+            
+        except Exception as e:
+            self.logger.debug("CACHE PRELOAD: Failed to pre-populate cache for '%s': %s", title, e)
 
     def _create_action_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
