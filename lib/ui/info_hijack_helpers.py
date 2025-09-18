@@ -739,7 +739,7 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
         window_active = xbmc.getCondVisibility(f"Window.IsActive({VIDEOS_WINDOW})")
         folder_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
         path_match = folder_path == t_norm
-        num_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
+        # OPTIMIZATION: Removed expensive Container.NumItems call - XSP always has exactly 1 item
         not_busy = True  # OPTIMIZATION: Removed DialogBusy check for performance
         
         # Additional check for progress dialogs that might appear during scanning
@@ -747,12 +747,11 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
 
         elapsed = time.perf_counter() - t_start
         
-        # Track condition details for debugging
+        # Track condition details for debugging (optimized: removed num_items)
         current_details = {
             'window_active': window_active,
             'path_match': path_match,
             'folder_path': folder_path,
-            'num_items': num_items,
             'not_busy': not_busy,
             'not_scanning': not_scanning
         }
@@ -768,18 +767,24 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
             _log("_wait_videos_on: Kodi busy for %.1fs - likely scanning for associated files", xbmc.LOGDEBUG, elapsed)
             scan_warning_shown = True
         
-        # More frequent logging for debugging delays
+        # More frequent logging for debugging delays (optimized: removed num_items)
         if int(elapsed * 2) % 3 == 0 and elapsed - int(elapsed * 2) / 2 < 0.05:  # Every 1.5 seconds
-            _log("_wait_videos_on check (%.1fs): window=%s, path_match=%s ('%s' vs '%s'), items=%d, not_busy=%s, not_scanning=%s", xbmc.LOGDEBUG, elapsed, window_active, path_match, folder_path, t_norm, num_items, not_busy, not_scanning)
+            _log("_wait_videos_on check (%.1fs): window=%s, path_match=%s ('%s' vs '%s'), not_busy=%s, not_scanning=%s", xbmc.LOGDEBUG, elapsed, window_active, path_match, folder_path, t_norm, not_busy, not_scanning)
 
-        final_condition = window_active and path_match and num_items > 0 and not_busy and not_scanning
-        if final_condition:
+        # OPTIMIZATION: Removed num_items > 0 check - XSP always contains exactly the target item
+        # But require conditions to be stable for 2-3 polls to prevent race conditions
+        basic_condition = window_active and path_match and not_busy and not_scanning
+        if basic_condition:
             condition_met_count += 1
-            _log("_wait_videos_on: ALL CONDITIONS MET at %.3fs (count: %d)", xbmc.LOGDEBUG, elapsed, condition_met_count)
+            _log("_wait_videos_on: CONDITIONS MET at %.3fs (count: %d)", xbmc.LOGDEBUG, elapsed, condition_met_count)
+            # Require 2 consecutive successful checks for stability (~200ms)
+            if condition_met_count >= 2:
+                _log("_wait_videos_on: ALL CONDITIONS STABLE at %.3fs (count: %d)", xbmc.LOGDEBUG, elapsed, condition_met_count)
+                return True
         else:
             condition_met_count = 0
 
-        return final_condition
+        return False
 
     # Extended timeout for network storage scenarios
     _log("_wait_videos_on: Starting wait_until with %dms timeout", xbmc.LOGDEBUG, max(timeout_ms, 10000))
@@ -796,13 +801,12 @@ def _wait_videos_on(path: str, timeout_ms=8000) -> bool:
             _log("_wait_videos_on: XSP loaded successfully after file scanning completed")
     else:
         _log("_wait_videos_on TIMEOUT after %.3fs", xbmc.LOGWARNING, t_end - t_start)
-        # Log final state for debugging
+        # Log final state for debugging (optimized: removed expensive Container.NumItems call)
         final_window = xbmc.getCondVisibility(f"Window.IsActive({VIDEOS_WINDOW})")
         final_path = (xbmc.getInfoLabel("Container.FolderPath") or "").rstrip('/')
-        final_items = int(xbmc.getInfoLabel("Container.NumItems") or "0")
         final_busy = xbmc.getCondVisibility("Window.IsActive(DialogBusy.xml)")
         final_progress = xbmc.getCondVisibility("Window.IsActive(DialogProgress.xml)")
-        _log("_wait_videos_on FINAL STATE: window=%s, path='%s', items=%s, busy=%s, progress=%s", xbmc.LOGWARNING, final_window, final_path, final_items, final_busy, final_progress)
+        _log("_wait_videos_on FINAL STATE: window=%s, path='%s', busy=%s, progress=%s", xbmc.LOGWARNING, final_window, final_path, final_busy, final_progress)
 
     return result
 

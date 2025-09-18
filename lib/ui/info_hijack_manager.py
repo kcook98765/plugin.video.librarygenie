@@ -116,16 +116,14 @@ class InfoHijackManager:
                 # Check if this is a hijackable dialog with armed item
                 armed = get_cached_info('ListItem.Property(LG.InfoHijack.Armed)') == '1'
                 listitem_label = get_cached_info('ListItem.Label')
-                container_path = get_cached_info('Container.FolderPath')
                 
-                # Debug: Always log dialog detection with armed state
-                log(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}', container='{(container_path[:50] + '...' if container_path else 'None')}'")
+                # Debug: Always log dialog detection with armed state (optimized: removed container path)
+                log(f"🔍 HIJACK DIALOG DETECTED: armed={armed}, label='{listitem_label}'")
                 
                 if armed:
                     log("HIJACK: NATIVE INFO DIALOG DETECTED ON ARMED ITEM - starting hijack process")
                     
-                    # Get hijack data
-                    listitem_label = get_cached_info('ListItem.Label')
+                    # Get hijack data (reuse listitem_label from above)
                     hijack_dbid_prop = get_cached_info('ListItem.Property(LG.InfoHijack.DBID)')
                     hijack_dbtype_prop = get_cached_info('ListItem.Property(LG.InfoHijack.DBType)')
                     native_dbid = get_cached_info('ListItem.DBID')
