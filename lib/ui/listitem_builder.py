@@ -797,7 +797,8 @@ class ListItemBuilder:
                         video_info_tag.setPlaycount(int(info_labels['playcount']))
                     if info_labels.get('imdbnumber'):
                         video_info_tag.setIMDbNumber(info_labels['imdbnumber'])
-                    if info_labels.get('tmdb'):
+                    # setUniqueId introduced in Kodi v20+
+                    if info_labels.get('tmdb') and get_kodi_major_version() >= 20:
                         video_info_tag.setUniqueId(str(info_labels['tmdb']), 'tmdb')
 
                     # Episode-specific fields
