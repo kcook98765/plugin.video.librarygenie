@@ -8,6 +8,7 @@ import time
 from lib.utils.kodi_log import log, log_info, log_error, log_warning, get_kodi_logger
 from lib.ui.info_hijack_helpers import open_native_info_fast, restore_container_after_close, _log
 from lib.ui.navigation_cache import get_cached_info, navigation_action
+from lib.ui.dialogs.video_info import close_video_info_dialog
 
 class InfoHijackManager:
     """
@@ -143,17 +144,13 @@ class InfoHijackManager:
                             
                             # 🚪 STEP 2: CLOSE CURRENT DIALOG
                             log("HIJACK STEP 2: CLOSING CURRENT DIALOG")
-                            initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
-                            with navigation_action():
-                                xbmc.executebuiltin('Action(Back)')
+                            if not close_video_info_dialog(self._logger, timeout=1.0):
+                                log_error("❌ HIJACK STEP 2 FAILED: Could not close dialog - ActivateWindow will be refused")
+                                return  # Abort early to prevent ActivateWindow refusal
                             
-                            # Monitor for dialog actually closing instead of fixed sleep
-                            if self._wait_for_dialog_close("Step 2 dialog close", initial_dialog_id, max_wait=1.0):
-                                log("HIJACK STEP 2 COMPLETE: Dialog closed")
-                                # Brief delay to allow dialog close animations to complete
-                                xbmc.sleep(25)  # 25ms for dialog close animation stability
-                            else:
-                                log_warning("⚠️ HIJACK STEP 2: Dialog close timeout, proceeding anyway")
+                            log("HIJACK STEP 2 COMPLETE: Dialog closed")
+                            # Brief delay to allow dialog close animations to complete
+                            xbmc.sleep(25)  # 25ms for dialog close animation stability
                             
                             # Convert dbid to int safely
                             try:
@@ -501,29 +498,6 @@ class InfoHijackManager:
             log_func(message)
             self._last_debug_log = current_time
 
-    def _wait_for_dialog_close(self, context: str, initial_dialog_id: int, max_wait: float = 1.0) -> bool:
-        """
-        Monitor for dialog actually closing instead of using fixed sleep.
-        Much more responsive than waiting arbitrary amounts of time.
-        """
-        start_time = time.time()
-        check_interval = 0.02  # 20ms checks for very responsive detection
-        
-        while (time.time() - start_time) < max_wait:
-            current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-            
-            # Dialog closed when ID changes from the initial dialog
-            if current_dialog_id != initial_dialog_id:
-                elapsed = time.time() - start_time
-                self._logger.debug("HIJACK: Dialog close detected %s after %.3fs (%s→%s)", context, elapsed, initial_dialog_id, current_dialog_id)
-                return True
-            
-            xbmc.sleep(int(check_interval * 1000))
-        
-        elapsed = time.time() - start_time
-        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        self._logger.warning("HIJACK: Dialog close timeout %s after %.1fs (still %s)", context, elapsed, current_dialog_id)
-        return False
 
     def _wait_for_animations_to_complete(self, context: str, max_wait: float = 2.0) -> bool:
         """Wait for Kodi animations to complete before issuing commands"""
