@@ -21,13 +21,13 @@
   </extension>
   <extension point="xbmc.addon.metadata">
     <platform>all</platform>
-    <summary lang="en_GB">Smart list management for your Kodi library</summary>
-    <description lang="en_GB">LibraryGenie provides powerful list management capabilities for your Kodi media library. Create custom lists, organize with folders, search your collection, and sync with Kodi favorites. Features include hierarchical folder organization, universal context menus, quick-add functionality, import/export capabilities, and AI-powered search integration. Access via Video Add-ons for lists or Programs for search tools.</description>
-    <disclaimer lang="en_GB">This addon requires network access for optional AI search features and remote synchronization.</disclaimer>
+    <summary lang="en_GB">Smart Search/list management for your Kodi library</summary>
+    <description lang="en_GB">LibraryGenie provides powerful list management capabilities for your Kodi media library. Create custom lists, organize with folders, search your collection, and sync with Kodi favorites. Features include hierarchical folder organization, universal context menus, quick-add functionality, import/export capabilities, and (alpha/invite) AI-powered search integration. Access via Video Add-ons for lists or Programs for search tools.</description>
+    <disclaimer lang="en_GB">This addon supplies NO videos. Requires network access for optional (alpha/invite) AI search features.</disclaimer>
     <license>MIT</license>
-    <website>https://github.com/your-repo/plugin.video.librarygenie</website>
-    <email>your-email@example.com</email>
-    <source>https://github.com/your-repo/plugin.video.librarygenie</source>
+    <website>https://github.com/kcook98765/plugin.video.librarygenie</website>
+    <email>admin@librarygenie.com</email>
+    <source>https://github.com/kcook98765/plugin.video.librarygenie</source>
     <news></news>
     <assets>
       <icon>resources/list_folder_icon.png</icon>

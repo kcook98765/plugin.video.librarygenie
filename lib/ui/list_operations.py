@@ -258,7 +258,8 @@ class ListOperations:
                 context.logger.info("Successfully removed item %s from list %s", item_id, list_id)
                 return DialogResponse(
                     success=True,
-                    message=f"Removed '{item_title}' from '{list_name}'" # This string should also be localized
+                    message=f"Removed '{item_title}' from '{list_name}'", # This string should also be localized
+                    refresh_needed=True
                 )
 
         except Exception as e:
