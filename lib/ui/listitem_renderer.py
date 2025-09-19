@@ -35,6 +35,14 @@ class ListItemRenderer:
         # Alias for compatibility
         self.listitem_builder = self.builder
         
+        # Cache addon instance and resources base path for efficient resource access
+        import os
+        import xbmcaddon
+        self._addon = xbmcaddon.Addon(self.addon_id)
+        self._resources_base = xbmcvfs.translatePath(
+            os.path.join(self._addon.getAddonInfo('path'), 'resources')
+        )
+        
         # Initialize consolidated utilities
         self.metadata_manager = ListItemMetadataManager(addon_id)
         self.art_manager = ListItemArtManager(addon_id)
@@ -45,12 +53,9 @@ class ListItemRenderer:
         return xbmcvfs.translatePath(path)
 
     def _resource_path(self, name: str) -> str:
-        """Get absolute path to addon resource"""
+        """Get absolute path to addon resource (cached for efficiency)"""
         import os
-        import xbmcaddon
-        addon = xbmcaddon.Addon(self.addon_id)
-        base = addon.getAddonInfo('path')
-        return self._translate_path(os.path.join(base, 'resources', name))
+        return os.path.join(self._resources_base, name)
 
     def _apply_art(self, list_item: xbmcgui.ListItem, kind: str):
         """Apply version-aware art based on folder type - CONSOLIDATED"""        
