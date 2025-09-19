@@ -757,7 +757,7 @@ class ListsHandler:
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
             
             tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
-            tools_item.setInfo('video', {'plot': description_text + "Tools and options for this list"})
+            self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
             
