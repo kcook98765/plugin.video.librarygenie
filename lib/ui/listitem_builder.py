@@ -798,7 +798,13 @@ class ListItemBuilder:
                     if info_labels.get('imdbnumber'):
                         video_info_tag.setIMDbNumber(info_labels['imdbnumber'])
                     if info_labels.get('tmdb'):
-                        video_info_tag.setUniqueId(str(info_labels['tmdb']), 'tmdb')
+                        try:
+                            video_info_tag.setUniqueId(str(info_labels['tmdb']), 'tmdb')
+                        except AttributeError:
+                            # setUniqueId not available in this Kodi version (< v20)
+                            self.logger.debug("Failed to set TMDB unique ID - setUniqueId not available in Kodi v%d", get_kodi_major_version())
+                        except Exception as e:
+                            self.logger.debug("Failed to set TMDB unique ID: %s", e)
 
                     # Episode-specific fields
                     if info_labels.get('mediatype') == 'episode':
