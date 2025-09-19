@@ -321,8 +321,10 @@ class ListItemMetadataManager:
             if item_data.get('imdbnumber'):
                 info['imdbnumber'] = item_data['imdbnumber']
                 
-            if item_data.get('tmdb_id'):
-                info['tmdb'] = str(item_data['tmdb_id'])
+            # V19 Note: Don't set tmdb in setInfo() - not supported as video info key in v19
+            # TMDb IDs are properly handled in v20+ via setUniqueId() method (line 209)
+            # if item_data.get('tmdb_id'):
+            #     info['tmdb'] = str(item_data['tmdb_id'])
             
             # Episode-specific fields
             if item_data.get('media_type') == 'episode':
