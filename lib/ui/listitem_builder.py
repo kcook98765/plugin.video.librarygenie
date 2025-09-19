@@ -27,6 +27,15 @@ class ListItemBuilder:
         self.context = context
         self.logger = get_kodi_logger('lib.ui.listitem_builder')
         
+        # Cache addon instance and resources base path for efficient resource access
+        import os
+        import xbmcaddon
+        import xbmcvfs
+        self._addon = xbmcaddon.Addon(self.addon_id)
+        self._resources_base = xbmcvfs.translatePath(
+            os.path.join(self._addon.getAddonInfo('path'), 'resources')
+        )
+        
         # Initialize consolidated utilities - CONSOLIDATED
         from lib.utils.listitem_utils import ListItemMetadataManager, ListItemPropertyManager, ListItemArtManager, ContextMenuBuilder
         self.metadata_manager = ListItemMetadataManager(addon_id)
@@ -139,6 +148,11 @@ class ListItemBuilder:
             return False
 
     # -------- internals --------
+    def _get_resource_path(self, name: str) -> str:
+        """Get absolute path to addon resource (cached for efficiency)"""
+        import os
+        return os.path.join(self._resources_base, name)
+
     def _build_single_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
         Decide whether to build a library-backed, external, or action item.
@@ -424,6 +438,8 @@ class ListItemBuilder:
                 li.setInfo('video', info_dict)
 
             # Use appropriate icons for different action types
+            icon = None  # Initialize icon variable
+            
             if 'Sync' in title or action == 'scan_favorites_execute':
                 icon = 'DefaultAddonService.png'  # Service icon for sync operations
             elif item.get('is_navigation', False):
@@ -436,9 +452,24 @@ class ListItemBuilder:
                 else:
                     icon = item.get('icon', 'DefaultFolder.png')  # Use custom icon if provided
             else:
-                icon = 'DefaultFolder.png'  # Standard folder icon for other actions
-
-            li.setArt({'icon': icon, 'thumb': icon})
+                # For create list/folder actions, try to use custom art
+                if 'Create' in title and ('List' in title or 'Folder' in title):
+                    # Use the art manager to apply type-specific art
+                    try:
+                        if 'List' in title:
+                            self.art_manager.apply_type_specific_art(li, 'list', self._get_resource_path)
+                        elif 'Folder' in title:
+                            self.art_manager.apply_type_specific_art(li, 'folder', self._get_resource_path)
+                        else:
+                            li.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+                    except:
+                        li.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+                else:
+                    icon = 'DefaultFolder.png'  # Standard folder icon for other actions
+            
+            # Set art with icon if one was specified
+            if icon:
+                li.setArt({'icon': icon, 'thumb': icon})
 
             # Build plugin URL that will trigger the action when folder is navigated to
             # Prefer pre-built URL (e.g., for pagination navigation) over action-based URL
