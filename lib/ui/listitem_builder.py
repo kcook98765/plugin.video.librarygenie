@@ -812,10 +812,25 @@ class ListItemBuilder:
                         if info_labels.get('aired'):
                             video_info_tag.setFirstAired(info_labels['aired'])
 
+                except (AttributeError, TypeError) as e:
+                    # Only catch specific exceptions that indicate API compatibility issues
+                    self.logger.warning("InfoTagVideo method failed with %s: %s", type(e).__name__, e)
+                    
+                    # Only fallback to setInfo for Kodi v20 (where InfoTagVideo might have issues)
+                    # For Kodi v21+, InfoTagVideo should work fine, so log error without fallback
+                    if kodi_major == 20:
+                        self.logger.info("Using setInfo() fallback for Kodi v20 compatibility")
+                        listitem.setInfo('video', info_labels)
+                    else:
+                        # Kodi v21+ should not need setInfo() fallback
+                        self.logger.error("InfoTagVideo failed on Kodi v%s - this should not happen. Skipping metadata.", kodi_major)
                 except Exception as e:
-                    self.logger.error("Failed to set metadata via InfoTagVideo: %s", e)
-                    # Fallback to setInfo for compatibility
-                    listitem.setInfo('video', info_labels)
+                    # Log unexpected errors but don't use deprecated fallback
+                    self.logger.error("Unexpected error setting metadata on Kodi v%s: %s", kodi_major, e)
+                    if kodi_major < 21:
+                        # Only use deprecated fallback for pre-v21
+                        self.logger.info("Using setInfo() fallback for Kodi v%s", kodi_major)
+                        listitem.setInfo('video', info_labels)
             else:
                 # Kodi v19 (Matrix): Use setInfo
                 listitem.setInfo('video', info_labels)
