@@ -24,6 +24,21 @@ class FavoritesHandler:
         self.logger = get_kodi_logger('lib.ui.favorites_handler')
         self.error_handler = create_error_handler('lib.ui.favorites_handler')
 
+    def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
+        """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
+        from lib.utils.kodi_version import get_kodi_major_version
+        kodi_major = get_kodi_major_version()
+        if kodi_major >= 21:
+            # v21+: Use InfoTagVideo ONLY - completely avoid setInfo()
+            try:
+                video_info_tag = list_item.getVideoInfoTag()
+                video_info_tag.setPlot(plot)
+            except Exception as e:
+                self.logger.error("InfoTagVideo failed for plot: %s", e)
+        else:
+            # v19/v20: Use setInfo() as fallback
+            list_item.setInfo('video', {'plot': plot})
+
     def show_favorites_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main Kodi favorites menu"""
         try:
@@ -60,7 +75,7 @@ class FavoritesHandler:
             breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
             
             tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
-            tools_item.setInfo('video', {'plot': description_text + "Tools and options for favorites"})
+            self._set_listitem_plot(tools_item, description_text + "Tools and options for favorites")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
             
@@ -79,7 +94,7 @@ class FavoritesHandler:
                 # No favorites found - show empty message
                 # Add empty state message
                 empty_item = xbmcgui.ListItem(label=L(32006))
-                empty_item.setInfo('video', {'plot': 'No Kodi favorites found or none mapped to library.'})
+                self._set_listitem_plot(empty_item, 'No Kodi favorites found or none mapped to library.')
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
                     context.build_url('noop'),

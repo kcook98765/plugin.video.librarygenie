@@ -53,6 +53,21 @@ class AddonController:
                 xbmcgui.NOTIFICATION_ERROR
             )
 
+    def _set_listitem_title(self, list_item: xbmcgui.ListItem, title: str):
+        """Set title metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
+        from lib.utils.kodi_version import get_kodi_major_version
+        kodi_major = get_kodi_major_version()
+        if kodi_major >= 21:
+            # v21+: Use InfoTagVideo ONLY - completely avoid setInfo()
+            try:
+                video_info_tag = list_item.getVideoInfoTag()
+                video_info_tag.setTitle(title)
+            except Exception as e:
+                self.logger.error("InfoTagVideo failed for title: %s", e)
+        else:
+            # v19/v20: Use setInfo() as fallback
+            list_item.setInfo('video', {'title': title})
+
     def _show_main_menu(self):
         """Display the main menu"""
         try:
@@ -72,7 +87,8 @@ class AddonController:
             # Add items to directory
             for label, url, is_folder in items:
                 listitem = xbmcgui.ListItem(label)
-                listitem.setInfo('video', {'title': label})
+                # Use version-aware metadata setting to avoid v21 deprecation warnings
+                self._set_listitem_title(listitem, label)
                 xbmcplugin.addDirectoryItem(self.handle, url, listitem, is_folder)
 
             xbmcplugin.endOfDirectory(self.handle)

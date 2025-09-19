@@ -25,6 +25,20 @@ class MenuBuilder:
         self.logger = get_kodi_logger('lib.ui.menu_builder')
         self.renderer = get_listitem_renderer()
 
+    def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
+        """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
+        kodi_major = get_kodi_major_version()
+        if kodi_major >= 21:
+            # v21+: Use InfoTagVideo ONLY - completely avoid setInfo()
+            try:
+                video_info_tag = list_item.getVideoInfoTag()
+                video_info_tag.setPlot(plot)
+            except Exception as e:
+                self.logger.error("InfoTagVideo failed for plot: %s", e)
+        else:
+            # v19/v20: Use setInfo() as fallback
+            list_item.setInfo('video', {'plot': plot})
+
     def build_menu(self, items, addon_handle, base_url, breadcrumb_path=None):
         """Build a directory menu from items with optional breadcrumb"""
         self.logger.debug("MENU BUILD: Starting build_menu with %s items", len(items))
@@ -55,7 +69,7 @@ class MenuBuilder:
                     description_text = breadcrumb_helper.get_breadcrumb_for_tools_description_raw(breadcrumb_path)
                     
                     tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
-                    tools_item.setInfo('video', {'plot': description_text})
+                    self._set_listitem_plot(tools_item, description_text)
                     tools_item.setProperty('IsPlayable', 'false')
                     tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
                     
@@ -293,9 +307,9 @@ class MenuBuilder:
                         video_info_tag.setPlot(movie_data['description'])
                     except Exception as e:
                         self.logger.error("Failed to set plot via InfoTagVideo for movie '%s': %s", movie_data.get('title'), e)
-                        list_item.setInfo('video', {'plot': movie_data['description']})
+                        self._set_listitem_plot(list_item, movie_data['description'])
                 else:
-                    list_item.setInfo('video', {'plot': movie_data['description']})
+                    self._set_listitem_plot(list_item, movie_data['description'])
 
             # Add to directory
             xbmcplugin.addDirectoryItem(
@@ -341,12 +355,13 @@ class MenuBuilder:
                             video_info_tag.setGenres([params.get('content_type')])
                     except Exception as e:
                         self.logger.error("Failed to set metadata via InfoTagVideo for menu item '%s': %s", label, e)
-                        # Fallback to setInfo for compatibility
-                        list_item.setInfo('video', {
-                            'title': label,
-                            'plot': description,
-                            'genre': params.get('content_type', '')
-                        })
+                        # For Kodi v21+, avoid setInfo() fallback entirely
+                        if kodi_major < 21:
+                            list_item.setInfo('video', {
+                                'title': label,
+                                'plot': description,
+                                'genre': params.get('content_type', '')
+                            })
                 else:
                     # Kodi v19 (Matrix): Use setInfo
                     list_item.setInfo('video', {
