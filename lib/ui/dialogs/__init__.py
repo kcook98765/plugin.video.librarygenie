@@ -1,0 +1,1 @@
+# Dialog utilities for LibraryGenie
