@@ -14,6 +14,7 @@ from lib.utils.kodi_log import get_kodi_logger
 from lib.utils.kodi_version import get_version_specific_control_id
 from lib.ui.localization import L
 from lib.ui.navigation_cache import get_cached_info, get_navigation_snapshot, navigation_action
+from lib.ui.dialogs.video_info import is_video_info_active
 
 logger = get_kodi_logger('lib.ui.info_hijack_helpers')
 
@@ -46,26 +47,6 @@ def jsonrpc(method: str, params: dict | None = None) -> dict:
         _log("JSON parse error for %s: %s", xbmc.LOGWARNING, method, raw)
         return {}
 
-def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait: float = 1.0) -> bool:
-    """Monitor for dialog actually closing instead of using fixed sleep"""
-    start_time = time.time()
-    check_interval = 0.1  # 100ms checks for responsive detection
-    
-    while (time.time() - start_time) < max_wait:
-        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        
-        # Dialog closed when ID changes from the initial dialog
-        if current_dialog_id != initial_dialog_id:
-            elapsed = time.time() - start_time
-            logger.debug("HIJACK: Dialog close detected %s after %.3fs (%d→%d)", context, elapsed, initial_dialog_id, current_dialog_id)
-            return True
-        
-        xbmc.sleep(int(check_interval * 1000))
-    
-    elapsed = time.time() - start_time
-    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    logger.warning("HIJACK: Dialog close timeout %s after %.1fs (still %d)", context, elapsed, current_dialog_id)
-    return False
 
 def wait_until(cond, timeout_ms=2000, step_ms=30) -> bool:
     t_start = time.perf_counter()
@@ -868,24 +849,15 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         # Clean up any old hijack files before starting
         cleanup_old_hijack_files()
         
-        # 🔒 SUBSTEP 1: Close any open dialog first
-        substep1_start = time.perf_counter()
-        logger.debug("%s SUBSTEP 1: Checking for open dialogs to close", LOG_PREFIX)
-        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        if current_dialog_id in (12003, 10147):  # DialogVideoInfo or similar
-            logger.debug("%s SUBSTEP 1: Found open dialog ID %d, closing it", LOG_PREFIX, current_dialog_id)
-            xbmc.executebuiltin('Action(Back)')
-            
-            # Monitor for dialog actually closing instead of fixed sleep
-            if wait_for_dialog_close("SUBSTEP 1 dialog close", current_dialog_id, logger, max_wait=1.0):
-                after_close_id = xbmcgui.getCurrentWindowDialogId()
-                logger.debug("%s SUBSTEP 1 COMPLETE: Dialog closed (was %d, now %d)", LOG_PREFIX, current_dialog_id, after_close_id)
-            else:
-                logger.warning("%s ⚠️ SUBSTEP 1: Dialog close timeout, proceeding anyway", LOG_PREFIX)
-        else:
-            logger.debug("%s SUBSTEP 1 COMPLETE: No dialog to close (current dialog ID: %d)", LOG_PREFIX, current_dialog_id)
-        substep1_end = time.perf_counter()
-        logger.debug("%s ⏱️ SUBSTEP 1 TIMING: %.3fs", LOG_PREFIX, substep1_end - substep1_start)
+        # ✅ PRECONDITION CHECK: Ensure no video info dialog is active
+        # Dialog closing should have been handled by the manager before calling this function
+        if is_video_info_active():
+            current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+            logger.error("%s ❌ PRECONDITION FAILED: Video info dialog still active (ID: %d)", LOG_PREFIX, current_dialog_id)
+            logger.error("%s Manager should have closed dialog before calling open_native_info_fast", LOG_PREFIX)
+            return False
+        
+        logger.debug("%s ✅ PRECONDITION OK: No video info dialog detected, proceeding with XSP navigation", LOG_PREFIX)
         
         # 📝 SUBSTEP 2: Create XSP file for single item to create a native list
         substep2_start = time.perf_counter()
