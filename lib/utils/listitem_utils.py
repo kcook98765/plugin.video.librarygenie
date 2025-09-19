@@ -204,14 +204,9 @@ class ListItemMetadataManager:
             if item_data.get('imdbnumber'):
                 video_info_tag.setIMDbNumber(item_data['imdbnumber'])
                 
-            if item_data.get('tmdb_id'):
-                try:
-                    video_info_tag.setUniqueId(str(item_data['tmdb_id']), 'tmdb')
-                except AttributeError:
-                    # setUniqueId not available in this Kodi version (< v20)
-                    self.logger.debug("METADATA: setUniqueId not available in Kodi v%d, skipping TMDB ID for '%s'", get_kodi_major_version(), item_data.get('title', 'Unknown'))
-                except Exception as e:
-                    self.logger.debug("METADATA: Failed to set TMDB unique ID for '%s': %s", item_data.get('title', 'Unknown'), e)
+            # setUniqueId introduced in Kodi v20+
+            if item_data.get('tmdb_id') and get_kodi_major_version() >= 20:
+                video_info_tag.setUniqueId(str(item_data['tmdb_id']), 'tmdb')
             
             # Episode-specific fields
             if item_data.get('media_type') == 'episode':
