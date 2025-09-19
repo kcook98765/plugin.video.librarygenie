@@ -92,17 +92,18 @@ class ListsHandler:
             url = item_data.get('url', '')
             
             if 'action=show_list' in url:
-                # This is a user list - use list/playlist art
+                # This is a user list - use list/playlist art with custom resources
                 renderer._apply_art(list_item, 'list')
             elif 'action=show_folder' in url:
-                # This is a folder - use folder art
+                # This is a folder - use folder art with custom resources
                 renderer._apply_art(list_item, 'folder')
             else:
                 # Default/other items - use original icon if specified
                 if 'icon' in item_data:
                     list_item.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
                 else:
-                    list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+                    # Use folder art as default for other navigable items
+                    renderer._apply_art(list_item, 'folder')
                     
         except Exception as e:
             # Fallback to original behavior
