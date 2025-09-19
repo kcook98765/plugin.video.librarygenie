@@ -204,8 +204,8 @@ class ListItemMetadataManager:
             if item_data.get('imdbnumber'):
                 video_info_tag.setIMDbNumber(item_data['imdbnumber'])
                 
-            # setUniqueId introduced in Kodi v20+
-            if item_data.get('tmdb_id') and get_kodi_major_version() >= 20:
+            # setUniqueId introduced in Kodi v20+, but double-check it exists
+            if item_data.get('tmdb_id') and get_kodi_major_version() >= 20 and hasattr(video_info_tag, 'setUniqueId'):
                 video_info_tag.setUniqueId(str(item_data['tmdb_id']), 'tmdb')
             
             # Episode-specific fields
