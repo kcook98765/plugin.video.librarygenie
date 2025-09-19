@@ -27,6 +27,15 @@ class ListItemBuilder:
         self.context = context
         self.logger = get_kodi_logger('lib.ui.listitem_builder')
         
+        # Cache addon instance and resources base path for efficient resource access
+        import os
+        import xbmcaddon
+        import xbmcvfs
+        self._addon = xbmcaddon.Addon(self.addon_id)
+        self._resources_base = xbmcvfs.translatePath(
+            os.path.join(self._addon.getAddonInfo('path'), 'resources')
+        )
+        
         # Initialize consolidated utilities - CONSOLIDATED
         from lib.utils.listitem_utils import ListItemMetadataManager, ListItemPropertyManager, ListItemArtManager, ContextMenuBuilder
         self.metadata_manager = ListItemMetadataManager(addon_id)
@@ -140,13 +149,9 @@ class ListItemBuilder:
 
     # -------- internals --------
     def _get_resource_path(self, name: str) -> str:
-        """Get absolute path to addon resource"""
+        """Get absolute path to addon resource (cached for efficiency)"""
         import os
-        import xbmcaddon
-        import xbmcvfs
-        addon = xbmcaddon.Addon(self.addon_id)
-        base = addon.getAddonInfo('path')
-        return xbmcvfs.translatePath(os.path.join(base, 'resources', name))
+        return os.path.join(self._resources_base, name)
 
     def _build_single_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
