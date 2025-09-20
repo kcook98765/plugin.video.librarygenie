@@ -263,7 +263,7 @@ class ListItemBuilder:
                 # Movies and other media types - include year if present
                 display_label = f"{title} ({item['year']})" if item.get('year') else title
 
-            li = xbmcgui.ListItem(label=display_label)
+            li = xbmcgui.ListItem(label=display_label, offscreen=True)
 
             # Prioritize videodb:// URLs for library items to eliminate background processing delays,
             # fallback to direct file paths only when videodb isn't available
@@ -407,7 +407,7 @@ class ListItemBuilder:
             action = item.get('action', '')
 
             # Create folder ListItem that Kodi will treat as a navigable directory
-            li = xbmcgui.ListItem(label=title)
+            li = xbmcgui.ListItem(label=title, offscreen=True)
 
             # Ensure it's treated as a folder, not a playable item
             li.setProperty('IsPlayable', 'false')
@@ -501,7 +501,7 @@ class ListItemBuilder:
             title = item.get('title', 'Unknown')
 
             display_label = f"{title} ({item['year']})" if item.get('year') else title
-            li = xbmcgui.ListItem(label=display_label)
+            li = xbmcgui.ListItem(label=display_label, offscreen=True)
 
             # Apply metadata based on Kodi version - CONSOLIDATED
             plot_text = item.get('plot', '')
@@ -724,7 +724,7 @@ class ListItemBuilder:
                 else:
                     display_title = title
 
-            listitem = xbmcgui.ListItem(label=display_title)
+            listitem = xbmcgui.ListItem(label=display_title, offscreen=True)
 
             # Set video info using media_items data
             info_labels = {
@@ -878,6 +878,6 @@ class ListItemBuilder:
         except Exception as e:
             self.logger.error("Failed to build media listitem: %s", e)
             # Return error listitem
-            error_item = xbmcgui.ListItem(label="Error loading item")
+            error_item = xbmcgui.ListItem(label="Error loading item", offscreen=True)
             error_url = "plugin://plugin.video.librarygenie/?action=error"
             return error_item, error_url
