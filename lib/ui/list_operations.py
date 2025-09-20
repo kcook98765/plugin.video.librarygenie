@@ -65,12 +65,14 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully created list: %s", list_name)
-                return DialogResponse(
+                response = DialogResponse(
                     success=True,
                     message=f"Created list: {list_name}", # This string should also be localized
-                    refresh_needed=True,
-                    data={'id': result.get('id'), 'name': list_name}  # Include new list ID
+                    refresh_needed=True
                 )
+                # Add data attribute after creation since DialogResponse doesn't accept 'data' in constructor
+                response.data = {'id': result.get('id'), 'name': list_name}
+                return response
 
         except Exception as e:
             context.logger.error("Error creating list: %s", e)
