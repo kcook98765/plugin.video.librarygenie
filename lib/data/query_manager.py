@@ -714,6 +714,49 @@ class QueryManager:
             self.logger.error("Failed to add search results to list: %s", e)
             return 0
 
+    def add_library_items_to_list(self, list_id, library_items):
+        """Add library items to a list using canonical pipeline (same as search process)"""
+        try:
+            if not library_items:
+                return 0
+
+            added_count = 0
+
+            with self.connection_manager.transaction() as conn:
+                for position, item in enumerate(library_items):
+                    try:
+                        # Ensure source='lib' for library items and proper identity
+                        canonical_item = dict(item)
+                        canonical_item['source'] = 'lib'
+                        
+                        # Extract media item data using canonical pipeline
+                        media_data = self._extract_media_item_data(canonical_item)
+                        
+                        # Insert or get existing media item using canonical method
+                        media_item_id = self._insert_or_get_media_item(conn, media_data)
+
+                        if media_item_id:
+                            # Add to list using same approach as search
+                            conn.execute("""
+                                INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                                VALUES (?, ?, ?)
+                            """, [list_id, media_item_id, position])
+                            added_count += 1
+                            self.logger.debug("Added library item '%s' (kodi_id=%s) to list %s", 
+                                           canonical_item.get('title', 'Unknown'), 
+                                           canonical_item.get('kodi_id'), list_id)
+
+                    except Exception as e:
+                        self.logger.error("Error adding library item: %s", e)
+                        continue
+
+            self.logger.debug("Added %s library items to list %s", added_count, list_id)
+            return added_count
+
+        except Exception as e:
+            self.logger.error("Failed to add library items to list: %s", e)
+            return 0
+
     def remove_item_from_list(self, list_id, item_id):
         """Remove an item from a list"""
         try:
