@@ -555,14 +555,18 @@ class ListOperations:
             existing_item = None
 
             if dbtype == 'movie':
+                context.logger.debug("Looking up movie with kodi_id=%s", dbid)
                 existing_item = query_manager.connection_manager.execute_single("""
                     SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'movie'
                 """, [int(dbid)])
 
                 if existing_item:
+                    context.logger.debug("Found existing movie: id=%s, kodi_id=%s, title=%s", 
+                                       existing_item.get('id'), existing_item.get('kodi_id'), existing_item.get('title'))
                     library_item = dict(existing_item)
                     library_item['source'] = 'lib'
                 else:
+                    context.logger.debug("No existing movie found for kodi_id=%s", dbid)
                     # Item not in database yet - create minimal entry
                     library_item = {
                         'kodi_id': int(dbid),
@@ -610,7 +614,9 @@ class ListOperations:
                 media_item_id = existing_item["id"]
 
             # Add item to the selected list
+            context.logger.debug("Adding media_item_id=%s to target_list_id=%s", media_item_id, target_list_id)
             result = query_manager.add_item_to_list(target_list_id, media_item_id)
+            context.logger.debug("add_item_to_list result: %s", result)
 
             if result is not None and result.get("success"):
                 # Determine the correct list name based on what actually happened
