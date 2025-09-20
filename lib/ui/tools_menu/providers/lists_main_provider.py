@@ -31,12 +31,18 @@ class ListsMainToolsProvider(BaseToolsProvider):
                 handler=self._handle_local_movie_search
             ))
             
-            # AI Search - availability check moved to execution time for better performance
-            actions.append(self._create_action(
-                action_id="ai_movie_search",
-                label=L(34100),  # AI Movie Search
-                handler=self._handle_ai_movie_search
-            ))
+            # Check if AI Search is available (like old system)
+            try:
+                from lib.remote.ai_search_client import get_ai_search_client
+                ai_client = get_ai_search_client()
+                if ai_client.is_activated():
+                    actions.append(self._create_action(
+                        action_id="ai_movie_search",
+                        label=L(34100),  # AI Movie Search
+                        handler=self._handle_ai_movie_search
+                    ))
+            except Exception:
+                pass  # AI search not available
             
             actions.append(self._create_action(
                 action_id="local_episodes_search",
@@ -198,24 +204,8 @@ class ListsMainToolsProvider(BaseToolsProvider):
             return DialogResponse(success=False, message="Error opening local movie search")
 
     def _handle_ai_movie_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
-        """Handle AI movie search with lazy activation check"""
+        """Handle AI movie search"""
         try:
-            # Check if AI Search is available (moved from menu building for performance)
-            try:
-                from lib.remote.ai_search_client import get_ai_search_client
-                ai_client = get_ai_search_client()
-                if not ai_client.is_activated():
-                    return DialogResponse(
-                        success=False, 
-                        message="AI Search is not activated. Please configure it in Settings."
-                    )
-            except Exception:
-                return DialogResponse(
-                    success=False, 
-                    message="AI Search is not available. Please check your configuration."
-                )
-            
-            # If available, proceed with AI search
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
             return tools_handler._handle_ai_search(plugin_context)
