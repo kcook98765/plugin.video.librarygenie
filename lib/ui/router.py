@@ -38,13 +38,16 @@ class Router:
         params = context.get_params() # Get all params for modular tools
         self.logger.debug("Router dispatching action: '%s'", action)
 
-        # Generate breadcrumb context for navigation
-        from lib.ui.breadcrumb_helper import get_breadcrumb_helper
-        breadcrumb_helper = get_breadcrumb_helper()
-        breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
-
-        # Add breadcrumb to context for handlers
-        context.breadcrumb_path = breadcrumb_path
+        # Generate breadcrumb context for navigation (skip for Tools & Options for performance)
+        if action != "show_list_tools":
+            from lib.ui.breadcrumb_helper import get_breadcrumb_helper
+            breadcrumb_helper = get_breadcrumb_helper()
+            breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
+            # Add breadcrumb to context for handlers
+            context.breadcrumb_path = breadcrumb_path
+        else:
+            # Tools & Options don't need breadcrumbs - skip for performance
+            context.breadcrumb_path = None
 
         try:
             # Handle special router-managed actions
