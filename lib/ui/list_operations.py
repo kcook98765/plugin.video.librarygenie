@@ -481,12 +481,13 @@ class ListOperations:
             # Get library item parameters
             dbtype = context.get_param('dbtype')
             dbid = context.get_param('dbid')
+            title = context.get_param('title', f'Item {dbid}')  # Extract title from context
 
             if not dbtype or not dbid:
                 context.logger.error("Missing dbtype or dbid for library item")
                 return False
 
-            context.logger.info("Adding library item to list: dbtype=%s, dbid=%s", dbtype, dbid)
+            context.logger.info("Adding library item to list: dbtype=%s, dbid=%s, title='%s'", dbtype, dbid, title)
 
             query_manager = get_query_manager()
             if not query_manager.initialize():
@@ -550,75 +551,32 @@ class ListOperations:
             if target_list_id is None:
                 return False
 
-            # Check if item already exists in media_items table
-            library_item = None
-            existing_item = None
+            # Build canonical library item dict (same format as search process)
+            canonical_library_item = {
+                'kodi_id': int(dbid),
+                'media_type': dbtype,  # Use actual media type from context 
+                'title': title,  # Use real title from context instead of placeholder
+                'source': 'lib',  # Library source for proper identity matching
+                'year': 0,  # Will be enriched by canonical pipeline if needed
+                'imdb_id': '',
+                'plot': '',
+                'rating': 0.0,
+                'runtime': 0,
+                'art': {},
+                'genre': '',
+                'director': ''
+            }
 
-            if dbtype == 'movie':
-                context.logger.debug("Looking up movie with kodi_id=%s", dbid)
-                existing_item = query_manager.connection_manager.execute_single("""
-                    SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'movie'
-                """, [int(dbid)])
+            context.logger.debug("Adding library item to list: kodi_id=%s, title='%s', media_type=%s", 
+                               dbid, title, dbtype)
 
-                if existing_item:
-                    # Convert sqlite3.Row to dict for proper access
-                    existing_dict = dict(existing_item)
-                    context.logger.debug("Found existing movie: id=%s, kodi_id=%s, title=%s", 
-                                       existing_dict.get('id'), existing_dict.get('kodi_id'), existing_dict.get('title'))
-                    library_item = existing_dict
-                    library_item['source'] = 'lib'
-                else:
-                    context.logger.debug("No existing movie found for kodi_id=%s", dbid)
-                    # Item not in database yet - create minimal entry
-                    library_item = {
-                        'kodi_id': int(dbid),
-                        'media_type': 'movie',
-                        'title': f'Movie {dbid}',  # Placeholder, will be enriched later
-                        'year': 0,
-                        'source': 'lib'
-                    }
+            # Use unified canonical pipeline (same as search process)
+            added_count = query_manager.add_library_items_to_list(target_list_id, [canonical_library_item])
+            
+            context.logger.debug("Canonical pipeline result: added_count=%s", added_count)
 
-            elif dbtype == 'episode':
-                existing_item = query_manager.connection_manager.execute_single("""
-                    SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'episode'
-                """, [int(dbid)])
-
-                if existing_item:
-                    library_item = dict(existing_item)
-                    library_item['source'] = 'lib'
-                else:
-                    # Item not in database yet - create minimal entry
-                    library_item = {
-                        'kodi_id': int(dbid),
-                        'media_type': 'episode',
-                        'title': f'Episode {dbid}',  # Placeholder, will be enriched later
-                        'source': 'lib'
-                    }
-
-            if not library_item:
-                context.logger.error("Unsupported dbtype: %s", dbtype)
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    f"Unsupported item type: {dbtype}", # Localize this string
-                    xbmcgui.NOTIFICATION_ERROR
-                )
-                return False
-
-            # Add or update the item in media_items table
-            if not existing_item:
-                # Insert new item
-                result = query_manager.add_media_item_to_database(library_item)
-                if not result.get("success"):
-                    context.logger.error("Failed to add library item to database")
-                    return False
-                media_item_id = result["id"]
-            else:
-                media_item_id = existing_item["id"]
-
-            # Add item to the selected list
-            context.logger.debug("Adding media_item_id=%s to target_list_id=%s", media_item_id, target_list_id)
-            result = query_manager.add_item_to_list(target_list_id, media_item_id)
-            context.logger.debug("add_item_to_list result: %s", result)
+            # Check if the item was successfully added
+            result = {"success": added_count > 0}
 
             if result is not None and result.get("success"):
                 # Determine the correct list name based on what actually happened
