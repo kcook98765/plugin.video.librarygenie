@@ -222,7 +222,7 @@ class ListItemRenderer:
         """Build ListItem for a user list"""
         try:
             name = list_data.get('name', 'Unnamed List')
-            list_item = xbmcgui.ListItem(label=name)
+            list_item = xbmcgui.ListItem(label=name, offscreen=True)
 
             # Set basic info - CONSOLIDATED
             self.metadata_manager.set_basic_metadata(list_item, name, f"User list: {name}", "list")
@@ -243,7 +243,7 @@ class ListItemRenderer:
         """Build ListItem for a folder"""
         try:
             name = folder_data.get('name', 'Unnamed Folder')
-            list_item = xbmcgui.ListItem(label=name)
+            list_item = xbmcgui.ListItem(label=name, offscreen=True)
 
             # Set basic info - CONSOLIDATED
             self.metadata_manager.set_basic_metadata(list_item, name, f"Folder: {name}", "folder")
@@ -409,7 +409,7 @@ class ListItemRenderer:
                 xbmcplugin.addDirectoryItem(
                     handle=self.addon_handle,
                     url="plugin://plugin.video.librarygenie/?action=empty",
-                    listitem=xbmcgui.ListItem(label="No items in this list"),
+                    listitem=xbmcgui.ListItem(label="No items in this list", offscreen=True),
                     isFolder=False
                 )
                 xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
