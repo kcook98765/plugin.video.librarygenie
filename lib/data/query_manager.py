@@ -828,49 +828,82 @@ class QueryManager:
     def _insert_or_get_media_item(self, conn, media_data):
         """Insert or get existing media item with episode-specific matching"""
         try:
+            # Map canonical fields to DB schema for pipeline compatibility
+            # This handles both canonical format (from context menu) and raw format (from search)
+            db_media_data = {
+                'id': media_data.get('id'),
+                'media_type': media_data.get('media_type', media_data.get('type', 'movie')),
+                'title': media_data.get('title', ''),
+                'year': media_data.get('year', 0),
+                'imdbnumber': media_data.get('imdbnumber') or media_data.get('imdb_id', ''),  # Canonical → DB mapping
+                'tmdb_id': media_data.get('tmdb_id', ''),
+                'kodi_id': media_data.get('kodi_id'),
+                'source': media_data.get('source', 'search'),
+                'play': media_data.get('play') or media_data.get('file_path', ''),  # Canonical → DB mapping
+                'plot': media_data.get('plot', ''),
+                'rating': media_data.get('rating', 0.0),
+                'votes': media_data.get('votes', 0),
+                'duration': media_data.get('duration') or media_data.get('duration_minutes', 0),  # Canonical → DB mapping
+                'mpaa': media_data.get('mpaa', ''),
+                'genre': media_data.get('genre', ''),
+                'director': media_data.get('director', ''),
+                'studio': media_data.get('studio', ''),
+                'country': media_data.get('country', ''),
+                'writer': media_data.get('writer', ''),
+                'cast': media_data.get('cast', ''),
+                'art': media_data.get('art', ''),
+                'tvshowtitle': media_data.get('tvshowtitle', ''),
+                'season': media_data.get('season'),
+                'episode': media_data.get('episode'),
+                'aired': media_data.get('aired', '')
+            }
+
+            self.logger.debug("Processing media item: type=%s, title='%s', kodi_id=%s", 
+                           db_media_data['media_type'], db_media_data['title'], db_media_data['kodi_id'])
+
             # CRITICAL: If this item already has a database ID (from search results), use it directly
-            if media_data.get('id'):
+            if db_media_data.get('id'):
                 # Verify the ID exists in the database
-                existing = conn.execute("SELECT id FROM media_items WHERE id = ?", [media_data['id']]).fetchone()
+                existing = conn.execute("SELECT id FROM media_items WHERE id = ?", [db_media_data['id']]).fetchone()
                 if existing:
-                    self.logger.debug("Using existing media item ID %s for '%s'", media_data['id'], media_data.get('title', 'Unknown'))
-                    return media_data['id']
+                    self.logger.debug("Using existing media item ID %s for '%s'", db_media_data['id'], db_media_data['title'])
+                    return db_media_data['id']
                 else:
-                    self.logger.warning("Media item ID %s not found in database, falling back to matching", media_data['id'])
+                    self.logger.warning("Media item ID %s not found in database, falling back to matching", db_media_data['id'])
             
             # Try to find existing item by IMDb ID first (works for both movies and episodes)
-            if media_data.get('imdbnumber'):
+            if db_media_data.get('imdbnumber'):
                 existing = conn.execute("""
                     SELECT id FROM media_items WHERE imdbnumber = ?
-                """, [media_data['imdbnumber']]).fetchone()
+                """, [db_media_data['imdbnumber']]).fetchone()
 
                 if existing:
                     return existing['id']
 
             # Episode-specific matching by show + season + episode (case-insensitive tvshowtitle)
-            if media_data['media_type'] == 'episode' and media_data.get('tvshowtitle') and \
-               media_data.get('season') is not None and media_data.get('episode') is not None:
+            if db_media_data['media_type'] == 'episode' and db_media_data.get('tvshowtitle') and \
+               db_media_data.get('season') is not None and db_media_data.get('episode') is not None:
                 existing = conn.execute("""
                     SELECT id FROM media_items 
                     WHERE media_type = 'episode' 
                     AND tvshowtitle = ? COLLATE NOCASE 
                     AND season = ? AND episode = ?
-                """, [media_data['tvshowtitle'], media_data['season'], media_data['episode']]).fetchone()
+                """, [db_media_data['tvshowtitle'], db_media_data['season'], db_media_data['episode']]).fetchone()
 
                 if existing:
                     return existing['id']
 
             # Movie matching by title and year
-            elif media_data['media_type'] == 'movie' and media_data.get('title') and media_data.get('year'):
+            elif db_media_data['media_type'] == 'movie' and db_media_data.get('title') and db_media_data.get('year'):
                 existing = conn.execute("""
                     SELECT id FROM media_items 
                     WHERE title = ? AND year = ? AND media_type = 'movie'
-                """, [media_data['title'], media_data['year']]).fetchone()
+                """, [db_media_data['title'], db_media_data['year']]).fetchone()
 
                 if existing:
                     return existing['id']
 
-            # Insert new media item with episode fields
+            # Insert new media item with all fields using mapped data
             cursor = conn.execute("""
                 INSERT INTO media_items 
                 (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
@@ -879,15 +912,15 @@ class QueryManager:
                  tvshowtitle, season, episode, aired)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
-                media_data['media_type'], media_data['title'], media_data['year'],
-                media_data['imdbnumber'], media_data['tmdb_id'], media_data['kodi_id'],
-                media_data['source'], media_data['play'], media_data['plot'], 
-                media_data['rating'], media_data['votes'], media_data['duration'], 
-                media_data['mpaa'], media_data['genre'], media_data['director'], 
-                media_data['studio'], media_data['country'], media_data['writer'], 
-                media_data['cast'], media_data['art'],
-                media_data.get('tvshowtitle'), media_data.get('season'), 
-                media_data.get('episode'), media_data.get('aired')
+                db_media_data['media_type'], db_media_data['title'], db_media_data['year'],
+                db_media_data['imdbnumber'], db_media_data['tmdb_id'], db_media_data['kodi_id'],
+                db_media_data['source'], db_media_data['play'], db_media_data['plot'], 
+                db_media_data['rating'], db_media_data['votes'], db_media_data['duration'], 
+                db_media_data['mpaa'], db_media_data['genre'], db_media_data['director'], 
+                db_media_data['studio'], db_media_data['country'], db_media_data['writer'], 
+                db_media_data['cast'], db_media_data['art'],
+                db_media_data['tvshowtitle'], db_media_data['season'], 
+                db_media_data['episode'], db_media_data['aired']
             ])
 
             return cursor.lastrowid
