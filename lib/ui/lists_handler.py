@@ -80,6 +80,30 @@ class ListsHandler:
             )
         return self._listitem_renderer
 
+    def _create_simple_empty_state_item(self, context: PluginContext, title: str, description: str = "") -> None:
+        """Create simple empty state item without loading full renderer - optimization for low-power devices"""
+        try:
+            # Create simple list item without heavy renderer dependencies
+            list_item = xbmcgui.ListItem(label=title)
+            
+            # Set basic properties without renderer
+            if description:
+                self._set_listitem_plot(list_item, description)
+            
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+            
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                context.addon_handle,
+                context.build_url('noop'),
+                list_item,
+                False
+            )
+            
+        except Exception as e:
+            self.logger.error("Failed to create simple empty state item: %s", e)
+
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
         kodi_major = get_kodi_major_version()
@@ -635,19 +659,12 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # If folder is empty, show message using lazy-loaded renderer
+            # If folder is empty, show message using lightweight method to avoid loading full renderer
             if not lists_in_folder:
-                renderer = self.listitem_renderer
-                empty_item = renderer.create_simple_listitem(
-                    title="Folder is empty",  # TODO: Add L() ID for this
-                    description='This folder contains no lists',  # This string should also be localized
-                    action='noop'
-                )
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    context.build_url('noop'),
-                    empty_item,
-                    False
+                self._create_simple_empty_state_item(
+                    context,
+                    "Folder is empty",  # TODO: Add L() ID for this
+                    'This folder contains no lists'  # This string should also be localized
                 )
 
             # Breadcrumb context now integrated into Tools & Options labels
@@ -780,20 +797,13 @@ class ListsHandler:
                 True
             )
 
-            # Handle empty lists
+            # Handle empty lists using lightweight method to avoid loading full renderer
             if not list_items:
                 context.logger.debug("List is empty")
-                renderer = self.listitem_renderer
-                empty_item = renderer.create_simple_listitem(
-                    title=L(30602),
-                    description='This list contains no items',  # This string should also be localized
-                    action='noop'
-                )
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    context.build_url('noop'),
-                    empty_item,
-                    False
+                self._create_simple_empty_state_item(
+                    context,
+                    L(30602),
+                    'This list contains no items'  # This string should also be localized
                 )
 
                 # End directory
@@ -952,19 +962,12 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # If no search history, show message
+            # If no search history, show message using lightweight method to avoid loading full renderer
             if not search_lists:
-                renderer = self.listitem_renderer
-                empty_item = renderer.create_simple_listitem(
-                    title="No search history",  # TODO: Add L() ID for this
-                    description='Search results will appear here',
-                    action='noop'
-                )
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    context.build_url('noop'),
-                    empty_item,
-                    False
+                self._create_simple_empty_state_item(
+                    context,
+                    "No search history",  # TODO: Add L() ID for this
+                    'Search results will appear here'
                 )
 
             # Breadcrumb context now integrated into Tools & Options labels
