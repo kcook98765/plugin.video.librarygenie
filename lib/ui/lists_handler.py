@@ -84,7 +84,7 @@ class ListsHandler:
         """Create simple empty state item without loading full renderer - optimization for low-power devices"""
         try:
             # Create simple list item without heavy renderer dependencies
-            list_item = xbmcgui.ListItem(label=title)
+            list_item = xbmcgui.ListItem(label=title, offscreen=True)
             
             # Set basic properties without renderer
             if description:
@@ -310,7 +310,7 @@ class ListsHandler:
 
                 # Build directory items
                 for item in menu_items:
-                    list_item = xbmcgui.ListItem(label=item['label'])
+                    list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                     if 'description' in item:
                         self._set_listitem_plot(list_item, item['description'])
@@ -498,7 +498,7 @@ class ListsHandler:
 
             # Build directory items
             for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
+                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                 if 'description' in item:
                     self._set_listitem_plot(list_item, item['description'])
@@ -662,7 +662,7 @@ class ListsHandler:
 
             # Build directory items
             for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
+                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                 if 'description' in item:
                     self._set_listitem_plot(list_item, item['description'])
@@ -776,7 +776,7 @@ class ListsHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
             
-            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
+            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
             self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -965,7 +965,7 @@ class ListsHandler:
 
             # Build directory items
             for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
+                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                 if 'description' in item:
                     self._set_listitem_plot(list_item, item['description'])
