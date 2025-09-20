@@ -454,20 +454,29 @@ class ListItemRenderer:
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
 
 
-# Global renderer instance
-_listitem_renderer_instance = None
+# Context-aware renderer instance cache for performance optimization
+_renderer_cache = {}
 
 
 def get_listitem_renderer(addon_handle: Optional[int] = None, addon_id: Optional[str] = None, context=None):
-    """Get global listitem renderer instance"""
-    global _listitem_renderer_instance
-    if _listitem_renderer_instance is None:
-        # Use provided parameters or get from current context
-        if addon_handle is None or addon_id is None:
-            import sys
-            addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
-            addon_id = "plugin.video.librarygenie"
+    """Get renderer instance with context-aware caching for low-power device optimization"""
+    # Use provided parameters or get from current context
+    if addon_handle is None or addon_id is None:
+        import sys
+        addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+        addon_id = "plugin.video.librarygenie"
+    
+    # Generate cache key based on context needs - only cache by handle/id for simplicity
+    # Context changes are rare and don't need separate instances
+    cache_key = f"{addon_handle}_{addon_id}"
+    
+    if cache_key not in _renderer_cache:
+        _renderer_cache[cache_key] = ListItemRenderer(addon_handle, addon_id, context)
+    
+    return _renderer_cache[cache_key]
 
-        _listitem_renderer_instance = ListItemRenderer(addon_handle, addon_id, context)
 
-    return _listitem_renderer_instance
+def clear_renderer_cache():
+    """Clear renderer cache - useful for testing and memory management"""
+    global _renderer_cache
+    _renderer_cache.clear()
