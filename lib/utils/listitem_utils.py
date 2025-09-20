@@ -650,7 +650,7 @@ def create_simple_listitem(title: str, plot: Optional[str] = None, addon_id: str
         Configured ListItem
     """
     try:
-        list_item = xbmcgui.ListItem(label=title)
+        list_item = xbmcgui.ListItem(label=title, offscreen=True)
         
         # Set metadata
         metadata_manager = ListItemMetadataManager(addon_id)
@@ -670,4 +670,4 @@ def create_simple_listitem(title: str, plot: Optional[str] = None, addon_id: str
     except Exception as e:
         logger.error("SIMPLE: Failed to create simple listitem for '%s': %s", title, e)
         # Return basic listitem as fallback
-        return xbmcgui.ListItem(label=title)
+        return xbmcgui.ListItem(label=title, offscreen=True)
