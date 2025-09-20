@@ -563,12 +563,17 @@ class ListsHandler:
                     success=False
                 )
 
-            # Get folder info
-            # SQL TIMING: Get folder by ID
+            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
+            # SQL TIMING: Batch query for folder navigation
             sql_start_time = time.time()
-            folder_info = query_manager.get_folder_by_id(folder_id)
+            navigation_data = query_manager.get_folder_navigation_batch(folder_id)
             sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_folder_by_id() took %.3f seconds", sql_end_time - sql_start_time)
+            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_folder_navigation_batch() took %.3f seconds (replaces 3 separate queries)", sql_end_time - sql_start_time)
+            
+            # Extract data from batch result
+            folder_info = navigation_data['folder_info']
+            subfolders = navigation_data['subfolders'] 
+            lists_in_folder = navigation_data['lists']
             
             if not folder_info:
                 context.logger.error("Folder %s not found", folder_id)
@@ -577,21 +582,7 @@ class ListsHandler:
                     success=False
                 )
 
-            # Get subfolders in this folder
-            # SQL TIMING: Get subfolders in this folder
-            sql_start_time = time.time()
-            subfolders = query_manager.get_all_folders(parent_id=folder_id)
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_all_folders(parent_id=%s) took %.3f seconds", folder_id, sql_end_time - sql_start_time)
-            context.logger.debug("Folder '%s' (id=%s) has %s subfolders", folder_info['name'], folder_id, len(subfolders))
-
-            # Get lists in this folder
-            # SQL TIMING: Get lists in this folder
-            sql_start_time = time.time()
-            lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_lists_in_folder() took %.3f seconds", sql_end_time - sql_start_time)
-            context.logger.debug("Folder '%s' (id=%s) has %s lists", folder_info['name'], folder_id, len(lists_in_folder))
+            context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
             # Set directory title with breadcrumb context
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, query_manager)
