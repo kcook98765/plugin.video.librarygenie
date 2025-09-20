@@ -68,7 +68,8 @@ class ListOperations:
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {list_name}", # This string should also be localized
-                    refresh_needed=True
+                    refresh_needed=True,
+                    data={'id': result.get('id'), 'name': list_name}  # Include new list ID
                 )
 
         except Exception as e:
@@ -538,13 +539,12 @@ class ListOperations:
                 result = self.create_list(context)
                 if not result.success:
                     return False
-                # Get the newly created list ID and add item to it
-                all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
-                available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
-                if available_lists:
-                    target_list_id = available_lists[-1]['id']  # Assume last created
-                else:
+                # Use the newly created list ID directly from the result
+                target_list_id = result.data.get('id') if result.data else None
+                if target_list_id is None:
+                    context.logger.error("Failed to get new list ID from create_list result")
                     return False
+                context.logger.debug("Using newly created list ID: %s", target_list_id)
             else:
                 target_list_id = available_lists[selected_index]['id']
 
