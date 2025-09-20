@@ -17,7 +17,6 @@ from lib.ui.localization import L
 from lib.ui.breadcrumb_helper import get_breadcrumb_helper
 from lib.utils.kodi_log import get_kodi_logger
 from lib.data.query_manager import get_query_manager
-from lib.ui.listitem_renderer import get_listitem_renderer
 from lib.utils.kodi_version import get_kodi_major_version
 
 # Import the specialized operation modules
@@ -68,6 +67,19 @@ class ListsHandler:
             self._import_export = ImportExportHandler(self.context)
         return self._import_export
 
+    @property  
+    def listitem_renderer(self):
+        """Lazy load ListItemRenderer only when needed for navigation rendering"""
+        if not hasattr(self, '_listitem_renderer'):
+            self.logger.debug("LAZY LOAD: Loading ListItemRenderer on first use")
+            from lib.ui.listitem_renderer import get_listitem_renderer
+            self._listitem_renderer = get_listitem_renderer(
+                self.context.addon_handle,
+                self.context.addon_id, 
+                self.context
+            )
+        return self._listitem_renderer
+
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
         kodi_major = get_kodi_major_version()
@@ -85,8 +97,8 @@ class ListsHandler:
     def _set_custom_art_for_item(self, list_item: xbmcgui.ListItem, item_data: Dict[str, Any]):
         """Apply custom art based on item type"""
         try:
-            # Get the renderer instance to use its art methods
-            renderer = get_listitem_renderer()
+            # Get the lazy-loaded renderer instance to use its art methods
+            renderer = self.listitem_renderer
             
             # Determine if this is a list or folder based on the URL action
             url = item_data.get('url', '')
@@ -623,9 +635,9 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # If folder is empty, show message using version-aware renderer
+            # If folder is empty, show message using lazy-loaded renderer
             if not lists_in_folder:
-                renderer = get_listitem_renderer()
+                renderer = self.listitem_renderer
                 empty_item = renderer.create_simple_listitem(
                     title="Folder is empty",  # TODO: Add L() ID for this
                     description='This folder contains no lists',  # This string should also be localized
@@ -771,7 +783,7 @@ class ListsHandler:
             # Handle empty lists
             if not list_items:
                 context.logger.debug("List is empty")
-                renderer = get_listitem_renderer()
+                renderer = self.listitem_renderer
                 empty_item = renderer.create_simple_listitem(
                     title=L(30602),
                     description='This list contains no items',  # This string should also be localized
@@ -942,7 +954,7 @@ class ListsHandler:
 
             # If no search history, show message
             if not search_lists:
-                renderer = get_listitem_renderer()
+                renderer = self.listitem_renderer
                 empty_item = renderer.create_simple_listitem(
                     title="No search history",  # TODO: Add L() ID for this
                     description='Search results will appear here',
