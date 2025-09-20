@@ -1687,6 +1687,76 @@ class QueryManager:
             self.logger.error("Failed to get all folders: %s", e)
             return []
 
+    def get_folder_navigation_batch(self, folder_id: str) -> Dict[str, Any]:
+        """Get folder info, subfolders, and lists in a single batch query for navigation optimization"""
+        try:
+            self.logger.debug("Getting folder navigation data for folder %s in batch", folder_id)
+            
+            # Single batch query to get folder info, subfolders, and lists
+            results = self.connection_manager.execute_query("""
+                -- Get folder info
+                SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                FROM folders f 
+                WHERE f.id = ?
+                
+                UNION ALL
+                
+                -- Get subfolders in this folder
+                SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                FROM folders f 
+                WHERE f.parent_id = ?
+                ORDER BY f.name
+                
+                UNION ALL
+                
+                -- Get lists in this folder
+                SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                FROM lists l 
+                WHERE l.folder_id = ?
+                ORDER BY l.name
+            """, [int(folder_id), int(folder_id), int(folder_id)])
+            
+            # Parse results into structured data
+            folder_info = None
+            subfolders = []
+            lists = []
+            
+            for row in results:
+                data_type = row['data_type']
+                
+                if data_type == 'folder_info':
+                    folder_info = {
+                        "id": str(row['id']),
+                        "name": row['name'],
+                        "created": row['created_at'][:10] if row['created_at'] else ''
+                    }
+                elif data_type == 'subfolder':
+                    subfolders.append({
+                        "id": str(row['id']),
+                        "name": row['name'],
+                        "created": row['created_at'][:10] if row['created_at'] else ''
+                    })
+                elif data_type == 'list':
+                    lists.append(dict(row))
+            
+            self.logger.debug("Batch query results: folder_info=%s, subfolders=%d, lists=%d", 
+                            'found' if folder_info else 'None', len(subfolders), len(lists))
+            
+            return {
+                'folder_info': folder_info,
+                'subfolders': subfolders,
+                'lists': lists
+            }
+            
+        except Exception as e:
+            self.logger.error("Error getting folder navigation batch for %s: %s", folder_id, e)
+            # Fallback to individual queries
+            return {
+                'folder_info': self.get_folder_by_id(folder_id),
+                'subfolders': self.get_all_folders(parent_id=folder_id),
+                'lists': self.get_lists_in_folder(folder_id)
+            }
+
     def close(self):
         """Close database connections"""
         if self._connection:
