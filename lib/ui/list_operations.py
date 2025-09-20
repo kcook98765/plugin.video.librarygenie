@@ -558,7 +558,8 @@ class ListOperations:
                 'title': title,  # Use real title from context instead of placeholder
                 'source': 'lib',  # Library source for proper identity matching
                 'year': 0,  # Will be enriched by canonical pipeline if needed
-                'imdb_id': '',
+                'imdb_id': '',       # For _extract_media_item_data
+                'imdbnumber': '',    # For _insert_or_get_media_item (field name compatibility)
                 'plot': '',
                 'rating': 0.0,
                 'runtime': 0,
