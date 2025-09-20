@@ -195,7 +195,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     if item_info.get('media_item_id'):
         actions.append(f"add_to_list&media_item_id={item_info['media_item_id']}")
     elif item_info.get('dbtype') and item_info.get('dbid'):
-        actions.append(f"add_library_item_to_list_context&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
+        actions.append(f"add_to_list&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
     else:
         actions.append("add_external_item")
     
@@ -363,7 +363,7 @@ def _add_library_movie_options(dbtype, dbid, options, actions, addon):
 
     # Always add general "Add to List..." option
     options.append("Add to List...")
-    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_library_item_to_list_context&dbtype={dbtype}&dbid={dbid}&title={xbmc.getInfoLabel('ListItem.Title')})")
+    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=add_to_list&dbtype={dbtype}&dbid={dbid}&title={xbmc.getInfoLabel('ListItem.Title')})")
 
 
 def _add_library_episode_options(options, actions, addon, dbtype, dbid):
@@ -526,7 +526,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
 
         add_to_list_label = L(31000) if L(31000) else "Add to List..."
         options.append(add_to_list_label)
-        actions.append(f"add_library_item_to_list_context&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
+        actions.append(f"add_to_list&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
 
     # Third priority: items in movie container (but without library metadata)
     elif item_info.get('is_movies') and item_info.get('title'):
