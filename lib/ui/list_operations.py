@@ -536,17 +536,21 @@ class ListOperations:
             # Handle selection
             target_list_id = None
             if selected_index == len(list_options) - 1:  # Create new list
+                context.logger.debug("Creating new list - selected_index=%s, len(list_options)=%s", selected_index, len(list_options))
                 result = self.create_list(context)
+                context.logger.debug("create_list result: success=%s, data=%s", result.success, getattr(result, 'data', 'NO_DATA_ATTR'))
                 if not result.success:
                     return False
                 # Use the newly created list ID directly from the result
                 target_list_id = result.data.get('id') if result.data else None
+                context.logger.debug("Extracted target_list_id from result.data: %s", target_list_id)
                 if target_list_id is None:
-                    context.logger.error("Failed to get new list ID from create_list result")
+                    context.logger.error("Failed to get new list ID from create_list result - result.data=%s", result.data)
                     return False
                 context.logger.debug("Using newly created list ID: %s", target_list_id)
             else:
                 target_list_id = available_lists[selected_index]['id']
+                context.logger.debug("Using existing list ID: %s from index %s", target_list_id, selected_index)
 
             if target_list_id is None:
                 return False
@@ -554,6 +558,7 @@ class ListOperations:
             # Simple library item approach - just need minimal fields for existing Kodi items
             context.logger.debug("Adding library item to list: kodi_id=%s, title='%s', media_type=%s", 
                                dbid, title, dbtype)
+            context.logger.debug("FINAL target_list_id being used: %s", target_list_id)
 
             # Direct database operations for library items (much simpler than search pipeline)
             with query_manager.connection_manager.transaction() as conn:
