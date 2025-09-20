@@ -613,7 +613,21 @@ class ListOperations:
             result = query_manager.add_item_to_list(target_list_id, media_item_id)
 
             if result is not None and result.get("success"):
-                list_name = available_lists[selected_index]['name'] if selected_index < len(available_lists) else "new list"
+                # Determine the correct list name based on what actually happened
+                if selected_index == len(list_options) - 1:  # Created new list
+                    # Get the name of the newly created list
+                    all_lists = query_manager.get_all_lists_with_folders()
+                    available_lists_refreshed = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
+                    if available_lists_refreshed and target_list_id:
+                        # Find the list with the target_list_id
+                        target_list = next((lst for lst in available_lists_refreshed if str(lst['id']) == str(target_list_id)), None)
+                        list_name = target_list['name'] if target_list else "new list"
+                    else:
+                        list_name = "new list"
+                else:
+                    # Adding to existing list
+                    list_name = available_lists[selected_index]['name'] if selected_index < len(available_lists) else "unknown list"
+                
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     f"Added to '{list_name}'", # Localize this string
