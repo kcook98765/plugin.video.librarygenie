@@ -561,9 +561,11 @@ class ListOperations:
                 """, [int(dbid)])
 
                 if existing_item:
+                    # Convert sqlite3.Row to dict for proper access
+                    existing_dict = dict(existing_item)
                     context.logger.debug("Found existing movie: id=%s, kodi_id=%s, title=%s", 
-                                       existing_item.get('id'), existing_item.get('kodi_id'), existing_item.get('title'))
-                    library_item = dict(existing_item)
+                                       existing_dict.get('id'), existing_dict.get('kodi_id'), existing_dict.get('title'))
+                    library_item = existing_dict
                     library_item['source'] = 'lib'
                 else:
                     context.logger.debug("No existing movie found for kodi_id=%s", dbid)
