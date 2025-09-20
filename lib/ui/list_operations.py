@@ -551,33 +551,46 @@ class ListOperations:
             if target_list_id is None:
                 return False
 
-            # Build canonical library item dict (same format as search process)
-            canonical_library_item = {
-                'kodi_id': int(dbid),
-                'media_type': dbtype,  # Use actual media type from context 
-                'title': title,  # Use real title from context instead of placeholder
-                'source': 'lib',  # Library source for proper identity matching
-                'year': 0,  # Will be enriched by canonical pipeline if needed
-                'imdb_id': '',       # For _extract_media_item_data
-                'imdbnumber': '',    # For _insert_or_get_media_item (field name compatibility)
-                'plot': '',
-                'rating': 0.0,
-                'runtime': 0,
-                'art': {},
-                'genre': '',
-                'director': ''
-            }
-
+            # Simple library item approach - just need minimal fields for existing Kodi items
             context.logger.debug("Adding library item to list: kodi_id=%s, title='%s', media_type=%s", 
                                dbid, title, dbtype)
 
-            # Use unified canonical pipeline (same as search process)
-            added_count = query_manager.add_library_items_to_list(target_list_id, [canonical_library_item])
-            
-            context.logger.debug("Canonical pipeline result: added_count=%s", added_count)
+            # Direct database operations for library items (much simpler than search pipeline)
+            with query_manager.connection_manager.transaction() as conn:
+                # Check if library item already exists in media_items
+                existing_media_item = conn.execute("""
+                    SELECT id FROM media_items 
+                    WHERE kodi_id = ? AND media_type = ? AND source = 'lib'
+                """, [int(dbid), dbtype]).fetchone()
 
-            # Check if the item was successfully added
-            result = {"success": added_count > 0}
+                if existing_media_item:
+                    media_item_id = existing_media_item['id']
+                    context.logger.debug("Found existing library media_item: id=%s", media_item_id)
+                else:
+                    # Insert minimal library item record (no complex metadata needed)
+                    cursor = conn.execute("""
+                        INSERT INTO media_items (kodi_id, media_type, title, source, created_at)
+                        VALUES (?, ?, ?, 'lib', datetime('now'))
+                    """, [int(dbid), dbtype, title])
+                    media_item_id = cursor.lastrowid
+                    context.logger.debug("Created new library media_item: id=%s", media_item_id)
+
+                # Check if already in target list
+                existing_list_item = conn.execute("""
+                    SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?
+                """, [target_list_id, media_item_id]).fetchone()
+
+                if existing_list_item:
+                    context.logger.debug("Item already in list %s", target_list_id)
+                    result = {"success": True, "already_exists": True}
+                else:
+                    # Add to list
+                    conn.execute("""
+                        INSERT INTO list_items (list_id, media_item_id, position)
+                        VALUES (?, ?, COALESCE((SELECT MAX(position) + 1 FROM list_items WHERE list_id = ?), 0))
+                    """, [target_list_id, media_item_id, target_list_id])
+                    context.logger.debug("Added library item to list %s", target_list_id)
+                    result = {"success": True}
 
             if result is not None and result.get("success"):
                 # Determine the correct list name based on what actually happened
