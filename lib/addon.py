@@ -86,7 +86,7 @@ class AddonController:
 
             # Add items to directory
             for label, url, is_folder in items:
-                listitem = xbmcgui.ListItem(label)
+                listitem = xbmcgui.ListItem(label, offscreen=True)
                 # Use version-aware metadata setting to avoid v21 deprecation warnings
                 self._set_listitem_title(listitem, label)
                 xbmcplugin.addDirectoryItem(self.handle, url, listitem, is_folder)
