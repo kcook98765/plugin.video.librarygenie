@@ -43,29 +43,29 @@ class ToolsHandler:
             self.logger.debug("LAZY LOAD: Loading ToolsMenuService on first use")
             from lib.ui.tools_menu import ToolsMenuService
             self._tools_service = ToolsMenuService()
-            self._register_providers()
         return self._tools_service
 
-    def _register_providers(self) -> None:
-        """Register tools providers for different contexts"""
+    def _get_provider_for_context(self, list_type: str):
+        """Get provider instance for specific context type - lazy instantiation for performance"""
         try:
-            from lib.ui.tools_menu.providers import (
-                FavoritesToolsProvider, 
-                UserListToolsProvider,
-                FolderToolsProvider,
-                ListsMainToolsProvider
-            )
-            
-            # Register providers with the tools service
-            # Note: we access _tools_service directly since this method is called from the property
-            service = self._tools_service
-            service.register_provider("favorites", FavoritesToolsProvider())
-            service.register_provider("user_list", UserListToolsProvider())
-            service.register_provider("folder", FolderToolsProvider())
-            service.register_provider("lists_main", ListsMainToolsProvider())
-            self.logger.debug("All tools providers registered successfully")
+            if list_type == "favorites":
+                from lib.ui.tools_menu.providers import FavoritesToolsProvider
+                return FavoritesToolsProvider()
+            elif list_type == "user_list":
+                from lib.ui.tools_menu.providers import UserListToolsProvider
+                return UserListToolsProvider()
+            elif list_type == "folder":
+                from lib.ui.tools_menu.providers import FolderToolsProvider
+                return FolderToolsProvider()
+            elif list_type == "lists_main":
+                from lib.ui.tools_menu.providers import ListsMainToolsProvider
+                return ListsMainToolsProvider()
+            else:
+                self.logger.warning("Unknown provider type: %s", list_type)
+                return None
         except Exception as e:
-            self.logger.error("Error registering tools providers: %s", e)
+            self.logger.error("Error getting provider for context %s: %s", list_type, e)
+            return None
 
     def show_list_tools(self, context: PluginContext, list_type: Literal['favorites','user_list','folder','lists_main'], list_id: Optional[str] = None) -> DialogResponse:
         """Show tools & options modal for different list types using centralized system"""
@@ -80,8 +80,16 @@ class ToolsHandler:
                 folder_id=list_id if list_type == "folder" else None
             )
             
-            # Build menu actions using centralized system
-            actions = self.tools_service.build_menu(tools_context, context)
+            # Get provider for specific context - lazy instantiation for performance
+            provider = self._get_provider_for_context(list_type)
+            if not provider:
+                return DialogResponse(
+                    success=False,
+                    message=f"No provider available for context: {list_type}"
+                )
+            
+            # Build menu actions using the context-specific provider
+            actions = provider.build_tools(tools_context, context)
             if not actions:
                 return DialogResponse(
                     success=False,
