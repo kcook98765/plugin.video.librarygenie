@@ -993,7 +993,7 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         
         overall_end_time = time.perf_counter()
         logger.debug("%s ⏱️ OVERALL HIJACK TIMING: %.3fs", LOG_PREFIX, overall_end_time - overall_start_time)
-        logger.debug("%s ⏱️ TIMING BREAKDOWN: S1=%.3fs, S2=%.3fs, S3+4=%.3fs, S5=%.3fs, S6=%.3fs, S7+8=%.3fs", LOG_PREFIX, substep1_end - substep1_start, substep2_end - substep2_start, substep4_end - substep3_start, substep5_end - substep5_start, substep6_end - substep6_start, substep8_end - substep7_start)
+        logger.debug("%s ⏱️ TIMING BREAKDOWN: S2=%.3fs, S3+4=%.3fs, S5=%.3fs, S6=%.3fs, S7+8=%.3fs", LOG_PREFIX, substep2_end - substep2_start, substep4_end - substep3_start, substep5_end - substep5_start, substep6_end - substep6_start, substep8_end - substep7_start)
             
         return success
     except Exception as e:
