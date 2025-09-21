@@ -126,8 +126,16 @@ class QueryManager:
             kodi_major = get_kodi_major_version()
             canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
 
-        # OPTIMIZED: Resume - preserve precision for float seconds
+        # OPTIMIZED: Resume - handle JSON string from database or dict from memory
         resume_data = item.get("resume", {})
+        if isinstance(resume_data, str) and resume_data.strip():
+            # Resume from database as JSON string - parse it
+            try:
+                resume_data = json.loads(resume_data)
+            except json.JSONDecodeError:
+                self.logger.warning("Failed to parse resume JSON for item %s", item.get('title', 'Unknown'))
+                resume_data = {}
+        
         if isinstance(resume_data, dict):
             pos = resume_data.get("position", resume_data.get("position_seconds", 0))
             tot = resume_data.get("total", resume_data.get("total_seconds", 0))

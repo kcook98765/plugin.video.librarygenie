@@ -236,6 +236,12 @@ class ListItemMetadataManager:
             if item_data.get('originaltitle') and item_data['originaltitle'] != item_data.get('title'):
                 info['originaltitle'] = item_data['originaltitle']
             
+            if item_data.get('sorttitle'):
+                info['sorttitle'] = item_data['sorttitle']
+                
+            if item_data.get('premiered'):
+                info['premiered'] = item_data['premiered']
+            
             if item_data.get('plot'):
                 info['plot'] = item_data['plot']
             
@@ -336,6 +342,10 @@ class ListItemMetadataManager:
                     info['episode'] = str(int(item_data['episode']))
                 if item_data.get('aired'):
                     info['aired'] = item_data['aired']
+                if item_data.get('playcount') is not None:
+                    info['playcount'] = str(int(item_data['playcount']))
+                if item_data.get('lastplayed'):
+                    info['lastplayed'] = item_data['lastplayed']
             
             info['mediatype'] = item_data.get('media_type', 'movie')
             
