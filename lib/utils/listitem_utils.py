@@ -297,7 +297,7 @@ class ListItemMetadataManager:
             # Handle duration - prefer duration_seconds if available, else convert from minutes
             if item_data.get('duration_seconds'):
                 try:
-                    info['duration'] = str(int(item_data['duration_seconds']))
+                    info['duration'] = int(item_data['duration_seconds'])
                 except (ValueError, TypeError):
                     pass
             elif item_data.get('duration'):
@@ -305,7 +305,7 @@ class ListItemMetadataManager:
                     # Duration is stored in minutes, but V19 needs seconds
                     duration_minutes = int(item_data['duration'])
                     duration_seconds = duration_minutes * 60
-                    info['duration'] = str(duration_seconds)
+                    info['duration'] = duration_seconds
                 except (ValueError, TypeError):
                     pass
                     
