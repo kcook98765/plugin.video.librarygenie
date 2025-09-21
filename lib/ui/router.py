@@ -129,7 +129,6 @@ class Router:
                 # For context actions, end cleanly without navigation
                 if is_context_action:
                     # End directory to prevent Kodi from trying to display plugin interface
-                    import xbmcplugin
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return True  # Prevent fallthrough to main menu
                 else:
