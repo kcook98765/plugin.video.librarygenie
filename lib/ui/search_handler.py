@@ -199,7 +199,7 @@ class SearchHandler:
             from lib.ui.listitem_builder import ListItemBuilder
             
             # Build directory using search results directly
-            builder = ListItemBuilder(self.addon_handle, self.addon_id, context)
+            builder = ListItemBuilder(self.addon_handle or context.addon_handle, self.addon_id, context)
             
             # Convert search results to format expected by builder
             search_items = results.items if hasattr(results, 'items') else []
@@ -210,12 +210,13 @@ class SearchHandler:
                 return True
             
             # Add search info header
+            search_duration = getattr(results, 'search_duration_ms', 0)
             search_info_item = {
                 'title': f"Search Results for '{search_terms}' ({results.total_count} items)",
-                'media_type': 'none',
+                'media_type': 'file',  # Use 'file' instead of 'none' for better ListItemBuilder compatibility
                 'action': 'noop',
                 'is_navigation': True,
-                'plot': f"Found {results.total_count} items matching your search in {results.search_duration_ms}ms"
+                'plot': f"Found {results.total_count} items matching your search in {search_duration}ms"
             }
             search_items.insert(0, search_info_item)
             
@@ -233,6 +234,8 @@ class SearchHandler:
             success = builder.build_directory(search_items, content_type)
             
             if success:
+                # Ensure directory is properly finalized after direct rendering
+                self._end_directory(succeeded=True, update=False)
                 self._debug(f"Successfully rendered {len(search_items)} search result items directly")
                 return True
             else:
@@ -249,7 +252,9 @@ class SearchHandler:
         """Redirect to the most recent search history list"""
         try:
             search_folder_id = self.query_manager.get_or_create_search_history_folder()
-            lists = self.query_manager.get_lists_in_folder(search_folder_id)
+            # Ensure folder_id is string type for API compatibility
+            folder_id_str = str(search_folder_id) if search_folder_id is not None else None
+            lists = self.query_manager.get_lists_in_folder(folder_id_str)
             if not lists:
                 return False
 
