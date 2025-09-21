@@ -1781,7 +1781,6 @@ class QueryManager:
                 SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
                 FROM folders f 
                 WHERE f.parent_id = ?
-                ORDER BY f.name
                 
                 UNION ALL
                 
@@ -1789,7 +1788,7 @@ class QueryManager:
                 SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
                 FROM lists l 
                 WHERE l.folder_id = ?
-                ORDER BY l.name
+                ORDER BY data_type, name
             """, [int(folder_id), int(folder_id), int(folder_id)])
             
             # Parse results into structured data
