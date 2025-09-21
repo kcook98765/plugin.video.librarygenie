@@ -313,6 +313,16 @@ class QueryManager:
                         self.logger.warning("OPTIMIZED ART: Failed to parse art JSON for item %s", item.get('title', 'Unknown'))
                         item['art'] = {}
 
+                # OPTIMIZED: Parse resume JSON if present
+                if item.get('resume') and isinstance(item['resume'], str):
+                    try:
+                        resume_dict = json.loads(item['resume'])
+                        item['resume'] = resume_dict
+                        self.logger.debug("OPTIMIZED RESUME: Parsed resume JSON for item %s", item.get('title', 'Unknown'))
+                    except json.JSONDecodeError:
+                        self.logger.warning("OPTIMIZED RESUME: Failed to parse resume JSON for item %s", item.get('title', 'Unknown'))
+                        item['resume'] = {}
+
                 # Normalize to canonical format using optimized data
                 canonical_item = self._normalize_to_canonical(item)
 
