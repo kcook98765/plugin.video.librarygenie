@@ -270,7 +270,6 @@ class QueryManager:
                     mi.season,
                     mi.episode,
                     mi.aired,
-                    mi.resume,
                     mi.originaltitle,
                     mi.sorttitle,
                     mi.premiered,
