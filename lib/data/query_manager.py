@@ -257,6 +257,7 @@ class QueryManager:
                     mi.rating,
                     mi.votes,
                     mi.duration,
+                    mi.duration_seconds,
                     mi.mpaa,
                     mi.genre,
                     mi.director,
