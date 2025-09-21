@@ -262,6 +262,12 @@ class QueryManager:
                     mi.season,
                     mi.episode,
                     mi.aired,
+                    mi.resume,
+                    mi.originaltitle,
+                    mi.sorttitle,
+                    mi.premiered,
+                    mi.playcount,
+                    mi.lastplayed,
                     mi.created_at,
                     mi.updated_at
                 FROM list_items li
