@@ -208,6 +208,14 @@ class ListItemMetadataManager:
             if item_data.get('tmdb_id') and get_kodi_major_version() >= 20 and hasattr(video_info_tag, 'setUniqueId'):
                 video_info_tag.setUniqueId(str(item_data['tmdb_id']), 'tmdb')
             
+            # Common fields for movies and episodes
+            if item_data.get('premiered'):
+                video_info_tag.setPremiered(item_data['premiered'])
+            if item_data.get('playcount') is not None:
+                video_info_tag.setPlaycount(int(item_data['playcount']))
+            if item_data.get('lastplayed'):
+                video_info_tag.setLastPlayed(item_data['lastplayed'])
+            
             # Episode-specific fields
             if item_data.get('media_type') == 'episode':
                 if item_data.get('tvshowtitle'):
@@ -244,6 +252,12 @@ class ListItemMetadataManager:
             
             if item_data.get('plot'):
                 info['plot'] = item_data['plot']
+            
+            # Common fields for movies and episodes
+            if item_data.get('playcount') is not None:
+                info['playcount'] = str(int(item_data['playcount']))
+            if item_data.get('lastplayed'):
+                info['lastplayed'] = item_data['lastplayed']
             
             if item_data.get('year'):
                 try:
@@ -342,10 +356,6 @@ class ListItemMetadataManager:
                     info['episode'] = str(int(item_data['episode']))
                 if item_data.get('aired'):
                     info['aired'] = item_data['aired']
-                if item_data.get('playcount') is not None:
-                    info['playcount'] = str(int(item_data['playcount']))
-                if item_data.get('lastplayed'):
-                    info['lastplayed'] = item_data['lastplayed']
             
             info['mediatype'] = item_data.get('media_type', 'movie')
             
