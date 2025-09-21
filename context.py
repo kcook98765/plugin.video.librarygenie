@@ -305,20 +305,11 @@ def _show_more_submenu(addon, item_info):
         options = []
         actions = []
         
-        # Advanced options could include:
+        # Advanced options:
         # - Move to another list
-        # - Export item details  
-        # - Advanced search options
-        # - Item information
         
         options.append("[COLOR yellow]Move to Another List...[/COLOR]")
         actions.append("move_to_list")
-        
-        options.append("[COLOR white]Export Item Details[/COLOR]")
-        actions.append("export_item")
-        
-        options.append("[COLOR lightblue]Advanced Search[/COLOR]")
-        actions.append("advanced_search")
         
         # Show the submenu
         dialog = xbmcgui.Dialog()
