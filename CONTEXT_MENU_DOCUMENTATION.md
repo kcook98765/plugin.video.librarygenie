@@ -1,167 +1,120 @@
-
 # LibraryGenie Context Menu Documentation
 
-This document provides a comprehensive overview of the context menu system in LibraryGenie, detailing all possible actions and scenarios that can appear in different contexts.
+This document provides a comprehensive overview of the current context menu system in LibraryGenie, detailing all available actions and menu structures.
 
 ## Overview
 
-The LibraryGenie context menu system provides contextual actions for media items based on their source, type, and viewing context. The system intelligently prioritizes contexts and shows appropriate options to enhance the user experience.
+The LibraryGenie context menu system provides a unified interface for managing media items across different contexts. When activated, it displays a "LibraryGenie" dialog with contextually relevant options for adding, managing, and searching for media items.
 
-## Context Menu Structure
+## Main Context Menu Structure
 
-Every LibraryGenie context menu begins with a **"Search"** option, followed by conditional options based on item type and context.
+The LibraryGenie context menu always shows a dialog titled **"LibraryGenie"** with the following options in order:
 
-## Context Priority System
+### 1. LG Search / LG Search/Favorites
+- **Always appears first**
+- Label changes based on Kodi Favorites integration setting:
+  - "LG Search/Favorites" (if favorites integration enabled)
+  - "LG Search" (if favorites integration disabled)
+- Opens the **Search Submenu** with multiple search options
+- Action: `show_search_submenu`
 
-The context menu logic prioritizes contexts in this hierarchical order:
+### 2. LG Quick Add (Conditional)
+- **Only appears when both conditions are met:**
+  - Quick Add is enabled in addon settings
+  - A default list is configured
+- Instantly adds the current item to the pre-configured default list
+- Uses different actions based on available item metadata:
+  - `quick_add&media_item_id=X` (if media_item_id available)
+  - `quick_add_context&dbtype=X&dbid=X&title=X` (if library metadata available)
+  - `quick_add_external` (for external items)
 
-1. **LibraryGenie context** (highest priority)
-2. **Library context** (Kodi database items)
-3. **Container context** (movies/episodes containers)
-4. **Plugin context** (plugin:// file paths)
-5. **Unknown context** (search only - lowest priority)
+### 3. LG Add to List...
+- **Always appears**
+- Opens a dialog to select which list to add the item to
+- Uses different actions based on available item metadata:
+  - `add_to_list&media_item_id=X` (if media_item_id available)
+  - `add_to_list&dbtype=X&dbid=X&title=X` (if library metadata available)
+  - `add_external_item` (for external items)
 
-## Detailed Scenarios
+### 4. LG Remove from List (Conditional)
+- **Only appears when in a list context:**
+  - Container path contains `list_id=` parameter, OR
+  - Item properties include `list_id`
+- Removes the item from the current list
+- Uses different actions based on available item metadata:
+  - `remove_from_list&list_id=X&item_id=X` (if media_item_id available)
+  - `remove_library_item_from_list&list_id=X&dbtype=X&dbid=X&title=X` (if library metadata available)
+  - `remove_from_list_generic` (fallback)
 
-### 1. LibraryGenie Context Items (Highest Priority)
+### 5. LG more...
+- **Always appears last**
+- Opens the **More Options Submenu** with advanced actions
+- Action: `show_more_submenu`
 
-Detected when:
-- Container path starts with `plugin://plugin.video.librarygenie/`
-- File path starts with `plugin://plugin.video.librarygenie/`
-- InfoHijack is armed (`LG.InfoHijack.Armed=1`) with valid DBID
+## Search Submenu Structure
 
-#### A. Existing LibraryGenie Items (`media_item_id` available)
-**Available Actions:**
-- **Search** (always first)
-- **Quick Add to Default** (if quick-add enabled + default list configured)
-- **Add to List...**
-- **Remove from List** (if viewing within a list context)
+When "LG Search" is selected, it opens a dialog titled **"LibraryGenie Search Options"** with these options:
 
-**Action Details:**
-- Uses `media_item_id` for precise item identification
-- Remove option appears when `list_id` is detected in container path or item properties
+### 1. Local Movie Search
+- Searches local Kodi movie library
+- Action: `search_movies`
 
-#### B. Library Items in LibraryGenie Context (`dbtype` + `dbid` available)
-**Available Actions:**
-- **Search** (always first)
-- **Remove from List** (if in list context - appears first)
-- **Quick Add to Default** (if enabled)
-- **Add to List...**
+### 2. Local TV Search  
+- Searches local Kodi TV show library
+- Action: `search_tv`
 
-**Action Details:**
-- Uses library metadata (`dbtype`/`dbid`) for identification
-- Specialized handling for library items viewed through LibraryGenie interface
-- Does NOT call standard library functions to prevent duplicate options
+### 3. AI Movie Search (Conditional)
+- **Only appears when both conditions are met:**
+  - AI search is activated in configuration
+  - AI search API key is configured
+- Provides AI-powered movie search
+- Action: `search_ai`
 
-#### C. External Items in LibraryGenie Context (title available)
-**Available Actions:**
-- **Search** (always first)
-- **Remove from List** (if in list context - appears first)
-- **Add to List...** (external item handling)
+### 4. Search History
+- **Always appears**
+- Access to previous search results
+- Action: `search_history`
 
-**Action Details:**
-- Handles non-library items viewed through LibraryGenie
-- Metadata gathered from InfoLabels during action execution
+### 5. Kodi Favorites (Conditional)
+- **Only appears when favorites integration is enabled**
+- Access to Kodi favorites functionality
+- Action: `show_favorites`
 
-### 2. Regular Library Items (Second Priority)
+## More Options Submenu Structure
 
-When NOT in LibraryGenie context but item has valid library metadata (`dbtype` + `dbid`).
+When "LG more..." is selected, it opens a dialog titled **"LibraryGenie More Options"** with these options:
 
-#### A. Library Movies (`dbtype='movie'` + valid `dbid`)
-**Available Actions:**
-- **Search**
-- **Remove from List** (if container path indicates list context)
-- **Quick Add to Default List** (if enabled)
-- **Add to List...**
-
-#### B. Library Episodes (`dbtype='episode'` + valid `dbid`)
-**Available Actions:**
-- **Search**
-- **Remove from List** (if in list context, excluding Search History)
-- **Quick Add to Default List** (if enabled)
-- **Add to List...**
-
-**Available Actions:**
-- **Search**
-- **Remove from List** (if in list context, excluding Search History)
-- **Quick Add to Default List** (if enabled)  
-- **Add to List...**
-
-### 3. External/Plugin Items (Third Priority)
-
-Items without library metadata but in recognizable containers.
-
-#### A. Items in Movie Containers (`Container.Content(movies)`)
-**Available Actions:**
-- **Search**
-- **Add to List...** (external item handling)
-
-#### B. Items in Episode Containers (`Container.Content(episodes)`)
-**Available Actions:**
-- **Search**
-- **Add to List...** (external item handling)
-
-**Available Actions:**
-- **Search**
-- **Add to List...** (external item handling)
-
-#### D. Other Plugin Items (`plugin://` file paths)
-**Available Actions:**
-- **Search**
-- **Add to List...** (external item handling)
-
-### 4. Fallback Items (Lowest Priority)
-
-Unknown or unsupported items receive minimal functionality.
-
-**Available Actions:**
-- **Search** (only option available)
-
-## Action Types Explained
-
-### Core Actions
-
-1. **Search**
-   - Always available as first option
-   - Launches LibraryGenie search interface
-   - Action: `search`
-
-2. **Add to List...**
-   - Opens list selection dialog for adding items
-   - Variants: library items, external items, media items
-   - Actions: `add_library_item_to_list_context`, `add_external_item`, `add_to_list`
-
-3. **Quick Add to Default**
-   - Instantly adds to pre-configured default list
-   - Only appears when enabled in settings with default list configured
-   - Actions: `quick_add_context`, `quick_add_library_item`, `quick_add`
-
-4. **Remove from List**
-   - Removes item from current list context
-   - Appears first when in list contexts
-   - Excludes Search History lists
-   - Actions: `remove_from_list`, `remove_library_item_from_list`
-
-### Action Variations by Item Type
-
-#### Library Item Actions
-- Work with Kodi database IDs (`dbtype`/`dbid`)
-- Direct integration with Kodi's media database
-- Efficient identification and processing
-
-#### External Item Actions
-- Gather metadata from Kodi InfoLabels
-- Collect comprehensive artwork information
-- Support for various media types (movies, episodes)
-
-#### Media Item Actions
-- Use LibraryGenie's internal `media_item_id`
-- Most efficient for existing LibraryGenie items
-- Direct database operations
+### 1. Move to Another List...
+- **Currently the only option in this submenu**
+- Allows moving the item from current list to another list
+- Displayed with yellow text color
+- Action: `move_to_list`
 
 ## Context Detection Logic
 
+The system caches all item information before showing any dialogs to prevent context loss:
+
+```python
+item_info = {
+    'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
+    'dbid': xbmc.getInfoLabel('ListItem.DBID'),
+    'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+    'title': xbmc.getInfoLabel('ListItem.Title'),
+    'label': xbmc.getInfoLabel('ListItem.Label'),
+    'media_item_id': xbmc.getInfoLabel('ListItem.Property(media_item_id)'),
+    'list_id': xbmc.getInfoLabel('ListItem.Property(list_id)'),
+    'container_content': xbmc.getInfoLabel('Container.Content'),
+    'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
+    'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
+    # InfoHijack fallback properties
+    'hijack_dbid': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)'),
+    'hijack_dbtype': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)'),
+    'hijack_armed': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
+}
+```
+
 ### LibraryGenie Context Detection
+The system detects if it's operating in a LibraryGenie context using:
 ```python
 is_librarygenie_context = (
     container_path.startswith('plugin://plugin.video.librarygenie/') or
@@ -171,9 +124,9 @@ is_librarygenie_context = (
 ```
 
 ### List Context Detection
+The system determines if an item is in a list context by checking:
 - Container path contains `list_id=` parameter
 - Item properties include `list_id`
-- Used to determine when "Remove from List" options should appear
 
 ### InfoHijack Fallback System
 When regular properties are unavailable, the system uses InfoHijack properties:
@@ -181,64 +134,63 @@ When regular properties are unavailable, the system uses InfoHijack properties:
 - `LG.InfoHijack.DBType` → fallback for `ListItem.DBTYPE`
 - `LG.InfoHijack.Armed` → indicates InfoHijack is active
 
-## Special Behaviors
+## Action Priority Logic
 
-### Remove Options Prioritization
-- Remove options appear **first** when in list contexts
-- Provides immediate access to list management functionality
-- Context-sensitive labeling and action parameters
+The system determines which action to use based on available metadata, in this priority order:
 
-### Quick Add Functionality
-- Only appears when enabled in addon settings
-- Requires a default list to be configured
-- Streamlines workflow for frequent list additions
+### 1. Media Item Actions (Highest Priority)
+- Used when `media_item_id` is available
+- Most efficient for existing LibraryGenie items
+- Direct database operations using internal ID
 
-### Search History Exclusion
-- Remove options are excluded from Search History lists
-- Prevents accidental removal of search result references
-- Search History items are read-only by design
+### 2. Library Item Actions (Medium Priority)
+- Used when `dbtype` and `dbid` are available
+- Works with Kodi database IDs
+- Direct integration with Kodi's media database
 
-### External Item Metadata Gathering
-When adding external items, the system collects:
-- Basic metadata (title, year, plot, rating, etc.)
-- Media type detection (movie, episode)
-- Comprehensive artwork collection
-- Unique identifiers (IMDb, TMDb when available)
-
-## Error Handling and Fallbacks
-
-### Property Caching
-All item properties are cached before showing dialogs to prevent context loss:
-```python
-item_info = {
-    'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
-    'dbid': xbmc.getInfoLabel('ListItem.DBID'),
-    # ... other properties
-}
-```
-
-### Graceful Degradation
-- If specialized actions fail, system falls back to basic functionality
-- Missing localization strings use English fallbacks
-- Invalid or missing metadata doesn't prevent core functionality
-
-### Debug Logging
-Comprehensive logging throughout the context detection process:
-- Item property values
-- Context detection results
-- Action selection logic
-- Execution paths
+### 3. External Item Actions (Lowest Priority)
+- Used when only basic metadata is available
+- Gathers metadata from Kodi InfoLabels during execution
+- Handles non-library items and plugin content
 
 ## Configuration Dependencies
 
 ### Settings Integration
-- Quick Add functionality requires `quick_add_enabled` setting
-- Default list selection requires `default_list_id` setting
-- Context menu behavior adapts to user preferences
+- **Quick Add functionality** requires `quick_add_enabled` setting
+- **Default list selection** requires `default_list_id` setting
+- **Favorites integration** requires `enable_favorites_integration` setting
+
+### AI Search Dependencies
+- **AI search availability** requires `ai_search_activated` configuration
+- **AI search functionality** requires `ai_search_api_key` configuration
 
 ### Localization Support
-- All menu labels support localization
-- Fallback to English labels when localization unavailable
-- String IDs: `31000` (Add to List), `31001` (Quick Add), `31010` (Remove from List), `33000` (Search)
+All menu labels support localization with fallbacks:
+- `37100`: "LG Search"
+- `37101`: "LG Quick Add"  
+- `37102`: "LG Add to List..."
+- `37103`: "LG Remove from List"
+- `37104`: "LG more..."
+- `37105`: "LG Search/Favorites"
+- `37200`: "Local Movie Search"
+- `37201`: "Local TV Search"
+- `37202`: "AI Movie Search"
+- `37203`: "Search History"
+- `37204`: "Kodi Favorites"
 
-This context menu system provides a comprehensive and intuitive interface for managing media across different contexts while maintaining consistency and performance.
+## Error Handling and Fallbacks
+
+### Graceful Degradation
+- Missing settings default to disabled functionality
+- Missing localization strings use English fallbacks
+- Invalid metadata doesn't prevent core functionality
+- Menu errors fall back to basic search functionality
+
+### Debug Logging
+Comprehensive logging throughout the context menu process:
+- Item property values and caching
+- Menu option building and selection
+- Action execution and results
+- Error conditions and fallbacks
+
+This simplified, unified context menu system provides consistent functionality across all contexts while maintaining flexibility for different item types and user configurations.
