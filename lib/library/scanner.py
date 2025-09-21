@@ -436,9 +436,9 @@ class LibraryScanner:
                             # v19: Store as string for setInfo()
                             director_data = director_str
 
-                        # Duration: always store in seconds (can convert to minutes for v19 if needed)
-                        duration_minutes = movie.get("runtime", 0)
-                        duration_seconds = duration_minutes * 60 if duration_minutes else 0
+                        # Duration: JSON-RPC returns runtime in seconds, store and convert properly
+                        duration_seconds = movie.get("runtime", 0)  # JSON-RPC runtime is in seconds
+                        duration_minutes = duration_seconds // 60 if duration_seconds else 0
 
                         # Studio handling
                         studio_str = movie.get("studio", "")
@@ -465,7 +465,7 @@ class LibraryScanner:
                             movie.get("plot", ""),
                             movie.get("rating", 0.0),
                             movie.get("votes", 0),
-                            movie.get("runtime", 0),  # Duration in minutes
+                            duration_minutes,  # Duration in minutes (converted from seconds)
                             movie.get("mpaa", ""),
                             genre_data,  # Version-appropriate genre format
                             director_data,  # Version-appropriate director format
