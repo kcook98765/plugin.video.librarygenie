@@ -265,8 +265,8 @@ class ListItemMetadataManager:
                         # Handle as regular string
                         info['genre'] = str(item_data['genre'])
                 except (json.JSONDecodeError, ValueError):
-                    # Fallback for malformed JSON
-                    info['genre'] = item_data['genre']
+                    # Fallback for malformed JSON - ensure string conversion
+                    info['genre'] = str(item_data['genre'])
             
             if item_data.get('votes'):
                 try:
@@ -306,8 +306,8 @@ class ListItemMetadataManager:
                         # Handle as regular string
                         info['director'] = str(item_data['director'])
                 except (json.JSONDecodeError, ValueError):
-                    # Fallback for malformed JSON
-                    info['director'] = item_data['director']
+                    # Fallback for malformed JSON - ensure string conversion
+                    info['director'] = str(item_data['director'])
                 
             if item_data.get('studio'):
                 info['studio'] = item_data['studio']
