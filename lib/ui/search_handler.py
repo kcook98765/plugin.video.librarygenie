@@ -46,7 +46,7 @@ class SearchHandler:
         self.addon_id = self.addon.getAddonInfo('id')
 
     def prompt_and_search(self, context: PluginContext, media_scope: str = "movie") -> bool:
-        """Main entry point for simple search with direct rendering"""
+        """Main entry point for simple search"""
         self._ensure_handle_from_context(context)
 
         # Step 1: Get search keywords
@@ -62,27 +62,14 @@ class SearchHandler:
         # Step 3: Execute search
         results = self._execute_simple_search(search_terms, search_options, context)
 
-        # Step 4: Direct rendering for immediate display
+        # Step 4: Save results and redirect
         if results.total_count > 0:
-            # Render results directly without saving to history first
-            success = self._render_search_results_directly(results, search_terms, context)
-            if success:
-                # Save to history after successful rendering (background operation)
-                try:
-                    self._save_search_history(search_terms, search_options, results)
-                    self._debug(f"Search history saved successfully after rendering")
-                except Exception as e:
-                    self._warn(f"Failed to save search history after rendering: {e}")
-                return True
-            else:
-                # Fallback to original flow if direct rendering fails
-                self._warn("Direct rendering failed, falling back to redirect method")
-                self._save_search_history(search_terms, search_options, results)
-                if not self._try_redirect_to_saved_search_list():
-                    self._error("Failed to redirect to saved search list")
-                    self._end_directory(succeeded=False, update=False)
-                    return False
-                return True
+            self._save_search_history(search_terms, search_options, results)
+            if not self._try_redirect_to_saved_search_list():
+                self._error("Failed to redirect to saved search list")
+                self._end_directory(succeeded=False, update=False)
+                return False
+            return True
         else:
             self._show_no_results_message(search_terms)
             self._end_directory(succeeded=True, update=False)
@@ -190,71 +177,11 @@ class SearchHandler:
             import traceback
             self._error(f"Search history save traceback: {traceback.format_exc()}")
 
-    def _render_search_results_directly(self, results, search_terms: str, context: PluginContext) -> bool:
-        """Render search results directly without saving to history first"""
-        try:
-            self._debug(f"Direct rendering {results.total_count} search results for '{search_terms}'")
-            
-            # Import required modules
-            from lib.ui.listitem_builder import ListItemBuilder
-            
-            # Build directory using search results directly
-            builder = ListItemBuilder(self.addon_handle or context.addon_handle, self.addon_id, context)
-            
-            # Convert search results to format expected by builder
-            search_items = results.items if hasattr(results, 'items') else []
-            
-            if not search_items:
-                self._show_no_results_message(search_terms)
-                self._end_directory(succeeded=True, update=False)
-                return True
-            
-            # Add search info header
-            search_duration = getattr(results, 'search_duration_ms', 0)
-            search_info_item = {
-                'title': f"Search Results for '{search_terms}' ({results.total_count} items)",
-                'media_type': 'file',  # Use 'file' instead of 'none' for better ListItemBuilder compatibility
-                'action': 'noop',
-                'is_navigation': True,
-                'plot': f"Found {results.total_count} items matching your search in {search_duration}ms"
-            }
-            search_items.insert(0, search_info_item)
-            
-            # Set content type based on search results
-            content_type = "movies"  # Default for movie searches
-            if search_items and len(search_items) > 1:
-                first_media_item = search_items[1]  # Skip the info header
-                media_type = first_media_item.get('media_type', 'movie')
-                if media_type == 'episode':
-                    content_type = "episodes"
-                elif media_type == 'tvshow':
-                    content_type = "tvshows"
-            
-            # Build the directory
-            success = builder.build_directory(search_items, content_type)
-            
-            if success:
-                # Ensure directory is properly finalized after direct rendering
-                self._end_directory(succeeded=True, update=False)
-                self._debug(f"Successfully rendered {len(search_items)} search result items directly")
-                return True
-            else:
-                self._warn("Failed to build directory for direct search results")
-                return False
-                
-        except Exception as e:
-            self._error(f"Error in direct search results rendering: {e}")
-            import traceback
-            self._error(f"Direct rendering traceback: {traceback.format_exc()}")
-            return False
-
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""
         try:
             search_folder_id = self.query_manager.get_or_create_search_history_folder()
-            # Ensure folder_id is string type for API compatibility
-            folder_id_str = str(search_folder_id) if search_folder_id is not None else None
-            lists = self.query_manager.get_lists_in_folder(folder_id_str)
+            lists = self.query_manager.get_lists_in_folder(search_folder_id)
             if not lists:
                 return False
 
