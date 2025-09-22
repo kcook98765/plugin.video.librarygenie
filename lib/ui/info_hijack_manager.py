@@ -240,12 +240,14 @@ class InfoHijackManager:
             
             # SPEED OPTIMIZATION: Direct API call instead of cache for faster response
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
+            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            
+            # DEBUG: Log window and path state for back navigation analysis
+            self._logger.debug(f"HIJACK DEBUG: Window='{current_window}', Path='{current_path}'")
+            self._logger.debug(f"HIJACK DEBUG: XSP Detection={self._is_on_librarygenie_hijack_xsp(current_path)}")
             
             # If we're in Videos or Movies window, check if we're actually on our XSP before executing back
             if current_window in ("Videos", "Movies"):
-                # Direct path check to avoid cache overhead
-                current_path = xbmc.getInfoLabel("Container.FolderPath")
-                
                 if self._is_on_librarygenie_hijack_xsp(current_path):
                     self._logger.debug("HIJACK: On LG XSP - executing immediate back to plugin")
                     
