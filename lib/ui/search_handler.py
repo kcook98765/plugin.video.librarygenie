@@ -127,11 +127,11 @@ class SearchHandler:
             return result
 
     def _save_search_history(self, search_terms: str, options: Dict[str, str], results):
-        """Save search results to search history"""
+        """Save search results to search history and return the created list ID"""
         try:
             if results.total_count == 0:
                 self._debug("No results to save to search history")
-                return
+                return None
 
             self._debug(f"Saving search history for '{search_terms}' with {results.total_count} results")
 
@@ -167,15 +167,19 @@ class SearchHandler:
                         # Fallback message
                         formatted_message = f"Search saved: {added} items"
                     self._notify_info(formatted_message, ms=3000)
+                    return list_id  # Return the list ID on success
                 else:
                     self._warn(f"Failed to add items to search history list {list_id}")
+                    return None
             else:
                 self._warn("Failed to create search history list")
+                return None
 
         except Exception as e:
             self._error(f"Failed to save search history: {e}")
             import traceback
             self._error(f"Search history save traceback: {traceback.format_exc()}")
+            return None
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""
