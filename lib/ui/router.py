@@ -38,13 +38,16 @@ class Router:
         params = context.get_params() # Get all params for modular tools
         self.logger.debug("Router dispatching action: '%s'", action)
 
-        # Generate breadcrumb context for navigation
-        from lib.ui.breadcrumb_helper import get_breadcrumb_helper
-        breadcrumb_helper = get_breadcrumb_helper()
-        breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
-
-        # Add breadcrumb to context for handlers
-        context.breadcrumb_path = breadcrumb_path
+        # Generate breadcrumb context for navigation (skip for Tools & Options for performance)
+        if action != "show_list_tools":
+            from lib.ui.breadcrumb_helper import get_breadcrumb_helper
+            breadcrumb_helper = get_breadcrumb_helper()
+            breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
+            # Add breadcrumb to context for handlers
+            context.breadcrumb_path = breadcrumb_path
+        else:
+            # Tools & Options don't need breadcrumbs - skip for performance
+            context.breadcrumb_path = None
 
         try:
             # Handle special router-managed actions
@@ -108,17 +111,27 @@ class Router:
                 factory.context = context  # Set context before using factory
                 lists_handler = factory.get_lists_handler()
 
+                # Check if this is a context action (called from outside the plugin)
+                import xbmc
+                container_path = xbmc.getInfoLabel('Container.FolderPath')
+                is_context_action = not container_path or 'plugin.video.librarygenie' not in container_path
+
                 if media_item_id:
                     # Handle adding existing media item to list
                     success = lists_handler.add_to_list_context(context)
-                    return success
                 elif dbtype and dbid:
                     # Handle adding library item to list
                     success = lists_handler.add_library_item_to_list_context(context)
-                    return success
                 else:
                     # Handle adding external item to list
                     success = lists_handler.add_external_item_to_list(context)
+
+                # For context actions, end cleanly without navigation
+                if is_context_action:
+                    # End directory to prevent Kodi from trying to display plugin interface
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return True  # Prevent fallthrough to main menu
+                else:
                     return success
             # Added new handler for remove_from_list
             elif action == 'remove_from_list':

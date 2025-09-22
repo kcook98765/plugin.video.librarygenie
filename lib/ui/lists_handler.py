@@ -17,7 +17,6 @@ from lib.ui.localization import L
 from lib.ui.breadcrumb_helper import get_breadcrumb_helper
 from lib.utils.kodi_log import get_kodi_logger
 from lib.data.query_manager import get_query_manager
-from lib.ui.listitem_renderer import get_listitem_renderer
 from lib.utils.kodi_version import get_kodi_major_version
 
 # Import the specialized operation modules
@@ -68,6 +67,43 @@ class ListsHandler:
             self._import_export = ImportExportHandler(self.context)
         return self._import_export
 
+    @property  
+    def listitem_renderer(self):
+        """Lazy load ListItemRenderer only when needed for navigation rendering"""
+        if not hasattr(self, '_listitem_renderer'):
+            self.logger.debug("LAZY LOAD: Loading ListItemRenderer on first use")
+            from lib.ui.listitem_renderer import get_listitem_renderer
+            self._listitem_renderer = get_listitem_renderer(
+                self.context.addon_handle,
+                self.context.addon_id, 
+                self.context
+            )
+        return self._listitem_renderer
+
+    def _create_simple_empty_state_item(self, context: PluginContext, title: str, description: str = "") -> None:
+        """Create simple empty state item without loading full renderer - optimization for low-power devices"""
+        try:
+            # Create simple list item without heavy renderer dependencies
+            list_item = xbmcgui.ListItem(label=title, offscreen=True)
+            
+            # Set basic properties without renderer
+            if description:
+                self._set_listitem_plot(list_item, description)
+            
+            list_item.setProperty('IsPlayable', 'false')
+            list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+            
+            # Add to directory
+            xbmcplugin.addDirectoryItem(
+                context.addon_handle,
+                context.build_url('noop'),
+                list_item,
+                False
+            )
+            
+        except Exception as e:
+            self.logger.error("Failed to create simple empty state item: %s", e)
+
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
         kodi_major = get_kodi_major_version()
@@ -85,8 +121,8 @@ class ListsHandler:
     def _set_custom_art_for_item(self, list_item: xbmcgui.ListItem, item_data: Dict[str, Any]):
         """Apply custom art based on item type"""
         try:
-            # Get the renderer instance to use its art methods
-            renderer = get_listitem_renderer()
+            # Get the lazy-loaded renderer instance to use its art methods
+            renderer = self.listitem_renderer
             
             # Determine if this is a list or folder based on the URL action
             url = item_data.get('url', '')
@@ -274,7 +310,7 @@ class ListsHandler:
 
                 # Build directory items
                 for item in menu_items:
-                    list_item = xbmcgui.ListItem(label=item['label'])
+                    list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                     if 'description' in item:
                         self._set_listitem_plot(list_item, item['description'])
@@ -462,7 +498,7 @@ class ListsHandler:
 
             # Build directory items
             for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
+                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                 if 'description' in item:
                     self._set_listitem_plot(list_item, item['description'])
@@ -527,12 +563,17 @@ class ListsHandler:
                     success=False
                 )
 
-            # Get folder info
-            # SQL TIMING: Get folder by ID
+            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
+            # SQL TIMING: Batch query for folder navigation
             sql_start_time = time.time()
-            folder_info = query_manager.get_folder_by_id(folder_id)
+            navigation_data = query_manager.get_folder_navigation_batch(folder_id)
             sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_folder_by_id() took %.3f seconds", sql_end_time - sql_start_time)
+            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_folder_navigation_batch() took %.3f seconds (replaces 3 separate queries)", sql_end_time - sql_start_time)
+            
+            # Extract data from batch result
+            folder_info = navigation_data['folder_info']
+            subfolders = navigation_data['subfolders'] 
+            lists_in_folder = navigation_data['lists']
             
             if not folder_info:
                 context.logger.error("Folder %s not found", folder_id)
@@ -541,21 +582,7 @@ class ListsHandler:
                     success=False
                 )
 
-            # Get subfolders in this folder
-            # SQL TIMING: Get subfolders in this folder
-            sql_start_time = time.time()
-            subfolders = query_manager.get_all_folders(parent_id=folder_id)
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_all_folders(parent_id=%s) took %.3f seconds", folder_id, sql_end_time - sql_start_time)
-            context.logger.debug("Folder '%s' (id=%s) has %s subfolders", folder_info['name'], folder_id, len(subfolders))
-
-            # Get lists in this folder
-            # SQL TIMING: Get lists in this folder
-            sql_start_time = time.time()
-            lists_in_folder = query_manager.get_lists_in_folder(folder_id)
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_lists_in_folder() took %.3f seconds", sql_end_time - sql_start_time)
-            context.logger.debug("Folder '%s' (id=%s) has %s lists", folder_info['name'], folder_id, len(lists_in_folder))
+            context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
             # Set directory title with breadcrumb context
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, query_manager)
@@ -623,26 +650,19 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # If folder is empty, show message using version-aware renderer
+            # If folder is empty, show message using lightweight method to avoid loading full renderer
             if not lists_in_folder:
-                renderer = get_listitem_renderer()
-                empty_item = renderer.create_simple_listitem(
-                    title="Folder is empty",  # TODO: Add L() ID for this
-                    description='This folder contains no lists',  # This string should also be localized
-                    action='noop'
-                )
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    context.build_url('noop'),
-                    empty_item,
-                    False
+                self._create_simple_empty_state_item(
+                    context,
+                    "Folder is empty",  # TODO: Add L() ID for this
+                    'This folder contains no lists'  # This string should also be localized
                 )
 
             # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
             for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
+                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                 if 'description' in item:
                     self._set_listitem_plot(list_item, item['description'])
@@ -756,7 +776,7 @@ class ListsHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
             
-            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
+            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
             self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -768,20 +788,13 @@ class ListsHandler:
                 True
             )
 
-            # Handle empty lists
+            # Handle empty lists using lightweight method to avoid loading full renderer
             if not list_items:
                 context.logger.debug("List is empty")
-                renderer = get_listitem_renderer()
-                empty_item = renderer.create_simple_listitem(
-                    title=L(30602),
-                    description='This list contains no items',  # This string should also be localized
-                    action='noop'
-                )
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    context.build_url('noop'),
-                    empty_item,
-                    False
+                self._create_simple_empty_state_item(
+                    context,
+                    L(30602),
+                    'This list contains no items'  # This string should also be localized
                 )
 
                 # End directory
@@ -940,26 +953,19 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # If no search history, show message
+            # If no search history, show message using lightweight method to avoid loading full renderer
             if not search_lists:
-                renderer = get_listitem_renderer()
-                empty_item = renderer.create_simple_listitem(
-                    title="No search history",  # TODO: Add L() ID for this
-                    description='Search results will appear here',
-                    action='noop'
-                )
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    context.build_url('noop'),
-                    empty_item,
-                    False
+                self._create_simple_empty_state_item(
+                    context,
+                    "No search history",  # TODO: Add L() ID for this
+                    'Search results will appear here'
                 )
 
             # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
             for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'])
+                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                 if 'description' in item:
                     self._set_listitem_plot(list_item, item['description'])

@@ -126,8 +126,16 @@ class QueryManager:
             kodi_major = get_kodi_major_version()
             canonical["art"] = self._format_art_for_kodi_version(art, kodi_major)
 
-        # OPTIMIZED: Resume - preserve precision for float seconds
+        # OPTIMIZED: Resume - handle JSON string from database or dict from memory
         resume_data = item.get("resume", {})
+        if isinstance(resume_data, str) and resume_data.strip():
+            # Resume from database as JSON string - parse it
+            try:
+                resume_data = json.loads(resume_data)
+            except json.JSONDecodeError:
+                self.logger.warning("Failed to parse resume JSON for item %s", item.get('title', 'Unknown'))
+                resume_data = {}
+        
         if isinstance(resume_data, dict):
             pos = resume_data.get("position", resume_data.get("position_seconds", 0))
             tot = resume_data.get("total", resume_data.get("total_seconds", 0))
@@ -249,6 +257,7 @@ class QueryManager:
                     mi.rating,
                     mi.votes,
                     mi.duration,
+                    mi.duration_seconds,
                     mi.mpaa,
                     mi.genre,
                     mi.director,
@@ -306,6 +315,16 @@ class QueryManager:
                     except json.JSONDecodeError:
                         self.logger.warning("OPTIMIZED ART: Failed to parse art JSON for item %s", item.get('title', 'Unknown'))
                         item['art'] = {}
+
+                # OPTIMIZED: Parse resume JSON if present
+                if item.get('resume') and isinstance(item['resume'], str):
+                    try:
+                        resume_dict = json.loads(item['resume'])
+                        item['resume'] = resume_dict
+                        self.logger.debug("OPTIMIZED RESUME: Parsed resume JSON for item %s", item.get('title', 'Unknown'))
+                    except json.JSONDecodeError:
+                        self.logger.warning("OPTIMIZED RESUME: Failed to parse resume JSON for item %s", item.get('title', 'Unknown'))
+                        item['resume'] = {}
 
                 # Normalize to canonical format using optimized data
                 canonical_item = self._normalize_to_canonical(item)
@@ -714,6 +733,49 @@ class QueryManager:
             self.logger.error("Failed to add search results to list: %s", e)
             return 0
 
+    def add_library_items_to_list(self, list_id, library_items):
+        """Add library items to a list using canonical pipeline (same as search process)"""
+        try:
+            if not library_items:
+                return 0
+
+            added_count = 0
+
+            with self.connection_manager.transaction() as conn:
+                for position, item in enumerate(library_items):
+                    try:
+                        # Ensure source='lib' for library items and proper identity
+                        canonical_item = dict(item)
+                        canonical_item['source'] = 'lib'
+                        
+                        # Extract media item data using canonical pipeline
+                        media_data = self._extract_media_item_data(canonical_item)
+                        
+                        # Insert or get existing media item using canonical method
+                        media_item_id = self._insert_or_get_media_item(conn, media_data)
+
+                        if media_item_id:
+                            # Add to list using same approach as search
+                            conn.execute("""
+                                INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
+                                VALUES (?, ?, ?)
+                            """, [list_id, media_item_id, position])
+                            added_count += 1
+                            self.logger.debug("Added library item '%s' (kodi_id=%s) to list %s", 
+                                           canonical_item.get('title', 'Unknown'), 
+                                           canonical_item.get('kodi_id'), list_id)
+
+                    except Exception as e:
+                        self.logger.error("Error adding library item: %s", e)
+                        continue
+
+            self.logger.debug("Added %s library items to list %s", added_count, list_id)
+            return added_count
+
+        except Exception as e:
+            self.logger.error("Failed to add library items to list: %s", e)
+            return 0
+
     def remove_item_from_list(self, list_id, item_id):
         """Remove an item from a list"""
         try:
@@ -785,49 +847,82 @@ class QueryManager:
     def _insert_or_get_media_item(self, conn, media_data):
         """Insert or get existing media item with episode-specific matching"""
         try:
+            # Map canonical fields to DB schema for pipeline compatibility
+            # This handles both canonical format (from context menu) and raw format (from search)
+            db_media_data = {
+                'id': media_data.get('id'),
+                'media_type': media_data.get('media_type', media_data.get('type', 'movie')),
+                'title': media_data.get('title', ''),
+                'year': media_data.get('year', 0),
+                'imdbnumber': media_data.get('imdbnumber') or media_data.get('imdb_id', ''),  # Canonical → DB mapping
+                'tmdb_id': media_data.get('tmdb_id', ''),
+                'kodi_id': media_data.get('kodi_id'),
+                'source': media_data.get('source', 'search'),
+                'play': media_data.get('play') or media_data.get('file_path', ''),  # Canonical → DB mapping
+                'plot': media_data.get('plot', ''),
+                'rating': media_data.get('rating', 0.0),
+                'votes': media_data.get('votes', 0),
+                'duration': media_data.get('duration') or media_data.get('duration_minutes', 0),  # Canonical → DB mapping
+                'mpaa': media_data.get('mpaa', ''),
+                'genre': media_data.get('genre', ''),
+                'director': media_data.get('director', ''),
+                'studio': media_data.get('studio', ''),
+                'country': media_data.get('country', ''),
+                'writer': media_data.get('writer', ''),
+                'cast': media_data.get('cast', ''),
+                'art': media_data.get('art', ''),
+                'tvshowtitle': media_data.get('tvshowtitle', ''),
+                'season': media_data.get('season'),
+                'episode': media_data.get('episode'),
+                'aired': media_data.get('aired', '')
+            }
+
+            self.logger.debug("Processing media item: type=%s, title='%s', kodi_id=%s", 
+                           db_media_data['media_type'], db_media_data['title'], db_media_data['kodi_id'])
+
             # CRITICAL: If this item already has a database ID (from search results), use it directly
-            if media_data.get('id'):
+            if db_media_data.get('id'):
                 # Verify the ID exists in the database
-                existing = conn.execute("SELECT id FROM media_items WHERE id = ?", [media_data['id']]).fetchone()
+                existing = conn.execute("SELECT id FROM media_items WHERE id = ?", [db_media_data['id']]).fetchone()
                 if existing:
-                    self.logger.debug("Using existing media item ID %s for '%s'", media_data['id'], media_data.get('title', 'Unknown'))
-                    return media_data['id']
+                    self.logger.debug("Using existing media item ID %s for '%s'", db_media_data['id'], db_media_data['title'])
+                    return db_media_data['id']
                 else:
-                    self.logger.warning("Media item ID %s not found in database, falling back to matching", media_data['id'])
+                    self.logger.warning("Media item ID %s not found in database, falling back to matching", db_media_data['id'])
             
             # Try to find existing item by IMDb ID first (works for both movies and episodes)
-            if media_data.get('imdbnumber'):
+            if db_media_data.get('imdbnumber'):
                 existing = conn.execute("""
                     SELECT id FROM media_items WHERE imdbnumber = ?
-                """, [media_data['imdbnumber']]).fetchone()
+                """, [db_media_data['imdbnumber']]).fetchone()
 
                 if existing:
                     return existing['id']
 
             # Episode-specific matching by show + season + episode (case-insensitive tvshowtitle)
-            if media_data['media_type'] == 'episode' and media_data.get('tvshowtitle') and \
-               media_data.get('season') is not None and media_data.get('episode') is not None:
+            if db_media_data['media_type'] == 'episode' and db_media_data.get('tvshowtitle') and \
+               db_media_data.get('season') is not None and db_media_data.get('episode') is not None:
                 existing = conn.execute("""
                     SELECT id FROM media_items 
                     WHERE media_type = 'episode' 
                     AND tvshowtitle = ? COLLATE NOCASE 
                     AND season = ? AND episode = ?
-                """, [media_data['tvshowtitle'], media_data['season'], media_data['episode']]).fetchone()
+                """, [db_media_data['tvshowtitle'], db_media_data['season'], db_media_data['episode']]).fetchone()
 
                 if existing:
                     return existing['id']
 
             # Movie matching by title and year
-            elif media_data['media_type'] == 'movie' and media_data.get('title') and media_data.get('year'):
+            elif db_media_data['media_type'] == 'movie' and db_media_data.get('title') and db_media_data.get('year'):
                 existing = conn.execute("""
                     SELECT id FROM media_items 
                     WHERE title = ? AND year = ? AND media_type = 'movie'
-                """, [media_data['title'], media_data['year']]).fetchone()
+                """, [db_media_data['title'], db_media_data['year']]).fetchone()
 
                 if existing:
                     return existing['id']
 
-            # Insert new media item with episode fields
+            # Insert new media item with all fields using mapped data
             cursor = conn.execute("""
                 INSERT INTO media_items 
                 (media_type, title, year, imdbnumber, tmdb_id, kodi_id, source, 
@@ -836,15 +931,15 @@ class QueryManager:
                  tvshowtitle, season, episode, aired)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
-                media_data['media_type'], media_data['title'], media_data['year'],
-                media_data['imdbnumber'], media_data['tmdb_id'], media_data['kodi_id'],
-                media_data['source'], media_data['play'], media_data['plot'], 
-                media_data['rating'], media_data['votes'], media_data['duration'], 
-                media_data['mpaa'], media_data['genre'], media_data['director'], 
-                media_data['studio'], media_data['country'], media_data['writer'], 
-                media_data['cast'], media_data['art'],
-                media_data.get('tvshowtitle'), media_data.get('season'), 
-                media_data.get('episode'), media_data.get('aired')
+                db_media_data['media_type'], db_media_data['title'], db_media_data['year'],
+                db_media_data['imdbnumber'], db_media_data['tmdb_id'], db_media_data['kodi_id'],
+                db_media_data['source'], db_media_data['play'], db_media_data['plot'], 
+                db_media_data['rating'], db_media_data['votes'], db_media_data['duration'], 
+                db_media_data['mpaa'], db_media_data['genre'], db_media_data['director'], 
+                db_media_data['studio'], db_media_data['country'], db_media_data['writer'], 
+                db_media_data['cast'], db_media_data['art'],
+                db_media_data['tvshowtitle'], db_media_data['season'], 
+                db_media_data['episode'], db_media_data['aired']
             ])
 
             return cursor.lastrowid
@@ -1686,6 +1781,75 @@ class QueryManager:
         except Exception as e:
             self.logger.error("Failed to get all folders: %s", e)
             return []
+
+    def get_folder_navigation_batch(self, folder_id: str) -> Dict[str, Any]:
+        """Get folder info, subfolders, and lists in a single batch query for navigation optimization"""
+        try:
+            self.logger.debug("Getting folder navigation data for folder %s in batch", folder_id)
+            
+            # Single batch query to get folder info, subfolders, and lists
+            results = self.connection_manager.execute_query("""
+                -- Get folder info
+                SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                FROM folders f 
+                WHERE f.id = ?
+                
+                UNION ALL
+                
+                -- Get subfolders in this folder
+                SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                FROM folders f 
+                WHERE f.parent_id = ?
+                
+                UNION ALL
+                
+                -- Get lists in this folder
+                SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                FROM lists l 
+                WHERE l.folder_id = ?
+                ORDER BY data_type, name
+            """, [int(folder_id), int(folder_id), int(folder_id)])
+            
+            # Parse results into structured data
+            folder_info = None
+            subfolders = []
+            lists = []
+            
+            for row in results:
+                data_type = row['data_type']
+                
+                if data_type == 'folder_info':
+                    folder_info = {
+                        "id": str(row['id']),
+                        "name": row['name'],
+                        "created": row['created_at'][:10] if row['created_at'] else ''
+                    }
+                elif data_type == 'subfolder':
+                    subfolders.append({
+                        "id": str(row['id']),
+                        "name": row['name'],
+                        "created": row['created_at'][:10] if row['created_at'] else ''
+                    })
+                elif data_type == 'list':
+                    lists.append(dict(row))
+            
+            self.logger.debug("Batch query results: folder_info=%s, subfolders=%d, lists=%d", 
+                            'found' if folder_info else 'None', len(subfolders), len(lists))
+            
+            return {
+                'folder_info': folder_info,
+                'subfolders': subfolders,
+                'lists': lists
+            }
+            
+        except Exception as e:
+            self.logger.error("Error getting folder navigation batch for %s: %s", folder_id, e)
+            # Fallback to individual queries
+            return {
+                'folder_info': self.get_folder_by_id(folder_id),
+                'subfolders': self.get_all_folders(parent_id=folder_id),
+                'lists': self.get_lists_in_folder(folder_id)
+            }
 
     def close(self):
         """Close database connections"""

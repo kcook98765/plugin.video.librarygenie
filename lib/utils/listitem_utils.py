@@ -208,6 +208,14 @@ class ListItemMetadataManager:
             if item_data.get('tmdb_id') and get_kodi_major_version() >= 20 and hasattr(video_info_tag, 'setUniqueId'):
                 video_info_tag.setUniqueId(str(item_data['tmdb_id']), 'tmdb')
             
+            # Common fields for movies and episodes
+            if item_data.get('premiered'):
+                video_info_tag.setPremiered(item_data['premiered'])
+            if item_data.get('playcount') is not None:
+                video_info_tag.setPlaycount(int(item_data['playcount']))
+            if item_data.get('lastplayed'):
+                video_info_tag.setLastPlayed(item_data['lastplayed'])
+            
             # Episode-specific fields
             if item_data.get('media_type') == 'episode':
                 if item_data.get('tvshowtitle'):
@@ -236,8 +244,20 @@ class ListItemMetadataManager:
             if item_data.get('originaltitle') and item_data['originaltitle'] != item_data.get('title'):
                 info['originaltitle'] = item_data['originaltitle']
             
+            if item_data.get('sorttitle'):
+                info['sorttitle'] = item_data['sorttitle']
+                
+            if item_data.get('premiered'):
+                info['premiered'] = item_data['premiered']
+            
             if item_data.get('plot'):
                 info['plot'] = item_data['plot']
+            
+            # Common fields for movies and episodes
+            if item_data.get('playcount') is not None:
+                info['playcount'] = str(int(item_data['playcount']))
+            if item_data.get('lastplayed'):
+                info['lastplayed'] = item_data['lastplayed']
             
             if item_data.get('year'):
                 try:
@@ -265,8 +285,8 @@ class ListItemMetadataManager:
                         # Handle as regular string
                         info['genre'] = str(item_data['genre'])
                 except (json.JSONDecodeError, ValueError):
-                    # Fallback for malformed JSON
-                    info['genre'] = item_data['genre']
+                    # Fallback for malformed JSON - ensure string conversion
+                    info['genre'] = str(item_data['genre'])
             
             if item_data.get('votes'):
                 try:
@@ -277,7 +297,7 @@ class ListItemMetadataManager:
             # Handle duration - prefer duration_seconds if available, else convert from minutes
             if item_data.get('duration_seconds'):
                 try:
-                    info['duration'] = str(int(item_data['duration_seconds']))
+                    info['duration'] = int(item_data['duration_seconds'])
                 except (ValueError, TypeError):
                     pass
             elif item_data.get('duration'):
@@ -285,7 +305,7 @@ class ListItemMetadataManager:
                     # Duration is stored in minutes, but V19 needs seconds
                     duration_minutes = int(item_data['duration'])
                     duration_seconds = duration_minutes * 60
-                    info['duration'] = str(duration_seconds)
+                    info['duration'] = duration_seconds
                 except (ValueError, TypeError):
                     pass
                     
@@ -306,8 +326,8 @@ class ListItemMetadataManager:
                         # Handle as regular string
                         info['director'] = str(item_data['director'])
                 except (json.JSONDecodeError, ValueError):
-                    # Fallback for malformed JSON
-                    info['director'] = item_data['director']
+                    # Fallback for malformed JSON - ensure string conversion
+                    info['director'] = str(item_data['director'])
                 
             if item_data.get('studio'):
                 info['studio'] = item_data['studio']
@@ -650,7 +670,7 @@ def create_simple_listitem(title: str, plot: Optional[str] = None, addon_id: str
         Configured ListItem
     """
     try:
-        list_item = xbmcgui.ListItem(label=title)
+        list_item = xbmcgui.ListItem(label=title, offscreen=True)
         
         # Set metadata
         metadata_manager = ListItemMetadataManager(addon_id)
@@ -670,4 +690,4 @@ def create_simple_listitem(title: str, plot: Optional[str] = None, addon_id: str
     except Exception as e:
         logger.error("SIMPLE: Failed to create simple listitem for '%s': %s", title, e)
         # Return basic listitem as fallback
-        return xbmcgui.ListItem(label=title)
+        return xbmcgui.ListItem(label=title, offscreen=True)

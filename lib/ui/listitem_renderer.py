@@ -10,30 +10,21 @@ from typing import List, Dict, Any, Optional
 import xbmcgui
 import xbmcplugin
 import xbmcvfs
-from lib.ui.listitem_builder import ListItemBuilder
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.localization import L
 from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v21_plus
-from lib.utils.listitem_utils import (
-    ListItemMetadataManager, 
-    ListItemArtManager, 
-    ContextMenuBuilder
-)
 
 
 class ListItemRenderer:
     """Renders ListItems with proper Kodi integration"""
 
     def __init__(self, addon_handle: int, addon_id: str, context=None):
-        """Initialize ListItemRenderer"""
+        """Initialize ListItemRenderer - now with lazy loading for low-power device optimization"""
         self.addon_handle = addon_handle
         self.addon_id = addon_id
         self.logger = get_kodi_logger('lib.ui.listitem_renderer')
         self.plugin_context = context
         self.query_manager = context.query_manager if context else None
-        self.builder = ListItemBuilder(addon_handle, addon_id, context)
-        # Alias for compatibility
-        self.listitem_builder = self.builder
         
         # Cache addon instance and resources base path for efficient resource access
         import os
@@ -43,10 +34,48 @@ class ListItemRenderer:
             os.path.join(self._addon.getAddonInfo('path'), 'resources')
         )
         
-        # Initialize consolidated utilities
-        self.metadata_manager = ListItemMetadataManager(addon_id)
-        self.art_manager = ListItemArtManager(addon_id)
-        self.context_menu_builder = ContextMenuBuilder(addon_id)
+        # Heavy components now lazy loaded via properties for performance optimization
+
+    @property
+    def builder(self):
+        """Lazy load ListItemBuilder only when needed"""
+        if not hasattr(self, '_builder'):
+            self.logger.debug("LAZY LOAD: Loading ListItemBuilder on first use")
+            from lib.ui.listitem_builder import ListItemBuilder
+            self._builder = ListItemBuilder(self.addon_handle, self.addon_id, self.plugin_context)
+        return self._builder
+    
+    @property
+    def listitem_builder(self):
+        """Alias for compatibility - also lazy loaded"""
+        return self.builder
+    
+    @property
+    def metadata_manager(self):
+        """Lazy load ListItemMetadataManager only when needed"""
+        if not hasattr(self, '_metadata_manager'):
+            self.logger.debug("LAZY LOAD: Loading ListItemMetadataManager on first use")
+            from lib.utils.listitem_utils import ListItemMetadataManager
+            self._metadata_manager = ListItemMetadataManager(self.addon_id)
+        return self._metadata_manager
+
+    @property
+    def art_manager(self):
+        """Lazy load ListItemArtManager only when needed"""
+        if not hasattr(self, '_art_manager'):
+            self.logger.debug("LAZY LOAD: Loading ListItemArtManager on first use")
+            from lib.utils.listitem_utils import ListItemArtManager
+            self._art_manager = ListItemArtManager(self.addon_id)
+        return self._art_manager
+
+    @property
+    def context_menu_builder(self):
+        """Lazy load ContextMenuBuilder only when needed"""
+        if not hasattr(self, '_context_menu_builder'):
+            self.logger.debug("LAZY LOAD: Loading ContextMenuBuilder on first use")
+            from lib.utils.listitem_utils import ContextMenuBuilder
+            self._context_menu_builder = ContextMenuBuilder(self.addon_id)
+        return self._context_menu_builder
 
     def _translate_path(self, path: str) -> str:
         """Translate path using Kodi V19+ API"""
@@ -135,8 +164,8 @@ class ListItemRenderer:
             if context_menu_callback:
                 self.logger.info("RENDERER: Context menu callback provided - will apply to each item")
 
-            # Use the ListItemBuilder to handle the rendering
-            builder = ListItemBuilder(self.addon_handle, self.addon_id, self.plugin_context)
+            # Use the lazy-loaded ListItemBuilder to handle the rendering
+            builder = self.builder
             success = builder.build_directory(items, content_type)
 
             if success:
@@ -193,7 +222,7 @@ class ListItemRenderer:
         """Build ListItem for a user list"""
         try:
             name = list_data.get('name', 'Unnamed List')
-            list_item = xbmcgui.ListItem(label=name)
+            list_item = xbmcgui.ListItem(label=name, offscreen=True)
 
             # Set basic info - CONSOLIDATED
             self.metadata_manager.set_basic_metadata(list_item, name, f"User list: {name}", "list")
@@ -214,7 +243,7 @@ class ListItemRenderer:
         """Build ListItem for a folder"""
         try:
             name = folder_data.get('name', 'Unnamed Folder')
-            list_item = xbmcgui.ListItem(label=name)
+            list_item = xbmcgui.ListItem(label=name, offscreen=True)
 
             # Set basic info - CONSOLIDATED
             self.metadata_manager.set_basic_metadata(list_item, name, f"Folder: {name}", "folder")
@@ -380,7 +409,7 @@ class ListItemRenderer:
                 xbmcplugin.addDirectoryItem(
                     handle=self.addon_handle,
                     url="plugin://plugin.video.librarygenie/?action=empty",
-                    listitem=xbmcgui.ListItem(label="No items in this list"),
+                    listitem=xbmcgui.ListItem(label="No items in this list", offscreen=True),
                     isFolder=False
                 )
                 xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True)
@@ -425,20 +454,29 @@ class ListItemRenderer:
             xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
 
 
-# Global renderer instance
-_listitem_renderer_instance = None
+# Context-aware renderer instance cache for performance optimization
+_renderer_cache = {}
 
 
 def get_listitem_renderer(addon_handle: Optional[int] = None, addon_id: Optional[str] = None, context=None):
-    """Get global listitem renderer instance"""
-    global _listitem_renderer_instance
-    if _listitem_renderer_instance is None:
-        # Use provided parameters or get from current context
-        if addon_handle is None or addon_id is None:
-            import sys
-            addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
-            addon_id = "plugin.video.librarygenie"
+    """Get renderer instance with context-aware caching for low-power device optimization"""
+    # Use provided parameters or get from current context
+    if addon_handle is None or addon_id is None:
+        import sys
+        addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+        addon_id = "plugin.video.librarygenie"
+    
+    # Generate cache key based on context needs - only cache by handle/id for simplicity
+    # Context changes are rare and don't need separate instances
+    cache_key = f"{addon_handle}_{addon_id}"
+    
+    if cache_key not in _renderer_cache:
+        _renderer_cache[cache_key] = ListItemRenderer(addon_handle, addon_id, context)
+    
+    return _renderer_cache[cache_key]
 
-        _listitem_renderer_instance = ListItemRenderer(addon_handle, addon_id, context)
 
-    return _listitem_renderer_instance
+def clear_renderer_cache():
+    """Clear renderer cache - useful for testing and memory management"""
+    global _renderer_cache
+    _renderer_cache.clear()

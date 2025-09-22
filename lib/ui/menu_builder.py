@@ -68,7 +68,7 @@ class MenuBuilder:
                     breadcrumb_text = breadcrumb_helper.get_breadcrumb_for_tools_label_raw(breadcrumb_path)
                     description_text = breadcrumb_helper.get_breadcrumb_for_tools_description_raw(breadcrumb_path)
                     
-                    tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}")
+                    tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
                     self._set_listitem_plot(tools_item, description_text)
                     tools_item.setProperty('IsPlayable', 'false')
                     tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -376,4 +376,4 @@ class MenuBuilder:
         except Exception as e:
             self.logger.error("MENU BUILDER: Failed to create menu item '%s': %s", label, e)
             # Return fallback
-            return f"{self.base_url}?action={action}", xbmcgui.ListItem(label=label)
+            return f"{self.base_url}?action={action}", xbmcgui.ListItem(label=label, offscreen=True)

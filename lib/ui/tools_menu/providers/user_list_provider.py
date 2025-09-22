@@ -35,16 +35,20 @@ class UserListToolsProvider(BaseToolsProvider):
             is_search_history = list_info.get('folder_name') == 'Search History'
             is_kodi_favorites = list_info.get('name') == 'Kodi Favorites'
             
-            # Helper to shorten names for display
+            # Helper to shorten names for display - optimized for performance
             def shorten_name(name: str, max_length: int = 30) -> str:
                 if len(name) <= max_length:
                     return name
+                # Optimized search pattern handling 
                 if name.startswith("Search: '") and "' (" in name:
-                    search_part = name.split("' (")[0].replace("Search: '", "")
+                    # Extract search term more efficiently
+                    end_pos = name.find("' (")
+                    search_part = name[9:end_pos]  # Skip "Search: '" prefix
                     if len(search_part) <= max_length - 3:
                         return f"'{search_part}'"
                     else:
                         return f"'{search_part[:max_length-6]}...'"
+                # Simple truncation for other cases
                 return f"{name[:max_length-3]}..."
             
             short_name = shorten_name(list_info['name'])

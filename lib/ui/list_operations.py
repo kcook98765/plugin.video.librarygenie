@@ -65,11 +65,14 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully created list: %s", list_name)
-                return DialogResponse(
+                response = DialogResponse(
                     success=True,
                     message=f"Created list: {list_name}", # This string should also be localized
                     refresh_needed=True
                 )
+                # Add data attribute after creation since DialogResponse doesn't accept 'data' in constructor
+                response.data = {'id': result.get('id'), 'name': list_name}
+                return response
 
         except Exception as e:
             context.logger.error("Error creating list: %s", e)
@@ -481,12 +484,13 @@ class ListOperations:
             # Get library item parameters
             dbtype = context.get_param('dbtype')
             dbid = context.get_param('dbid')
+            title = context.get_param('title', f'Item {dbid}')  # Extract title from context
 
             if not dbtype or not dbid:
                 context.logger.error("Missing dbtype or dbid for library item")
                 return False
 
-            context.logger.info("Adding library item to list: dbtype=%s, dbid=%s", dbtype, dbid)
+            context.logger.info("Adding library item to list: dbtype=%s, dbid=%s, title='%s'", dbtype, dbid, title)
 
             query_manager = get_query_manager()
             if not query_manager.initialize():
@@ -534,86 +538,83 @@ class ListOperations:
             # Handle selection
             target_list_id = None
             if selected_index == len(list_options) - 1:  # Create new list
+                context.logger.debug("Creating new list - selected_index=%s, len(list_options)=%s", selected_index, len(list_options))
                 result = self.create_list(context)
+                context.logger.debug("create_list result: success=%s, data=%s", result.success, getattr(result, 'data', 'NO_DATA_ATTR'))
                 if not result.success:
                     return False
-                # Get the newly created list ID and add item to it
-                all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
-                available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
-                if available_lists:
-                    target_list_id = available_lists[-1]['id']  # Assume last created
-                else:
+                # Use the newly created list ID directly from the result
+                target_list_id = result.data.get('id') if result.data else None
+                context.logger.debug("Extracted target_list_id from result.data: %s", target_list_id)
+                if target_list_id is None:
+                    context.logger.error("Failed to get new list ID from create_list result - result.data=%s", result.data)
                     return False
+                context.logger.debug("Using newly created list ID: %s", target_list_id)
             else:
                 target_list_id = available_lists[selected_index]['id']
+                context.logger.debug("Using existing list ID: %s from index %s", target_list_id, selected_index)
 
             if target_list_id is None:
                 return False
 
-            # Check if item already exists in media_items table
-            library_item = None
-            existing_item = None
+            # Simple library item approach - just need minimal fields for existing Kodi items
+            context.logger.debug("Adding library item to list: kodi_id=%s, title='%s', media_type=%s", 
+                               dbid, title, dbtype)
+            context.logger.debug("FINAL target_list_id being used: %s", target_list_id)
 
-            if dbtype == 'movie':
-                existing_item = query_manager.connection_manager.execute_single("""
-                    SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'movie'
-                """, [int(dbid)])
+            # Direct database operations for library items (much simpler than search pipeline)
+            with query_manager.connection_manager.transaction() as conn:
+                # Check if library item already exists in media_items
+                existing_media_item = conn.execute("""
+                    SELECT id FROM media_items 
+                    WHERE kodi_id = ? AND media_type = ? AND source = 'lib'
+                """, [int(dbid), dbtype]).fetchone()
 
-                if existing_item:
-                    library_item = dict(existing_item)
-                    library_item['source'] = 'lib'
+                if existing_media_item:
+                    media_item_id = existing_media_item['id']
+                    context.logger.debug("Found existing library media_item: id=%s", media_item_id)
                 else:
-                    # Item not in database yet - create minimal entry
-                    library_item = {
-                        'kodi_id': int(dbid),
-                        'media_type': 'movie',
-                        'title': f'Movie {dbid}',  # Placeholder, will be enriched later
-                        'year': 0,
-                        'source': 'lib'
-                    }
+                    # Insert minimal library item record (no complex metadata needed)
+                    cursor = conn.execute("""
+                        INSERT INTO media_items (kodi_id, media_type, title, source, created_at)
+                        VALUES (?, ?, ?, 'lib', datetime('now'))
+                    """, [int(dbid), dbtype, title])
+                    media_item_id = cursor.lastrowid
+                    context.logger.debug("Created new library media_item: id=%s", media_item_id)
 
-            elif dbtype == 'episode':
-                existing_item = query_manager.connection_manager.execute_single("""
-                    SELECT * FROM media_items WHERE kodi_id = ? AND media_type = 'episode'
-                """, [int(dbid)])
+                # Check if already in target list
+                existing_list_item = conn.execute("""
+                    SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?
+                """, [target_list_id, media_item_id]).fetchone()
 
-                if existing_item:
-                    library_item = dict(existing_item)
-                    library_item['source'] = 'lib'
+                if existing_list_item:
+                    context.logger.debug("Item already in list %s", target_list_id)
+                    result = {"success": True, "already_exists": True}
                 else:
-                    # Item not in database yet - create minimal entry
-                    library_item = {
-                        'kodi_id': int(dbid),
-                        'media_type': 'episode',
-                        'title': f'Episode {dbid}',  # Placeholder, will be enriched later
-                        'source': 'lib'
-                    }
-
-            if not library_item:
-                context.logger.error("Unsupported dbtype: %s", dbtype)
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    f"Unsupported item type: {dbtype}", # Localize this string
-                    xbmcgui.NOTIFICATION_ERROR
-                )
-                return False
-
-            # Add or update the item in media_items table
-            if not existing_item:
-                # Insert new item
-                result = query_manager.add_media_item_to_database(library_item)
-                if not result.get("success"):
-                    context.logger.error("Failed to add library item to database")
-                    return False
-                media_item_id = result["id"]
-            else:
-                media_item_id = existing_item["id"]
-
-            # Add item to the selected list
-            result = query_manager.add_item_to_list(target_list_id, media_item_id)
+                    # Add to list
+                    conn.execute("""
+                        INSERT INTO list_items (list_id, media_item_id, position)
+                        VALUES (?, ?, COALESCE((SELECT MAX(position) + 1 FROM list_items WHERE list_id = ?), 0))
+                    """, [target_list_id, media_item_id, target_list_id])
+                    context.logger.debug("Added library item to list %s", target_list_id)
+                    result = {"success": True}
 
             if result is not None and result.get("success"):
-                list_name = available_lists[selected_index]['name'] if selected_index < len(available_lists) else "new list"
+                # Determine the correct list name based on what actually happened
+                if selected_index == len(list_options) - 1:  # Created new list
+                    # Get the name of the newly created list
+                    all_lists = query_manager.get_all_lists_with_folders()
+                    available_lists_refreshed = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
+                    if available_lists_refreshed and target_list_id:
+                        # Find the list with the target_list_id
+                        target_list = next((lst for lst in available_lists_refreshed if str(lst['id']) == str(target_list_id)), None)
+                        list_name = target_list['name'] if target_list else "new list"
+                    else:
+                        list_name = "new list"
+                else:
+                    # Adding to existing list
+                    list_name = available_lists[selected_index]['name'] if selected_index < len(available_lists) else "unknown list"
+                
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     f"Added to '{list_name}'", # Localize this string

@@ -68,7 +68,7 @@ class FolderOperations:
                 return DialogResponse(
                     success=True,
                     message=f"Created folder: {folder_name}", # This string should also be localized
-                    refresh_needed=True
+                    navigate_to_lists=True  # Navigate back to main lists view to show new folder
                 )
 
         except Exception as e:
