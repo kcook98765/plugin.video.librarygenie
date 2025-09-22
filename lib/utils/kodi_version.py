@@ -71,6 +71,15 @@ def is_kodi_v21_plus() -> bool:
     """
     return get_kodi_major_version() >= 21
 
+def is_kodi_v22_plus() -> bool:
+    """
+    Check if running Kodi version 22 (Piers) or higher.
+    
+    Returns:
+        bool: True if Kodi major version >= 22, False otherwise
+    """
+    return get_kodi_major_version() >= 22
+
 def get_version_specific_control_id() -> int:
     """
     Get the correct list control ID based on Kodi version.
