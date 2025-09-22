@@ -62,14 +62,32 @@ class SearchHandler:
         # Step 3: Execute search
         results = self._execute_simple_search(search_terms, search_options, context)
 
-        # Step 4: Save results and redirect
+        # Step 4: Save results and render directly (no plugin restart)
         if results.total_count > 0:
-            self._save_search_history(search_terms, search_options, results)
-            if not self._try_redirect_to_saved_search_list():
-                self._error("Failed to redirect to saved search list")
-                self._end_directory(succeeded=False, update=False)
-                return False
-            return True
+            # Save search history and get the created list ID
+            list_id = self._save_search_history(search_terms, search_options, results)
+            
+            if list_id:
+                # Directly render the saved search list without Container.Update
+                if self._render_saved_search_list_directly(list_id, context):
+                    self._debug(f"Successfully displayed search results via direct rendering")
+                    return True
+                else:
+                    # Fallback to redirect method if direct rendering fails
+                    self._warn("Direct rendering failed, falling back to redirect method")
+                    if not self._try_redirect_to_saved_search_list():
+                        self._error("Failed to redirect to saved search list")
+                        self._end_directory(succeeded=False, update=False)
+                        return False
+                    return True
+            else:
+                # Failed to save search history, fallback to redirect method
+                self._warn("Failed to save search history, attempting fallback redirect")
+                if not self._try_redirect_to_saved_search_list():
+                    self._error("Failed to redirect to saved search list")
+                    self._end_directory(succeeded=False, update=False)
+                    return False
+                return True
         else:
             self._show_no_results_message(search_terms)
             self._end_directory(succeeded=True, update=False)
