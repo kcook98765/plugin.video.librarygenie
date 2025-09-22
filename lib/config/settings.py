@@ -195,6 +195,16 @@ class SettingsManager:
         config = get_config()
         return config.get_bool('info_hijack_enabled', True)
 
+    def get_debug_first_playable(self) -> bool:
+        """Get whether to enable first playable listitem debugging"""
+        config = get_config()
+        return config.get_bool('debug_first_playable', False)
+
+    def set_debug_first_playable(self, enabled: bool) -> None:
+        """Set whether to enable first playable listitem debugging"""
+        config = get_config()
+        config.set('debug_first_playable', enabled)
+
     def get_enable_background_token_refresh(self) -> bool:
         """Get enable automatic token refresh in background service setting"""
         config = get_config()

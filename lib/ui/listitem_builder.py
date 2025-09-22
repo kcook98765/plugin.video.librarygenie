@@ -1068,21 +1068,19 @@ class ListItemBuilder:
     def _should_debug_first_playable(self) -> bool:
         """Check if first playable debugging is enabled"""
         try:
-            # Check environment variable first as primary control
-            import os
-            env_debug = os.getenv('LG_DEBUG_FIRST_PLAYABLE', '').lower()
-            if env_debug in ('true', '1', 'yes'):
-                return True
-                
-            # Future: Could add settings manager integration here
-            # from lib.config.settings import SettingsManager
-            # settings = SettingsManager()
-            # return settings.get_debug_first_playable(default=False)
-            
-            return False
+            # Use Kodi settings as primary control
+            from lib.config.settings import SettingsManager
+            settings = SettingsManager()
+            return settings.get_debug_first_playable()
         except Exception as e:
             self.logger.debug("FIRST_PLAYABLE_DEBUG: Error checking debug setting: %s", e)
-            return False
+            # Fallback to environment variable if settings fail
+            try:
+                import os
+                env_debug = os.getenv('LG_DEBUG_FIRST_PLAYABLE', '').lower()
+                return env_debug in ('true', '1', 'yes')
+            except Exception:
+                return False
     
     def _debug_first_playable_item(self, batch_items: List[tuple], tuples: List[tuple]):
         """Debug the first playable item in the batch"""
@@ -1222,7 +1220,8 @@ class ListItemBuilder:
             art_types = ['poster', 'fanart', 'banner', 'thumb', 'clearart', 'clearlogo', 'landscape', 'icon']
             
             try:
-                art_dict = listitem.getArt()
+                # Get all art - some Kodi versions may behave differently
+                art_dict = listitem.getArt() if hasattr(listitem, 'getArt') else {}
                 if art_dict:
                     for art_type in art_types:
                         art_url = art_dict.get(art_type, '')
