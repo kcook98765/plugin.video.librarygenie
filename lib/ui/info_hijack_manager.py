@@ -52,11 +52,10 @@ class InfoHijackManager:
             
         # OPTIMIZATION: Removed DialogBusy check - XSP navigation works even during scanning
         
-        # SPEED OPTIMIZATION: Reduce debug scanning frequency to avoid delays in dialog detection
-        if int(current_time * 2) % 20 == 0:  # Every 10 seconds instead of 2.5 seconds
+        # Debug: Periodically scan container for armed items
+        if int(current_time * 4) % 10 == 0:  # Every 2.5 seconds
             self._debug_scan_container()
 
-        # SPEED OPTIMIZATION: Fast dialog state detection for immediate response
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
@@ -65,17 +64,18 @@ class InfoHijackManager:
         if hasattr(self, '_last_dialog_state'):
             last_active, last_id = self._last_dialog_state
             
-            # SPEED OPTIMIZATION: Only log significant state changes to reduce overhead
+            # Log state changes for debugging (but only significant ones)
             if (dialog_active, current_dialog_id) != self._last_dialog_state:
+                # Only log state changes involving our hijacked dialogs or when we have a native dialog open
                 if self._native_info_was_open or dialog_active or last_active:
                     log(f"HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
             
             # PRIMARY DETECTION: dialog was active, now not active, and we had a native info open
             if last_active and not dialog_active and self._native_info_was_open:
-                log("HIJACK STEP 5: FAST DIALOG CLOSE DETECTED - immediate back navigation")
+                log("HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
                 try:
                     self._handle_native_info_closed()
-                    log("HIJACK STEP 5 COMPLETE: Fast navigation back to plugin completed")
+                    log("HIJACK STEP 5 COMPLETE: Navigation back to plugin completed")
                 except Exception as e:
                     log_error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
                 finally:
@@ -231,46 +231,37 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - optimized for fast back navigation"""
+        """Handle the native info dialog being closed - optimized to trust Kodi's navigation"""
         try:
-            self._logger.debug("HIJACK STEP 5: Native info dialog closed - fast back navigation")
+            self._logger.debug("HIJACK STEP 5: Native info dialog closed, trusting Kodi's navigation")
             
-            # SPEED OPTIMIZATION: Fast 50ms delay, with retry logic to handle animation blocking
-            xbmc.sleep(50)  # Minimal wait for UI state consistency
+            # OPTIMIZATION: Minimal wait for dialog closing, trust Kodi's navigation history
+            xbmc.sleep(300)  # Reduced from complex animation waiting
             
-            # SPEED OPTIMIZATION: Direct API call instead of cache for faster response
-            current_window = xbmc.getInfoLabel("System.CurrentWindow")
-            current_path = xbmc.getInfoLabel("Container.FolderPath")
+            # OPTIMIZATION: Minimal XSP detection - single Container.FolderPath check only when needed
+            current_window = get_cached_info("System.CurrentWindow")
             
-            # DEBUG: Log window and path state for back navigation analysis
-            self._logger.debug(f"HIJACK DEBUG: Window='{current_window}', Path='{current_path}'")
-            self._logger.debug(f"HIJACK DEBUG: XSP Detection={self._is_on_librarygenie_hijack_xsp(current_path)}")
-            
-            # PATH-BASED DETECTION: If we detect LibraryGenie XSP page, execute back navigation regardless of window
-            if self._is_on_librarygenie_hijack_xsp(current_path):
-                self._logger.debug("HIJACK: On LG XSP - executing back navigation with retry logic")
+            # If we're in Videos window, check if we're actually on our XSP before executing back
+            if current_window == "Videos":
+                # Single non-polled Container.FolderPath check to verify we're on our XSP
+                current_path = get_cached_info("Container.FolderPath")
                 
-                # RETRY LOGIC: Try up to 6 times to handle animation blocking
-                max_attempts = 6
-                for attempt in range(1, max_attempts + 1):
+                if self._is_on_librarygenie_hijack_xsp(current_path):
+                    self._logger.debug("HIJACK: On LG XSP - executing back to return to plugin")
+                    
                     with navigation_action():
                         xbmc.executebuiltin('Action(Back)')
                     
-                    # Wait and check if back navigation succeeded
-                    xbmc.sleep(50)
-                    verify_path = xbmc.getInfoLabel("Container.FolderPath")
+                    # Brief wait for back command to execute
+                    xbmc.sleep(200)
                     
-                    if not self._is_on_librarygenie_hijack_xsp(verify_path):
-                        self._logger.debug(f"HIJACK: ✅ Back navigation succeeded on attempt {attempt}")
-                        break
-                    elif attempt < max_attempts:
-                        self._logger.debug(f"HIJACK: Back navigation blocked on attempt {attempt}, retrying...")
-                    else:
-                        self._logger.debug(f"HIJACK: ⚠️ Back navigation failed after {max_attempts} attempts")
-                        
+                    self._logger.debug("HIJACK: ✅ Back executed from XSP")
+                else:
+                    # Already in plugin content or other content - don't navigate
+                    self._logger.debug("HIJACK: ✅ In Videos window but not on LG XSP - trusting Kodi navigation")
             else:
-                # Not on LibraryGenie XSP - trust Kodi's natural navigation
-                self._logger.debug("HIJACK: ✅ Not on LG XSP - trusting Kodi navigation worked correctly")
+                # Not in Videos window - likely already navigated correctly
+                self._logger.debug("HIJACK: ✅ Not in Videos window - trusting Kodi navigation worked correctly")
             
             self._cleanup_properties()
                 
@@ -450,8 +441,8 @@ class InfoHijackManager:
                 self._cleanup_hijack_monitoring_state()
             return
         
-        # SPEED OPTIMIZATION: Reduce rate limiting from 2s to 200ms for faster back navigation
-        if current_time - self._last_safety_attempt < 0.2:
+        # Rate limiting: at least 2 seconds between attempts to avoid rapid-fire navigation
+        if current_time - self._last_safety_attempt < 2.0:
             return
         
         # Log the detection with rate limiting
@@ -465,7 +456,7 @@ class InfoHijackManager:
 
 
     def _execute_immediate_back_navigation(self, current_path: str, current_time: float):
-        """Execute immediate back navigation when user appears on XSP page - optimized for speed"""
+        """Execute immediate back navigation when user appears on XSP page"""
         
         try:
             # Record attempt for rate limiting
@@ -474,19 +465,19 @@ class InfoHijackManager:
             # Execute back navigation immediately
             xbmc.executebuiltin('Action(Back)')
             
-            # SPEED OPTIMIZATION: Reduce wait from 200ms to 50ms for faster response
-            xbmc.sleep(50)  # Minimal wait for navigation to register
+            # Brief wait for navigation to register
+            xbmc.sleep(200)
             
             # Verify navigation (optional logging)
             final_path = xbmc.getInfoLabel("Container.FolderPath")
             if final_path and 'plugin.video.librarygenie' in final_path:
                 self._debug_log_with_rate_limit(
-                    "✅ XSP AUTO-NAV: Fast return to plugin: '%s'" % final_path,
+                    "✅ XSP AUTO-NAV: Successfully returned to plugin: '%s'" % final_path,
                     current_time, self._logger.info
                 )
             else:
                 self._debug_log_with_rate_limit(
-                    "🔄 XSP AUTO-NAV: Fast navigation executed, current path: '%s'" % final_path,
+                    "🔄 XSP AUTO-NAV: Navigation executed, current path: '%s'" % final_path,
                     current_time, self._logger.info
                 )
         
