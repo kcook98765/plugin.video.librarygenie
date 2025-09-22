@@ -138,6 +138,10 @@ class ListItemBuilder:
                 if not batch_url or not batch_url.strip():
                     self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty URL in final batch at position %s!", idx)
             
+            # FIRST_PLAYABLE_DEBUG: Log comprehensive details of first playable item
+            if self._should_debug_first_playable():
+                self._debug_first_playable_item(batch_items, tuples)
+            
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             # Use updateListing for pagination to control navigation history
@@ -1058,3 +1062,219 @@ class ListItemBuilder:
             error_item = xbmcgui.ListItem(label="Error loading item", offscreen=True)
             error_url = "plugin://plugin.video.librarygenie/?action=error"
             return error_item, error_url
+
+    # -------- First Playable Debug Methods --------
+    
+    def _should_debug_first_playable(self) -> bool:
+        """Check if first playable debugging is enabled"""
+        try:
+            # Check environment variable first as primary control
+            import os
+            env_debug = os.getenv('LG_DEBUG_FIRST_PLAYABLE', '').lower()
+            if env_debug in ('true', '1', 'yes'):
+                return True
+                
+            # Future: Could add settings manager integration here
+            # from lib.config.settings import SettingsManager
+            # settings = SettingsManager()
+            # return settings.get_debug_first_playable(default=False)
+            
+            return False
+        except Exception as e:
+            self.logger.debug("FIRST_PLAYABLE_DEBUG: Error checking debug setting: %s", e)
+            return False
+    
+    def _debug_first_playable_item(self, batch_items: List[tuple], tuples: List[tuple]):
+        """Debug the first playable item in the batch"""
+        try:
+            first_playable_found = False
+            
+            for idx, (batch_url, batch_li, batch_is_folder) in enumerate(batch_items, start=1):
+                # Check if this is a playable item (not a folder, has IsPlayable=true)
+                is_playable = batch_li.getProperty('IsPlayable') == 'true'
+                
+                if is_playable and not batch_is_folder and not first_playable_found:
+                    # This is our first playable item - log everything
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Found first playable item at position #%s", idx)
+                    
+                    # Get original item data if available
+                    original_item = tuples[idx-1][3] if idx <= len(tuples) else None
+                    
+                    self._log_first_playable_details(batch_li, batch_url, idx, original_item)
+                    first_playable_found = True
+                    break
+            
+            if not first_playable_found:
+                self.logger.info("FIRST_PLAYABLE_DEBUG: No playable items found in this batch")
+                
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error during debugging: %s", e)
+    
+    def _log_first_playable_details(self, listitem: xbmcgui.ListItem, url: str, position: int, original_item: Optional[Dict[str, Any]] = None):
+        """Log comprehensive details of the first playable listitem for debugging"""
+        self.logger.info("=" * 80)
+        self.logger.info("FIRST_PLAYABLE_DEBUG: DETAILED LOGGING - Position #%s", position)
+        self.logger.info("=" * 80)
+        
+        # Basic info
+        self.logger.info("FIRST_PLAYABLE_DEBUG: URL = '%s'", url)
+        try:
+            actual_path = listitem.getPath() if hasattr(listitem, 'getPath') else 'N/A'
+            self.logger.info("FIRST_PLAYABLE_DEBUG: ListItem.getPath() = '%s'", actual_path)
+        except Exception as e:
+            self.logger.info("FIRST_PLAYABLE_DEBUG: ListItem.getPath() = ERROR: %s", e)
+        
+        # Properties
+        self._log_listitem_properties(listitem)
+        
+        # Metadata (version-safe)
+        self._log_listitem_metadata(listitem)
+        
+        # Art
+        self._log_listitem_art(listitem)
+        
+        # Original item data
+        if original_item:
+            self._log_original_item_data(original_item)
+        
+        self.logger.info("=" * 80)
+        self.logger.info("FIRST_PLAYABLE_DEBUG: END OF DETAILED LOGGING")
+        self.logger.info("=" * 80)
+    
+    def _log_listitem_properties(self, listitem: xbmcgui.ListItem):
+        """Log all relevant properties of the listitem"""
+        try:
+            # Core properties to check
+            properties_to_check = [
+                'IsPlayable', 'media_item_id', 'list_id', 
+                'LG.InfoHijack.Armed', 'LG.InfoHijack.DBID', 'LG.InfoHijack.DBType',
+                'LG.InfoHijack.Nav.Title', 'LG.InfoHijack.Nav.DBID', 'LG.InfoHijack.Nav.DBType'
+            ]
+            
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- PROPERTIES ---")
+            for prop in properties_to_check:
+                try:
+                    value = listitem.getProperty(prop)
+                    if value:
+                        self.logger.info("FIRST_PLAYABLE_DEBUG: Property['%s'] = '%s'", prop, value)
+                    else:
+                        self.logger.info("FIRST_PLAYABLE_DEBUG: Property['%s'] = <empty/not set>", prop)
+                except Exception as e:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Property['%s'] = ERROR: %s", prop, e)
+                    
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging properties: %s", e)
+    
+    def _log_listitem_metadata(self, listitem: xbmcgui.ListItem):
+        """Log metadata of the listitem in a version-safe way"""
+        try:
+            kodi_major = get_kodi_major_version()
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- METADATA (Kodi v%s) ---", kodi_major)
+            
+            if kodi_major >= 21:
+                # Use InfoTagVideo for V21+
+                try:
+                    video_tag = listitem.getVideoInfoTag()
+                    metadata_fields = [
+                        ('getTitle', 'Title'),
+                        ('getPlot', 'Plot'),
+                        ('getYear', 'Year'),
+                        ('getRating', 'Rating'),
+                        ('getGenres', 'Genres'),
+                        ('getDirectors', 'Directors'),
+                        ('getWriters', 'Writers'),
+                        ('getDuration', 'Duration'),
+                        ('getIMDBNumber', 'IMDB Number')
+                    ]
+                    
+                    for method_name, display_name in metadata_fields:
+                        try:
+                            if hasattr(video_tag, method_name):
+                                value = getattr(video_tag, method_name)()
+                                self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag.%s = '%s'", display_name, value)
+                            else:
+                                self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag.%s = <method not available>", display_name)
+                        except Exception as e:
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag.%s = ERROR: %s", display_name, e)
+                            
+                except Exception as e:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag = ERROR: %s", e)
+                    
+            else:
+                # For V19/V20, we can't safely extract all metadata due to getInfo() limitations
+                # Just log what we know from context
+                self.logger.info("FIRST_PLAYABLE_DEBUG: V19/V20 - Limited metadata extraction available")
+                try:
+                    label = listitem.getLabel()
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Label = '%s'", label)
+                except Exception as e:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Label = ERROR: %s", e)
+                    
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging metadata: %s", e)
+    
+    def _log_listitem_art(self, listitem: xbmcgui.ListItem):
+        """Log artwork URLs of the listitem"""
+        try:
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- ARTWORK ---")
+            
+            # Art types to check
+            art_types = ['poster', 'fanart', 'banner', 'thumb', 'clearart', 'clearlogo', 'landscape', 'icon']
+            
+            try:
+                art_dict = listitem.getArt()
+                if art_dict:
+                    for art_type in art_types:
+                        art_url = art_dict.get(art_type, '')
+                        if art_url:
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: Art['%s'] = '%s'", art_type, art_url)
+                        else:
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: Art['%s'] = <not set>", art_type)
+                    
+                    # Log any other art types not in our standard list
+                    other_art = {k: v for k, v in art_dict.items() if k not in art_types}
+                    if other_art:
+                        for art_type, art_url in other_art.items():
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: Art['%s'] = '%s' (non-standard)", art_type, art_url)
+                else:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Art = <no artwork set>")
+                    
+            except Exception as e:
+                self.logger.info("FIRST_PLAYABLE_DEBUG: Art = ERROR: %s", e)
+                
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging artwork: %s", e)
+    
+    def _log_original_item_data(self, original_item: Dict[str, Any]):
+        """Log key fields from the original item dictionary"""
+        try:
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- ORIGINAL ITEM DATA ---")
+            
+            # Key fields to log
+            key_fields = [
+                'title', 'media_type', 'kodi_id', 'file_path', 'year', 'rating', 
+                'plot', 'genre', 'director', 'duration', 'tmdb_id', 'imdb_id',
+                'play', 'tvshowtitle', 'season', 'episode'
+            ]
+            
+            for field in key_fields:
+                if field in original_item:
+                    value = original_item[field]
+                    # Truncate long values for readability
+                    if isinstance(value, str) and len(value) > 200:
+                        value = value[:200] + "... (truncated)"
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: OriginalItem['%s'] = '%s'", field, value)
+                else:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: OriginalItem['%s'] = <not present>", field)
+            
+            # Log any other fields not in our standard list
+            other_fields = {k: v for k, v in original_item.items() if k not in key_fields}
+            if other_fields:
+                self.logger.info("FIRST_PLAYABLE_DEBUG: --- OTHER ORIGINAL ITEM FIELDS ---")
+                for field, value in other_fields.items():
+                    if isinstance(value, str) and len(value) > 100:
+                        value = str(value)[:100] + "... (truncated)"
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: OriginalItem['%s'] = '%s' (other)", field, value)
+                    
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging original item data: %s", e)
