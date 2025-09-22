@@ -246,24 +246,20 @@ class InfoHijackManager:
             self._logger.debug(f"HIJACK DEBUG: Window='{current_window}', Path='{current_path}'")
             self._logger.debug(f"HIJACK DEBUG: XSP Detection={self._is_on_librarygenie_hijack_xsp(current_path)}")
             
-            # If we're in Videos or Movies window, check if we're actually on our XSP before executing back
-            if current_window in ("Videos", "Movies"):
-                if self._is_on_librarygenie_hijack_xsp(current_path):
-                    self._logger.debug("HIJACK: On LG XSP - executing immediate back to plugin")
-                    
-                    with navigation_action():
-                        xbmc.executebuiltin('Action(Back)')
-                    
-                    # SPEED OPTIMIZATION: Reduce back wait from 200ms to 50ms
-                    xbmc.sleep(50)  # Minimal wait for navigation to register
-                    
-                    self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
-                else:
-                    # Already in plugin content or other content - don't navigate
-                    self._logger.debug("HIJACK: ✅ In Videos window but not on LG XSP - trusting Kodi navigation")
+            # PATH-BASED DETECTION: If we detect LibraryGenie XSP page, execute back navigation regardless of window
+            if self._is_on_librarygenie_hijack_xsp(current_path):
+                self._logger.debug("HIJACK: On LG XSP - executing immediate back to plugin")
+                
+                with navigation_action():
+                    xbmc.executebuiltin('Action(Back)')
+                
+                # SPEED OPTIMIZATION: Reduce back wait from 200ms to 50ms
+                xbmc.sleep(50)  # Minimal wait for navigation to register
+                
+                self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
             else:
-                # Not in Videos window - likely already navigated correctly
-                self._logger.debug("HIJACK: ✅ Not in Videos window - trusting Kodi navigation worked correctly")
+                # Not on LibraryGenie XSP - trust Kodi's natural navigation
+                self._logger.debug("HIJACK: ✅ Not on LG XSP - trusting Kodi navigation worked correctly")
             
             self._cleanup_properties()
                 
