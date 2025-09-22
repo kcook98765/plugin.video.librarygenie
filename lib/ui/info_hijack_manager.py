@@ -441,8 +441,8 @@ class InfoHijackManager:
                 self._cleanup_hijack_monitoring_state()
             return
         
-        # Rate limiting: at least 2 seconds between attempts to avoid rapid-fire navigation
-        if current_time - self._last_safety_attempt < 2.0:
+        # SPEED OPTIMIZATION: Reduce rate limiting from 2s to 200ms for faster back navigation
+        if current_time - self._last_safety_attempt < 0.2:
             return
         
         # Log the detection with rate limiting
@@ -456,7 +456,7 @@ class InfoHijackManager:
 
 
     def _execute_immediate_back_navigation(self, current_path: str, current_time: float):
-        """Execute immediate back navigation when user appears on XSP page"""
+        """Execute immediate back navigation when user appears on XSP page - optimized for speed"""
         
         try:
             # Record attempt for rate limiting
@@ -465,19 +465,19 @@ class InfoHijackManager:
             # Execute back navigation immediately
             xbmc.executebuiltin('Action(Back)')
             
-            # Brief wait for navigation to register
-            xbmc.sleep(200)
+            # SPEED OPTIMIZATION: Reduce wait from 200ms to 50ms for faster response
+            xbmc.sleep(50)  # Minimal wait for navigation to register
             
             # Verify navigation (optional logging)
             final_path = xbmc.getInfoLabel("Container.FolderPath")
             if final_path and 'plugin.video.librarygenie' in final_path:
                 self._debug_log_with_rate_limit(
-                    "✅ XSP AUTO-NAV: Successfully returned to plugin: '%s'" % final_path,
+                    "✅ XSP AUTO-NAV: Fast return to plugin: '%s'" % final_path,
                     current_time, self._logger.info
                 )
             else:
                 self._debug_log_with_rate_limit(
-                    "🔄 XSP AUTO-NAV: Navigation executed, current path: '%s'" % final_path,
+                    "🔄 XSP AUTO-NAV: Fast navigation executed, current path: '%s'" % final_path,
                     current_time, self._logger.info
                 )
         
