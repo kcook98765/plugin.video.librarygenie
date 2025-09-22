@@ -235,8 +235,8 @@ class InfoHijackManager:
         try:
             self._logger.debug("HIJACK STEP 5: Native info dialog closed - fast back navigation")
             
-            # ANIMATION SAFETY: Wait 200ms for dialog closing animation to complete before back navigation
-            xbmc.sleep(200)  # Wait for dialog animation to finish to prevent action blocking
+            # SPEED OPTIMIZATION: Fast 50ms delay, with retry logic to handle animation blocking
+            xbmc.sleep(50)  # Minimal wait for UI state consistency
             
             # SPEED OPTIMIZATION: Direct API call instead of cache for faster response
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
@@ -248,15 +248,26 @@ class InfoHijackManager:
             
             # PATH-BASED DETECTION: If we detect LibraryGenie XSP page, execute back navigation regardless of window
             if self._is_on_librarygenie_hijack_xsp(current_path):
-                self._logger.debug("HIJACK: On LG XSP - executing immediate back to plugin")
+                self._logger.debug("HIJACK: On LG XSP - executing back navigation with retry logic")
                 
-                with navigation_action():
-                    xbmc.executebuiltin('Action(Back)')
-                
-                # SPEED OPTIMIZATION: Reduce back wait from 200ms to 50ms
-                xbmc.sleep(50)  # Minimal wait for navigation to register
-                
-                self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
+                # RETRY LOGIC: Try up to 6 times to handle animation blocking
+                max_attempts = 6
+                for attempt in range(1, max_attempts + 1):
+                    with navigation_action():
+                        xbmc.executebuiltin('Action(Back)')
+                    
+                    # Wait and check if back navigation succeeded
+                    xbmc.sleep(50)
+                    verify_path = xbmc.getInfoLabel("Container.FolderPath")
+                    
+                    if not self._is_on_librarygenie_hijack_xsp(verify_path):
+                        self._logger.debug(f"HIJACK: ✅ Back navigation succeeded on attempt {attempt}")
+                        break
+                    elif attempt < max_attempts:
+                        self._logger.debug(f"HIJACK: Back navigation blocked on attempt {attempt}, retrying...")
+                    else:
+                        self._logger.debug(f"HIJACK: ⚠️ Back navigation failed after {max_attempts} attempts")
+                        
             else:
                 # Not on LibraryGenie XSP - trust Kodi's natural navigation
                 self._logger.debug("HIJACK: ✅ Not on LG XSP - trusting Kodi navigation worked correctly")
