@@ -238,8 +238,8 @@ class InfoHijackManager:
             # SPEED OPTIMIZATION: Reduce dialog close wait from 300ms to 50ms for faster response
             xbmc.sleep(50)  # Minimal wait for UI state consistency
             
-            # OPTIMIZATION: Direct API calls for faster path detection 
-            current_window = get_cached_info("System.CurrentWindow")
+            # SPEED OPTIMIZATION: Direct API call instead of cache for faster response
+            current_window = xbmc.getInfoLabel("System.CurrentWindow")
             
             # If we're in Videos window, check if we're actually on our XSP before executing back
             if current_window == "Videos":
