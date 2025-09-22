@@ -62,14 +62,32 @@ class SearchHandler:
         # Step 3: Execute search
         results = self._execute_simple_search(search_terms, search_options, context)
 
-        # Step 4: Save results and redirect
+        # Step 4: Save results and render directly (no plugin restart)
         if results.total_count > 0:
-            self._save_search_history(search_terms, search_options, results)
-            if not self._try_redirect_to_saved_search_list():
-                self._error("Failed to redirect to saved search list")
-                self._end_directory(succeeded=False, update=False)
-                return False
-            return True
+            # Save search history and get the created list ID
+            list_id = self._save_search_history(search_terms, search_options, results)
+            
+            if list_id:
+                # Directly render the saved search list without Container.Update
+                if self._render_saved_search_list_directly(str(list_id), context):
+                    self._debug(f"Successfully displayed search results via direct rendering")
+                    return True
+                else:
+                    # Fallback to redirect method if direct rendering fails
+                    self._warn("Direct rendering failed, falling back to redirect method")
+                    if not self._try_redirect_to_saved_search_list():
+                        self._error("Failed to redirect to saved search list")
+                        self._end_directory(succeeded=False, update=False)
+                        return False
+                    return True
+            else:
+                # Failed to save search history, fallback to redirect method
+                self._warn("Failed to save search history, attempting fallback redirect")
+                if not self._try_redirect_to_saved_search_list():
+                    self._error("Failed to redirect to saved search list")
+                    self._end_directory(succeeded=False, update=False)
+                    return False
+                return True
         else:
             self._show_no_results_message(search_terms)
             self._end_directory(succeeded=True, update=False)
@@ -127,11 +145,11 @@ class SearchHandler:
             return result
 
     def _save_search_history(self, search_terms: str, options: Dict[str, str], results):
-        """Save search results to search history"""
+        """Save search results to search history and return the created list ID"""
         try:
             if results.total_count == 0:
                 self._debug("No results to save to search history")
-                return
+                return None
 
             self._debug(f"Saving search history for '{search_terms}' with {results.total_count} results")
 
@@ -167,21 +185,60 @@ class SearchHandler:
                         # Fallback message
                         formatted_message = f"Search saved: {added} items"
                     self._notify_info(formatted_message, ms=3000)
+                    return list_id  # Return the list ID on success
                 else:
                     self._warn(f"Failed to add items to search history list {list_id}")
+                    return None
             else:
                 self._warn("Failed to create search history list")
+                return None
 
         except Exception as e:
             self._error(f"Failed to save search history: {e}")
             import traceback
             self._error(f"Search history save traceback: {traceback.format_exc()}")
+            return None
+
+    def _render_saved_search_list_directly(self, list_id: str, context: PluginContext) -> bool:
+        """Directly render saved search list without Container.Update redirect"""
+        try:
+            self._debug(f"Directly rendering saved search list ID: {list_id}")
+            
+            # Import and instantiate ListsHandler
+            from lib.ui.handler_factory import get_handler_factory
+            from lib.ui.response_handler import get_response_handler
+            
+            factory = get_handler_factory()
+            factory.context = context
+            lists_handler = factory.get_lists_handler()
+            response_handler = get_response_handler()
+            
+            # Directly call view_list with the saved list ID
+            directory_response = lists_handler.view_list(context, list_id)
+            
+            # Handle the DirectoryResponse
+            success = response_handler.handle_directory_response(directory_response, context)
+            
+            if success:
+                self._debug(f"Successfully rendered saved search list {list_id} directly")
+                return True
+            else:
+                self._warn(f"Failed to handle directory response for list {list_id}")
+                return False
+            
+        except Exception as e:
+            self._error(f"Error rendering saved search list directly: {e}")
+            import traceback
+            self._error(f"Direct rendering traceback: {traceback.format_exc()}")
+            return False
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""
         try:
             search_folder_id = self.query_manager.get_or_create_search_history_folder()
-            lists = self.query_manager.get_lists_in_folder(search_folder_id)
+            # Ensure folder_id is string type for API compatibility
+            folder_id_str = str(search_folder_id) if search_folder_id is not None else None
+            lists = self.query_manager.get_lists_in_folder(folder_id_str)
             if not lists:
                 return False
 
