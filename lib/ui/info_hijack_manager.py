@@ -231,31 +231,31 @@ class InfoHijackManager:
     
 
     def _handle_native_info_closed(self):
-        """Handle the native info dialog being closed - optimized to trust Kodi's navigation"""
+        """Handle the native info dialog being closed - optimized for fast back navigation"""
         try:
-            self._logger.debug("HIJACK STEP 5: Native info dialog closed, trusting Kodi's navigation")
+            self._logger.debug("HIJACK STEP 5: Native info dialog closed - fast back navigation")
             
-            # OPTIMIZATION: Minimal wait for dialog closing, trust Kodi's navigation history
-            xbmc.sleep(300)  # Reduced from complex animation waiting
+            # SPEED OPTIMIZATION: Reduce dialog close wait from 300ms to 50ms for faster response
+            xbmc.sleep(50)  # Minimal wait for UI state consistency
             
-            # OPTIMIZATION: Minimal XSP detection - single Container.FolderPath check only when needed
+            # OPTIMIZATION: Direct API calls for faster path detection 
             current_window = get_cached_info("System.CurrentWindow")
             
             # If we're in Videos window, check if we're actually on our XSP before executing back
             if current_window == "Videos":
-                # Single non-polled Container.FolderPath check to verify we're on our XSP
-                current_path = get_cached_info("Container.FolderPath")
+                # Direct path check to avoid cache overhead
+                current_path = xbmc.getInfoLabel("Container.FolderPath")
                 
                 if self._is_on_librarygenie_hijack_xsp(current_path):
-                    self._logger.debug("HIJACK: On LG XSP - executing back to return to plugin")
+                    self._logger.debug("HIJACK: On LG XSP - executing immediate back to plugin")
                     
                     with navigation_action():
                         xbmc.executebuiltin('Action(Back)')
                     
-                    # Brief wait for back command to execute
-                    xbmc.sleep(200)
+                    # SPEED OPTIMIZATION: Reduce back wait from 200ms to 50ms
+                    xbmc.sleep(50)  # Minimal wait for navigation to register
                     
-                    self._logger.debug("HIJACK: ✅ Back executed from XSP")
+                    self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
                 else:
                     # Already in plugin content or other content - don't navigate
                     self._logger.debug("HIJACK: ✅ In Videos window but not on LG XSP - trusting Kodi navigation")
