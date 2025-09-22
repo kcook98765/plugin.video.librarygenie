@@ -255,7 +255,17 @@ class InfoHijackManager:
                     # SPEED OPTIMIZATION: Reduce back wait from 200ms to 50ms
                     xbmc.sleep(50)  # Minimal wait for navigation to register
                     
-                    self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
+                    # SAFETY CHECK: Verify back navigation worked, retry once if needed
+                    xbmc.sleep(50)  # Wait for back navigation to complete
+                    current_path_after = xbmc.getInfoLabel("Container.FolderPath")
+                    if self._is_on_librarygenie_hijack_xsp(current_path_after):
+                        self._logger.debug("HIJACK: Back navigation verification failed - trying one more back")
+                        with navigation_action():
+                            xbmc.executebuiltin('Action(Back)')
+                        xbmc.sleep(50)
+                        self._logger.debug("HIJACK: ✅ Retry back executed from XSP")
+                    else:
+                        self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
                 else:
                     # Already in plugin content or other content - don't navigate
                     self._logger.debug("HIJACK: ✅ In Videos window but not on LG XSP - trusting Kodi navigation")
