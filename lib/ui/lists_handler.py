@@ -744,7 +744,7 @@ class ListsHandler:
             pagination_manager = get_pagination_manager()
             
             # Get total count first for pagination calculation
-            total_items = query_manager.get_list_item_count(list_id)
+            total_items = query_manager.get_list_item_count(int(list_id))
             
             # Calculate pagination using settings-based page size
             pagination_info = pagination_manager.calculate_pagination(
@@ -908,8 +908,14 @@ class ListsHandler:
                     success=False
                 )
 
-            # Get search history folder
-            search_folder = query_manager.get_folder_by_name('Search History')
+            # Get search history folder by searching all folders
+            search_folder = None
+            all_folders = query_manager.get_all_folders()
+            for folder in all_folders:
+                if folder.get('name') == 'Search History':
+                    search_folder = folder
+                    break
+            
             if not search_folder:
                 # Create search history folder if it doesn't exist
                 result = query_manager.create_folder('Search History')
@@ -919,7 +925,12 @@ class ListsHandler:
                         items=[],
                         success=False
                     )
-                search_folder = query_manager.get_folder_by_name('Search History')
+                # Get the folder again after creation
+                all_folders = query_manager.get_all_folders()
+                for folder in all_folders:
+                    if folder.get('name') == 'Search History':
+                        search_folder = folder
+                        break
 
             if not search_folder:
                 context.logger.error("Could not access Search History folder")
