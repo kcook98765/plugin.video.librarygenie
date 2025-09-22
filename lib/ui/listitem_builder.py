@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
 import xbmcplugin
 from lib.utils.kodi_log import get_kodi_logger
-from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
+from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus, is_kodi_v22_plus
 
 
 class ListItemBuilder:
@@ -316,16 +316,31 @@ class ListItemBuilder:
             metadata_title = display_label if is_episode else title
             self.metadata_manager.set_comprehensive_metadata(li, item, title_override=metadata_title)
             
-            # Handle DB linking for library items
+            # Handle DB linking for library items with V22 enhanced validation
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20 and kodi_id is not None:
                 try:
                     video_info_tag = li.getVideoInfoTag()
-                    # Try v21+ signature first (2 args), fallback to v19/v20 (1 arg)
-                    try:
-                        video_info_tag.setDbId(int(kodi_id), media_type)
-                    except TypeError:
-                        video_info_tag.setDbId(int(kodi_id))
+                    
+                    # V22+ requires stricter validation and may need additional parameters
+                    if kodi_major >= 22:
+                        # V22 (Piers) - Enhanced validation with stricter type checking
+                        try:
+                            # Ensure all parameters are properly validated for V22
+                            validated_kodi_id = int(kodi_id)
+                            validated_media_type = str(media_type) if media_type else 'movie'
+                            video_info_tag.setDbId(validated_kodi_id, validated_media_type)
+                            self.logger.debug("LIB ITEM V22: DB linking successful for '%s' (id=%s, type=%s)", title, validated_kodi_id, validated_media_type)
+                        except (TypeError, ValueError) as e:
+                            self.logger.warning("LIB ITEM V22: setDbId validation failed for '%s': %s, falling back to V21 method", title, e)
+                            # Fallback to V21 method
+                            video_info_tag.setDbId(int(kodi_id), media_type)
+                    else:
+                        # V21+ standard signature (2 args), fallback to v19/v20 (1 arg)
+                        try:
+                            video_info_tag.setDbId(int(kodi_id), media_type)
+                        except TypeError:
+                            video_info_tag.setDbId(int(kodi_id))
                 except Exception as e:
                     self.logger.warning("LIB ITEM: DB linking failed for '%s': %s", title, e)
 
