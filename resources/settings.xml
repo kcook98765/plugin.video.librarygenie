@@ -348,6 +348,14 @@
           </control>
         </setting>
       </group>
+      
+      <group id="19" label="30340">
+        <setting id="debug_first_playable" type="boolean" label="30341" help="35553">
+          <level>3</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
+      </group>
     </category>
 
     <!-- REMOTE SERVICES SETTINGS (Level 3) - Expert/Debug features -->
