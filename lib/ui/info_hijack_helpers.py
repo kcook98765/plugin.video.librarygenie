@@ -444,11 +444,11 @@ def focus_list_xsp_optimized(expected_index: Optional[int] = 0, tries: int = 3, 
         # Comprehensive viewtype classification based on Kodi Estuary and common skins
         VERTICAL_VIEWS = {
             "list", "widelist", "lowlist", "bannerlist", "biglist", "infolist", 
-            "detaillist", "episodes", "songs", "banner", "infowall"
+            "detaillist", "episodes", "songs", "banner"
         }
         HORIZONTAL_VIEWS = {
             "wall", "poster", "panel", "thumbs", "iconwall", "fanart", "shift", 
-            "showcase", "thumbnails", "icons", "grid", "wrap", "nowplaying"
+            "showcase", "thumbnails", "icons", "grid", "wrap", "nowplaying", "infowall"
         }
         
         # Determine primary navigation direction
@@ -480,23 +480,22 @@ def focus_list_xsp_optimized(expected_index: Optional[int] = 0, tries: int = 3, 
             
             _log("focus_list_xsp_optimized: Still on parent after attempt %d", xbmc.LOGDEBUG, attempt + 1)
         
-        # If primary direction failed and we tried Down for unknown viewtype, try Right as fallback
-        if nav_command == "Action(Down)" and view_mode not in VERTICAL_VIEWS:
-            _log("focus_list_xsp_optimized: Down didn't work for unknown viewtype - trying Right as fallback", xbmc.LOGDEBUG)
-            fallback_command = "Action(Right)"
+        # Symmetric fallback: Always try the opposite direction if primary failed, regardless of viewtype classification
+        fallback_command = "Action(Right)" if nav_command == "Action(Down)" else "Action(Down)"
+        _log("focus_list_xsp_optimized: Primary direction '%s' failed - trying opposite direction '%s' as fallback", xbmc.LOGDEBUG, nav_command, fallback_command)
+        
+        for attempt in range(tries):
+            _log("focus_list_xsp_optimized: Fallback attempt %d - sending %s", xbmc.LOGDEBUG, attempt + 1, fallback_command)
             
-            for attempt in range(tries):
-                _log("focus_list_xsp_optimized: Fallback attempt %d - sending %s", xbmc.LOGDEBUG, attempt + 1, fallback_command)
-                
-                with navigation_action(grace_ms=step_ms):
-                    xbmc.executebuiltin(fallback_command)
-                    xbmc.sleep(step_ms)
-                
-                new_label = get_cached_info("Container.ListItem().Label")
-                if new_label != ".." and new_label.strip() != "..":
-                    t_focus_end = time.perf_counter()
-                    _log("focus_list_xsp_optimized: SUCCESS with fallback - Moved to target item '%s' (%.3fs)", xbmc.LOGDEBUG, new_label, t_focus_end - t_focus_start)
-                    return True
+            with navigation_action(grace_ms=step_ms):
+                xbmc.executebuiltin(fallback_command)
+                xbmc.sleep(step_ms)
+            
+            new_label = get_cached_info("Container.ListItem().Label")
+            if new_label != ".." and new_label.strip() != "..":
+                t_focus_end = time.perf_counter()
+                _log("focus_list_xsp_optimized: SUCCESS with fallback - Moved to target item '%s' (%.3fs)", xbmc.LOGDEBUG, new_label, t_focus_end - t_focus_start)
+                return True
         
         t_focus_end = time.perf_counter()
         _log("focus_list_xsp_optimized: FAILED - Could not move off parent (%.3fs)", xbmc.LOGWARNING, t_focus_end - t_focus_start)
@@ -976,10 +975,33 @@ def open_native_info_fast(db_type: str, db_id: int, logger) -> bool:
         )
         
         start_focus_time = time.perf_counter()
-        # OPTIMIZATION: Use simplified XSP focus instead of expensive verify_list_focus calls
+        # OPTIMIZATION: Use viewtype-aware XSP focus instead of expensive verify_list_focus calls
         if not focus_list_xsp_optimized(expected_index=expected.expected_index):
             end_focus_time = time.perf_counter()
             logger.warning("%s ❌ SUBSTEP 5 FAILED: Failed to focus list control after %.3fs", LOG_PREFIX, end_focus_time - start_focus_time)
+            
+            # SAFETY NET: Immediately execute back navigation to prevent user being stranded on XSP page
+            logger.info("%s 🔄 SAFETY NET: Executing immediate back navigation due to focus failure", LOG_PREFIX)
+            try:
+                current_xsp_path = xbmc.getInfoLabel("Container.FolderPath")
+                xbmc.executebuiltin('Action(Back)')
+                
+                # Wait for navigation to complete with path/window change detection
+                def navigation_completed():
+                    new_path = xbmc.getInfoLabel("Container.FolderPath")
+                    # Check if we're no longer on the XSP path or back in plugin content
+                    return (new_path != current_xsp_path and 
+                           ('plugin.video.librarygenie' in new_path or 'lg_hijack' not in new_path))
+                
+                if wait_until(navigation_completed, timeout_ms=2000, step_ms=50):
+                    final_path = xbmc.getInfoLabel("Container.FolderPath")
+                    logger.info("%s ✅ SAFETY NET: Back navigation successful, current path: '%s'", LOG_PREFIX, final_path)
+                else:
+                    final_path = xbmc.getInfoLabel("Container.FolderPath")
+                    logger.warning("%s ⚠️ SAFETY NET: Back navigation timeout, current path: '%s'", LOG_PREFIX, final_path)
+            except Exception as e:
+                logger.error("%s ❌ SAFETY NET: Error during back navigation: %s", LOG_PREFIX, e)
+            
             return False
         end_focus_time = time.perf_counter()
         logger.debug("%s SUBSTEP 5 COMPLETE: List focused in %.3fs", LOG_PREFIX, end_focus_time - start_focus_time)
