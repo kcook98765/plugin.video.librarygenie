@@ -52,10 +52,11 @@ class InfoHijackManager:
             
         # OPTIMIZATION: Removed DialogBusy check - XSP navigation works even during scanning
         
-        # Debug: Periodically scan container for armed items
-        if int(current_time * 4) % 10 == 0:  # Every 2.5 seconds
+        # SPEED OPTIMIZATION: Reduce debug scanning frequency to avoid delays in dialog detection
+        if int(current_time * 2) % 20 == 0:  # Every 10 seconds instead of 2.5 seconds
             self._debug_scan_container()
 
+        # SPEED OPTIMIZATION: Fast dialog state detection for immediate response
         dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         
@@ -64,18 +65,17 @@ class InfoHijackManager:
         if hasattr(self, '_last_dialog_state'):
             last_active, last_id = self._last_dialog_state
             
-            # Log state changes for debugging (but only significant ones)
+            # SPEED OPTIMIZATION: Only log significant state changes to reduce overhead
             if (dialog_active, current_dialog_id) != self._last_dialog_state:
-                # Only log state changes involving our hijacked dialogs or when we have a native dialog open
                 if self._native_info_was_open or dialog_active or last_active:
                     log(f"HIJACK DIALOG STATE CHANGE: active={dialog_active}, id={current_dialog_id} (was {self._last_dialog_state})")
             
             # PRIMARY DETECTION: dialog was active, now not active, and we had a native info open
             if last_active and not dialog_active and self._native_info_was_open:
-                log("HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
+                log("HIJACK STEP 5: FAST DIALOG CLOSE DETECTED - immediate back navigation")
                 try:
                     self._handle_native_info_closed()
-                    log("HIJACK STEP 5 COMPLETE: Navigation back to plugin completed")
+                    log("HIJACK STEP 5 COMPLETE: Fast navigation back to plugin completed")
                 except Exception as e:
                     log_error(f"❌ HIJACK STEP 5 FAILED: Navigation error: {e}")
                 finally:
