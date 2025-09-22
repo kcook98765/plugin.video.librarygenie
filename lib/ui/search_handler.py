@@ -181,6 +181,39 @@ class SearchHandler:
             self._error(f"Search history save traceback: {traceback.format_exc()}")
             return None
 
+    def _render_saved_search_list_directly(self, list_id: str, context: PluginContext) -> bool:
+        """Directly render saved search list without Container.Update redirect"""
+        try:
+            self._debug(f"Directly rendering saved search list ID: {list_id}")
+            
+            # Import and instantiate ListsHandler
+            from lib.ui.handler_factory import get_handler_factory
+            from lib.ui.response_handler import get_response_handler
+            
+            factory = get_handler_factory()
+            factory.context = context
+            lists_handler = factory.get_lists_handler()
+            response_handler = get_response_handler()
+            
+            # Directly call view_list with the saved list ID
+            directory_response = lists_handler.view_list(context, list_id)
+            
+            # Handle the DirectoryResponse
+            success = response_handler.handle_directory_response(directory_response, context)
+            
+            if success:
+                self._debug(f"Successfully rendered saved search list {list_id} directly")
+                return True
+            else:
+                self._warn(f"Failed to handle directory response for list {list_id}")
+                return False
+            
+        except Exception as e:
+            self._error(f"Error rendering saved search list directly: {e}")
+            import traceback
+            self._error(f"Direct rendering traceback: {traceback.format_exc()}")
+            return False
+
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""
         try:
