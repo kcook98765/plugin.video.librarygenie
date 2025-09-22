@@ -235,8 +235,8 @@ class InfoHijackManager:
         try:
             self._logger.debug("HIJACK STEP 5: Native info dialog closed - fast back navigation")
             
-            # SPEED OPTIMIZATION: Reduce dialog close wait from 300ms to 50ms for faster response
-            xbmc.sleep(50)  # Minimal wait for UI state consistency
+            # ANIMATION SAFETY: Wait 200ms for dialog closing animation to complete before back navigation
+            xbmc.sleep(200)  # Wait for dialog animation to finish to prevent action blocking
             
             # SPEED OPTIMIZATION: Direct API call instead of cache for faster response
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
