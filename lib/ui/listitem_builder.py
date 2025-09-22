@@ -606,6 +606,56 @@ class ListItemBuilder:
             self.logger.error("RESUME: failed to set resume info: %s", e)
 
     # ----- misc helpers -----
+    def _clean_info_labels_for_v22(self, info_labels: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Clean and validate info labels for V22 stricter validation requirements.
+        
+        Args:
+            info_labels: Original info labels dictionary
+            
+        Returns:
+            Dict[str, Any]: Cleaned info labels with V22-compatible values
+        """
+        cleaned = {}
+        
+        for key, value in info_labels.items():
+            try:
+                # Skip None values completely for V22
+                if value is None:
+                    continue
+                    
+                # V22 requires proper type validation
+                if key in ('year', 'season', 'episode', 'playcount', 'duration', 'votes'):
+                    # Numeric fields must be valid integers
+                    if isinstance(value, str) and value.strip().isdigit():
+                        cleaned[key] = int(value)
+                    elif isinstance(value, (int, float)) and value >= 0:
+                        cleaned[key] = int(value)
+                    # Skip invalid numeric values for V22
+                elif key in ('title', 'plot', 'tagline', 'studio', 'genre', 'director', 'writer', 
+                           'tvshowtitle', 'premiered', 'aired', 'mpaa', 'imdbnumber', 'tmdb'):
+                    # String fields must be properly encoded and non-empty
+                    if isinstance(value, str) and value.strip():
+                        cleaned[key] = value.strip()
+                    elif value:  # Convert non-string values to string
+                        cleaned[key] = str(value).strip()
+                elif key == 'mediatype':
+                    # Media type must be valid
+                    if value in ('movie', 'episode', 'tvshow', 'season'):
+                        cleaned[key] = value
+                else:
+                    # Other fields - pass through if valid
+                    if value:
+                        cleaned[key] = value
+                        
+            except (TypeError, ValueError) as e:
+                self.logger.debug("V22: Skipping invalid field '%s' with value '%s': %s", key, value, e)
+                continue
+        
+        self.logger.debug("V22: Cleaned info labels - original: %d fields, cleaned: %d fields", 
+                         len(info_labels), len(cleaned))
+        return cleaned
+
     def _build_videodb_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
         """
         Build videodb:// URL for native Kodi library integration with V22 enhanced validation.
@@ -877,9 +927,19 @@ class ListItemBuilder:
                     # Only catch specific exceptions that indicate API compatibility issues
                     self.logger.warning("InfoTagVideo method failed with %s: %s", type(e).__name__, e)
                     
-                    # Only fallback to setInfo for Kodi v20 (where InfoTagVideo might have issues)
-                    # For Kodi v21+, InfoTagVideo should work fine, so log error without fallback
-                    if kodi_major == 20:
+                    # V22+ enhanced error handling with stricter validation
+                    if kodi_major >= 22:
+                        self.logger.warning("V22: InfoTagVideo validation failed, attempting data cleanup: %s", e)
+                        try:
+                            # Try with cleaned/validated data for V22 compatibility
+                            cleaned_info = self._clean_info_labels_for_v22(info_labels)
+                            video_info_tag = listitem.getVideoInfoTag()
+                            self._set_metadata_infotag(video_info_tag, cleaned_info)
+                            self.logger.debug("V22: Successfully set metadata with cleaned data")
+                        except Exception as e2:
+                            self.logger.error("V22: InfoTagVideo failed even with cleaned data - metadata may be incomplete: %s", e2)
+                    elif kodi_major == 20:
+                        # Only fallback to setInfo for Kodi v20 (where InfoTagVideo might have issues)
                         self.logger.info("Using setInfo() fallback for Kodi v20 compatibility")
                         listitem.setInfo('video', info_labels)
                     else:
@@ -887,11 +947,16 @@ class ListItemBuilder:
                         self.logger.error("InfoTagVideo failed on Kodi v%s - this should not happen. Skipping metadata.", kodi_major)
                 except Exception as e:
                     # Log unexpected errors but don't use deprecated fallback
-                    self.logger.error("Unexpected error setting metadata on Kodi v%s: %s", kodi_major, e)
-                    if kodi_major < 21:
-                        # Only use deprecated fallback for pre-v21
-                        self.logger.info("Using setInfo() fallback for Kodi v%s", kodi_major)
-                        listitem.setInfo('video', info_labels)
+                    if kodi_major >= 22:
+                        self.logger.error("V22: Unexpected metadata error with enhanced validation: %s", e)
+                        # V22+ should not use setInfo() - it's fully deprecated
+                        self.logger.warning("V22: Some metadata fields may be missing due to stricter validation")
+                    else:
+                        self.logger.error("Unexpected error setting metadata on Kodi v%s: %s", kodi_major, e)
+                        if kodi_major < 21:
+                            # Only use deprecated fallback for pre-v21
+                            self.logger.info("Using setInfo() fallback for Kodi v%s", kodi_major)
+                            listitem.setInfo('video', info_labels)
             else:
                 # Kodi v19 (Matrix): Use setInfo
                 listitem.setInfo('video', info_labels)
