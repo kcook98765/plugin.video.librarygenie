@@ -92,6 +92,15 @@ class ListItemBuilder:
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
+                        
+                        # PLAYBACK_DEBUG: Log URL being added to directory
+                        title = item.get('title', 'Unknown')
+                        self.logger.debug("PLAYBACK_DEBUG: DIRECTORY_ADD #%s '%s' - url='%s', is_folder=%s", 
+                                        idx, title, url, is_folder)
+                        
+                        # Critical check for empty URLs in directory build
+                        if not url or not url.strip():
+                            self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty URL being added to directory for '%s' at position %s!", title, idx)
 
                         tuples.append((url, listitem, is_folder, item))  # Include item data for context menu
                         ok += 1
@@ -121,6 +130,14 @@ class ListItemBuilder:
 
             # OPTIMIZED: Add all items in a single batch operation
             self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
+            
+            # PLAYBACK_DEBUG: Log final batch URLs being sent to Kodi
+            for idx, (batch_url, batch_li, batch_is_folder) in enumerate(batch_items, start=1):
+                self.logger.debug("PLAYBACK_DEBUG: BATCH_FINAL #%s - url='%s', is_folder=%s", 
+                                idx, batch_url, batch_is_folder)
+                if not batch_url or not batch_url.strip():
+                    self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty URL in final batch at position %s!", idx)
+            
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             # Use updateListing for pagination to control navigation history
@@ -309,7 +326,25 @@ class ListItemBuilder:
 
             is_folder = False
             
-            # DEBUG: Check what path is actually set on the ListItem
+            # PLAYBACK_DEBUG: Log ListItem path and playback details for debugging V22 empty URL issues
+            try:
+                # Get the actual path set on the ListItem
+                actual_listitem_path = li.getPath() if hasattr(li, 'getPath') else 'N/A'
+                is_playable = li.getProperty('IsPlayable') if hasattr(li, 'getProperty') else 'N/A'
+                
+                self.logger.debug("PLAYBACK_DEBUG: '%s' (kodi_id=%s) - constructed_url='%s', li.getPath()='%s', IsPlayable='%s'", 
+                                title, kodi_id, playback_url, actual_listitem_path, is_playable)
+                
+                # Additional debug for file path vs videodb URL cases
+                if playback_url.startswith('videodb://'):
+                    self.logger.debug("PLAYBACK_DEBUG: '%s' - using VIDEODB URL: %s", title, playback_url)
+                elif playback_url.startswith(('http://', 'https://', 'file://')):
+                    self.logger.debug("PLAYBACK_DEBUG: '%s' - using DIRECT PATH: %s", title, playback_url)
+                else:
+                    self.logger.warning("PLAYBACK_DEBUG: '%s' - UNEXPECTED URL FORMAT: %s", title, playback_url)
+                    
+            except Exception as debug_e:
+                self.logger.warning("PLAYBACK_DEBUG: Failed to get ListItem debug info for '%s': %s", title, debug_e)
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
@@ -381,6 +416,20 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
+            # PLAYBACK_DEBUG: Final validation before returning tuple
+            try:
+                final_path_check = li.getPath() if hasattr(li, 'getPath') else 'N/A'
+                self.logger.debug("PLAYBACK_DEBUG: '%s' - RETURNING tuple(playback_url='%s', final_li_path='%s', is_folder=%s)", 
+                                title, playback_url, final_path_check, is_folder)
+                
+                # Critical validation: Check for empty URLs that could cause V22 failures
+                if not playback_url or not playback_url.strip():
+                    self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty playback_url for '%s' (kodi_id=%s)!", title, kodi_id)
+                if final_path_check and (not final_path_check.strip() or final_path_check == 'N/A'):
+                    self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty ListItem path for '%s'!", title)
+                    
+            except Exception as debug_e:
+                self.logger.warning("PLAYBACK_DEBUG: Failed final validation for '%s': %s", title, debug_e)
 
             return playback_url, li, is_folder
         except Exception as e:
@@ -933,8 +982,10 @@ class ListItemBuilder:
                         try:
                             # Try with cleaned/validated data for V22 compatibility
                             cleaned_info = self._clean_info_labels_for_v22(info_labels)
-                            video_info_tag = listitem.getVideoInfoTag()
-                            self._set_metadata_infotag(video_info_tag, cleaned_info)
+                            # Create a minimal item dict for set_comprehensive_metadata
+                            cleaned_item = {'title': cleaned_info.get('title', 'Unknown')}
+                            cleaned_item.update(cleaned_info)
+                            self.metadata_manager.set_comprehensive_metadata(listitem, cleaned_item)
                             self.logger.debug("V22: Successfully set metadata with cleaned data")
                         except Exception as e2:
                             self.logger.error("V22: InfoTagVideo failed even with cleaned data - metadata may be incomplete: %s", e2)
