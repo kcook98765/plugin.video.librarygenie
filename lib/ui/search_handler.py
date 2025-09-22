@@ -69,7 +69,7 @@ class SearchHandler:
             
             if list_id:
                 # Directly render the saved search list without Container.Update
-                if self._render_saved_search_list_directly(list_id, context):
+                if self._render_saved_search_list_directly(str(list_id), context):
                     self._debug(f"Successfully displayed search results via direct rendering")
                     return True
                 else:
@@ -236,7 +236,9 @@ class SearchHandler:
         """Redirect to the most recent search history list"""
         try:
             search_folder_id = self.query_manager.get_or_create_search_history_folder()
-            lists = self.query_manager.get_lists_in_folder(search_folder_id)
+            # Ensure folder_id is string type for API compatibility
+            folder_id_str = str(search_folder_id) if search_folder_id is not None else None
+            lists = self.query_manager.get_lists_in_folder(folder_id_str)
             if not lists:
                 return False
 
