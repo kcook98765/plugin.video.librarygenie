@@ -255,33 +255,13 @@ class InfoHijackManager:
                     # SPEED OPTIMIZATION: Reduce back wait from 200ms to 50ms
                     xbmc.sleep(50)  # Minimal wait for navigation to register
                     
-                    # SAFETY CHECK: Verify back navigation worked, retry once if needed
-                    xbmc.sleep(50)  # Wait for back navigation to complete
-                    current_path_after = xbmc.getInfoLabel("Container.FolderPath")
-                    if self._is_on_librarygenie_hijack_xsp(current_path_after):
-                        self._logger.debug("HIJACK: Back navigation verification failed - trying one more back")
-                        with navigation_action():
-                            xbmc.executebuiltin('Action(Back)')
-                        xbmc.sleep(50)
-                        self._logger.debug("HIJACK: ✅ Retry back executed from XSP")
-                    else:
-                        self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
+                    self._logger.debug("HIJACK: ✅ Fast back executed from XSP")
                 else:
                     # Already in plugin content or other content - don't navigate
                     self._logger.debug("HIJACK: ✅ In Videos window but not on LG XSP - trusting Kodi navigation")
             else:
                 # Not in Videos window - likely already navigated correctly
                 self._logger.debug("HIJACK: ✅ Not in Videos window - trusting Kodi navigation worked correctly")
-            
-            # UNIVERSAL SAFETY CHECK: Always verify we're not left on XSP regardless of window state
-            xbmc.sleep(50)  # Wait for any navigation to complete
-            final_path = xbmc.getInfoLabel("Container.FolderPath")
-            if self._is_on_librarygenie_hijack_xsp(final_path):
-                self._logger.debug("HIJACK: UNIVERSAL CHECK - Still on XSP after dialog close, trying back navigation")
-                with navigation_action():
-                    xbmc.executebuiltin('Action(Back)')
-                xbmc.sleep(50)
-                self._logger.debug("HIJACK: ✅ Universal back executed from XSP")
             
             self._cleanup_properties()
                 
