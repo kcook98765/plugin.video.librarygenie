@@ -415,28 +415,60 @@ def focus_list_manual(control_id: Optional[int] = None, tries: int = 3, step_ms:
         _log("Error in focus_list_manual: %s - graceful fallback failed (took %.3fs)", xbmc.LOGERROR, e, t_focus_end - t_focus_start)
         return False
 
-def focus_list_xsp_optimized(expected_index: int = 0, tries: int = 3, step_ms: int = 100) -> bool:
-    """Optimized focus for XSP context - no expensive verify_list_focus calls needed
+def focus_list_xsp_optimized(expected_index: Optional[int] = 0, tries: int = 3, step_ms: int = 100) -> bool:
+    """Viewtype-aware optimized focus for XSP context
     
     XSP structure is predictable:
     - Index 0: Target item (if no parent) 
     - Index 1: Target item (if parent ".." exists at index 0)
+    
+    Uses intelligent viewtype detection to determine navigation direction:
+    - Vertical views (List, WideList, etc.): Action(Down)
+    - Horizontal views (Wall, Poster, etc.): Action(Right)
     """
     t_focus_start = time.perf_counter()
     
-    _log("focus_list_xsp_optimized: Starting optimized XSP focus (expected_index=%d)", xbmc.LOGDEBUG, expected_index)
+    # Handle None expected_index
+    expected_idx = expected_index if expected_index is not None else 0
+    _log("focus_list_xsp_optimized: Starting viewtype-aware XSP focus (expected_index=%d)", xbmc.LOGDEBUG, expected_idx)
     
     # Check current item label - if it's parent "..", navigate to target
     current_label = get_cached_info("Container.ListItem().Label")
     if current_label == ".." or current_label.strip() == "..":
-        _log("focus_list_xsp_optimized: Currently on parent '..', navigating to target at index %d", xbmc.LOGDEBUG, expected_index)
+        _log("focus_list_xsp_optimized: Currently on parent '..', navigating to target at index %d", xbmc.LOGDEBUG, expected_idx)
         
-        # Simple navigation - just move to the target index
+        # Determine navigation direction based on viewtype (same logic as navigate_from_parent_to_content)
+        view_mode = get_cached_info("Container.Viewmode").lower().strip()
+        _log("focus_list_xsp_optimized: Detected viewmode = '%s'", xbmc.LOGDEBUG, view_mode)
+        
+        # Comprehensive viewtype classification based on Kodi Estuary and common skins
+        VERTICAL_VIEWS = {
+            "list", "widelist", "lowlist", "bannerlist", "biglist", "infolist", 
+            "detaillist", "episodes", "songs", "banner", "infowall"
+        }
+        HORIZONTAL_VIEWS = {
+            "wall", "poster", "panel", "thumbs", "iconwall", "fanart", "shift", 
+            "showcase", "thumbnails", "icons", "grid", "wrap", "nowplaying"
+        }
+        
+        # Determine primary navigation direction
+        if view_mode in VERTICAL_VIEWS or any(v in view_mode for v in VERTICAL_VIEWS):
+            nav_command = "Action(Down)"
+            _log("focus_list_xsp_optimized: Using vertical navigation (Down)", xbmc.LOGDEBUG)
+        elif view_mode in HORIZONTAL_VIEWS or any(v in view_mode for v in HORIZONTAL_VIEWS):
+            nav_command = "Action(Right)"
+            _log("focus_list_xsp_optimized: Using horizontal navigation (Right)", xbmc.LOGDEBUG)
+        else:
+            # Unknown viewtype - try Down first (most common), then Right as fallback
+            _log("focus_list_xsp_optimized: Unknown viewmode '%s' - trying Down first", xbmc.LOGDEBUG, view_mode)
+            nav_command = "Action(Down)"
+        
+        # Attempt navigation with primary direction
         for attempt in range(tries):
-            _log("focus_list_xsp_optimized: Navigation attempt %d", xbmc.LOGDEBUG, attempt + 1)
+            _log("focus_list_xsp_optimized: Navigation attempt %d - sending %s", xbmc.LOGDEBUG, attempt + 1, nav_command)
             
             with navigation_action(grace_ms=step_ms):
-                xbmc.executebuiltin("Action(Down)")  # Move from parent to content
+                xbmc.executebuiltin(nav_command)
                 xbmc.sleep(step_ms)
             
             # Check if we moved off parent
@@ -447,6 +479,24 @@ def focus_list_xsp_optimized(expected_index: int = 0, tries: int = 3, step_ms: i
                 return True
             
             _log("focus_list_xsp_optimized: Still on parent after attempt %d", xbmc.LOGDEBUG, attempt + 1)
+        
+        # If primary direction failed and we tried Down for unknown viewtype, try Right as fallback
+        if nav_command == "Action(Down)" and view_mode not in VERTICAL_VIEWS:
+            _log("focus_list_xsp_optimized: Down didn't work for unknown viewtype - trying Right as fallback", xbmc.LOGDEBUG)
+            fallback_command = "Action(Right)"
+            
+            for attempt in range(tries):
+                _log("focus_list_xsp_optimized: Fallback attempt %d - sending %s", xbmc.LOGDEBUG, attempt + 1, fallback_command)
+                
+                with navigation_action(grace_ms=step_ms):
+                    xbmc.executebuiltin(fallback_command)
+                    xbmc.sleep(step_ms)
+                
+                new_label = get_cached_info("Container.ListItem().Label")
+                if new_label != ".." and new_label.strip() != "..":
+                    t_focus_end = time.perf_counter()
+                    _log("focus_list_xsp_optimized: SUCCESS with fallback - Moved to target item '%s' (%.3fs)", xbmc.LOGDEBUG, new_label, t_focus_end - t_focus_start)
+                    return True
         
         t_focus_end = time.perf_counter()
         _log("focus_list_xsp_optimized: FAILED - Could not move off parent (%.3fs)", xbmc.LOGWARNING, t_focus_end - t_focus_start)
