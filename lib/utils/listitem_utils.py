@@ -227,7 +227,6 @@ class ListItemMetadataManager:
                 if item_data.get('aired'):
                     video_info_tag.setFirstAired(item_data['aired'])
             
-            self.logger.debug("METADATA: Set comprehensive InfoTagVideo metadata for '%s'", title)
             return True
             
         except Exception as e:

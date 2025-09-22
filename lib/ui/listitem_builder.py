@@ -271,7 +271,6 @@ class ListItemBuilder:
                 # Use videodb:// URL for native library integration (eliminates 4+ second delays)
                 videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
                 li.setPath(videodb_url)
-                self.logger.debug("LIB ITEM: Using optimized videodb URL for '%s': %s", title, videodb_url)
                 playback_url = videodb_url
                 # For videodb:// URLs, Kodi handles IsPlayable automatically
             else:
@@ -291,11 +290,6 @@ class ListItemBuilder:
             is_folder = False
             
             # DEBUG: Check what path is actually set on the ListItem
-            try:
-                current_path = li.getPath()
-                self.logger.debug("LIB ITEM POST-SETUP: ListItem path is: '%s'", current_path)
-            except Exception as e:
-                self.logger.debug("LIB ITEM POST-SETUP: Could not get ListItem path: %s", e)
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
@@ -305,7 +299,6 @@ class ListItemBuilder:
                     li.setProperty("LG.InfoHijack.Armed", "1")
                     li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
                     li.setProperty("LG.InfoHijack.DBType", media_type)
-                    self.logger.debug("🎯 HIJACK ARMED: '%s' - DBID=%s, DBType=%s", title, kodi_id, media_type)
                     
                     # OPTIMIZATION: Pre-populate navigation cache to eliminate cache misses during hijack detection
                     self._preload_hijack_cache_properties(title, kodi_id, media_type)
@@ -333,7 +326,6 @@ class ListItemBuilder:
                         video_info_tag.setDbId(int(kodi_id), media_type)
                     except TypeError:
                         video_info_tag.setDbId(int(kodi_id))
-                    self.logger.debug("LIB ITEM: DB linking successful for '%s'", title)
                 except Exception as e:
                     self.logger.warning("LIB ITEM: DB linking failed for '%s': %s", title, e)
 
@@ -391,7 +383,6 @@ class ListItemBuilder:
                         'generation': cache._generation
                     }
             
-            self.logger.debug("🚀 CACHE PRELOAD: Pre-populated %d hijack properties for '%s'", len(hijack_properties), title)
             
         except Exception as e:
             self.logger.debug("CACHE PRELOAD: Failed to pre-populate cache for '%s': %s", title, e)
