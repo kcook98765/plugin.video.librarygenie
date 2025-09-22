@@ -273,6 +273,16 @@ class InfoHijackManager:
                 # Not in Videos window - likely already navigated correctly
                 self._logger.debug("HIJACK: ✅ Not in Videos window - trusting Kodi navigation worked correctly")
             
+            # UNIVERSAL SAFETY CHECK: Always verify we're not left on XSP regardless of window state
+            xbmc.sleep(50)  # Wait for any navigation to complete
+            final_path = xbmc.getInfoLabel("Container.FolderPath")
+            if self._is_on_librarygenie_hijack_xsp(final_path):
+                self._logger.debug("HIJACK: UNIVERSAL CHECK - Still on XSP after dialog close, trying back navigation")
+                with navigation_action():
+                    xbmc.executebuiltin('Action(Back)')
+                xbmc.sleep(50)
+                self._logger.debug("HIJACK: ✅ Universal back executed from XSP")
+            
             self._cleanup_properties()
                 
         except Exception as e:
