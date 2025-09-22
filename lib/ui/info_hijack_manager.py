@@ -241,8 +241,8 @@ class InfoHijackManager:
             # SPEED OPTIMIZATION: Direct API call instead of cache for faster response
             current_window = xbmc.getInfoLabel("System.CurrentWindow")
             
-            # If we're in Videos window, check if we're actually on our XSP before executing back
-            if current_window == "Videos":
+            # If we're in Videos or Movies window, check if we're actually on our XSP before executing back
+            if current_window in ("Videos", "Movies"):
                 # Direct path check to avoid cache overhead
                 current_path = xbmc.getInfoLabel("Container.FolderPath")
                 
