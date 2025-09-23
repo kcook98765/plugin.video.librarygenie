@@ -93,6 +93,9 @@ class ConfigManager:
             # Initialization state
             "initial_sync_requested": False,
             
+            # Debug settings
+            "debug_first_playable": False,  # Enable first playable listitem debugging
+            
             # Authentication tokens
             "access_token": "",
             "refresh_token": "",
@@ -397,6 +400,8 @@ class ConfigManager:
             "shortlist_clear_before_import",
             "background_token_refresh",
             "info_hijack_enabled",
+            # Debug settings
+            "debug_first_playable",
             # Initialization state settings
             "initial_sync_requested",
         ]

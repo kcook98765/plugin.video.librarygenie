@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional, Tuple
 import xbmcgui
 import xbmcplugin
 from lib.utils.kodi_log import get_kodi_logger
-from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus
+from lib.utils.kodi_version import get_kodi_major_version, is_kodi_v20_plus, is_kodi_v21_plus, is_kodi_v22_plus
 
 
 class ListItemBuilder:
@@ -92,6 +92,15 @@ class ListItemBuilder:
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
+                        
+                        # PLAYBACK_DEBUG: Log URL being added to directory
+                        title = item.get('title', 'Unknown')
+                        self.logger.debug("PLAYBACK_DEBUG: DIRECTORY_ADD #%s '%s' - url='%s', is_folder=%s", 
+                                        idx, title, url, is_folder)
+                        
+                        # Critical check for empty URLs in directory build
+                        if not url or not url.strip():
+                            self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty URL being added to directory for '%s' at position %s!", title, idx)
 
                         tuples.append((url, listitem, is_folder, item))  # Include item data for context menu
                         ok += 1
@@ -121,6 +130,18 @@ class ListItemBuilder:
 
             # OPTIMIZED: Add all items in a single batch operation
             self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
+            
+            # PLAYBACK_DEBUG: Log final batch URLs being sent to Kodi
+            for idx, (batch_url, batch_li, batch_is_folder) in enumerate(batch_items, start=1):
+                self.logger.debug("PLAYBACK_DEBUG: BATCH_FINAL #%s - url='%s', is_folder=%s", 
+                                idx, batch_url, batch_is_folder)
+                if not batch_url or not batch_url.strip():
+                    self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty URL in final batch at position %s!", idx)
+            
+            # FIRST_PLAYABLE_DEBUG: Log comprehensive details of first playable item
+            if self._should_debug_first_playable():
+                self._debug_first_playable_item(batch_items, tuples)
+            
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             # Use updateListing for pagination to control navigation history
@@ -236,12 +257,12 @@ class ListItemBuilder:
     def _create_library_listitem(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
         Build library-backed movie/episode row as (url, listitem, is_folder=False)
-        with videodb:// path and proper library integration for native Kodi behavior.
+        using direct file paths for reliable playback across all Kodi versions.
         """
         try:
             title = item.get('title', 'Unknown')
             media_type = item.get('media_type', 'movie')
-            kodi_id = item.get('kodi_id')
+            kodi_id = item.get('kodi_id')  # Keep for hijack functionality
 
             # Label: format based on media type
             # Check for episode formatting - either explicit media_type='episode' or presence of episode fields
@@ -265,31 +286,33 @@ class ListItemBuilder:
 
             li = xbmcgui.ListItem(label=display_label, offscreen=True)
 
-            # Prioritize videodb:// URLs for library items to eliminate background processing delays,
-            # fallback to direct file paths only when videodb isn't available
-            if kodi_id is not None and self._is_valid_library_id(kodi_id):
-                # Use videodb:// URL for native library integration (eliminates 4+ second delays)
-                videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-                li.setPath(videodb_url)
-                playback_url = videodb_url
-                # For videodb:// URLs, Kodi handles IsPlayable automatically
-            else:
-                # Fallback to direct file path when videodb isn't available
-                file_path = item.get('file_path') or item.get('play')
-                if file_path and file_path.strip():
-                    li.setPath(file_path)
-                    self.logger.debug("LIB ITEM: Using fallback file path for '%s': %s", title, file_path)
-                    playback_url = file_path
-                    # For direct file paths, we need to explicitly set IsPlayable=true for context menu support
-                    li.setProperty('IsPlayable', 'true')
-                    self.logger.debug("LIB ITEM: Set IsPlayable=true for direct file path: '%s'", title)
-                else:
-                    self.logger.error("LIB ITEM: No valid path available - kodi_id=%s, file_path=%s for '%s'", kodi_id, file_path, title)
-                    return None
+            # Use direct file path for consistent playback behavior across all Kodi versions
+            file_path = item.get('file_path') or item.get('play')
+            if not file_path or not file_path.strip():
+                self.logger.error("LIB ITEM: No valid file path available for '%s'", title)
+                return None
+                
+            li.setPath(file_path)
+            playback_url = file_path
+            # Set IsPlayable=true for proper playback and context menu support
+            li.setProperty('IsPlayable', 'true')
+            self.logger.debug("LIB ITEM: Using file path for '%s': %s", title, file_path)
 
             is_folder = False
             
-            # DEBUG: Check what path is actually set on the ListItem
+            # PLAYBACK_DEBUG: Log ListItem path and playback details
+            try:
+                # Get the actual path set on the ListItem
+                actual_listitem_path = li.getPath() if hasattr(li, 'getPath') else 'N/A'
+                is_playable = li.getProperty('IsPlayable') if hasattr(li, 'getProperty') else 'N/A'
+                
+                self.logger.debug("PLAYBACK_DEBUG: '%s' - file_path='%s', li.getPath()='%s', IsPlayable='%s'", 
+                                title, playback_url, actual_listitem_path, is_playable)
+                
+                self.logger.debug("PLAYBACK_DEBUG: '%s' - using FILE PATH: %s", title, playback_url)
+                    
+            except Exception as debug_e:
+                self.logger.warning("PLAYBACK_DEBUG: Failed to get ListItem debug info for '%s': %s", title, debug_e)
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
@@ -316,16 +339,31 @@ class ListItemBuilder:
             metadata_title = display_label if is_episode else title
             self.metadata_manager.set_comprehensive_metadata(li, item, title_override=metadata_title)
             
-            # Handle DB linking for library items
+            # Handle DB linking for library items with V22 enhanced validation
             kodi_major = get_kodi_major_version()
             if kodi_major >= 20 and kodi_id is not None:
                 try:
                     video_info_tag = li.getVideoInfoTag()
-                    # Try v21+ signature first (2 args), fallback to v19/v20 (1 arg)
-                    try:
-                        video_info_tag.setDbId(int(kodi_id), media_type)
-                    except TypeError:
-                        video_info_tag.setDbId(int(kodi_id))
+                    
+                    # V22+ requires stricter validation and may need additional parameters
+                    if kodi_major >= 22:
+                        # V22 (Piers) - Enhanced validation with stricter type checking
+                        try:
+                            # Ensure all parameters are properly validated for V22
+                            validated_kodi_id = int(kodi_id)
+                            validated_media_type = str(media_type) if media_type else 'movie'
+                            video_info_tag.setDbId(validated_kodi_id, validated_media_type)
+                            self.logger.debug("LIB ITEM V22: DB linking successful for '%s' (id=%s, type=%s)", title, validated_kodi_id, validated_media_type)
+                        except (TypeError, ValueError) as e:
+                            self.logger.warning("LIB ITEM V22: setDbId validation failed for '%s': %s, falling back to V21 method", title, e)
+                            # Fallback to V21 method
+                            video_info_tag.setDbId(int(kodi_id), media_type)
+                    else:
+                        # V21+ standard signature (2 args), fallback to v19/v20 (1 arg)
+                        try:
+                            video_info_tag.setDbId(int(kodi_id), media_type)
+                        except TypeError:
+                            video_info_tag.setDbId(int(kodi_id))
                 except Exception as e:
                     self.logger.warning("LIB ITEM: DB linking failed for '%s': %s", title, e)
 
@@ -346,6 +384,20 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
+            # PLAYBACK_DEBUG: Final validation before returning tuple
+            try:
+                final_path_check = li.getPath() if hasattr(li, 'getPath') else 'N/A'
+                self.logger.debug("PLAYBACK_DEBUG: '%s' - RETURNING tuple(playback_url='%s', final_li_path='%s', is_folder=%s)", 
+                                title, playback_url, final_path_check, is_folder)
+                
+                # Critical validation: Check for empty URLs that could cause V22 failures
+                if not playback_url or not playback_url.strip():
+                    self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty playback_url for '%s' (kodi_id=%s)!", title, kodi_id)
+                if final_path_check and (not final_path_check.strip() or final_path_check == 'N/A'):
+                    self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty ListItem path for '%s'!", title)
+                    
+            except Exception as debug_e:
+                self.logger.warning("PLAYBACK_DEBUG: Failed final validation for '%s': %s", title, debug_e)
 
             return playback_url, li, is_folder
         except Exception as e:
@@ -571,34 +623,56 @@ class ListItemBuilder:
             self.logger.error("RESUME: failed to set resume info: %s", e)
 
     # ----- misc helpers -----
-    def _build_videodb_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
+    def _clean_info_labels_for_v22(self, info_labels: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Build videodb:// URL for native Kodi library integration.
-
+        Clean and validate info labels for V22 stricter validation requirements.
+        
         Args:
-            media_type: 'movie' or 'episode'
-            kodi_id: Kodi database ID for the item
-            tvshowid: TV show ID (for episodes)
-            season: Season number (for episodes)
-
+            info_labels: Original info labels dictionary
+            
         Returns:
-            str: videodb:// URL for native library handling
+            Dict[str, Any]: Cleaned info labels with V22-compatible values
         """
-        if media_type == "movie":
-            url = f"videodb://movies/titles/{kodi_id}"
-            return url
-        elif media_type == "episode":
-            if tvshowid is not None and season is not None:
-                url = f"videodb://tvshows/titles/{tvshowid}/{season}/{kodi_id}"
-                return url
-            else:
-                # Fallback for episodes without show/season info
-                url = f"videodb://episodes/{kodi_id}"
-                return url
-        else:
-            # Fallback to generic format
-            url = f"videodb://movies/titles/{kodi_id}"
-            return url
+        cleaned = {}
+        
+        for key, value in info_labels.items():
+            try:
+                # Skip None values completely for V22
+                if value is None:
+                    continue
+                    
+                # V22 requires proper type validation
+                if key in ('year', 'season', 'episode', 'playcount', 'duration', 'votes'):
+                    # Numeric fields must be valid integers
+                    if isinstance(value, str) and value.strip().isdigit():
+                        cleaned[key] = int(value)
+                    elif isinstance(value, (int, float)) and value >= 0:
+                        cleaned[key] = int(value)
+                    # Skip invalid numeric values for V22
+                elif key in ('title', 'plot', 'tagline', 'studio', 'genre', 'director', 'writer', 
+                           'tvshowtitle', 'premiered', 'aired', 'mpaa', 'imdbnumber', 'tmdb'):
+                    # String fields must be properly encoded and non-empty
+                    if isinstance(value, str) and value.strip():
+                        cleaned[key] = value.strip()
+                    elif value:  # Convert non-string values to string
+                        cleaned[key] = str(value).strip()
+                elif key == 'mediatype':
+                    # Media type must be valid
+                    if value in ('movie', 'episode', 'tvshow', 'season'):
+                        cleaned[key] = value
+                else:
+                    # Other fields - pass through if valid
+                    if value:
+                        cleaned[key] = value
+                        
+            except (TypeError, ValueError) as e:
+                self.logger.debug("V22: Skipping invalid field '%s' with value '%s': %s", key, value, e)
+                continue
+        
+        self.logger.debug("V22: Cleaned info labels - original: %d fields, cleaned: %d fields", 
+                         len(info_labels), len(cleaned))
+        return cleaned
+
 
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """
@@ -807,9 +881,21 @@ class ListItemBuilder:
                     # Only catch specific exceptions that indicate API compatibility issues
                     self.logger.warning("InfoTagVideo method failed with %s: %s", type(e).__name__, e)
                     
-                    # Only fallback to setInfo for Kodi v20 (where InfoTagVideo might have issues)
-                    # For Kodi v21+, InfoTagVideo should work fine, so log error without fallback
-                    if kodi_major == 20:
+                    # V22+ enhanced error handling with stricter validation
+                    if kodi_major >= 22:
+                        self.logger.warning("V22: InfoTagVideo validation failed, attempting data cleanup: %s", e)
+                        try:
+                            # Try with cleaned/validated data for V22 compatibility
+                            cleaned_info = self._clean_info_labels_for_v22(info_labels)
+                            # Create a minimal item dict for set_comprehensive_metadata
+                            cleaned_item = {'title': cleaned_info.get('title', 'Unknown')}
+                            cleaned_item.update(cleaned_info)
+                            self.metadata_manager.set_comprehensive_metadata(listitem, cleaned_item)
+                            self.logger.debug("V22: Successfully set metadata with cleaned data")
+                        except Exception as e2:
+                            self.logger.error("V22: InfoTagVideo failed even with cleaned data - metadata may be incomplete: %s", e2)
+                    elif kodi_major == 20:
+                        # Only fallback to setInfo for Kodi v20 (where InfoTagVideo might have issues)
                         self.logger.info("Using setInfo() fallback for Kodi v20 compatibility")
                         listitem.setInfo('video', info_labels)
                     else:
@@ -817,11 +903,16 @@ class ListItemBuilder:
                         self.logger.error("InfoTagVideo failed on Kodi v%s - this should not happen. Skipping metadata.", kodi_major)
                 except Exception as e:
                     # Log unexpected errors but don't use deprecated fallback
-                    self.logger.error("Unexpected error setting metadata on Kodi v%s: %s", kodi_major, e)
-                    if kodi_major < 21:
-                        # Only use deprecated fallback for pre-v21
-                        self.logger.info("Using setInfo() fallback for Kodi v%s", kodi_major)
-                        listitem.setInfo('video', info_labels)
+                    if kodi_major >= 22:
+                        self.logger.error("V22: Unexpected metadata error with enhanced validation: %s", e)
+                        # V22+ should not use setInfo() - it's fully deprecated
+                        self.logger.warning("V22: Some metadata fields may be missing due to stricter validation")
+                    else:
+                        self.logger.error("Unexpected error setting metadata on Kodi v%s: %s", kodi_major, e)
+                        if kodi_major < 21:
+                            # Only use deprecated fallback for pre-v21
+                            self.logger.info("Using setInfo() fallback for Kodi v%s", kodi_major)
+                            listitem.setInfo('video', info_labels)
             else:
                 # Kodi v19 (Matrix): Use setInfo
                 listitem.setInfo('video', info_labels)
@@ -872,3 +963,224 @@ class ListItemBuilder:
             error_item = xbmcgui.ListItem(label="Error loading item", offscreen=True)
             error_url = "plugin://plugin.video.librarygenie/?action=error"
             return error_item, error_url
+
+    # -------- First Playable Debug Methods --------
+    
+    def _should_debug_first_playable(self) -> bool:
+        """Check if first playable debugging is enabled"""
+        try:
+            # Use Kodi settings as primary control
+            from lib.config.settings import SettingsManager
+            settings = SettingsManager()
+            return settings.get_debug_first_playable()
+        except Exception as e:
+            self.logger.debug("FIRST_PLAYABLE_DEBUG: Error checking debug setting: %s", e)
+            # Fallback to environment variable if settings fail
+            try:
+                import os
+                env_debug = os.getenv('LG_DEBUG_FIRST_PLAYABLE', '').lower()
+                return env_debug in ('true', '1', 'yes')
+            except Exception:
+                return False
+    
+    def _debug_first_playable_item(self, batch_items: List[tuple], tuples: List[tuple]):
+        """Debug the first playable item in the batch"""
+        try:
+            first_playable_found = False
+            
+            for idx, (batch_url, batch_li, batch_is_folder) in enumerate(batch_items, start=1):
+                # Check if this is a playable item (not a folder, has IsPlayable=true)
+                is_playable = batch_li.getProperty('IsPlayable') == 'true'
+                
+                if is_playable and not batch_is_folder and not first_playable_found:
+                    # This is our first playable item - log everything
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Found first playable item at position #%s", idx)
+                    
+                    # Get original item data if available
+                    original_item = tuples[idx-1][3] if idx <= len(tuples) else None
+                    
+                    self._log_first_playable_details(batch_li, batch_url, idx, original_item)
+                    first_playable_found = True
+                    break
+            
+            if not first_playable_found:
+                self.logger.info("FIRST_PLAYABLE_DEBUG: No playable items found in this batch")
+                
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error during debugging: %s", e)
+    
+    def _log_first_playable_details(self, listitem: xbmcgui.ListItem, url: str, position: int, original_item: Optional[Dict[str, Any]] = None):
+        """Log comprehensive details of the first playable listitem for debugging"""
+        self.logger.info("=" * 80)
+        self.logger.info("FIRST_PLAYABLE_DEBUG: DETAILED LOGGING - Position #%s", position)
+        self.logger.info("=" * 80)
+        
+        # Basic info
+        self.logger.info("FIRST_PLAYABLE_DEBUG: URL = '%s'", url)
+        try:
+            actual_path = listitem.getPath() if hasattr(listitem, 'getPath') else 'N/A'
+            self.logger.info("FIRST_PLAYABLE_DEBUG: ListItem.getPath() = '%s'", actual_path)
+        except Exception as e:
+            self.logger.info("FIRST_PLAYABLE_DEBUG: ListItem.getPath() = ERROR: %s", e)
+        
+        # Properties
+        self._log_listitem_properties(listitem)
+        
+        # Metadata (version-safe)
+        self._log_listitem_metadata(listitem)
+        
+        # Art
+        self._log_listitem_art(listitem)
+        
+        # Original item data
+        if original_item:
+            self._log_original_item_data(original_item)
+        
+        self.logger.info("=" * 80)
+        self.logger.info("FIRST_PLAYABLE_DEBUG: END OF DETAILED LOGGING")
+        self.logger.info("=" * 80)
+    
+    def _log_listitem_properties(self, listitem: xbmcgui.ListItem):
+        """Log all relevant properties of the listitem"""
+        try:
+            # Core properties to check
+            properties_to_check = [
+                'IsPlayable', 'media_item_id', 'list_id', 
+                'LG.InfoHijack.Armed', 'LG.InfoHijack.DBID', 'LG.InfoHijack.DBType',
+                'LG.InfoHijack.Nav.Title', 'LG.InfoHijack.Nav.DBID', 'LG.InfoHijack.Nav.DBType'
+            ]
+            
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- PROPERTIES ---")
+            for prop in properties_to_check:
+                try:
+                    value = listitem.getProperty(prop)
+                    if value:
+                        self.logger.info("FIRST_PLAYABLE_DEBUG: Property['%s'] = '%s'", prop, value)
+                    else:
+                        self.logger.info("FIRST_PLAYABLE_DEBUG: Property['%s'] = <empty/not set>", prop)
+                except Exception as e:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Property['%s'] = ERROR: %s", prop, e)
+                    
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging properties: %s", e)
+    
+    def _log_listitem_metadata(self, listitem: xbmcgui.ListItem):
+        """Log metadata of the listitem in a version-safe way"""
+        try:
+            kodi_major = get_kodi_major_version()
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- METADATA (Kodi v%s) ---", kodi_major)
+            
+            if kodi_major >= 21:
+                # Use InfoTagVideo for V21+
+                try:
+                    video_tag = listitem.getVideoInfoTag()
+                    metadata_fields = [
+                        ('getTitle', 'Title'),
+                        ('getPlot', 'Plot'),
+                        ('getYear', 'Year'),
+                        ('getRating', 'Rating'),
+                        ('getGenres', 'Genres'),
+                        ('getDirectors', 'Directors'),
+                        ('getWriters', 'Writers'),
+                        ('getDuration', 'Duration'),
+                        ('getIMDBNumber', 'IMDB Number')
+                    ]
+                    
+                    for method_name, display_name in metadata_fields:
+                        try:
+                            if hasattr(video_tag, method_name):
+                                value = getattr(video_tag, method_name)()
+                                self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag.%s = '%s'", display_name, value)
+                            else:
+                                self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag.%s = <method not available>", display_name)
+                        except Exception as e:
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag.%s = ERROR: %s", display_name, e)
+                            
+                except Exception as e:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: VideoTag = ERROR: %s", e)
+                    
+            else:
+                # For V19/V20, we can't safely extract all metadata due to getInfo() limitations
+                # Just log what we know from context
+                self.logger.info("FIRST_PLAYABLE_DEBUG: V19/V20 - Limited metadata extraction available")
+                try:
+                    label = listitem.getLabel()
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Label = '%s'", label)
+                except Exception as e:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Label = ERROR: %s", e)
+                    
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging metadata: %s", e)
+    
+    def _log_listitem_art(self, listitem: xbmcgui.ListItem):
+        """Log artwork URLs of the listitem"""
+        try:
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- ARTWORK ---")
+            
+            # Art types to check
+            art_types = ['poster', 'fanart', 'banner', 'thumb', 'clearart', 'clearlogo', 'landscape', 'icon']
+            
+            try:
+                # Get all art - handle version differences safely
+                art_dict = {}
+                if hasattr(listitem, 'getArt'):
+                    try:
+                        art_dict = listitem.getArt()
+                    except (TypeError, AttributeError):
+                        # Some Kodi versions have different getArt() signatures
+                        art_dict = {}
+                if art_dict:
+                    for art_type in art_types:
+                        art_url = art_dict.get(art_type, '')
+                        if art_url:
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: Art['%s'] = '%s'", art_type, art_url)
+                        else:
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: Art['%s'] = <not set>", art_type)
+                    
+                    # Log any other art types not in our standard list
+                    other_art = {k: v for k, v in art_dict.items() if k not in art_types}
+                    if other_art:
+                        for art_type, art_url in other_art.items():
+                            self.logger.info("FIRST_PLAYABLE_DEBUG: Art['%s'] = '%s' (non-standard)", art_type, art_url)
+                else:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: Art = <no artwork set>")
+                    
+            except Exception as e:
+                self.logger.info("FIRST_PLAYABLE_DEBUG: Art = ERROR: %s", e)
+                
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging artwork: %s", e)
+    
+    def _log_original_item_data(self, original_item: Dict[str, Any]):
+        """Log key fields from the original item dictionary"""
+        try:
+            self.logger.info("FIRST_PLAYABLE_DEBUG: --- ORIGINAL ITEM DATA ---")
+            
+            # Key fields to log
+            key_fields = [
+                'title', 'media_type', 'kodi_id', 'file_path', 'year', 'rating', 
+                'plot', 'genre', 'director', 'duration', 'tmdb_id', 'imdb_id',
+                'play', 'tvshowtitle', 'season', 'episode'
+            ]
+            
+            for field in key_fields:
+                if field in original_item:
+                    value = original_item[field]
+                    # Truncate long values for readability
+                    if isinstance(value, str) and len(value) > 200:
+                        value = value[:200] + "... (truncated)"
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: OriginalItem['%s'] = '%s'", field, value)
+                else:
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: OriginalItem['%s'] = <not present>", field)
+            
+            # Log any other fields not in our standard list
+            other_fields = {k: v for k, v in original_item.items() if k not in key_fields}
+            if other_fields:
+                self.logger.info("FIRST_PLAYABLE_DEBUG: --- OTHER ORIGINAL ITEM FIELDS ---")
+                for field, value in other_fields.items():
+                    if isinstance(value, str) and len(value) > 100:
+                        value = str(value)[:100] + "... (truncated)"
+                    self.logger.info("FIRST_PLAYABLE_DEBUG: OriginalItem['%s'] = '%s' (other)", field, value)
+                    
+        except Exception as e:
+            self.logger.error("FIRST_PLAYABLE_DEBUG: Error logging original item data: %s", e)

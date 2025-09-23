@@ -744,8 +744,16 @@ def _register_all_handlers(router: Router):
     router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, factory.get_favorites_handler().show_favorites_menu(ctx)))
 
     # Register ListsHandler methods that expect specific parameters
-    router.register_handler('create_list_execute', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().create_list(ctx)))
-    router.register_handler('create_folder_execute', lambda ctx: _handle_dialog_response(ctx, factory.get_lists_handler().create_folder(ctx)))
+    def _handle_create_list(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().create_list(ctx))
+    
+    def _handle_create_folder(ctx):
+        factory.context = ctx
+        return _handle_dialog_response(ctx, factory.get_lists_handler().create_folder(ctx))
+    
+    router.register_handler('create_list_execute', _handle_create_list)
+    router.register_handler('create_folder_execute', _handle_create_folder)
 
     # Register list and folder view handlers
     router.register_handler('show_list', lambda ctx: factory.get_lists_handler().view_list(ctx, ctx.get_param('list_id')))
