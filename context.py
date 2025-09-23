@@ -101,9 +101,9 @@ def _show_librarygenie_menu(addon):
         _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_context)
         
 
-        # Show the menu
+        # Show the menu - always display dialog so user controls what happens
         xbmc.log(f"LibraryGenie: About to show context menu with {len(options)} options: {options}", xbmc.LOGINFO)
-        if len(options) > 1:
+        if len(options) > 0:
             dialog = xbmcgui.Dialog()
             xbmc.log(f"LibraryGenie: Showing dialog with options: {options}", xbmc.LOGINFO)
             selected = dialog.select("LibraryGenie", options)
@@ -115,9 +115,7 @@ def _show_librarygenie_menu(addon):
             else:
                 xbmc.log("LibraryGenie: User canceled dialog or no selection made", xbmc.LOGINFO)
         else:
-            # Only search available, execute directly
-            xbmc.log(f"LibraryGenie: Only one option available, executing directly: {actions[0] if actions else 'none'}", xbmc.LOGINFO)
-            _execute_action("search", addon, item_info)
+            xbmc.log("LibraryGenie: No options available for this context", xbmc.LOGINFO)
 
     except Exception as e:
         xbmc.log(f"LibraryGenie submenu error: {str(e)}", xbmc.LOGERROR)
