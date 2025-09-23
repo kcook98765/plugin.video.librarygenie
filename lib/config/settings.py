@@ -98,6 +98,26 @@ class SettingsManager:
         value = config.get_int('background_interval', 5)
         return max(5, min(720, value))
 
+    def get_library_sync_interval(self) -> int:
+        """Get library sync interval in minutes. Returns 0 if disabled."""
+        config = get_config()
+        interval_setting = config.get_int('library_sync_interval', 0)
+        
+        # Map setting values to minutes
+        interval_map = {
+            0: 0,       # Disabled
+            1: 5,       # 5 Minutes  
+            2: 60,      # Hourly
+            3: 1440     # Daily (24 hours * 60 minutes)
+        }
+        
+        return interval_map.get(interval_setting, 0)
+
+    def set_library_sync_interval(self, interval: int) -> None:
+        """Set library sync interval setting (0=disabled, 1=5min, 2=hourly, 3=daily)"""
+        config = get_config()
+        config.set('library_sync_interval', interval)
+
     # Favorites Settings
     def get_enable_favorites_integration(self) -> bool:
         """Get enable favorites integration setting"""
