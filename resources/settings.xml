@@ -57,7 +57,7 @@
         </setting>
         <setting id="library_sync_interval" type="integer" label="30036" help="35560">
           <level>0</level>
-          <default>0</default>
+          <default>2</default>
           <constraints>
             <options>
               <option label="30580">0</option>
