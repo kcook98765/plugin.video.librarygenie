@@ -61,6 +61,10 @@ class LibraryGenieService:
         self._last_ai_sync_check_time = 0
         self._last_service_log_time = 0
         
+        # Library sync state tracking
+        self._last_library_sync_time = 0
+        self._library_sync_in_progress = False
+        
         
         log_info("🚀 LibraryGenie service initialized with InfoHijack manager")
 
@@ -454,6 +458,11 @@ class LibraryGenieService:
                 if tick_count % 50 == 0:  # Every 5 seconds
                     self._check_cache_refresh_request()
                 
+                # Check for periodic library sync (every 30 seconds when not in hijack mode)
+                # Only check when idle to avoid interference with dialog operations
+                if not hijack_mode and tick_count % 30 == 0:  # Every 30 seconds
+                    self._check_and_perform_periodic_library_sync()
+                
 
                 # Run hijack manager tick only when needed
                 if hijack_mode:
@@ -520,6 +529,119 @@ class LibraryGenieService:
                     self._stop_ai_sync_thread()
         except Exception as e:
             log_error(f"Error checking AI sync activation: {e}")
+
+    def _is_safe_to_sync_library(self) -> bool:
+        """Check if it's safe to perform library sync (not during video playback)"""
+        try:
+            # Check if video is playing
+            is_playing = xbmc.getCondVisibility('Player.HasVideo')
+            if is_playing:
+                return False
+            
+            # Additional check for any active playback
+            is_playing_any = xbmc.getCondVisibility('Player.Playing')
+            if is_playing_any:
+                return False
+                
+            return True
+        except Exception as e:
+            log_error(f"Error checking playback state: {e}")
+            return False  # Err on the side of caution
+
+    def _check_and_perform_periodic_library_sync(self):
+        """Check if periodic library sync should be performed"""
+        try:
+            # Check if library sync is already in progress
+            if self._library_sync_in_progress:
+                return
+                
+            # Get sync interval setting
+            sync_interval_minutes = self.settings.get_library_sync_interval()
+            
+            # If disabled (0), skip
+            if sync_interval_minutes == 0:
+                return
+                
+            # Check if enough time has passed since last sync
+            current_time = time.time()
+            time_since_last_sync = (current_time - self._last_library_sync_time) / 60  # Convert to minutes
+            
+            if time_since_last_sync < sync_interval_minutes:
+                return
+                
+            # Check if it's safe to sync (no video playback)
+            if not self._is_safe_to_sync_library():
+                log("Library sync skipped - video playback active")
+                return
+                
+            log_info(f"Starting periodic library sync (interval: {sync_interval_minutes} minutes)")
+            
+            # Update timestamp immediately to prevent rapid-fire syncs
+            self._last_library_sync_time = current_time
+            
+            # Start sync in background thread to avoid blocking service loop
+            sync_thread = threading.Thread(
+                target=self._perform_background_library_sync,
+                daemon=True,
+                name="LibrarySync"
+            )
+            sync_thread.start()
+            
+        except Exception as e:
+            log_error(f"Error during periodic library sync check: {e}")
+
+    def _perform_background_library_sync(self):
+        """Perform background library sync using delta scan in background thread"""
+        sync_start_time = time.time()
+        try:
+            self._library_sync_in_progress = True
+            log_info("Background library sync thread started")
+            
+            # Use SyncController for proper locking and error handling
+            from lib.library.sync_controller import SyncController
+            sync_controller = SyncController()
+            
+            # Check if library is indexed first
+            scanner = LibraryScanner()
+            if not scanner.is_library_indexed():
+                log_info("Library not indexed, performing initial scan...")
+                success, message = sync_controller.perform_manual_sync()
+            else:
+                # Use delta scan to detect new/changed movies
+                log_info("Performing delta library sync to detect new movies...")
+                
+                # Use scanner directly for delta scan (SyncController is for manual sync)
+                result = scanner.perform_delta_scan()
+                success = result.get("success", False)
+                
+                if success:
+                    items_added = result.get("items_added", 0)
+                    items_removed = result.get("items_removed", 0)
+                    if items_added > 0 or items_removed > 0:
+                        message = f"Found {items_added} new, {items_removed} removed movies"
+                        self._show_notification(f"Library updated: {message}", time_ms=3000)
+                        log_info(f"Periodic sync found changes: {message}")
+                    else:
+                        message = "No new movies found"
+                        log("Periodic library sync: No changes detected")
+                else:
+                    message = result.get("error", "Delta scan failed")
+            
+            sync_duration = time.time() - sync_start_time
+            
+            if success:
+                log_info(f"Periodic library sync completed in {sync_duration:.1f}s: {message}")
+            else:
+                log_error(f"Periodic library sync failed after {sync_duration:.1f}s: {message}")
+                
+        except Exception as e:
+            sync_duration = time.time() - sync_start_time
+            log_error(f"Error during background library sync after {sync_duration:.1f}s: {e}")
+            import traceback
+            log_error(f"Sync error traceback: {traceback.format_exc()}")
+        finally:
+            self._library_sync_in_progress = False
+            log_info("Background library sync thread completed")
 
     def _should_start_ai_sync(self, force_log=False) -> bool:
         """Check if AI search sync should be started"""
