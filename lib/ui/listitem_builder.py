@@ -257,12 +257,12 @@ class ListItemBuilder:
     def _create_library_listitem(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
         Build library-backed movie/episode row as (url, listitem, is_folder=False)
-        with videodb:// path and proper library integration for native Kodi behavior.
+        using direct file paths for reliable playback across all Kodi versions.
         """
         try:
             title = item.get('title', 'Unknown')
             media_type = item.get('media_type', 'movie')
-            kodi_id = item.get('kodi_id')
+            kodi_id = item.get('kodi_id')  # Keep for hijack functionality
 
             # Label: format based on media type
             # Check for episode formatting - either explicit media_type='episode' or presence of episode fields
@@ -286,66 +286,30 @@ class ListItemBuilder:
 
             li = xbmcgui.ListItem(label=display_label, offscreen=True)
 
-            # Prioritize videodb:// URLs for library items to eliminate background processing delays,
-            # fallback to direct file paths only when videodb isn't available
-            if kodi_id is not None and self._is_valid_library_id(kodi_id):
-                try:
-                    # Use videodb:// URL for native library integration (eliminates 4+ second delays)
-                    # V22+ includes enhanced validation to prevent empty URLs reaching FFmpeg 7
-                    videodb_url = self._build_videodb_url(media_type, kodi_id, item.get('tvshowid'), item.get('season'))
-                    li.setPath(videodb_url)
-                    playback_url = videodb_url
-                    # For videodb:// URLs, Kodi handles IsPlayable automatically
-                    
-                    # V22+ additional verification
-                    kodi_major = get_kodi_major_version()
-                    if kodi_major >= 22:
-                        self.logger.debug("LIB ITEM V22: Generated valid videodb URL for '%s': %s", title, videodb_url)
-                        
-                except ValueError as e:
-                    # V22+ validation failed - fall back to file path
-                    self.logger.warning("LIB ITEM V22: videodb URL generation failed for '%s': %s, falling back to file path", title, e)
-                    file_path = item.get('file_path') or item.get('play')
-                    if file_path and file_path.strip():
-                        li.setPath(file_path)
-                        playback_url = file_path
-                        li.setProperty('IsPlayable', 'true')
-                        self.logger.debug("LIB ITEM V22: Using fallback file path for '%s': %s", title, file_path)
-                    else:
-                        self.logger.error("LIB ITEM V22: No valid URL or file path available for '%s' (kodi_id=%s)", title, kodi_id)
-                        return None
-            else:
-                # Fallback to direct file path when videodb isn't available
-                file_path = item.get('file_path') or item.get('play')
-                if file_path and file_path.strip():
-                    li.setPath(file_path)
-                    self.logger.debug("LIB ITEM: Using fallback file path for '%s': %s", title, file_path)
-                    playback_url = file_path
-                    # For direct file paths, we need to explicitly set IsPlayable=true for context menu support
-                    li.setProperty('IsPlayable', 'true')
-                    self.logger.debug("LIB ITEM: Set IsPlayable=true for direct file path: '%s'", title)
-                else:
-                    self.logger.error("LIB ITEM: No valid path available - kodi_id=%s, file_path=%s for '%s'", kodi_id, file_path, title)
-                    return None
+            # Use direct file path for consistent playback behavior across all Kodi versions
+            file_path = item.get('file_path') or item.get('play')
+            if not file_path or not file_path.strip():
+                self.logger.error("LIB ITEM: No valid file path available for '%s'", title)
+                return None
+                
+            li.setPath(file_path)
+            playback_url = file_path
+            # Set IsPlayable=true for proper playback and context menu support
+            li.setProperty('IsPlayable', 'true')
+            self.logger.debug("LIB ITEM: Using file path for '%s': %s", title, file_path)
 
             is_folder = False
             
-            # PLAYBACK_DEBUG: Log ListItem path and playback details for debugging V22 empty URL issues
+            # PLAYBACK_DEBUG: Log ListItem path and playback details
             try:
                 # Get the actual path set on the ListItem
                 actual_listitem_path = li.getPath() if hasattr(li, 'getPath') else 'N/A'
                 is_playable = li.getProperty('IsPlayable') if hasattr(li, 'getProperty') else 'N/A'
                 
-                self.logger.debug("PLAYBACK_DEBUG: '%s' (kodi_id=%s) - constructed_url='%s', li.getPath()='%s', IsPlayable='%s'", 
-                                title, kodi_id, playback_url, actual_listitem_path, is_playable)
+                self.logger.debug("PLAYBACK_DEBUG: '%s' - file_path='%s', li.getPath()='%s', IsPlayable='%s'", 
+                                title, playback_url, actual_listitem_path, is_playable)
                 
-                # Additional debug for file path vs videodb URL cases
-                if playback_url.startswith('videodb://'):
-                    self.logger.debug("PLAYBACK_DEBUG: '%s' - using VIDEODB URL: %s", title, playback_url)
-                elif playback_url.startswith(('http://', 'https://', 'file://')):
-                    self.logger.debug("PLAYBACK_DEBUG: '%s' - using DIRECT PATH: %s", title, playback_url)
-                else:
-                    self.logger.warning("PLAYBACK_DEBUG: '%s' - UNEXPECTED URL FORMAT: %s", title, playback_url)
+                self.logger.debug("PLAYBACK_DEBUG: '%s' - using FILE PATH: %s", title, playback_url)
                     
             except Exception as debug_e:
                 self.logger.warning("PLAYBACK_DEBUG: Failed to get ListItem debug info for '%s': %s", title, debug_e)
@@ -709,69 +673,6 @@ class ListItemBuilder:
                          len(info_labels), len(cleaned))
         return cleaned
 
-    def _build_videodb_url(self, media_type: str, kodi_id: int, tvshowid=None, season=None) -> str:
-        """
-        Build videodb:// URL for native Kodi library integration with V22 enhanced validation.
-
-        Args:
-            media_type: 'movie' or 'episode'
-            kodi_id: Kodi database ID for the item
-            tvshowid: TV show ID (for episodes)
-            season: Season number (for episodes)
-
-        Returns:
-            str: videodb:// URL for native library handling
-
-        Raises:
-            ValueError: If URL cannot be constructed due to invalid parameters (V22+ strict validation)
-        """
-        # V22 (FFmpeg 7) requires stricter URL validation
-        kodi_major = get_kodi_major_version()
-        
-        # Enhanced validation for V22+
-        if kodi_major >= 22:
-            if not kodi_id or kodi_id <= 0:
-                raise ValueError(f"V22: Invalid kodi_id for videodb URL: {kodi_id}")
-            if not media_type or not isinstance(media_type, str):
-                raise ValueError(f"V22: Invalid media_type for videodb URL: {media_type}")
-        
-        # Ensure kodi_id is properly converted to int
-        try:
-            kodi_id = int(kodi_id)
-        except (TypeError, ValueError) as e:
-            if kodi_major >= 22:
-                raise ValueError(f"V22: Cannot convert kodi_id to int: {kodi_id}")
-            else:
-                self.logger.warning("URL: Invalid kodi_id %s, using fallback", kodi_id)
-                kodi_id = 0
-        
-        if media_type == "movie":
-            url = f"videodb://movies/titles/{kodi_id}"
-        elif media_type == "episode":
-            if tvshowid is not None and season is not None:
-                try:
-                    tvshowid = int(tvshowid)
-                    season = int(season)
-                    url = f"videodb://tvshows/titles/{tvshowid}/{season}/{kodi_id}"
-                except (TypeError, ValueError) as e:
-                    if kodi_major >= 22:
-                        raise ValueError(f"V22: Invalid episode parameters - tvshowid: {tvshowid}, season: {season}")
-                    else:
-                        # Fallback for episodes without show/season info
-                        url = f"videodb://episodes/{kodi_id}"
-            else:
-                # Fallback for episodes without show/season info
-                url = f"videodb://episodes/{kodi_id}"
-        else:
-            # Fallback to generic format
-            url = f"videodb://movies/titles/{kodi_id}"
-        
-        # V22+ final URL validation to prevent empty URLs reaching FFmpeg 7
-        if kodi_major >= 22:
-            if not url or not url.strip() or url == "videodb://movies/titles/0":
-                raise ValueError(f"V22: Generated empty or invalid videodb URL: '{url}'")
-        
-        return url
 
     def _build_playback_url(self, item: Dict[str, Any]) -> str:
         """
@@ -1222,9 +1123,12 @@ class ListItemBuilder:
             try:
                 # Get all art - some Kodi versions may behave differently
                 try:
-                    art_dict = listitem.getArt() if hasattr(listitem, 'getArt') else {}
-                except TypeError:
-                    # Some Kodi versions require parameters for getArt()
+                    if hasattr(listitem, 'getArt'):
+                        art_dict = listitem.getArt()
+                    else:
+                        art_dict = {}
+                except (TypeError, AttributeError):
+                    # Some Kodi versions have different getArt() signatures
                     art_dict = {}
                 if art_dict:
                     for art_type in art_types:
