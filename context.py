@@ -280,27 +280,6 @@ def _show_search_submenu(addon):
         _execute_action("search", addon)
 
 
-def _show_more_submenu(addon, item_info):
-    """Show the more options submenu with advanced actions"""
-    try:
-        options = []
-        actions = []
-        
-        # Advanced options:
-        # - Move to another list
-        
-        options.append("[COLOR yellow]Move to Another List...[/COLOR]")
-        actions.append("move_to_list")
-        
-        # Show the submenu
-        dialog = xbmcgui.Dialog()
-        selected = dialog.select("LibraryGenie More Options", options)
-        
-        if selected >= 0:
-            _execute_action(actions[selected], addon)
-    
-    except Exception as e:
-        xbmc.log(f"LibraryGenie more submenu error: {str(e)}", xbmc.LOGERROR)
 
 
 def _add_library_movie_options(dbtype, dbid, options, actions, addon):
@@ -536,9 +515,6 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Show the search submenu
             _show_search_submenu(addon)
             
-        elif action_with_params == "show_more_submenu":
-            # Show the more options submenu
-            _show_more_submenu(addon, item_info)
             
         elif action_with_params == "search" or action_with_params == "search_movies":
             # Launch LibraryGenie search (default to movies)
