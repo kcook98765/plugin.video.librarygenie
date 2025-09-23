@@ -71,7 +71,7 @@ msgid "Manual Library Sync"
 msgstr ""
 
 msgctxt "#30036"
-msgid "Auto-sync frequency (hours)"
+msgid "Library Sync Interval"
 msgstr ""
 
 msgctxt "#30180"
