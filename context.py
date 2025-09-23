@@ -69,27 +69,9 @@ def _show_librarygenie_menu(addon):
         # Debug log the cached info
         xbmc.log(f"LibraryGenie: Cached item info: {item_info}", xbmc.LOGINFO)
 
-        # Build options list - Search is always available
+        # Build options list
         options = []
         actions = []
-
-        # Check if favorites integration is enabled to determine search label
-        from lib.config.settings import SettingsManager
-        try:
-            settings = SettingsManager()
-            favorites_enabled = settings.get_enable_favorites_integration()
-            if favorites_enabled:
-                search_label = L(37105)  # "LG Search/Favorites"
-            else:
-                search_label = L(37100)  # "LG Search"
-        except Exception:
-            search_label = L(37100)  # Default to "LG Search"
-        
-        if not search_label or search_label.startswith('LocMiss_'):
-            search_label = "LG Search"
-        
-        options.append(search_label)
-        actions.append("show_search_submenu")
 
         # Use cached values instead of fresh getInfoLabel calls
         dbtype = item_info['dbtype']
@@ -118,12 +100,6 @@ def _show_librarygenie_menu(addon):
         # Add common LibraryGenie actions in order of priority
         _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_context)
         
-        # Add "LG more..." option for additional actions
-        more_label = L(37104)  # "LG more..."
-        if not more_label or more_label.startswith('LocMiss_'):
-            more_label = "LG more..."
-        options.append(more_label)
-        actions.append("show_more_submenu")
 
         # Show the menu
         xbmc.log(f"LibraryGenie: About to show context menu with {len(options)} options: {options}", xbmc.LOGINFO)
@@ -221,6 +197,11 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append(f"remove_library_item_from_list&list_id={list_id}&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
         else:
             actions.append("remove_from_list_generic")
+    
+    # 5. Move to Another List... (always available)
+    move_label = "[COLOR yellow]Move to Another List...[/COLOR]"
+    options.append(move_label)
+    actions.append("move_to_list")
 
 
 def _show_search_submenu(addon):
