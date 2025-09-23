@@ -64,7 +64,6 @@ class LibraryGenieService:
         # Library sync state tracking
         self._last_library_sync_time = 0
         self._library_sync_in_progress = False
-        self._startup_sync_completed = False
         self._service_start_time = time.time()
         
         
@@ -460,9 +459,6 @@ class LibraryGenieService:
                 if tick_count % 50 == 0:  # Every 5 seconds
                     self._check_cache_refresh_request()
                 
-                # Check for startup library sync (every 5 seconds until completed, but not on first tick)
-                if not self._startup_sync_completed and tick_count > 0 and tick_count % 5 == 0:  # Every 5 seconds after first tick
-                    self._check_and_perform_startup_library_sync()
                 
                 # Check for periodic library sync (every 30 seconds when not in hijack mode)
                 # Only check when idle to avoid interference with dialog operations
@@ -596,97 +592,6 @@ class LibraryGenieService:
         except Exception as e:
             log_error(f"Error during periodic library sync check: {e}")
 
-    def _check_and_perform_startup_library_sync(self):
-        """Check if startup library sync should be performed after 30-second settle period"""
-        try:
-            # Skip if already completed
-            if self._startup_sync_completed:
-                return
-                
-            # Check if library sync is already in progress
-            if self._library_sync_in_progress:
-                return
-                
-            # Wait for 30-second settle period after service startup
-            time_since_start = time.time() - self._service_start_time
-            if time_since_start < 30:
-                return
-                
-            # Check if it's safe to sync (no video playback)
-            if not self._is_safe_to_sync_library():
-                log("Startup library sync skipped - video playback active, will retry")
-                return
-                
-            log_info("Performing startup library sync after 30-second settle period")
-            
-            # Mark as completed to prevent repeated attempts
-            self._startup_sync_completed = True
-            
-            # Update last sync time to coordinate with periodic sync
-            self._last_library_sync_time = time.time()
-            
-            # Start sync in background thread
-            sync_thread = threading.Thread(
-                target=self._perform_startup_library_sync,
-                daemon=True,
-                name="StartupLibrarySync"
-            )
-            sync_thread.start()
-            
-        except Exception as e:
-            log_error(f"Error during startup library sync check: {e}")
-
-    def _perform_startup_library_sync(self):
-        """Perform startup library sync using delta scan in background thread"""
-        sync_start_time = time.time()
-        try:
-            self._library_sync_in_progress = True
-            log_info("Startup library sync thread started")
-            
-            # Use delta scan to detect new/changed movies
-            log_info("Performing startup delta library sync to detect changes since last use...")
-            
-            scanner = LibraryScanner()
-            
-            # Check if library is indexed first
-            if not scanner.is_library_indexed():
-                log_info("Library not indexed, performing initial scan...")
-                from lib.library.sync_controller import SyncController
-                sync_controller = SyncController()
-                success, message = sync_controller.perform_manual_sync()
-            else:
-                # Use delta scan for efficiency
-                result = scanner.perform_delta_scan()
-                success = result.get("success", False)
-                
-                if success:
-                    items_added = result.get("items_added", 0)
-                    items_removed = result.get("items_removed", 0)
-                    if items_added > 0 or items_removed > 0:
-                        message = f"Found {items_added} new, {items_removed} removed movies"
-                        self._show_notification(f"Startup sync: {message}", time_ms=4000)
-                        log_info(f"Startup sync found changes: {message}")
-                    else:
-                        message = "No library changes detected since last use"
-                        log_info("Startup sync: No changes detected since last use")
-                else:
-                    message = result.get("error", "Delta scan failed")
-            
-            sync_duration = time.time() - sync_start_time
-            
-            if success:
-                log_info(f"Startup library sync completed in {sync_duration:.1f}s: {message}")
-            else:
-                log_error(f"Startup library sync failed after {sync_duration:.1f}s: {message}")
-                
-        except Exception as e:
-            sync_duration = time.time() - sync_start_time
-            log_error(f"Error during startup library sync after {sync_duration:.1f}s: {e}")
-            import traceback
-            log_error(f"Startup sync error traceback: {traceback.format_exc()}")
-        finally:
-            self._library_sync_in_progress = False
-            log_info("Startup library sync thread completed")
 
     def _perform_background_library_sync(self):
         """Perform background library sync using delta scan in background thread"""
@@ -852,7 +757,12 @@ class LibraryGenieService:
             
 
     def _check_startup_sync(self):
-        """Check if startup sync should be performed (once per service run)"""
+        """Check if startup sync should be performed (once per service run after 30-second settle)"""
+        # Wait for 30-second settle period after service startup
+        time_since_start = time.time() - self._service_start_time
+        if time_since_start < 30:
+            return
+            
         # Only check once per service startup
         if hasattr(self, '_startup_sync_checked'):
             return
