@@ -460,8 +460,8 @@ class LibraryGenieService:
                 if tick_count % 50 == 0:  # Every 5 seconds
                     self._check_cache_refresh_request()
                 
-                # Check for startup library sync (every 5 seconds until completed)
-                if not self._startup_sync_completed and tick_count % 5 == 0:  # Every 5 seconds
+                # Check for startup library sync (every 5 seconds until completed, but not on first tick)
+                if not self._startup_sync_completed and tick_count > 0 and tick_count % 5 == 0:  # Every 5 seconds after first tick
                     self._check_and_perform_startup_library_sync()
                 
                 # Check for periodic library sync (every 30 seconds when not in hijack mode)
