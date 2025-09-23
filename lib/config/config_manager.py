@@ -36,6 +36,7 @@ class ConfigManager:
             "sync_movies": True,
             "first_run_completed": False,
             "use_native_kodi_info": True,
+            "library_sync_interval": 0,  # 0=disabled, 1=5min, 2=hourly, 3=daily
             
             # Search settings
             "search_page_size": 200,
@@ -373,6 +374,7 @@ class ConfigManager:
             "sync_movies",
             "sync_tv_episodes",
             "first_run_completed",
+            "library_sync_interval",
             # Background service settings
             "enable_background_service",
             "enable_batch_processing",
