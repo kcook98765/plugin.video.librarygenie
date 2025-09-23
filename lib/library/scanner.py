@@ -818,16 +818,19 @@ class LibraryScanner:
             return []
 
     def _fetch_movies_by_ids(self, kodi_ids: Set[int]) -> List[Dict[str, Any]]:
-        """Fetch detailed movie data for specific Kodi IDs"""
-        # This is a simplified implementation - in practice we'd need to make
-        # individual requests or batch requests for specific IDs
-        # For now, do a small scan to catch new movies
-        response = self.kodi_client.get_movies(0, 50)  # Small batch to find new ones
-        movies = response.get("movies", [])
-
-        # Filter to just the IDs we want
-        filtered_movies = [m for m in movies if m["kodi_id"] in kodi_ids]
-        return filtered_movies
+        """Fetch detailed movie data for specific Kodi IDs using precise individual requests"""
+        movies = []
+        
+        for kodi_id in kodi_ids:
+            movie_data = self.kodi_client.get_movie_details(kodi_id)
+            if movie_data:
+                movies.append(movie_data)
+                self.logger.debug("Fetched details for new movie ID %s: %s", kodi_id, movie_data.get("title", "Unknown"))
+            else:
+                self.logger.debug("Could not fetch details for movie ID %s (may have been removed)", kodi_id)
+        
+        self.logger.info("Successfully fetched %d/%d movies by ID", len(movies), len(kodi_ids))
+        return movies
 
     def _mark_movies_removed(self, kodi_ids: Set[int]) -> int:
         """Mark movies as removed (soft delete)"""
