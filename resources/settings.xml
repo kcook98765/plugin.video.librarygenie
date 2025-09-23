@@ -55,6 +55,21 @@
             <heading>30035</heading>
           </control>
         </setting>
+        <setting id="library_sync_interval" type="integer" label="30036" help="35560">
+          <level>0</level>
+          <default>2</default>
+          <constraints>
+            <options>
+              <option label="30580">0</option>
+              <option label="30581">1</option>
+              <option label="30582">2</option>
+              <option label="30583">3</option>
+            </options>
+          </constraints>
+          <control type="list" format="integer">
+            <heading>30036</heading>
+          </control>
+        </setting>
       </group>
     </category>
 

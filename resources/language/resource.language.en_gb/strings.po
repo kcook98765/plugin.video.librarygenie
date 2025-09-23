@@ -71,7 +71,7 @@ msgid "Manual Library Sync"
 msgstr ""
 
 msgctxt "#30036"
-msgid "Auto-sync frequency (hours)"
+msgid "Library Sync Interval"
 msgstr ""
 
 msgctxt "#30180"
@@ -2176,5 +2176,27 @@ msgstr ""
 
 msgctxt "#37303"
 msgid "[In List: %s]"
+msgstr ""
+
+# Library Sync Interval Options
+msgctxt "#30580"
+msgid "Disabled (manual only)"
+msgstr ""
+
+msgctxt "#30581"
+msgid "5 Minutes"
+msgstr ""
+
+msgctxt "#30582"
+msgid "Hourly"
+msgstr ""
+
+msgctxt "#30583"
+msgid "Daily"
+msgstr ""
+
+# Help Text for Library Sync Interval
+msgctxt "#35560"
+msgid "How often to automatically check for new movies in your Kodi library. Sync will not run during video playback."
 msgstr ""
 
