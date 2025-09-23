@@ -1221,7 +1221,11 @@ class ListItemBuilder:
             
             try:
                 # Get all art - some Kodi versions may behave differently
-                art_dict = listitem.getArt() if hasattr(listitem, 'getArt') else {}
+                try:
+                    art_dict = listitem.getArt() if hasattr(listitem, 'getArt') else {}
+                except TypeError:
+                    # Some Kodi versions require parameters for getArt()
+                    art_dict = {}
                 if art_dict:
                     for art_type in art_types:
                         art_url = art_dict.get(art_type, '')
