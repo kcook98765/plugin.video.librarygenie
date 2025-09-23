@@ -1121,15 +1121,14 @@ class ListItemBuilder:
             art_types = ['poster', 'fanart', 'banner', 'thumb', 'clearart', 'clearlogo', 'landscape', 'icon']
             
             try:
-                # Get all art - some Kodi versions may behave differently
-                try:
-                    if hasattr(listitem, 'getArt'):
+                # Get all art - handle version differences safely
+                art_dict = {}
+                if hasattr(listitem, 'getArt'):
+                    try:
                         art_dict = listitem.getArt()
-                    else:
+                    except (TypeError, AttributeError):
+                        # Some Kodi versions have different getArt() signatures
                         art_dict = {}
-                except (TypeError, AttributeError):
-                    # Some Kodi versions have different getArt() signatures
-                    art_dict = {}
                 if art_dict:
                     for art_type in art_types:
                         art_url = art_dict.get(art_type, '')
