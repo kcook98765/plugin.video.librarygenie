@@ -623,8 +623,7 @@ def _handle_external_item_add(addon):
                 if not art_data.get('thumb'):
                     art_data['thumb'] = thumb_fallback
 
-        # Store collected art data
-        item_data['art_data'] = art_data
+        # Art data is handled through individual fields below for URL compatibility
 
         # Also set individual fields for backward compatibility
         item_data['poster'] = art_data.get('poster', '')
