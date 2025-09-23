@@ -197,11 +197,6 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append(f"remove_library_item_from_list&list_id={list_id}&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
         else:
             actions.append("remove_from_list_generic")
-    
-    # 5. Move to Another List... (always available)
-    move_label = "[COLOR yellow]Move to Another List...[/COLOR]"
-    options.append(move_label)
-    actions.append("move_to_list")
 
 
 def _show_search_submenu(addon):
@@ -644,7 +639,12 @@ def _handle_external_item_add(addon):
         # Clean up empty values and convert numeric fields
         cleaned_data = {}
         for key, value in item_data.items():
-            if value and value.strip():
+            # Skip dictionary values like art_data
+            if isinstance(value, dict):
+                cleaned_data[key] = value
+                continue
+            
+            if value and str(value).strip():
                 if key in ('year', 'season', 'episode', 'playcount'):
                     try:
                         cleaned_data[key] = int(value)
@@ -656,7 +656,7 @@ def _handle_external_item_add(addon):
                     except (ValueError, TypeError):
                         pass
                 else:
-                    cleaned_data[key] = value.strip()
+                    cleaned_data[key] = str(value).strip()
 
         # Validate we have minimum required data
         if not cleaned_data.get('title'):
