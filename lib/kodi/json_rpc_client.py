@@ -154,7 +154,7 @@ class KodiJsonRpcClient:
         except Exception as e:
             self.logger.error("JSON-RPC quick check failed: %s", e)
             return []
-    
+
     def get_movies_quick_check_paginated(self, offset: int = 0, limit: int = 500) -> Dict[str, Any]:
         """Get minimal movie data for delta sync in memory-efficient batches"""
         request = {
@@ -216,7 +216,7 @@ class KodiJsonRpcClient:
             return {"episodes": [], "limits": {"total": 0}}
 
     def get_movie_details(self, movie_id: int) -> Optional[Dict[str, Any]]:
-        """Get details for a specific movie by ID"""
+        """Get details for a specific movie by ID with full metadata for sync compatibility"""
         try:
             request = {
                 "jsonrpc": "2.0",
@@ -224,8 +224,30 @@ class KodiJsonRpcClient:
                 "params": {
                     "movieid": movie_id,
                     "properties": [
-                        "title", "year", "uniqueid", "plot", "runtime", "rating",
-                        "genre", "director", "studio", "country", "art"
+                        "title",
+                        "year", 
+                        "imdbnumber",
+                        "uniqueid",
+                        "file",
+                        "dateadded",
+                        "art",
+                        "plot",
+                        "plotoutline", 
+                        "runtime",
+                        "rating",
+                        "votes",
+                        "genre",
+                        "mpaa",
+                        "director",
+                        "country",
+                        "studio",
+                        "writer",
+                        "premiered",
+                        "originaltitle",
+                        "sorttitle",
+                        "playcount",
+                        "lastplayed",
+                        "resume"
                     ]
                 },
                 "id": 1
@@ -235,14 +257,20 @@ class KodiJsonRpcClient:
             response = json.loads(response_str)
 
             if "error" in response:
-                self.logger.error("JSON-RPC error getting movie %s: %s", movie_id, response['error'])
+                # Movie no longer exists - this is normal for removed movies in delta sync
+                self.logger.debug("Movie ID %s not found (likely removed): %s", movie_id, response['error'])
                 return None
 
-            movie_details = response.get("result", {}).get("moviedetails")
-            if movie_details:
-                return self._normalize_movie_data(movie_details)
+            result = response.get("result", {})
+            movie_details = result.get("moviedetails", {})
+            
+            if not movie_details:
+                self.logger.debug("No movie details found for ID %s", movie_id)
+                return None
 
-            return None
+            # Normalize the movie data using existing method
+            normalized = self._normalize_movie_data(movie_details)
+            return normalized
 
         except Exception as e:
             self.logger.error("Error getting movie details for ID %s: %s", movie_id, e)
