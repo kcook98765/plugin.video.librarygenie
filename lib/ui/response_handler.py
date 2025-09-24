@@ -188,6 +188,7 @@ class ResponseHandler:
                     xbmcplugin.addSortMethod(context.addon_handle, sort_method)
 
             # End directory using Navigator instead of direct xbmcplugin call
+            # Navigator always uses cacheToDisc=False for dynamic content
             self.navigator.finish_directory(
                 context.addon_handle,
                 succeeded=bool(kodi_params.get('succeeded', True)),

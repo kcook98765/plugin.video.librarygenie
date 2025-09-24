@@ -102,23 +102,18 @@ class FavoritesHandler:
                     False
                 )
 
-                # Smart caching for empty favorites
-                enable_caching = not context.get_param('rt')
-                
-                # Set content type and finish directory (use default for empty)
+                # Set content type and finish directory using Navigator
                 xbmcplugin.setContent(context.addon_handle, 'movies')
-                xbmcplugin.endOfDirectory(
+                from lib.ui.nav import finish_directory
+                finish_directory(
                     context.addon_handle,
                     succeeded=True,
-                    updateListing=True,
-                    cacheToDisc=False
+                    update=True
                 )
 
                 return DirectoryResponse(
                     items=[],
                     success=True,
-                    cache_to_disc=enable_caching,
-                    allow_caching=enable_caching,
                     content_type="movies"
                 )
             else:
@@ -145,15 +140,10 @@ class FavoritesHandler:
                     context_menu_callback=None # Context menus are now handled globally
                 )
 
-                # Smart caching for favorites content
-                enable_caching = not context.get_param('rt')
-                
                 # Return based on renderer success
                 return DirectoryResponse(
                     items=favorites_items,
                     success=success,
-                    cache_to_disc=enable_caching,
-                    allow_caching=enable_caching,
                     content_type=detected_content_type
                 )
 

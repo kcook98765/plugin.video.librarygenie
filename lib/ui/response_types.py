@@ -12,17 +12,17 @@ from lib.ui.localization import L
 
 class NavigationIntent:
     """Describes navigation intent without performing it"""
-    
+
     def __init__(self, mode: Literal['push', 'replace', 'refresh', None] = None, url: Optional[str] = None):
         self.mode = mode
         self.url = url
-        
+
         # Validation
         if mode in ['push', 'replace'] and not url:
             raise ValueError(f"Navigation mode '{mode}' requires a URL")
         if mode == 'refresh' and url:
             raise ValueError("Refresh mode should not have a URL")
-    
+
     def __repr__(self):
         if self.mode == 'refresh':
             return f"NavigationIntent(mode='refresh')"
@@ -34,39 +34,30 @@ class NavigationIntent:
 
 class DirectoryResponse:
     """Response for directory listing handlers"""
-    
-    def __init__(self, items: List[Dict[str, Any]], success: bool = True, 
-                 cache_to_disc: bool = False, update_listing: bool = False,
-                 sort_methods: Optional[List[int]] = None, content_type: str = "movies",
-                 allow_caching: bool = False, intent: Optional[NavigationIntent] = None):
+
+    def __init__(self, items: List[Dict[str, Any]], success: bool = True, content_type: str = "movies", 
+                 update_listing: bool = False, sort_methods: Optional[List[int]] = None, 
+                 intent: Optional['NavigationIntent'] = None):
         self.items = items
         self.success = success
-        self.cache_to_disc = cache_to_disc  # Default to no caching for dynamic content
-        self.update_listing = update_listing
-        self.sort_methods = sort_methods
         self.content_type = content_type
-        self.allow_caching = allow_caching  # Explicit flag to enable caching for truly static content
+        self.update_listing = update_listing
+        self.sort_methods = sort_methods or []
         self.intent = intent
 
-    def to_kodi_params(self) -> Dict[str, Union[bool, List[int], None]]:
+    def to_kodi_params(self) -> Dict[str, Any]:
         """Convert to parameters for xbmcplugin.endOfDirectory"""
-        # Use smart caching logic: allow_caching overrides cache_to_disc
-        cache_enabled = self.allow_caching if hasattr(self, 'allow_caching') else self.cache_to_disc
-        
-        params: Dict[str, Union[bool, List[int], None]] = {
+        return {
             'succeeded': self.success,
-            'cacheToDisc': cache_enabled,
             'updateListing': self.update_listing,
-            'sortMethods': None
+            'cacheToDisc': False,  # Always disable caching for dynamic content
+            'sortMethods': self.sort_methods
         }
-        if self.sort_methods:
-            params['sortMethods'] = self.sort_methods
-        return params
 
 
 class DialogResponse:
     """Response type for dialog operations"""
-    
+
     def __init__(self, success: bool = False, message: str = "", 
                  refresh_needed: bool = False, navigate_to_lists: bool = False,
                  navigate_to_folder: Optional[Union[int, str]] = None, navigate_to_main: bool = False,
@@ -82,7 +73,7 @@ class DialogResponse:
         self.navigate_on_failure = navigate_on_failure
         self.is_settings_operation = is_settings_operation
         self.intent = intent
-        
+
         # Debug logging (moved from __post_init__)
         try:
             from lib.utils.kodi_log import get_kodi_logger
@@ -108,7 +99,7 @@ class DialogResponse:
 
 class ActionResponse:
     """Response for action handlers (play, add to list, etc.)"""
-    
+
     def __init__(self, success: bool, action_performed: str, 
                  refresh_needed: bool = False, notification_message: Optional[str] = None):
         self.success = success

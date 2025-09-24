@@ -325,24 +325,14 @@ class ListsHandler:
                         item['is_folder']
                     )
 
-                # Smart caching: Allow cache for navigation, fresh after operations
-                enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
-                # End directory
-                xbmcplugin.endOfDirectory(
-                    context.addon_handle,
-                    succeeded=True,
-                    updateListing=True,
-                    cacheToDisc=False
-                )
+                # Determine if this is a refresh or initial load
+                is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
                 return DirectoryResponse(
                     items=menu_items,
                     success=True,
-                    cache_to_disc=enable_caching,
-                    allow_caching=enable_caching,
                     content_type="files",
-                    update_listing=False,  # PUSH semantics for initial load
+                    update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
                     intent=None  # Pure rendering, no navigation intent
                 )
 
@@ -521,17 +511,12 @@ class ListsHandler:
                     item['is_folder']
                 )
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=enable_caching,
-                allow_caching=enable_caching,
                 content_type="files",
                 update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
                 intent=None  # Pure rendering, no navigation intent
@@ -670,10 +655,7 @@ class ListsHandler:
                     item['is_folder']
                 )
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
-            # Use nav_policy to determine navigation mode
+            # Use navigation policy to determine navigation mode
             from lib.ui.nav_policy import decide_mode
             current_route = {'action': 'show_folder', 'folder_id': folder_id}
             next_route = current_route  # Same route for folder view
@@ -683,8 +665,6 @@ class ListsHandler:
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=enable_caching,
-                allow_caching=enable_caching,
                 content_type="files",
                 update_listing=update_listing,  # Use nav_policy decision
                 intent=None  # Pure rendering, no navigation intent
@@ -872,9 +852,6 @@ class ListsHandler:
             # Set content type for better Kodi integration
             xbmcplugin.setContent(context.addon_handle, detected_content_type)
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
@@ -998,17 +975,12 @@ class ListsHandler:
                     item['is_folder']
                 )
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=enable_caching,
-                allow_caching=enable_caching,
                 content_type="files",
                 update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
                 intent=None  # Pure rendering, no navigation intent
