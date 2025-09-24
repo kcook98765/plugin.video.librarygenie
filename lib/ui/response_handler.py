@@ -44,9 +44,9 @@ class ResponseHandler:
                         5000
                     )
 
-            # Handle navigation based on response flags - prioritize specific navigation over refresh
+            # Handle navigation based on NavigationIntent (primary) or legacy flags (fallback)
             if response.success:
-                # Check for navigate_to_folder attribute directly on the response object
+                # Check for legacy navigation flags for backward compatibility
                 if getattr(response, 'navigate_to_folder', None):
                     # Navigate to specific folder (highest priority for folder operations)
                     from lib.ui.session_state import get_session_state
