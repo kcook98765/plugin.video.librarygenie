@@ -599,8 +599,6 @@ class ListsHandler:
 
             menu_items = []
 
-            # Tools & Options for folders are now accessed through proper context menu only
-
             # Add subfolders in this folder
             for subfolder in subfolders:
                 subfolder_id = subfolder.get('id')
@@ -652,8 +650,6 @@ class ListsHandler:
                     'This folder contains no lists or subfolders'  # This string should also be localized
                 )
 
-            # Breadcrumb context now integrated into Tools & Options labels
-
             # Build directory items
             for item in menu_items:
                 list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
@@ -677,8 +673,12 @@ class ListsHandler:
             # Smart caching: Allow cache for navigation, fresh after operations
             enable_caching = not context.get_param('rt')  # No cache if refresh token present
 
-            # Determine if this is a refresh or initial load
-            is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
+            # Use nav_policy to determine navigation mode
+            from lib.ui.nav_policy import decide_mode
+            current_route = {'action': 'show_folder', 'folder_id': folder_id}
+            next_route = current_route  # Same route for folder view
+            nav_mode = decide_mode(current_route, next_route, 'folder_view')
+            update_listing = (nav_mode == 'replace')
 
             return DirectoryResponse(
                 items=menu_items,
@@ -686,7 +686,7 @@ class ListsHandler:
                 cache_to_disc=enable_caching,
                 allow_caching=enable_caching,
                 content_type="files",
-                update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
+                update_listing=update_listing,  # Use nav_policy decision
                 intent=None  # Pure rendering, no navigation intent
             )
 
@@ -977,8 +977,6 @@ class ListsHandler:
                     "No search history",  # TODO: Add L() ID for this
                     'Search results will appear here'
                 )
-
-            # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
             for item in menu_items:

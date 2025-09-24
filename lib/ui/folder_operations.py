@@ -66,11 +66,10 @@ class FolderOperations:
             else:
                 context.logger.info("Successfully created folder: %s", folder_name)
                 from lib.ui.response_types import NavigationIntent
-                lists_url = f"plugin://plugin.video.librarygenie/?action=lists"
                 return DialogResponse(
                     success=True,
                     message=f"Created folder: {folder_name}", # This string should also be localized
-                    intent=NavigationIntent(mode='replace', url=lists_url)  # Navigate to lists view to show new folder
+                    intent=NavigationIntent(mode='refresh')  # REFRESH current view to show new folder
                 )
 
         except Exception as e:
@@ -144,11 +143,10 @@ class FolderOperations:
             else:
                 context.logger.info("Successfully deleted folder: %s", folder_name)
                 from lib.ui.response_types import NavigationIntent
-                lists_url = f"plugin://plugin.video.librarygenie/?action=lists"
                 return DialogResponse(
                     success=True,
                     message=f"Deleted folder: {folder_name}", # This string should also be localized
-                    intent=NavigationIntent(mode='replace', url=lists_url)  # Navigate away from deleted folder
+                    intent=NavigationIntent(mode='refresh')  # REFRESH current view after deletion
                 )
 
         except Exception as e:
@@ -209,7 +207,7 @@ class FolderOperations:
                 return DialogResponse(
                     success=True,
                     message=f"Renamed folder to: {new_name}", # This string should also be localized
-                    intent=NavigationIntent(mode='refresh')
+                    intent=NavigationIntent(mode='refresh')  # REFRESH current view to show renamed folder
                 )
 
         except Exception as e:
@@ -292,7 +290,7 @@ class FolderOperations:
                 return DialogResponse(
                     success=True,
                     message=f"Moved '{list_name}' to {target_name}", # This string should also be localized
-                    intent=NavigationIntent(mode='refresh')
+                    intent=NavigationIntent(mode='refresh')  # REFRESH current view after moving list
                 )
 
         except Exception as e:
@@ -378,7 +376,7 @@ class FolderOperations:
                 return DialogResponse(
                     success=True,
                     message=f"Moved '{folder_name}' to {target_name}", # This string should also be localized
-                    intent=NavigationIntent(mode='refresh')
+                    intent=NavigationIntent(mode='refresh')  # REFRESH current view after moving folder
                 )
 
         except Exception as e:
