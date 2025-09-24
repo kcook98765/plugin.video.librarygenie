@@ -1643,8 +1643,8 @@ class QueryManager:
             self.logger.error("Failed to rename folder: %s", e)
             return {"success": False, "error": "database_error", "message": str(e)}
 
-    def delete_folder(self, folder_id):
-        """Delete a folder (must be empty)"""
+    def delete_folder(self, folder_id, force_delete_contents=False):
+        """Delete a folder (and optionally its contents if force_delete_contents=True)"""
         try:
             # Check if folder is reserved
             if self.is_reserved_folder(folder_id):
@@ -1658,21 +1658,46 @@ class QueryManager:
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
 
-            # Check if folder has lists
-            lists_count = self.connection_manager.execute_single("""
-                SELECT COUNT(*) as count FROM lists WHERE folder_id = ?
-            """, [folder_id])
+            if force_delete_contents:
+                # Delete all lists in folder first
+                with self.connection_manager.transaction() as conn:
+                    # Delete list items first to maintain referential integrity
+                    conn.execute("""
+                        DELETE FROM list_items 
+                        WHERE list_id IN (SELECT id FROM lists WHERE folder_id = ?)
+                    """, [folder_id])
+                    
+                    # Delete lists in folder
+                    conn.execute("DELETE FROM lists WHERE folder_id = ?", [folder_id])
+                    
+                    # Delete subfolders recursively  
+                    subfolders = self.connection_manager.execute_query("""
+                        SELECT id FROM folders WHERE parent_id = ?
+                    """, [folder_id])
+                    
+                    for subfolder in subfolders:
+                        # Recursive deletion of subfolders
+                        result = self.delete_folder(subfolder['id'], force_delete_contents=True)
+                        if not result.get("success"):
+                            raise Exception(f"Failed to delete subfolder {subfolder['id']}")
+                
+                self.logger.debug("Deleted contents of folder %s", folder_id)
+            else:
+                # Check if folder has lists
+                lists_count = self.connection_manager.execute_single("""
+                    SELECT COUNT(*) as count FROM lists WHERE folder_id = ?
+                """, [folder_id])
 
-            if lists_count and lists_count['count'] > 0:
-                return {"success": False, "error": "not_empty", "message": "Folder contains lists"}
+                if lists_count and lists_count['count'] > 0:
+                    return {"success": False, "error": "not_empty", "message": "Folder contains lists"}
 
-            # Check if folder has subfolders
-            subfolders_count = self.connection_manager.execute_single("""
-                SELECT COUNT(*) as count FROM folders WHERE parent_id = ?
-            """, [folder_id])
+                # Check if folder has subfolders
+                subfolders_count = self.connection_manager.execute_single("""
+                    SELECT COUNT(*) as count FROM folders WHERE parent_id = ?
+                """, [folder_id])
 
-            if subfolders_count and subfolders_count['count'] > 0:
-                return {"success": False, "error": "not_empty", "message": "Folder contains subfolders"}
+                if subfolders_count and subfolders_count['count'] > 0:
+                    return {"success": False, "error": "not_empty", "message": "Folder contains subfolders"}
 
             # Delete folder
             with self.connection_manager.transaction() as conn:
