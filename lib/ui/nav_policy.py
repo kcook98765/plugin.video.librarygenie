@@ -19,8 +19,8 @@ class NavigationPolicy:
 
     def decide_mode(
         self, 
-        current_route: Optional[str], 
-        next_route: str, 
+        current_route, 
+        next_route, 
         reason: str = "navigation",
         current_params: Optional[Dict[str, Any]] = None,
         next_params: Optional[Dict[str, Any]] = None
@@ -60,8 +60,16 @@ class NavigationPolicy:
             self.logger.debug("NAV POLICY: Different page/content → PUSH")
             return 'push'
 
-    def _extract_base_action(self, route: str) -> str:
-        """Extract the base action from a route URL"""
+    def _extract_base_action(self, route) -> str:
+        """Extract the base action from a route URL or dict"""
+        # Handle dictionary route (new format)
+        if isinstance(route, dict):
+            return route.get('action', 'unknown')
+        
+        # Handle string route (legacy format)
+        if not isinstance(route, str):
+            return str(route)
+        
         # Handle plugin URLs
         if 'action=' in route:
             parts = route.split('action=')
@@ -149,8 +157,8 @@ def get_nav_policy() -> NavigationPolicy:
 
 # Convenience functions for direct access
 def decide_mode(
-    current_route: Optional[str], 
-    next_route: str, 
+    current_route, 
+    next_route, 
     reason: str = "navigation",
     current_params: Optional[Dict[str, Any]] = None,
     next_params: Optional[Dict[str, Any]] = None
