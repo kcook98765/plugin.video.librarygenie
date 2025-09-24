@@ -1476,7 +1476,7 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Failed to open AI search")
 
     def _handle_search_history(self, context: PluginContext) -> DialogResponse:
-        """Display search history folder contents directly"""
+        """Navigate to search history folder"""
         try:
             query_manager = context.query_manager
             if not query_manager:
@@ -1485,28 +1485,18 @@ class ToolsHandler:
             search_folder_id = query_manager.get_or_create_search_history_folder()
 
             if search_folder_id:
-                # Directly display the search history folder contents instead of navigating
-                context.logger.debug("TOOLS: Directly displaying search history folder %s contents", search_folder_id)
-
-                from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.response_handler import get_response_handler
-
-                factory = get_handler_factory()
-                factory.context = context
-                lists_handler = factory.get_lists_handler()
-                response_handler = get_response_handler()
-
-                # Display the folder contents directly
-                folder_response = lists_handler.show_folder(context, str(search_folder_id))
-
-                # Process the response to display the folder contents
-                response_handler.handle_directory_response(folder_response, context)
-
-                return DialogResponse(success=True, message="")
+                # Navigate to the search history folder using proper navigation
+                context.logger.debug("TOOLS: Navigating to search history folder %s", search_folder_id)
+                
+                return DialogResponse(
+                    success=True,
+                    message="",
+                    navigate_to_folder=str(search_folder_id)
+                )
             else:
                 return DialogResponse(success=False, message="Could not access search history")
         except Exception as e:
-            context.logger.error("Error displaying search history: %s", e)
+            context.logger.error("Error navigating to search history: %s", e)
             return DialogResponse(success=False, message="Failed to open search history")
 
     def _handle_create_folder(self, context: PluginContext) -> DialogResponse:
