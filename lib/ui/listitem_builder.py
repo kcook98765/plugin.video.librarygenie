@@ -401,6 +401,9 @@ class ListItemBuilder:
             except Exception as debug_e:
                 self.logger.warning("PLAYBACK_DEBUG: Failed final validation for '%s': %s", title, debug_e)
 
+            # Add context menu options for list items
+            self._add_media_context_menu(li, item, media_type, kodi_id, title)
+            
             return playback_url, li, is_folder
         except Exception as e:
             self.logger.error("LIB ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
@@ -440,6 +443,46 @@ class ListItemBuilder:
             
         except Exception as e:
             self.logger.debug("CACHE PRELOAD: Failed to pre-populate cache for '%s': %s", title, e)
+    
+    def _add_media_context_menu(self, li: 'xbmcgui.ListItem', item: Dict[str, Any], media_type: str, kodi_id, title: str):
+        """Add context menu items for media items when viewing lists"""
+        try:
+            # Check if we're in a list context
+            list_id = item.get('list_id') or self.context.get_param('list_id')
+            if not list_id:
+                return
+            
+            # Get media_item_id if available (preferred for LibraryGenie items)
+            media_item_id = item.get('media_item_id') or item.get('id')
+            
+            context_items = []
+            
+            # Import localization for labels
+            try:
+                from lib.ui.localization import L
+                remove_label = L(31010) if L(31010) else "Remove from List"
+            except ImportError:
+                remove_label = "Remove from List"
+            
+            # Build the appropriate remove action URL based on available data
+            if media_item_id and media_item_id != '':
+                # Use media_item_id for LibraryGenie items
+                remove_url = f"RunPlugin(plugin://{self.addon_id}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})"
+            elif media_type and kodi_id is not None:
+                # Use library item identifiers
+                remove_url = f"RunPlugin(plugin://{self.addon_id}/?action=remove_library_item_from_list&list_id={list_id}&dbtype={media_type}&dbid={kodi_id}&title={title})"
+            else:
+                # No valid identifiers available
+                return
+            
+            context_items.append((remove_label, remove_url))
+            
+            # Add the context menu items to the ListItem
+            li.addContextMenuItems(context_items)
+            self.logger.debug("CONTEXT: Added context menu for '%s' in list %s", title, list_id)
+            
+        except Exception as e:
+            self.logger.error("CONTEXT: Failed to add context menu for '%s': %s", title, e)
 
     def _create_action_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
