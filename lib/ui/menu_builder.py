@@ -54,8 +54,6 @@ class MenuBuilder:
                     # Format: "Lists > Folder Name" = folder context
                     # Don't add generic Tools & Options here as folders handle their own
                     return True
-                else:
-            else:
             
             # Single-level contexts that are not folders
             return False
@@ -130,7 +128,6 @@ class MenuBuilder:
                     )
                 except Exception as e:
                     self.logger.error("MENU BUILD: Failed to add Tools & Options: %s", e)
-            else:
 
         for idx, item in enumerate(items):
             try:
