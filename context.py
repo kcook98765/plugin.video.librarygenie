@@ -20,20 +20,38 @@ from lib.ui.localization import L
 def _is_folder_context(container_path, file_path):
     """Check if we're in a folder context within LibraryGenie"""
     try:
+        xbmc.log("=== FOLDER DETECTION ANALYSIS ===", xbmc.LOGINFO)
+        xbmc.log(f"Folder Detection: container_path = '{container_path}'", xbmc.LOGINFO)
+        xbmc.log(f"Folder Detection: file_path = '{file_path}'", xbmc.LOGINFO)
+        
         # Check if we're within LibraryGenie plugin
-        is_lg_plugin = (
-            container_path and container_path.startswith('plugin://plugin.video.librarygenie/') or
-            file_path and file_path.startswith('plugin://plugin.video.librarygenie/')
-        )
+        container_is_lg = container_path and container_path.startswith('plugin://plugin.video.librarygenie/')
+        file_is_lg = file_path and file_path.startswith('plugin://plugin.video.librarygenie/')
+        
+        xbmc.log(f"Folder Detection: container_is_lg = {container_is_lg}", xbmc.LOGINFO)
+        xbmc.log(f"Folder Detection: file_is_lg = {file_is_lg}", xbmc.LOGINFO)
+        
+        is_lg_plugin = container_is_lg or file_is_lg
+        xbmc.log(f"Folder Detection: is_lg_plugin = {is_lg_plugin}", xbmc.LOGINFO)
         
         if not is_lg_plugin:
+            xbmc.log("Folder Detection: NOT LibraryGenie plugin context - returning False", xbmc.LOGINFO)
             return False
         
         # Check for folder-specific URL parameters
-        is_folder = (
-            container_path and ('folder_id=' in container_path or 'list_type=folder' in container_path) or
-            file_path and ('folder_id=' in file_path or 'list_type=folder' in file_path)
-        )
+        container_has_folder = container_path and ('folder_id=' in container_path or 'list_type=folder' in container_path)
+        file_has_folder = file_path and ('folder_id=' in file_path or 'list_type=folder' in file_path)
+        
+        xbmc.log(f"Folder Detection: container_has_folder_params = {container_has_folder}", xbmc.LOGINFO)
+        xbmc.log(f"Folder Detection: file_has_folder_params = {file_has_folder}", xbmc.LOGINFO)
+        
+        if container_has_folder:
+            xbmc.log(f"Folder Detection: Found folder params in container: {container_path}", xbmc.LOGINFO)
+        if file_has_folder:
+            xbmc.log(f"Folder Detection: Found folder params in file: {file_path}", xbmc.LOGINFO)
+        
+        is_folder = container_has_folder or file_has_folder
+        xbmc.log(f"Folder Detection: FINAL RESULT = {bool(is_folder)}", xbmc.LOGINFO)
         
         return bool(is_folder)
         
@@ -45,25 +63,60 @@ def _is_folder_context(container_path, file_path):
 def main():
     """Main context menu handler"""
     try:
-        # Debug: Log that context menu was triggered
-        xbmc.log("LibraryGenie: Context menu script triggered", xbmc.LOGINFO)
-        xbmc.log(f"LibraryGenie: Context script sys.argv: {sys.argv}", xbmc.LOGINFO)
-
+        # Enhanced debugging - log EVERYTHING about the context
+        xbmc.log("=== LibraryGenie CONTEXT MENU TRIGGERED ===", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie Context: sys.argv={sys.argv}", xbmc.LOGINFO)
+        
         addon = xbmcaddon.Addon()
 
-        # Debug: Log current item info
-        dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-        file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-        container_path = xbmc.getInfoLabel('Container.FolderPath')
-        xbmc.log(f"LibraryGenie: Context - DBTYPE={dbtype}, FilePath={file_path}, ContainerPath={container_path}", xbmc.LOGINFO)
+        # Comprehensive context debugging - capture ALL available information
+        context_info = {
+            'container_path': xbmc.getInfoLabel('Container.FolderPath'),
+            'container_content': xbmc.getInfoLabel('Container.Content'),
+            'container_label': xbmc.getInfoLabel('Container.Label'),
+            'listitem_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'listitem_label': xbmc.getInfoLabel('ListItem.Label'),
+            'listitem_dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
+            'listitem_dbid': xbmc.getInfoLabel('ListItem.DBID'),
+            'listitem_title': xbmc.getInfoLabel('ListItem.Title'),
+            'listitem_plot': xbmc.getInfoLabel('ListItem.Plot'),
+            'window_property': xbmc.getInfoLabel('Window.Property(xmlfile)'),
+            'current_window': xbmc.getInfoLabel('System.CurrentWindow'),
+            'current_control': xbmc.getInfoLabel('System.CurrentControl'),
+        }
+        
+        # Log all context information
+        xbmc.log("=== DETAILED CONTEXT ANALYSIS ===", xbmc.LOGINFO)
+        for key, value in context_info.items():
+            xbmc.log(f"LibraryGenie Context: {key} = '{value}'", xbmc.LOGINFO)
+        
+        # Check for any custom properties that might be set on the item
+        custom_properties = [
+            'media_item_id', 'list_id', 'folder_id', 'list_type', 'is_folder',
+            'LG.InfoHijack.DBID', 'LG.InfoHijack.DBType', 'LG.InfoHijack.Armed'
+        ]
+        
+        xbmc.log("=== CUSTOM PROPERTIES CHECK ===", xbmc.LOGINFO)
+        for prop in custom_properties:
+            prop_value = xbmc.getInfoLabel(f'ListItem.Property({prop})')
+            if prop_value:
+                xbmc.log(f"LibraryGenie Context: Property {prop} = '{prop_value}'", xbmc.LOGINFO)
+            else:
+                xbmc.log(f"LibraryGenie Context: Property {prop} = <empty>", xbmc.LOGINFO)
 
-        # Check if we're in a folder context within LibraryGenie
+        # Test folder context detection with detailed logging
+        container_path = context_info['container_path']
+        file_path = context_info['listitem_path']
+        
+        xbmc.log("=== FOLDER CONTEXT DETECTION ===", xbmc.LOGINFO)
         is_folder_context = _is_folder_context(container_path, file_path)
+        xbmc.log(f"LibraryGenie Context: Folder detection result = {is_folder_context}", xbmc.LOGINFO)
         
         if is_folder_context:
-            # Skip the global LibraryGenie menu for folders - they should use Tools & Options instead
-            xbmc.log("LibraryGenie: Folder context detected, skipping global context menu", xbmc.LOGINFO)
+            xbmc.log("LibraryGenie Context: FOLDER DETECTED - Skipping global context menu", xbmc.LOGINFO)
             return
+        else:
+            xbmc.log("LibraryGenie Context: NOT A FOLDER - Proceeding with global context menu", xbmc.LOGINFO)
         
         # Show LibraryGenie submenu with conditional options for non-folder contexts
         _show_librarygenie_menu(addon)
