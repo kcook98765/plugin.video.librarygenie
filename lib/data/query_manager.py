@@ -1741,7 +1741,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT 
-                    f.id, f.name, f.created_at
+                    f.id, f.name, f.parent_id, f.created_at
                 FROM folders f
                 WHERE f.id = ?
             """, [int(folder_id)])
@@ -1750,6 +1750,7 @@ class QueryManager:
                 return {
                     "id": str(result['id']),
                     "name": result['name'],
+                    "parent_id": result['parent_id'],
                     "created": result['created_at'][:10] if result['created_at'] else ''
                 }
 
