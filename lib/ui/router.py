@@ -21,6 +21,31 @@ class Router:
         self.logger = get_kodi_logger('lib.ui.router')
         self._handlers: Dict[str, Callable] = {}
 
+    def _get_current_route_info(self):
+        """Get current route information for navigation decisions"""
+        try:
+            import xbmc
+            current_path = xbmc.getInfoLabel('Container.FolderPath')
+            
+            # Extract action and parameters from current path
+            if 'action=' in current_path:
+                # Parse current route parameters
+                import urllib.parse
+                parsed = urllib.parse.urlparse(current_path)
+                params = urllib.parse.parse_qs(parsed.query)
+                # Flatten parameter values
+                current_params = {k: v[0] if v else '' for k, v in params.items()}
+                current_route = current_params.get('action', '')
+            else:
+                current_route = None
+                current_params = {}
+            
+            self.logger.debug("ROUTER: Current route info - route: %s, params: %s", current_route, current_params)
+            return current_route, current_params
+        except Exception as e:
+            self.logger.warning("ROUTER: Error getting current route info: %s", e)
+            return None, {}
+
     def register_handler(self, action: str, handler: Callable):
         """Register a handler function for an action"""
         self._handlers[action] = handler
@@ -28,6 +53,32 @@ class Router:
     def register_handlers(self, handlers: Dict[str, Callable]):
         """Register multiple handlers at once"""
         self._handlers.update(handlers)
+
+    def _navigate_smart(self, next_route: str, reason: str = "navigation", next_params: Dict[str, Any] = None):
+        """Navigate using navigation policy to determine push vs replace"""
+        try:
+            from lib.ui.nav_policy import decide_mode
+            from lib.ui.nav import get_navigator
+            
+            current_route, current_params = self._get_current_route_info()
+            next_params = next_params or {}
+            
+            # Decide navigation mode
+            mode = decide_mode(current_route, next_route, reason, current_params, next_params)
+            
+            navigator = get_navigator()
+            if mode == 'push':
+                navigator.push(next_route)
+            else:  # replace
+                navigator.replace(next_route)
+                
+            self.logger.debug("ROUTER: Smart navigation - mode: %s, route: %s", mode, next_route)
+            
+        except Exception as e:
+            self.logger.error("ROUTER: Error in smart navigation: %s", e)
+            # Fallback to push
+            from lib.ui.nav import push
+            push(next_route)
 
     def dispatch(self, context: PluginContext) -> bool:
         """
