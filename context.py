@@ -540,29 +540,28 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Show the search submenu
             _show_search_submenu(addon)
 
-
         elif action_with_params == "search" or action_with_params == "search_movies":
-            # Launch LibraryGenie search (default to movies)
+            # Launch LibraryGenie search (default to movies) - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=search"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
 
         elif action_with_params == "search_tv":
-            # Launch LibraryGenie TV search
+            # Launch LibraryGenie TV search - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=search&content_type=episodes"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
 
         elif action_with_params == "search_ai":
-            # Launch AI Movie Search
+            # Launch AI Movie Search - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=ai_search"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
 
         elif action_with_params == "search_history":
-            # Show search history
+            # Show search history - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=show_search_history"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
 
         elif action_with_params == "show_favorites":
-            # Show Kodi Favorites
+            # Show Kodi Favorites - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=show_favorites"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
 
@@ -570,17 +569,15 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Handle external item by gathering metadata
             _handle_external_item_add(addon)
 
-        
-
         elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
-            # Handle remove actions by building plugin URL
+            # Handle remove actions - pure context actions, no endOfDirectory
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
             xbmc.log(f"LibraryGenie: Executing remove action: {plugin_url}", xbmc.LOGINFO)
             xbmc.executebuiltin(f"RunPlugin({plugin_url})")
             xbmc.log(f"LibraryGenie: Remove action executed, waiting for result", xbmc.LOGINFO)
 
         else:
-            # Handle other actions by building plugin URL
+            # Handle other actions - pure context actions, no endOfDirectory
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
             xbmc.executebuiltin(f"RunPlugin({plugin_url})")
 
