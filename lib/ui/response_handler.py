@@ -138,9 +138,10 @@ class ResponseHandler:
                     # Navigate back to the stored tools return location
                     from lib.ui.session_state import get_session_state
                     session_state = get_session_state()
-                    if session_state and session_state.get_tools_return_location():
-                        context.logger.debug("RESPONSE HANDLER: Navigating back to tools return location: %s", session_state.get_tools_return_location())
-                        self.navigator.replace(session_state.get_tools_return_location())
+                    tools_return_url = session_state.get_tools_return_location() if session_state else None
+                    if tools_return_url:
+                        context.logger.debug("RESPONSE HANDLER: Navigating back to tools return location: %s", tools_return_url)
+                        self.navigator.replace(tools_return_url)
                         # Clear the return location after using it
                         session_state.clear_tools_return_location()
                         return
@@ -262,6 +263,7 @@ class ResponseHandler:
             success=False,
             **kwargs
         )
+
 
     def handle_response(self, response: DialogResponse, context: PluginContext) -> None:
         """Handle dialog response and perform appropriate navigation"""
