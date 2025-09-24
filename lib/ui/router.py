@@ -508,6 +508,7 @@ class Router:
                     # ROUTER TIMING: Handler factory import
                     import_start_time = time.time()
                     from lib.ui.handler_factory import get_handler_factory
+                    from lib.ui.response_handler import get_response_handler
                     import_end_time = time.time()
                     self.logger.info(f"ROUTER: Handler factory import took {import_end_time - import_start_time:.3f} seconds")
 
@@ -515,23 +516,24 @@ class Router:
                     factory_creation_start_time = time.time()
                     factory = get_handler_factory()
                     factory.context = context
+                    response_handler = get_response_handler()
                     factory_creation_end_time = time.time()
                     self.logger.info(f"ROUTER: Handler factory creation and context setup took {factory_creation_end_time - factory_creation_start_time:.3f} seconds")
 
                     # ROUTER TIMING: Lists handler retrieval
-                    handler_retrieval_start_time = time.time()
+                    lists_handler_start_time = time.time()
                     lists_handler = factory.get_lists_handler()
-                    handler_retrieval_end_time = time.time()
-                    self.logger.info(f"ROUTER: Lists handler retrieval took {handler_retrieval_end_time - handler_retrieval_start_time:.3f} seconds")
+                    lists_handler_end_time = time.time()
+                    self.logger.info(f"ROUTER: Lists handler retrieval took {lists_handler_end_time - lists_handler_start_time:.3f} seconds")
 
                     # ROUTER TIMING: Main menu handler execution
-                    handler_start_time = time.time()
+                    main_menu_start_time = time.time()
                     response = lists_handler.show_lists_menu(context)
-                    handler_end_time = time.time()
-                    self.logger.info(f"ROUTER: Main menu handler execution took {handler_end_time - handler_start_time:.3f} seconds")
+                    success = response_handler.handle_directory_response(response, context)
+                    main_menu_end_time = time.time()
+                    self.logger.info(f"ROUTER: Main menu handler execution took {main_menu_end_time - main_menu_start_time:.3f} seconds")
 
-                    return response.success if hasattr(response, 'success') else True
-
+                    return success
                 # Use the registered handler
                 handler(context)
                 return True
@@ -639,7 +641,7 @@ class Router:
             # Pop up keyboard for OTP entry
             dialog = xbmcgui.Dialog()
             otp_code = dialog.input(
-                "Enter OTP Code", 
+                "Enter OTP Code",
                 "Enter the 8-digit OTP code from your server:"
             )
 
@@ -667,7 +669,7 @@ class Router:
                 progress.close()
 
                 if result['success']:
-                    # Success - activate AI Search 
+                    # Success - activate AI Search
                     settings.set_ai_search_activated(True)
                     self.logger.info("✅ AI Search activated with server URL: %s", server_url)
 
