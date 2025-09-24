@@ -68,7 +68,7 @@ class SearchHandler:
         if results.total_count > 0:
             # Save search history and get the created list ID
             list_id = self._save_search_history(search_terms, search_options, results)
-            
+
             if list_id:
                 # Check if user chose to show saved list immediately
                 if self._pending_intent:
@@ -176,14 +176,14 @@ class SearchHandler:
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
-                    
+
                     # Show explicit UX option: Show saved list now?
                     dialog_title = "Search Saved"
                     dialog_message = f"Saved {added} items to search history.\n\nShow the saved list now?"
-                    
+
                     # Always show dialog if in forced mode, or based on user preference
                     show_now = xbmcgui.Dialog().yesno(dialog_title, dialog_message)
-                    
+
                     if show_now:
                         # User chose to show saved list immediately - use PUSH semantics
                         from lib.ui.response_types import NavigationIntent
@@ -204,7 +204,7 @@ class SearchHandler:
                             # Fallback message
                             formatted_message = f"Search saved: {added} items"
                         self._notify_info(formatted_message, ms=3000)
-                    
+
                     return list_id  # Return the list ID on success
                 else:
                     self._warn(f"Failed to add items to search history list {list_id}")
@@ -223,29 +223,29 @@ class SearchHandler:
         """Directly render saved search list without Container.Update redirect"""
         try:
             self._debug(f"Directly rendering saved search list ID: {list_id}")
-            
+
             # Import and instantiate ListsHandler
             from lib.ui.handler_factory import get_handler_factory
             from lib.ui.response_handler import get_response_handler
-            
+
             factory = get_handler_factory()
             factory.context = context
             lists_handler = factory.get_lists_handler()
             response_handler = get_response_handler()
-            
+
             # Directly call view_list with the saved list ID
             directory_response = lists_handler.view_list(context, list_id)
-            
+
             # Handle the DirectoryResponse
             success = response_handler.handle_directory_response(directory_response, context)
-            
+
             if success:
                 self._debug(f"Successfully rendered saved search list {list_id} directly")
                 return True
             else:
                 self._warn(f"Failed to handle directory response for list {list_id}")
                 return False
-            
+
         except Exception as e:
             self._error(f"Error rendering saved search list directly: {e}")
             import traceback
@@ -271,8 +271,9 @@ class SearchHandler:
 
             self._debug(f"Redirecting to most recent search history list ID: {list_id}")
             list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-            xbmc.executebuiltin(f'Container.Update("{list_url}",replace)')
-            self._end_directory(succeeded=True, update=True)
+            from lib.ui.nav import push
+            push(list_url)  # Use PUSH semantics for search results navigation
+            self._end_directory(succeeded=True, update=False)  # PUSH semantics
             return True
 
         except Exception as e:
@@ -324,13 +325,13 @@ class SearchHandler:
         """Prompt user for AI search query and perform AI search"""
         try:
             from lib.ui.ai_search_handler import get_ai_search_handler
-            
+
             context.logger.debug("AI SEARCH: Starting AI search prompt")
-            
+
             # Use the new AI search handler
             ai_search_handler = get_ai_search_handler()
             success = ai_search_handler.prompt_and_search()
-            
+
             # End directory based on success
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=success)
             return success

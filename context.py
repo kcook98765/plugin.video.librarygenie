@@ -284,11 +284,6 @@ def _show_search_submenu(addon):
         options.append(search_history_label)
         actions.append("show_search_history")
 
-        # Save & Show option (explicit UX choice)
-        save_show_label = "Save & Show Search Results"
-        options.append(save_show_label)
-        actions.append("save_and_show_search")
-
         # Kodi Favorites (if enabled)
         if favorites_enabled:
             favorites_label = L(37204)  # "Kodi Favorites"
@@ -575,10 +570,7 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Handle external item by gathering metadata
             _handle_external_item_add(addon)
 
-        elif action_with_params == "save_and_show_search":
-            # Save current search and show the saved list
-            plugin_url = "plugin://plugin.video.librarygenie/?action=save_and_show_search"
-            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+        
 
         elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
             # Handle remove actions by building plugin URL

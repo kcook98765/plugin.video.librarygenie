@@ -322,21 +322,7 @@ class Router:
                     self.logger.error("Query manager not available for search history")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
-            elif action == 'save_and_show_search':
-                # Handle explicit save & show search with dialog choice
-                from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.nav import finish_directory
-                factory = get_handler_factory()
-                factory.context = context
-                search_handler = factory.get_search_handler()
-                
-                # Force the handler to always ask for Show now option
-                search_handler._force_show_dialog = True
-                
-                result = search_handler.prompt_and_search(context)
-                # Use PUSH semantics when user chooses to show saved results
-                finish_directory(context.addon_handle, succeeded=result, update=False)
-                return result
+            
             elif action == "restore_backup":
                 from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
