@@ -569,6 +569,18 @@ class ListsHandler:
                     success=False
                 )
 
+            # Set proper parent directory for navigation
+            parent_folder_id = folder_info.get('parent_folder_id')
+            if parent_folder_id:
+                # Navigate to parent folder
+                parent_path = context.build_url('show_folder', folder_id=parent_folder_id)
+            else:
+                # Navigate to root plugin directory (main lists menu)
+                parent_path = context.build_url('')  # Empty action = main lists menu
+            
+            context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
+            xbmcplugin.setProperty(context.addon_handle, 'ParentDir', parent_path)
+
             context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
             # Set directory title with breadcrumb context
