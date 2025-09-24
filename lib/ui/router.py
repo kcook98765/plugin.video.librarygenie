@@ -420,7 +420,8 @@ class Router:
                     return True
                 else:
                     # For plugin actions, end directory normally
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=bool(result))
+                    from lib.ui.nav import finish_directory
+                    finish_directory(context.addon_handle, succeeded=bool(result))
                     return bool(result)
             elif action.startswith('add_to_list') or action.startswith('add_library_item_to_list'):
                 from lib.ui.handler_factory import get_handler_factory

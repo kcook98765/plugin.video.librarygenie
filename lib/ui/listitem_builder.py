@@ -160,8 +160,9 @@ class ListItemBuilder:
             return True
         except Exception as e:
             self.logger.error("DIRECTORY BUILD: fatal error: %s", e)
-            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            self.logger.debug("DIRECTORY BUILD: Calling Navigator.finish_directory(handle=%s, succeeded=False)", self.addon_handle)
+            from lib.ui.nav import finish_directory
+            finish_directory(self.addon_handle, succeeded=False)
             
             # Calculate and log complete build time even on failure
             build_end_time = time.time()

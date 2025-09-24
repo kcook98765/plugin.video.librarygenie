@@ -6,11 +6,11 @@ LibraryGenie - Lists Handler
 Handles lists display and navigation (refactored)
 """
 
-from typing import Dict, Any
 import time
 import xbmcplugin
 import xbmcgui
 
+from typing import Dict, Any
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
@@ -67,7 +67,7 @@ class ListsHandler:
             self._import_export = ImportExportHandler(self.context)
         return self._import_export
 
-    @property  
+    @property
     def listitem_renderer(self):
         """Lazy load ListItemRenderer only when needed for navigation rendering"""
         if not hasattr(self, '_listitem_renderer'):
@@ -75,7 +75,7 @@ class ListsHandler:
             from lib.ui.listitem_renderer import get_listitem_renderer
             self._listitem_renderer = get_listitem_renderer(
                 self.context.addon_handle,
-                self.context.addon_id, 
+                self.context.addon_id,
                 self.context
             )
         return self._listitem_renderer
@@ -559,7 +559,7 @@ class ListsHandler:
 
             # Extract data from batch result
             folder_info = navigation_data['folder_info']
-            subfolders = navigation_data['subfolders'] 
+            subfolders = navigation_data['subfolders']
             lists_in_folder = navigation_data['lists']
 
             if not folder_info:
@@ -713,7 +713,7 @@ class ListsHandler:
             # Get pagination parameters
             current_page = int(context.get_param('page', '1'))
 
-            # Import pagination manager 
+            # Import pagination manager
             from lib.ui.pagination_manager import get_pagination_manager
             pagination_manager = get_pagination_manager()
 
@@ -802,7 +802,7 @@ class ListsHandler:
                     url_params=url_params,
                     placement='bottom'
                 )
-                context.logger.debug("Added pagination controls to list (page %d/%d)", 
+                context.logger.debug("Added pagination controls to list (page %d/%d)",
                                    pagination_info.current_page, pagination_info.total_pages)
 
             # Build media items using ListItemBuilder

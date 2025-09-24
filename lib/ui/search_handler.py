@@ -333,12 +333,14 @@ class SearchHandler:
             success = ai_search_handler.prompt_and_search()
 
             # End directory based on success
-            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=success)
+            from lib.ui.nav import finish_directory
+            finish_directory(context.addon_handle, succeeded=success)
             return success
 
         except Exception as e:
             context.logger.error("AI SEARCH: Error in ai_search_prompt: %s", e)
             import traceback
             context.logger.error("AI SEARCH: Traceback: %s", traceback.format_exc())
-            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            from lib.ui.nav import finish_directory
+            finish_directory(context.addon_handle, succeeded=False)
             return False
