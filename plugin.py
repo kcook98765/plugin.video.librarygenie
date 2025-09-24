@@ -758,6 +758,13 @@ def _register_all_handlers(router: Router):
     # Register list and folder view handlers
     router.register_handler('show_list', lambda ctx: factory.get_lists_handler().view_list(ctx, ctx.get_param('list_id')))
     router.register_handler('show_folder', lambda ctx: factory.get_lists_handler().show_folder(ctx, ctx.get_param('folder_id')))
+    
+    # Register quick add context handler
+    def _handle_quick_add_context(ctx):
+        factory.context = ctx
+        return factory.get_lists_handler().quick_add_context(ctx)
+    
+    router.register_handler('quick_add_context', _handle_quick_add_context)
 
     # Register parameter-based handlers with proper context setting
     def _handle_delete_list(ctx):

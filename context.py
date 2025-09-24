@@ -69,27 +69,9 @@ def _show_librarygenie_menu(addon):
         # Debug log the cached info
         xbmc.log(f"LibraryGenie: Cached item info: {item_info}", xbmc.LOGINFO)
 
-        # Build options list - Search is always available
+        # Build options list
         options = []
         actions = []
-
-        # Check if favorites integration is enabled to determine search label
-        from lib.config.settings import SettingsManager
-        try:
-            settings = SettingsManager()
-            favorites_enabled = settings.get_enable_favorites_integration()
-            if favorites_enabled:
-                search_label = L(37105)  # "LG Search/Favorites"
-            else:
-                search_label = L(37100)  # "LG Search"
-        except Exception:
-            search_label = L(37100)  # Default to "LG Search"
-        
-        if not search_label or search_label.startswith('LocMiss_'):
-            search_label = "LG Search"
-        
-        options.append(search_label)
-        actions.append("show_search_submenu")
 
         # Use cached values instead of fresh getInfoLabel calls
         dbtype = item_info['dbtype']
@@ -118,16 +100,10 @@ def _show_librarygenie_menu(addon):
         # Add common LibraryGenie actions in order of priority
         _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_context)
         
-        # Add "LG more..." option for additional actions
-        more_label = L(37104)  # "LG more..."
-        if not more_label or more_label.startswith('LocMiss_'):
-            more_label = "LG more..."
-        options.append(more_label)
-        actions.append("show_more_submenu")
 
-        # Show the menu
+        # Show the menu - always display dialog so user controls what happens
         xbmc.log(f"LibraryGenie: About to show context menu with {len(options)} options: {options}", xbmc.LOGINFO)
-        if len(options) > 1:
+        if len(options) > 0:
             dialog = xbmcgui.Dialog()
             xbmc.log(f"LibraryGenie: Showing dialog with options: {options}", xbmc.LOGINFO)
             selected = dialog.select("LibraryGenie", options)
@@ -139,9 +115,7 @@ def _show_librarygenie_menu(addon):
             else:
                 xbmc.log("LibraryGenie: User canceled dialog or no selection made", xbmc.LOGINFO)
         else:
-            # Only search available, execute directly
-            xbmc.log(f"LibraryGenie: Only one option available, executing directly: {actions[0] if actions else 'none'}", xbmc.LOGINFO)
-            _execute_action("search", addon, item_info)
+            xbmc.log("LibraryGenie: No options available for this context", xbmc.LOGINFO)
 
     except Exception as e:
         xbmc.log(f"LibraryGenie submenu error: {str(e)}", xbmc.LOGERROR)
@@ -299,27 +273,6 @@ def _show_search_submenu(addon):
         _execute_action("search", addon)
 
 
-def _show_more_submenu(addon, item_info):
-    """Show the more options submenu with advanced actions"""
-    try:
-        options = []
-        actions = []
-        
-        # Advanced options:
-        # - Move to another list
-        
-        options.append("[COLOR yellow]Move to Another List...[/COLOR]")
-        actions.append("move_to_list")
-        
-        # Show the submenu
-        dialog = xbmcgui.Dialog()
-        selected = dialog.select("LibraryGenie More Options", options)
-        
-        if selected >= 0:
-            _execute_action(actions[selected], addon)
-    
-    except Exception as e:
-        xbmc.log(f"LibraryGenie more submenu error: {str(e)}", xbmc.LOGERROR)
 
 
 def _add_library_movie_options(dbtype, dbid, options, actions, addon):
@@ -555,9 +508,6 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Show the search submenu
             _show_search_submenu(addon)
             
-        elif action_with_params == "show_more_submenu":
-            # Show the more options submenu
-            _show_more_submenu(addon, item_info)
             
         elif action_with_params == "search" or action_with_params == "search_movies":
             # Launch LibraryGenie search (default to movies)
@@ -671,8 +621,7 @@ def _handle_external_item_add(addon):
                 if not art_data.get('thumb'):
                     art_data['thumb'] = thumb_fallback
 
-        # Store collected art data
-        item_data['art_data'] = art_data
+        # Art data is handled through individual fields below for URL compatibility
 
         # Also set individual fields for backward compatibility
         item_data['poster'] = art_data.get('poster', '')
@@ -687,7 +636,12 @@ def _handle_external_item_add(addon):
         # Clean up empty values and convert numeric fields
         cleaned_data = {}
         for key, value in item_data.items():
-            if value and value.strip():
+            # Skip dictionary values like art_data
+            if isinstance(value, dict):
+                cleaned_data[key] = value
+                continue
+            
+            if value and str(value).strip():
                 if key in ('year', 'season', 'episode', 'playcount'):
                     try:
                         cleaned_data[key] = int(value)
@@ -699,7 +653,7 @@ def _handle_external_item_add(addon):
                     except (ValueError, TypeError):
                         pass
                 else:
-                    cleaned_data[key] = value.strip()
+                    cleaned_data[key] = str(value).strip()
 
         # Validate we have minimum required data
         if not cleaned_data.get('title'):

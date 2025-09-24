@@ -1060,6 +1060,7 @@ class ListsHandler:
             # Get parameters
             dbtype = context.get_param('dbtype')
             dbid = context.get_param('dbid')
+            title = context.get_param('title', 'Unknown')
 
             # Get settings
             from lib.config.settings import SettingsManager
@@ -1067,33 +1068,63 @@ class ListsHandler:
             default_list_id = settings.get_default_list_id()
 
             if not default_list_id:
+                import xbmcgui
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
-                    "No default list configured", # Localize this string
+                    "No default list configured",
                     xbmcgui.NOTIFICATION_WARNING,
                     3000
                 )
                 return False
+
+            # Create minimal library item data - add_library_item_to_list will handle metadata fetching
+            library_item = {
+                'title': title,
+                'media_type': dbtype,
+                'kodi_id': int(dbid) if dbid else None,
+                'source': 'kodi_library'
+            }
 
             # Initialize query manager
             query_manager = get_query_manager()
             if not query_manager.initialize():
                 return False
 
-            # Create external item data
-            external_item = {
-                'title': context.get_param('title', 'Unknown'),
-                'dbtype': dbtype,
-                'dbid': dbid,
-                'source': 'context_menu'
-            }
-
-            # Add to default list
-            result = query_manager.add_library_item_to_list(default_list_id, external_item)
-            return result is not None
+            # Add to default list - this will fetch metadata if needed
+            result = query_manager.add_library_item_to_list(default_list_id, library_item)
+            
+            # Show success notification
+            import xbmcgui
+            if result:
+                # Get list name for notification
+                list_info = query_manager.get_list_by_id(default_list_id)
+                list_name = list_info.get('name', 'Default List') if list_info else 'Default List'
+                
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Added '{title}' to {list_name}",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                return True
+            else:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Failed to add '{title}' to list",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                return False
 
         except Exception as e:
             context.logger.error("Error quick adding to list from context: %s", e)
+            import xbmcgui
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Quick add failed",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
             return False
 
     def add_external_item_to_list(self, context: PluginContext) -> bool:
