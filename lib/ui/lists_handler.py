@@ -451,8 +451,11 @@ class ListsHandler:
                 if folder_name == 'Search History':
                     continue
 
-                # Folder context menu handled by ContextMenuBuilder in listitem_renderer
-                context_menu = []
+                # Folder context menu with proper actions (no Tools & Options)
+                context_menu = [
+                    (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
+                    (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
+                ]
 
                 menu_items.append({
                     'label': folder_name,
@@ -603,8 +606,11 @@ class ListsHandler:
                 subfolder_id = subfolder.get('id')
                 subfolder_name = subfolder.get('name', 'Unnamed Folder')
 
-                # Folder context menu handled by ContextMenuBuilder in listitem_renderer
-                context_menu = []
+                # Subfolder context menu with proper actions (no Tools & Options)
+                context_menu = [
+                    (f"Rename '{subfolder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=subfolder_id)})"),
+                    (f"Delete '{subfolder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=subfolder_id)})")
+                ]
 
                 menu_items.append({
                     'label': f"📁 {subfolder_name}",
