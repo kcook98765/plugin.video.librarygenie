@@ -15,7 +15,7 @@
     <menu id="kodi.core.main">
       <item library="context.py">
         <label>37028</label>
-        <visible>true</visible>
+        <visible>!Container.FolderPath.StartsWith(plugin://plugin.video.librarygenie/)</visible>
       </item>
     </menu>
   </extension>
