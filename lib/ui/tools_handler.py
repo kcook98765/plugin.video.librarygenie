@@ -274,7 +274,19 @@ class ToolsHandler:
                         navigate_to_folder=target_folder_id
                     )
             else:
-                return DialogResponse(success=False, message="Failed to move folder")
+                # Handle specific error types with helpful messages
+                error_type = result.get("error", "unknown")
+                if error_type == "duplicate_name":
+                    destination_name = "root level" if target_folder_id is None else folder_options[selected_index]
+                    return DialogResponse(success=False, message=f"A folder with this name already exists in {destination_name}")
+                elif error_type == "folder_not_found":
+                    return DialogResponse(success=False, message="Source folder not found")
+                elif error_type == "destination_folder_not_found":
+                    return DialogResponse(success=False, message="Destination folder not found")
+                elif error_type == "circular_reference":
+                    return DialogResponse(success=False, message="Cannot move folder into itself")
+                else:
+                    return DialogResponse(success=False, message="Failed to move folder")
 
         except Exception as e:
             self.logger.error("Error moving folder: %s", e)

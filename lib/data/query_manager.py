@@ -2051,6 +2051,16 @@ class QueryManager:
                 if str(folder_id) == str(target_folder_id):
                     return {"success": False, "error": "circular_reference"}
 
+            # Check for name conflicts in target location
+            existing_folder_name = existing_folder['name']
+            name_conflict_check = self.connection_manager.execute_single("""
+                SELECT id FROM folders 
+                WHERE name = ? AND parent_id = ? AND id != ?
+            """, [existing_folder_name, int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
+
+            if name_conflict_check:
+                return {"success": False, "error": "duplicate_name"}
+
             # Update the folder's parent_id to the new destination
             with self.connection_manager.transaction() as conn:
                 conn.execute("""
