@@ -44,6 +44,8 @@ class SearchHandler:
         self.query_interpreter = get_simple_query_interpreter()
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
+        self._pending_intent = None  # Store navigation intent for execution
+        self._force_show_dialog = False  # Force show dialog option
 
     def prompt_and_search(self, context: PluginContext, media_scope: str = "movie") -> bool:
         """Main entry point for simple search"""
@@ -62,23 +64,22 @@ class SearchHandler:
         # Step 3: Execute search
         results = self._execute_simple_search(search_terms, search_options, context)
 
-        # Step 4: Save results and render directly (no plugin restart)
+        # Step 4: Save results and handle user's choice
         if results.total_count > 0:
             # Save search history and get the created list ID
             list_id = self._save_search_history(search_terms, search_options, results)
             
             if list_id:
-                # Directly render the saved search list without Container.Update
-                if self._render_saved_search_list_directly(str(list_id), context):
-                    self._debug(f"Successfully displayed search results via direct rendering")
+                # Check if user chose to show saved list immediately
+                if self._pending_intent:
+                    # Execute the navigation intent using PUSH semantics
+                    from lib.ui.nav import execute_intent
+                    execute_intent(self._pending_intent)
+                    self._end_directory(succeeded=True, update=False)  # PUSH semantics
                     return True
                 else:
-                    # Fallback to redirect method if direct rendering fails
-                    self._warn("Direct rendering failed, falling back to redirect method")
-                    if not self._try_redirect_to_saved_search_list():
-                        self._error("Failed to redirect to saved search list")
-                        self._end_directory(succeeded=False, update=False)
-                        return False
+                    # User chose not to show - end directory normally
+                    self._end_directory(succeeded=True, update=False)
                     return True
             else:
                 # Failed to save search history, fallback to redirect method
@@ -175,16 +176,35 @@ class SearchHandler:
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
-                    # Use f-string formatting to avoid string formatting errors
-                    base_message = L(32102)  # Should be "Search saved: %d items" or similar
-                    if '%d' in base_message:
-                        formatted_message = base_message % added
-                    elif '{' in base_message:
-                        formatted_message = base_message.format(added)
+                    
+                    # Show explicit UX option: Show saved list now?
+                    dialog_title = "Search Saved"
+                    dialog_message = f"Saved {added} items to search history.\n\nShow the saved list now?"
+                    
+                    # Always show dialog if in forced mode, or based on user preference
+                    show_now = xbmcgui.Dialog().yesno(dialog_title, dialog_message)
+                    
+                    if show_now:
+                        # User chose to show saved list immediately - use PUSH semantics
+                        from lib.ui.response_types import NavigationIntent
+                        list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                        intent = NavigationIntent(url=list_url, mode='push')
+                        # Store intent for router to execute
+                        self._pending_intent = intent
+                        self._debug(f"Set navigation intent to PUSH to saved list: {list_url}")
                     else:
-                        # Fallback message
-                        formatted_message = f"Search saved: {added} items"
-                    self._notify_info(formatted_message, ms=3000)
+                        # User chose not to show - just notify
+                        # Use f-string formatting to avoid string formatting errors
+                        base_message = L(32102)  # Should be "Search saved: %d items" or similar
+                        if '%d' in base_message:
+                            formatted_message = base_message % added
+                        elif '{' in base_message:
+                            formatted_message = base_message.format(added)
+                        else:
+                            # Fallback message
+                            formatted_message = f"Search saved: {added} items"
+                        self._notify_info(formatted_message, ms=3000)
+                    
                     return list_id  # Return the list ID on success
                 else:
                     self._warn(f"Failed to add items to search history list {list_id}")
