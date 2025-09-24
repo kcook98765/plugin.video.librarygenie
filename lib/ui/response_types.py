@@ -6,8 +6,30 @@ LibraryGenie - Response Types
 Standardized response objects for UI handlers
 """
 
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Literal
 from lib.ui.localization import L
+
+
+class NavigationIntent:
+    """Describes navigation intent without performing it"""
+    
+    def __init__(self, mode: Literal['push', 'replace', 'refresh', None] = None, url: Optional[str] = None):
+        self.mode = mode
+        self.url = url
+        
+        # Validation
+        if mode in ['push', 'replace'] and not url:
+            raise ValueError(f"Navigation mode '{mode}' requires a URL")
+        if mode == 'refresh' and url:
+            raise ValueError("Refresh mode should not have a URL")
+    
+    def __repr__(self):
+        if self.mode == 'refresh':
+            return f"NavigationIntent(mode='refresh')"
+        elif self.mode in ['push', 'replace']:
+            return f"NavigationIntent(mode='{self.mode}', url='{self.url}')"
+        else:
+            return "NavigationIntent(mode=None)"
 
 
 class DirectoryResponse:
@@ -16,7 +38,7 @@ class DirectoryResponse:
     def __init__(self, items: List[Dict[str, Any]], success: bool = True, 
                  cache_to_disc: bool = False, update_listing: bool = False,
                  sort_methods: Optional[List[int]] = None, content_type: str = "movies",
-                 allow_caching: bool = False):
+                 allow_caching: bool = False, intent: Optional[NavigationIntent] = None):
         self.items = items
         self.success = success
         self.cache_to_disc = cache_to_disc  # Default to no caching for dynamic content
@@ -24,6 +46,7 @@ class DirectoryResponse:
         self.sort_methods = sort_methods
         self.content_type = content_type
         self.allow_caching = allow_caching  # Explicit flag to enable caching for truly static content
+        self.intent = intent
 
     def to_kodi_params(self) -> Dict[str, Union[bool, List[int], None]]:
         """Convert to parameters for xbmcplugin.endOfDirectory"""
@@ -48,7 +71,7 @@ class DialogResponse:
                  refresh_needed: bool = False, navigate_to_lists: bool = False,
                  navigate_to_folder: Optional[Union[int, str]] = None, navigate_to_main: bool = False,
                  navigate_to_favorites: bool = False, navigate_on_failure: Optional[str] = None,
-                 is_settings_operation: bool = False):
+                 is_settings_operation: bool = False, intent: Optional[NavigationIntent] = None):
         self.success = success
         self.message = message
         self.refresh_needed = refresh_needed
@@ -58,6 +81,7 @@ class DialogResponse:
         self.navigate_to_favorites = navigate_to_favorites
         self.navigate_on_failure = navigate_on_failure
         self.is_settings_operation = is_settings_operation
+        self.intent = intent
         
         # Debug logging (moved from __post_init__)
         try:

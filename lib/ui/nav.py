@@ -38,6 +38,28 @@ class Navigator:
         self.logger.debug("NAVIGATOR: Finish directory - handle=%s, succeeded=%s, update=%s", handle, succeeded, update)
         xbmcplugin.endOfDirectory(handle, succeeded=succeeded, updateListing=update, cacheToDisc=False)
 
+    def execute_intent(self, intent) -> None:
+        """Execute a NavigationIntent"""
+        if intent is None:
+            self.logger.debug("NAVIGATOR: No intent to execute")
+            return
+            
+        from lib.ui.response_types import NavigationIntent
+        if not isinstance(intent, NavigationIntent):
+            self.logger.warning("NAVIGATOR: Invalid intent type: %s", type(intent))
+            return
+            
+        if intent.mode == 'push':
+            self.push(intent.url)
+        elif intent.mode == 'replace':
+            self.replace(intent.url)
+        elif intent.mode == 'refresh':
+            self.refresh()
+        elif intent.mode is None:
+            self.logger.debug("NAVIGATOR: Intent mode is None, no action taken")
+        else:
+            self.logger.warning("NAVIGATOR: Unknown intent mode: %s", intent.mode)
+
 
 # Global navigator instance
 _navigator_instance = None
@@ -70,3 +92,8 @@ def refresh() -> None:
 def finish_directory(handle: int, succeeded: bool = True, update: bool = False) -> None:
     """End directory with consistent parameters"""
     get_navigator().finish_directory(handle, succeeded, update)
+
+
+def execute_intent(intent) -> None:
+    """Execute a NavigationIntent"""
+    get_navigator().execute_intent(intent)
