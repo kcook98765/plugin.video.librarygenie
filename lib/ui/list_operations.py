@@ -272,11 +272,10 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully removed item %s from list %s", item_id, list_id)
-                from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,
                     message=f"Removed '{item_title}' from '{list_name}'", # This string should also be localized
-                    intent=NavigationIntent(mode='refresh')
+                    refresh_needed=True
                 )
 
         except Exception as e:
