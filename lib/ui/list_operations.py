@@ -257,7 +257,15 @@ class ListOperations:
             # Remove item from list - use correct method name
             result = self.query_manager.delete_item_from_list(list_id, item_id)
 
-            if result.get("error"):
+            # Handle both boolean and dict returns from query_manager
+            if isinstance(result, bool):
+                success = result
+            elif isinstance(result, dict):
+                success = not result.get("error")
+            else:
+                success = False
+
+            if not success:
                 return DialogResponse(
                     success=False,
                     message="Failed to remove item from list" # This string should also be localized
