@@ -3,6 +3,21 @@
 ## Overview
 This document provides a complete analysis of all navigation patterns, context actions, and container management behaviors in the LibraryGenie Kodi addon.
 
+## Recent Navigation Fix (September 2025)
+**Issue Resolved**: Fixed critical navigation bug where users could exit the plugin when using ".." (parent directory) navigation, taking them to Kodi's default directory instead of staying within LibraryGenie.
+
+**Root Cause**: The NavigationPolicy was defaulting to REPLACE navigation for most in-plugin transitions, which broke Kodi's internal navigation stack. When users reached the plugin root and clicked "..", Kodi had no plugin-internal parent to navigate to.
+
+**Solution Implemented**: 
+- Modified NavigationPolicy in `lib/ui/nav_policy.py` to default to PUSH navigation for in-plugin transitions
+- Reserved REPLACE navigation only for true page morphs (explicit sort/filter/pagination changes)
+- This maintains Kodi's built-in navigation stack, ensuring ".." works correctly within plugin boundaries
+
+**Technical Details**:
+- Changed `_is_page_morph()` default from `return True` (REPLACE) to `return False` (PUSH)
+- Enhanced list navigation logic to require explicit morph parameters for REPLACE behavior
+- Users can now navigate deep into plugin hierarchy and use ".." to go back through their navigation history without exiting the plugin
+
 ## 1. Kodi-Level Context Actions (addon.xml)
 
 ### Main Context Entry Point
