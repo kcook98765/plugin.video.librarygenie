@@ -214,6 +214,8 @@ class Router:
                 from lib.ui.response_handler import get_response_handler
                 response_handler = get_response_handler()
                 response = lists_handler.view_list(context, list_id)
+                
+                # Router delegates to response handler - it will process the navigation intent
                 return response_handler.handle_directory_response(response, context)
                 
             elif action == 'show_folder':

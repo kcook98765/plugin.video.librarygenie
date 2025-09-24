@@ -108,8 +108,13 @@ class NavigationPolicy:
             current_id = current_params.get(param)
             next_id = next_params.get(param)
             if current_id != next_id:
-                self.logger.debug("NAV POLICY: Different %s (%s → %s) → different page", param, current_id, next_id)
+                self.logger.debug("NAV POLICY: Different %s (%s → %s) → different page (PUSH)", param, current_id, next_id)
                 return False
+        
+        # Special case for list views: same list_id = page morph (REPLACE)
+        if action == 'show_list' and current_params.get('list_id') == next_params.get('list_id'):
+            self.logger.debug("NAV POLICY: Same list_id (%s) → page morph (REPLACE)", current_params.get('list_id'))
+            return True
         
         # If we're here, it's likely a page morph
         return True

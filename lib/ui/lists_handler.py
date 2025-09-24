@@ -702,6 +702,9 @@ class ListsHandler:
         try:
             context.logger.debug("Displaying list %s", list_id)
 
+            # Determine navigation mode (push or replace)
+            nav_mode = context.get_param('nav_mode', 'push') # Default to push
+
             # Check for custom parent path to fix navigation from search results
             parent_path = context.get_param('parent_path')
             if parent_path:
@@ -788,15 +791,18 @@ class ListsHandler:
                     'This list contains no items'  # This string should also be localized
                 )
 
-                # Determine if this is a refresh or initial load
-                is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
+                # Use navigation mode for update_listing decision
+                update_listing = (nav_mode == 'replace')
+
+                from lib.ui.response_types import NavigationIntent
+                intent = NavigationIntent(mode=nav_mode if nav_mode != 'push' else None, url=None)
 
                 return DirectoryResponse(
                     items=[],
                     success=True,
                     content_type="files",
-                    update_listing=is_refresh, # REPLACE semantics for refresh, PUSH for initial
-                    intent=None # Pure rendering, no navigation intent
+                    update_listing=update_listing, # REPLACE for same list, PUSH for different list
+                    intent=intent
                 )
 
             # Add pagination controls if needed
@@ -831,13 +837,18 @@ class ListsHandler:
                     # Determine if this is a refresh or initial load
                     is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
+                    # Use navigation mode for update_listing decision
+                    update_listing = (nav_mode == 'replace')
+                    from lib.ui.response_types import NavigationIntent
+                    intent = NavigationIntent(mode=nav_mode if nav_mode != 'push' else None, url=None)
+
                     # Return proper DirectoryResponse
                     return DirectoryResponse(
                         items=list_items,
                         success=True,
                         content_type="movies" if list_items and list_items[0].get('media_type') == 'movie' else "files",
-                        update_listing=is_refresh, # REPLACE semantics for refresh, PUSH for initial
-                        intent=None # Pure rendering, no navigation intent
+                        update_listing=update_listing, # REPLACE for same list, PUSH for different list
+                        intent=intent
                     )
             except Exception as e:
                 context.logger.error("Error building list items: %s", e)
@@ -867,12 +878,17 @@ class ListsHandler:
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
+            # Use navigation mode for update_listing decision
+            update_listing = (nav_mode == 'replace')
+            from lib.ui.response_types import NavigationIntent
+            intent = NavigationIntent(mode=nav_mode if nav_mode != 'push' else None, url=None)
+
             return DirectoryResponse(
                 items=list_items,
                 success=True,
                 content_type=detected_content_type,
-                update_listing=is_refresh, # REPLACE semantics for refresh, PUSH for initial
-                intent=None # Pure rendering, no navigation intent
+                update_listing=update_listing, # REPLACE for same list, PUSH for different list
+                intent=intent
             )
 
         except Exception as e:
