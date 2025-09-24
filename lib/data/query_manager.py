@@ -1354,10 +1354,29 @@ class QueryManager:
                     media_item_id = existing_item['id']
                     self.logger.debug("Found existing media_item with id=%s", media_item_id)
                 else:
-                    # Create new media item - normalize the item first for proper data extraction
-                    canonical_item = self._normalize_to_canonical(kodi_item)
+                    # Kodi library item not found in media_items - fetch full metadata from Kodi
+                    self.logger.debug("Library item kodi_id=%s not found in media_items, fetching from Kodi", kodi_id)
+                    
+                    # Fetch full metadata from Kodi's library
+                    from lib.kodi.json_rpc_client import get_kodi_client
+                    kodi_client = get_kodi_client()
+                    
+                    full_metadata = None
+                    if media_type == 'movie':
+                        full_metadata = kodi_client.get_movie_details(kodi_id)
+                    elif media_type == 'episode':
+                        full_metadata = kodi_client.get_episode_details(kodi_id)
+                    
+                    if full_metadata:
+                        # Use the fetched metadata
+                        canonical_item = self._normalize_to_canonical(full_metadata)
+                        self.logger.debug("Successfully fetched metadata for kodi_id=%s from Kodi library", kodi_id)
+                    else:
+                        # Fallback to basic item data if Kodi fetch fails
+                        canonical_item = self._normalize_to_canonical(kodi_item)
+                        self.logger.warning("Failed to fetch metadata for kodi_id=%s from Kodi, using basic data", kodi_id)
 
-                    # Extract basic fields for media_items table with version-aware art storage
+                    # Extract fields for media_items table with version-aware art storage
                     from lib.utils.kodi_version import get_kodi_major_version
                     kodi_major = get_kodi_major_version()
 
@@ -1368,12 +1387,12 @@ class QueryManager:
                         'imdbnumber': canonical_item.get('imdb_id', ''),
                         'tmdb_id': canonical_item.get('tmdb_id', ''),
                         'kodi_id': canonical_item.get('kodi_id'),
-                        'source': 'lib',
-                        'play': '',
+                        'source': 'kodi_library',
+                        'play': canonical_item.get('file_path', canonical_item.get('file', '')),
                         'plot': canonical_item.get('plot', ''),
                         'rating': canonical_item.get('rating', 0.0),
                         'votes': canonical_item.get('votes', 0),
-                        'duration': canonical_item.get('duration_minutes', 0),
+                        'duration': canonical_item.get('duration_minutes', canonical_item.get('runtime', 0)),
                         'mpaa': canonical_item.get('mpaa', ''),
                         'genre': canonical_item.get('genre', ''),
                         'director': canonical_item.get('director', ''),
@@ -1385,7 +1404,7 @@ class QueryManager:
                     }
 
                     media_item_id = self._insert_or_get_media_item(conn, media_data)
-                    self.logger.debug("Created new media_item with id=%s", media_item_id)
+                    self.logger.debug("Created new media_item with id=%s for kodi_id=%s", media_item_id, kodi_id)
 
                 if not media_item_id:
                     return None

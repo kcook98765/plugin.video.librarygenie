@@ -1077,88 +1077,20 @@ class ListsHandler:
                 )
                 return False
 
-            # Fetch full library item data from Kodi
-            from lib.kodi.json_rpc_client import KodiJsonRpcClient
-            kodi_client = KodiJsonRpcClient()
-            
-            library_item = None
-            if dbtype == 'movie':
-                # Get movie details from Kodi
-                import json
-                import xbmc
-                request = {
-                    "jsonrpc": "2.0",
-                    "method": "VideoLibrary.GetMovieDetails",
-                    "params": {
-                        "movieid": int(dbid),
-                        "properties": [
-                            "title", "year", "imdbnumber", "uniqueid", "file",
-                            "art", "plot", "runtime", "rating", "votes", "genre",
-                            "mpaa", "director", "country", "studio", "writer",
-                            "premiered", "originaltitle", "sorttitle", "playcount",
-                            "lastplayed", "resume"
-                        ]
-                    },
-                    "id": 1
-                }
-                
-                response_str = xbmc.executeJSONRPC(json.dumps(request))
-                response = json.loads(response_str)
-                
-                if "error" not in response and "result" in response:
-                    movie_data = response["result"].get("moviedetails", {})
-                    library_item = kodi_client._normalize_movie_data(movie_data)
-                    if library_item:
-                        library_item['kodi_id'] = int(dbid)
-                        library_item['media_type'] = 'movie'
-                        library_item['source'] = 'kodi_library'
-                        library_item['file_path'] = library_item.get('file', '')
-                        
-            elif dbtype == 'episode':
-                # Get episode details from Kodi
-                import json
-                import xbmc
-                request = {
-                    "jsonrpc": "2.0",
-                    "method": "VideoLibrary.GetEpisodeDetails",
-                    "params": {
-                        "episodeid": int(dbid),
-                        "properties": [
-                            "title", "showtitle", "season", "episode", "file",
-                            "art", "plot", "runtime", "rating", "votes",
-                            "aired", "playcount", "lastplayed", "resume"
-                        ]
-                    },
-                    "id": 1
-                }
-                
-                response_str = xbmc.executeJSONRPC(json.dumps(request))
-                response = json.loads(response_str)
-                
-                if "error" not in response and "result" in response:
-                    episode_data = response["result"].get("episodedetails", {})
-                    library_item = kodi_client._normalize_episode_data(episode_data)
-                    if library_item:
-                        library_item['kodi_id'] = int(dbid)
-                        library_item['media_type'] = 'episode'
-                        library_item['source'] = 'kodi_library'
-                        library_item['file_path'] = library_item.get('file', '')
-
-            # Fallback if we couldn't get full data
-            if not library_item:
-                library_item = {
-                    'title': title,
-                    'media_type': dbtype,
-                    'kodi_id': int(dbid) if dbid else None,
-                    'source': 'kodi_library'
-                }
+            # Create minimal library item data - add_library_item_to_list will handle metadata fetching
+            library_item = {
+                'title': title,
+                'media_type': dbtype,
+                'kodi_id': int(dbid) if dbid else None,
+                'source': 'kodi_library'
+            }
 
             # Initialize query manager
             query_manager = get_query_manager()
             if not query_manager.initialize():
                 return False
 
-            # Add to default list with full metadata
+            # Add to default list - this will fetch metadata if needed
             result = query_manager.add_library_item_to_list(default_list_id, library_item)
             
             # Show success notification
