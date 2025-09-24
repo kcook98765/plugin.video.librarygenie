@@ -42,29 +42,22 @@ class MenuBuilder:
     def _is_folder_context_breadcrumb(self, breadcrumb_path: str) -> bool:
         """Check if breadcrumb indicates we're in a folder context where generic Tools & Options shouldn't be added"""
         try:
-            self.logger.debug("FOLDER DETECTION: Checking breadcrumb '%s'", breadcrumb_path)
             
             if not breadcrumb_path or not breadcrumb_path.strip():
-                self.logger.debug("FOLDER DETECTION: Empty breadcrumb - not a folder context")
                 return False
             
             # Parse breadcrumb to determine if we're viewing a folder
             if " > " in breadcrumb_path:
                 parts = breadcrumb_path.split(" > ")
-                self.logger.debug("FOLDER DETECTION: Breadcrumb parts: %s (count: %d)", parts, len(parts))
                 
                 if len(parts) == 2 and parts[0] == "Lists":
                     # Format: "Lists > Folder Name" = folder context
                     # Don't add generic Tools & Options here as folders handle their own
-                    self.logger.debug("FOLDER DETECTION: FOLDER CONTEXT DETECTED - breadcrumb '%s'", breadcrumb_path)
                     return True
                 else:
-                    self.logger.debug("FOLDER DETECTION: Multi-level breadcrumb but not folder pattern: %s", parts)
             else:
-                self.logger.debug("FOLDER DETECTION: Single-level breadcrumb: '%s'", breadcrumb_path)
             
             # Single-level contexts that are not folders
-            self.logger.debug("FOLDER DETECTION: NOT a folder context - breadcrumb '%s'", breadcrumb_path)
             return False
             
         except Exception as e:
@@ -73,8 +66,6 @@ class MenuBuilder:
 
     def build_menu(self, items, addon_handle, base_url, breadcrumb_path=None):
         """Build a directory menu from items with optional breadcrumb"""
-        self.logger.debug("MENU BUILD: Starting build_menu with %s items", len(items))
-        self.logger.debug("MENU BUILD: addon_handle=%s, base_url='%s', breadcrumb='%s'", addon_handle, base_url, breadcrumb_path)
 
         successful_items = 0
         failed_items = 0
@@ -85,7 +76,6 @@ class MenuBuilder:
         # But only if no Tools & Options item already exists in the menu items
         # Also skip for folder contexts where the handler adds its own Tools & Options
         if breadcrumb_path and breadcrumb_path.strip():
-            self.logger.debug("MENU BUILD: Evaluating Tools & Options addition for breadcrumb '%s'", breadcrumb_path)
             
             # Check if any item is already a tools item to avoid duplicates
             has_tools_item = any(
@@ -94,12 +84,10 @@ class MenuBuilder:
                 item.get('is_tools_item', False)
                 for item in items
             )
-            self.logger.debug("MENU BUILD: has_tools_item = %s", has_tools_item)
             
             # Skip adding generic Tools & Options for folder contexts
             # Folders should handle their own Tools & Options via proper handlers
             is_folder_context = self._is_folder_context_breadcrumb(breadcrumb_path)
-            self.logger.debug("MENU BUILD: is_folder_context = %s", is_folder_context)
             
             if not has_tools_item and not is_folder_context:
                 try:
@@ -140,29 +128,21 @@ class MenuBuilder:
                         tools_item,
                         True
                     )
-                    self.logger.debug("MENU BUILD: Added Tools & Options with breadcrumb: %s", breadcrumb_text)
                 except Exception as e:
                     self.logger.error("MENU BUILD: Failed to add Tools & Options: %s", e)
             else:
-                self.logger.debug("MENU BUILD: Skipping Tools & Options - already present in menu items")
 
         for idx, item in enumerate(items):
             try:
                 item_title = item.get('title', 'Unknown')
-                self.logger.debug("MENU BUILD: Processing menu item %s/%s: '%s'", idx+1, len(items), item_title)
-                self.logger.debug("MENU BUILD: Item %s data: %s", idx+1, item)
 
                 self._add_directory_item(item, addon_handle, base_url)
                 successful_items += 1
-                self.logger.debug("MENU BUILD: Successfully added menu item %s: '%s'", idx+1, item_title)
             except Exception as e:
                 failed_items += 1
                 self.logger.error("MENU BUILD: Failed to add menu item %s: %s", idx+1, e)
 
-        self.logger.debug("MENU BUILD: Added %s menu items successfully, %s failed", successful_items, failed_items)
-        self.logger.debug("MENU BUILD: Calling endOfDirectory(handle=%s, cacheToDisc=False)", addon_handle)
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
-        self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching disabled")
 
     def _add_directory_item(self, item, addon_handle, base_url):
         """Add a single directory item with context menu support"""
