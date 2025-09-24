@@ -347,15 +347,8 @@ class FolderOperations:
 
             target_parent_id = folder_ids[selected_index]
 
-            # DEBUG: Log the comparison values
-            context.logger.debug("MOVE DEBUG: current_parent_id=%s, target_parent_id=%s, folder_name=%s", 
-                                current_parent_id, target_parent_id, folder_name)
-            context.logger.debug("MOVE DEBUG: selected_index=%s, folder_options[%s]=%s", 
-                                selected_index, selected_index, folder_options[selected_index])
-
             # Check if already in selected location
             if target_parent_id == current_parent_id:
-                context.logger.debug("MOVE DEBUG: Detected same location - blocking move")
                 return DialogResponse(
                     success=False,
                     message=f"Folder is already in the selected location" # This string should also be localized
