@@ -175,56 +175,203 @@ This document provides a complete analysis of all navigation patterns, context a
 - **Missing Parameters**: `endOfDirectory(addon_handle, succeeded=False)`
 - **Exceptions**: Error notification + `endOfDirectory(succeeded=False)`
 
-## 5. Container Management (response_handler.py)
+## 5. Centralized Navigation System (NEW)
 
-### DirectoryResponse Handling
-**Function**: `handle_directory_response(response, context)`
+### Navigator Class - Centralized Container Mutations
+**File**: `lib/ui/nav.py`
+
+The `Navigator` class provides a centralized API for managing all Kodi container mutations (PUSH / REPLACE / REFRESH) and endOfDirectory calls. This consolidates navigation logic that was previously scattered throughout the codebase.
+
+#### Core Navigation Methods
 
 ```python
-xbmcplugin.endOfDirectory(
-    context.addon_handle,
-    succeeded=response.success,
-    updateListing=response.update_listing,  # Controls container update behavior
-    cacheToDisc=response.cache_to_disc      # Controls caching
-)
+class Navigator:
+    def push(self, url: str) -> None:
+        """Navigate to URL by pushing to navigation stack"""
+        xbmc.executebuiltin(f'Container.Update("{url}")')
+
+    def replace(self, url: str) -> None:
+        """Navigate to URL by replacing current location"""  
+        xbmc.executebuiltin(f'Container.Update("{url}", replace)')
+
+    def refresh(self) -> None:
+        """Refresh current container"""
+        xbmc.executebuiltin('Container.Refresh')
+
+    def finish_directory(self, handle: int, succeeded: bool = True, update: bool = False) -> None:
+        """End directory with consistent parameters"""
+        xbmcplugin.endOfDirectory(handle, succeeded=succeeded, updateListing=update, cacheToDisc=False)
 ```
 
-### DialogResponse Handling
+**Key Benefits**:
+- **Centralized Logging**: All navigation actions logged with consistent format
+- **Consistent Parameters**: `cacheToDisc=False` enforced for dynamic content
+- **Single Point of Control**: All container mutations go through Navigator instance
+
+#### Navigation Intent System
+
+```python
+def execute_intent(self, intent) -> None:
+    """Execute a NavigationIntent"""
+    if intent.mode == 'push':
+        self.push(intent.url)
+    elif intent.mode == 'replace':
+        self.replace(intent.url)
+    elif intent.mode == 'refresh':
+        self.refresh()
+```
+
+**NavigationIntent Integration**:
+- Response handlers generate `NavigationIntent` objects
+- Navigator executes intents consistently
+- Supports `push`, `replace`, `refresh`, and `None` modes
+
+### Navigation Policy - Smart PUSH vs REPLACE Decisions
+**File**: `lib/ui/nav_policy.py`
+
+The `NavigationPolicy` class implements intelligent logic for deciding between PUSH and REPLACE navigation modes based on route transitions and context.
+
+#### Decision Rules
+
+```python
+def decide_mode(current_route, next_route, reason, current_params, next_params) -> 'push'|'replace':
+    """
+    Rules:
+    - Different logical page (route or id changes) → PUSH
+    - Same page morph (sort/filter/pagination>1) → REPLACE
+    """
+```
+
+#### Navigation Scenarios
+
+| Scenario | Action | Mode | Rationale |
+|---|---|---|---|
+| Different actions | `show_list` → `show_folder` | **PUSH** | New logical page |
+| Same action, different ID | `show_list&id=1` → `show_list&id=2` | **PUSH** | Different content |
+| Sort/filter change | `show_list&sort=name` → `show_list&sort=date` | **REPLACE** | Same page morph |
+| Pagination (page > 1) | `show_list&page=1` → `show_list&page=2` | **REPLACE** | Continuation |
+| Initial navigation | No current route | **PUSH** | Starting point |
+
+#### Smart Router Integration
+
+```python
+def _navigate_smart(self, next_route: str, reason: str = "navigation", next_params: Dict = None):
+    """Navigate using navigation policy to determine push vs replace"""
+    current_route, current_params = self._get_current_route_info()
+    mode = decide_mode(current_route, next_route, reason, current_params, next_params)
+    
+    navigator = get_navigator()
+    if mode == 'push':
+        navigator.push(next_route)
+    else:  # replace
+        navigator.replace(next_route)
+```
+
+### Global Navigator Access
+
+```python
+# Singleton pattern for consistent access
+def get_navigator() -> Navigator:
+    """Get global navigator instance"""
+    global _navigator_instance
+    if _navigator_instance is None:
+        _navigator_instance = Navigator()
+    return _navigator_instance
+```
+
+**Usage Throughout Codebase**:
+- `response_handler.py`: Uses Navigator for directory completion
+- `router.py`: Uses Navigator for smart navigation
+- All handlers: Access via `get_navigator()` for consistent behavior
+
+## 6. Container Management (response_handler.py) - UPDATED
+
+### DirectoryResponse Handling (UPDATED)
+**Function**: `handle_directory_response(response, context)`
+
+Now uses the centralized Navigator for consistent endOfDirectory handling:
+
+```python
+# End directory using Navigator instead of direct xbmcplugin call
+# Navigator always uses cacheToDisc=False for dynamic content
+self.navigator.finish_directory(
+    context.addon_handle,
+    succeeded=bool(kodi_params.get('succeeded', True)),
+    update=bool(kodi_params.get('updateListing', False))
+)
+
+# Execute NavigationIntent if present
+if response.intent:
+    self.navigator.execute_intent(response.intent)
+```
+
+**Key Changes**:
+- **Navigator Integration**: All endOfDirectory calls go through `navigator.finish_directory()`
+- **NavigationIntent Support**: Automatic execution of navigation intents from responses
+- **Consistent Parameters**: `cacheToDisc=False` enforced automatically for dynamic content
+
+### DialogResponse Handling (UPDATED)
 **Function**: `handle_dialog_response(response, context)`
 
+Now uses centralized Navigator for all container mutations:
+
 #### Navigation Priority Order:
-1. **navigate_to_main** → `Container.Update(main_url, replace)`
-2. **navigate_to_favorites** → `Container.Update(favorites_url, replace)`
-3. **navigate_to_folder** → `Container.Update(folder_url, replace)`
-4. **refresh_needed** → `Container.Refresh`
+1. **navigate_to_folder** → `navigator.replace(folder_url)` with cache-busting
+2. **navigate_to_lists** → `navigator.replace(lists_url)` with cache-busting  
+3. **navigate_to_main** → `navigator.replace(main_url)` with cache-busting
+4. **navigate_to_favorites** → `navigator.replace(favorites_url)` with cache-busting
+5. **refresh_needed** → `navigator.refresh()`
+
+**Updated Implementation**:
+```python
+# Legacy navigation flags (for backward compatibility)
+if response.navigate_to_folder:
+    session_state.bump_refresh_token()
+    folder_url = context.build_cache_busted_url("show_folder", folder_id=folder_id)
+    self.navigator.replace(folder_url)
+    
+elif response.refresh_needed:
+    self.navigator.refresh()
+```
 
 #### Cache-Busting
 - **Session Token**: Bumped for main/favorites navigation
 - **URL Modification**: `build_cache_busted_url()` adds refresh token
 
-### Container.Refresh Usage
+### Container.Refresh Usage (UPDATED)
 **Triggers**:
 - After successful list/folder operations
 - When `refresh_needed = True` in response
 - Tools return location with forced refresh
 
-**Implementation**:
+**Updated Implementation** (via Navigator):
 ```python
-xbmc.executebuiltin('Container.Refresh')
+navigator = get_navigator()
+navigator.refresh()
 ```
 
-### Container.Update Usage
+### Container.Update Usage (UPDATED)
 **Triggers**:
-- Navigation to specific locations
+- Navigation to specific locations (PUSH vs REPLACE determined by NavigationPolicy)
 - After successful operations requiring navigation change
 - Return from tools operations
 
-**Implementation**:
+**Updated Implementation** (via Navigator with smart mode detection):
 ```python
-xbmc.executebuiltin(f'Container.Update("{url}", replace)')
+navigator = get_navigator()
+# Smart navigation using NavigationPolicy
+navigator.push(url)      # For new logical pages
+navigator.replace(url)   # For same-page morphs (sort/filter/pagination)
 ```
 
-## 6. Pagination and Update Listing
+**NavigationIntent Integration**:
+```python
+# Modern approach using NavigationIntent
+intent = NavigationIntent(mode='push', url=url)
+navigator.execute_intent(intent)
+```
+
+## 7. Pagination and Update Listing
 
 ### Pagination Control
 **File**: `lib/ui/listitem_builder.py`
@@ -246,7 +393,7 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
 ```
 
-## 7. Special Navigation Cases
+## 8. Special Navigation Cases
 
 ### Library Item Playback
 **Function**: `handle_on_select()` in `plugin.py`
@@ -263,7 +410,7 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 - **Manual Backup**: Dialog-based, `endOfDirectory(succeeded=False)`
 - **Import Operations**: Progress dialogs, no container navigation
 
-## 8. Context Action Navigation Summary
+## 9. Context Action Navigation Summary
 
 | Context Action | Entry Point | Container Refresh | Container Update | endOfDirectory |
 |---|---|---|---|---|
@@ -276,15 +423,15 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 | Search Actions | Context submenu | No | Yes (to results) | succeeded=True |
 | External Add | External context | Yes (if successful) | Optional | Context: succeeded=False |
 
-## 9. Navigation Flow Patterns
+## 10. Navigation Flow Patterns (UPDATED)
 
-### Standard Directory Navigation
+### Standard Directory Navigation (UPDATED)
 1. **Action Triggered** → Router dispatch
 2. **Handler Execution** → Business logic
-3. **Response Generation** → Success/failure status
-4. **Response Handler** → Container management decision
-5. **endOfDirectory Call** → Directory completion
-6. **Container Action** → Refresh/Update as needed
+3. **Response Generation** → Success/failure + NavigationIntent
+4. **Response Handler** → Uses Navigator for container management
+5. **Navigator.finish_directory()** → Centralized directory completion
+6. **Navigator.execute_intent()** → Centralized container mutations (PUSH/REPLACE/REFRESH)
 
 ### Context Action Flow
 1. **Context Menu Selection** → context.py
@@ -302,4 +449,30 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 4. **Navigation Response** → refresh_needed/navigate_to flags
 5. **Container Management** → Refresh or navigate as appropriate
 
-This guide covers all navigation patterns and context actions in the LibraryGenie addon, showing how each action relates to container management and directory handling in Kodi.
+## 11. Centralized Navigation Benefits
+
+The new Navigator system provides several key improvements over the previous scattered navigation approach:
+
+### **Consistency**
+- All endOfDirectory calls use consistent parameters (`cacheToDisc=False`)
+- Standardized logging format for all navigation actions
+- Single point of control for container behavior modifications
+
+### **Intelligence** 
+- NavigationPolicy automatically determines PUSH vs REPLACE semantics
+- Smart decisions based on route transitions and user context
+- Eliminates manual navigation mode decisions throughout handlers
+
+### **Maintainability**
+- Centralized container mutation logic in `lib/ui/nav.py`
+- NavigationIntent system for declarative navigation
+- Easy to modify navigation behavior globally
+
+### **Debugging**
+- All navigation actions logged with consistent prefixes ("NAVIGATOR:", "NAV POLICY:")
+- Clear visibility into navigation decision-making process
+- Simplified troubleshooting of navigation issues
+
+---
+
+This guide covers all navigation patterns and context actions in the LibraryGenie addon, including the new centralized Navigation helper that consolidates all container mutations (PUSH / REPLACE / REFRESH) and endOfDirectory calls, providing intelligent navigation decisions and consistent behavior throughout the application.

@@ -65,10 +65,11 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully created list: %s", list_name)
+                from lib.ui.response_types import NavigationIntent
                 response = DialogResponse(
                     success=True,
                     message=f"Created list: {list_name}", # This string should also be localized
-                    refresh_needed=True
+                    intent=NavigationIntent(mode='refresh')
                 )
                 # Add data attribute after creation since DialogResponse doesn't accept 'data' in constructor
                 response.data = {'id': result.get('id'), 'name': list_name}
@@ -131,10 +132,12 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully deleted list: %s", list_name)
+                from lib.ui.response_types import NavigationIntent
+                lists_url = f"plugin://plugin.video.librarygenie/?action=lists"
                 return DialogResponse(
                     success=True,
                     message=f"Deleted list: {list_name}", # This string should also be localized
-                    navigate_to_lists=True  # Navigate away from deleted list to prevent stale view
+                    intent=NavigationIntent(mode='replace', url=lists_url)  # Navigate away from deleted list
                 )
 
         except Exception as e:
@@ -191,9 +194,11 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully renamed list to: %s", new_name)
+                from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,
-                    message=f"Renamed list to: {new_name}" # This string should also be localized
+                    message=f"Renamed list to: {new_name}", # This string should also be localized
+                    intent=NavigationIntent(mode='refresh')
                 )
 
         except Exception as e:
@@ -259,10 +264,11 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully removed item %s from list %s", item_id, list_id)
+                from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,
                     message=f"Removed '{item_title}' from '{list_name}'", # This string should also be localized
-                    refresh_needed=True
+                    intent=NavigationIntent(mode='refresh')
                 )
 
         except Exception as e:

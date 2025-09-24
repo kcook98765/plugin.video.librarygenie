@@ -144,13 +144,14 @@ class ListItemBuilder:
             
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
-            # Use updateListing for pagination to control navigation history
+            # Use Navigator for pagination with proper semantics: page>1 is a morph (replace)
             current_page = int(self.context.get_param('page', '1'))
-            update_listing = current_page > 1  # Replace current listing for page 2+, create new entry for page 1
+            update = current_page > 1  # Replace current listing for page 2+, create new entry for page 1
             
-            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True, updateListing=%s)", 
-                             self.addon_handle, update_listing)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=update_listing)
+            from lib.ui.nav import finish_directory
+            self.logger.debug("DIRECTORY BUILD: Calling Navigator.finish_directory(handle=%s, succeeded=True, update=%s)", 
+                             self.addon_handle, update)
+            finish_directory(self.addon_handle, succeeded=True, update=update)
             
             # Calculate and log complete build time
             build_end_time = time.time()
@@ -159,8 +160,9 @@ class ListItemBuilder:
             return True
         except Exception as e:
             self.logger.error("DIRECTORY BUILD: fatal error: %s", e)
-            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            self.logger.debug("DIRECTORY BUILD: Calling Navigator.finish_directory(handle=%s, succeeded=False)", self.addon_handle)
+            from lib.ui.nav import finish_directory
+            finish_directory(self.addon_handle, succeeded=False)
             
             # Calculate and log complete build time even on failure
             build_end_time = time.time()
