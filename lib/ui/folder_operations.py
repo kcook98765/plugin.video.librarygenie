@@ -130,8 +130,9 @@ class FolderOperations:
                 context.logger.info("User cancelled folder deletion")
                 return DialogResponse(success=False, message="")
 
-            # Delete the folder
-            result = self.query_manager.delete_folder(folder_id)
+            # Delete the folder (with contents if user confirmed and folder is not empty)
+            force_delete_contents = bool(lists_in_folder or subfolders)
+            result = self.query_manager.delete_folder(folder_id, force_delete_contents=force_delete_contents)
 
             if result.get("error"):
                 return DialogResponse(
