@@ -17,6 +17,31 @@ from typing import List, Union
 from lib.ui.localization import L
 
 
+def _is_folder_context(container_path, file_path):
+    """Check if we're in a folder context within LibraryGenie"""
+    try:
+        # Check if we're within LibraryGenie plugin
+        is_lg_plugin = (
+            container_path and container_path.startswith('plugin://plugin.video.librarygenie/') or
+            file_path and file_path.startswith('plugin://plugin.video.librarygenie/')
+        )
+        
+        if not is_lg_plugin:
+            return False
+        
+        # Check for folder-specific URL parameters
+        is_folder = (
+            container_path and ('folder_id=' in container_path or 'list_type=folder' in container_path) or
+            file_path and ('folder_id=' in file_path or 'list_type=folder' in file_path)
+        )
+        
+        return bool(is_folder)
+        
+    except Exception as e:
+        xbmc.log(f"LibraryGenie: Error detecting folder context: {str(e)}", xbmc.LOGERROR)
+        return False
+
+
 def main():
     """Main context menu handler"""
     try:
@@ -29,9 +54,18 @@ def main():
         # Debug: Log current item info
         dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
         file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-        xbmc.log(f"LibraryGenie: Context - DBTYPE={dbtype}, FilePath={file_path}", xbmc.LOGINFO)
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        xbmc.log(f"LibraryGenie: Context - DBTYPE={dbtype}, FilePath={file_path}, ContainerPath={container_path}", xbmc.LOGINFO)
 
-        # Always show LibraryGenie submenu with conditional options
+        # Check if we're in a folder context within LibraryGenie
+        is_folder_context = _is_folder_context(container_path, file_path)
+        
+        if is_folder_context:
+            # Skip the global LibraryGenie menu for folders - they should use Tools & Options instead
+            xbmc.log("LibraryGenie: Folder context detected, skipping global context menu", xbmc.LOGINFO)
+            return
+        
+        # Show LibraryGenie submenu with conditional options for non-folder contexts
         _show_librarygenie_menu(addon)
 
     except Exception as e:

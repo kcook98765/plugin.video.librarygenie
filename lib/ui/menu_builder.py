@@ -39,6 +39,27 @@ class MenuBuilder:
             # v19/v20: Use setInfo() as fallback
             list_item.setInfo('video', {'plot': plot})
 
+    def _is_folder_context_breadcrumb(self, breadcrumb_path: str) -> bool:
+        """Check if breadcrumb indicates we're in a folder context where generic Tools & Options shouldn't be added"""
+        try:
+            if not breadcrumb_path or not breadcrumb_path.strip():
+                return False
+            
+            # Parse breadcrumb to determine if we're viewing a folder
+            if " > " in breadcrumb_path:
+                parts = breadcrumb_path.split(" > ")
+                if len(parts) == 2 and parts[0] == "Lists":
+                    # Format: "Lists > Folder Name" = folder context
+                    # Don't add generic Tools & Options here as folders handle their own
+                    return True
+            
+            # Single-level contexts that are not folders
+            return False
+            
+        except Exception as e:
+            self.logger.error("Error detecting folder context from breadcrumb '%s': %s", breadcrumb_path, e)
+            return False
+
     def build_menu(self, items, addon_handle, base_url, breadcrumb_path=None):
         """Build a directory menu from items with optional breadcrumb"""
         self.logger.debug("MENU BUILD: Starting build_menu with %s items", len(items))
@@ -51,6 +72,7 @@ class MenuBuilder:
 
         # Add Tools & Options with breadcrumb context for non-root views
         # But only if no Tools & Options item already exists in the menu items
+        # Also skip for folder contexts where the handler adds its own Tools & Options
         if breadcrumb_path and breadcrumb_path.strip():
             # Check if any item is already a tools item to avoid duplicates
             has_tools_item = any(
@@ -60,7 +82,11 @@ class MenuBuilder:
                 for item in items
             )
             
-            if not has_tools_item:
+            # Skip adding generic Tools & Options for folder contexts
+            # Folders should handle their own Tools & Options via proper handlers
+            is_folder_context = self._is_folder_context_breadcrumb(breadcrumb_path)
+            
+            if not has_tools_item and not is_folder_context:
                 try:
                     from lib.ui.breadcrumb_helper import get_breadcrumb_helper
                     breadcrumb_helper = get_breadcrumb_helper()
