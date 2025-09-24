@@ -272,6 +272,15 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully removed item %s from list %s", item_id, list_id)
+                
+                # For context menu actions, directly refresh the container
+                try:
+                    import xbmc
+                    context.logger.debug("REMOVE FROM LIST: Executing Container.Refresh for immediate GUI update")
+                    xbmc.executebuiltin('Container.Refresh')
+                except Exception as e:
+                    context.logger.error("Failed to refresh container: %s", e)
+                
                 return DialogResponse(
                     success=True,
                     message=f"Removed '{item_title}' from '{list_name}'", # This string should also be localized
