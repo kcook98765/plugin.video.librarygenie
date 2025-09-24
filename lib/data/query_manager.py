@@ -1643,8 +1643,8 @@ class QueryManager:
             self.logger.error("Failed to rename folder: %s", e)
             return {"success": False, "error": "database_error", "message": str(e)}
 
-    def delete_folder(self, folder_id):
-        """Delete a folder (must be empty)"""
+    def delete_folder(self, folder_id, force_delete_contents=False):
+        """Delete a folder (and optionally its contents if force_delete_contents=True)"""
         try:
             # Check if folder is reserved
             if self.is_reserved_folder(folder_id):
@@ -1658,21 +1658,46 @@ class QueryManager:
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
 
-            # Check if folder has lists
-            lists_count = self.connection_manager.execute_single("""
-                SELECT COUNT(*) as count FROM lists WHERE folder_id = ?
-            """, [folder_id])
+            if force_delete_contents:
+                # Delete all lists in folder first
+                with self.connection_manager.transaction() as conn:
+                    # Delete list items first to maintain referential integrity
+                    conn.execute("""
+                        DELETE FROM list_items 
+                        WHERE list_id IN (SELECT id FROM lists WHERE folder_id = ?)
+                    """, [folder_id])
+                    
+                    # Delete lists in folder
+                    conn.execute("DELETE FROM lists WHERE folder_id = ?", [folder_id])
+                    
+                    # Delete subfolders recursively  
+                    subfolders = self.connection_manager.execute_query("""
+                        SELECT id FROM folders WHERE parent_id = ?
+                    """, [folder_id])
+                    
+                    for subfolder in subfolders:
+                        # Recursive deletion of subfolders
+                        result = self.delete_folder(subfolder['id'], force_delete_contents=True)
+                        if not result.get("success"):
+                            raise Exception(f"Failed to delete subfolder {subfolder['id']}")
+                
+                self.logger.debug("Deleted contents of folder %s", folder_id)
+            else:
+                # Check if folder has lists
+                lists_count = self.connection_manager.execute_single("""
+                    SELECT COUNT(*) as count FROM lists WHERE folder_id = ?
+                """, [folder_id])
 
-            if lists_count and lists_count['count'] > 0:
-                return {"success": False, "error": "not_empty", "message": "Folder contains lists"}
+                if lists_count and lists_count['count'] > 0:
+                    return {"success": False, "error": "not_empty", "message": "Folder contains lists"}
 
-            # Check if folder has subfolders
-            subfolders_count = self.connection_manager.execute_single("""
-                SELECT COUNT(*) as count FROM folders WHERE parent_id = ?
-            """, [folder_id])
+                # Check if folder has subfolders
+                subfolders_count = self.connection_manager.execute_single("""
+                    SELECT COUNT(*) as count FROM folders WHERE parent_id = ?
+                """, [folder_id])
 
-            if subfolders_count and subfolders_count['count'] > 0:
-                return {"success": False, "error": "not_empty", "message": "Folder contains subfolders"}
+                if subfolders_count and subfolders_count['count'] > 0:
+                    return {"success": False, "error": "not_empty", "message": "Folder contains subfolders"}
 
             # Delete folder
             with self.connection_manager.transaction() as conn:
@@ -1741,7 +1766,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT 
-                    f.id, f.name, f.created_at
+                    f.id, f.name, f.parent_id, f.created_at
                 FROM folders f
                 WHERE f.id = ?
             """, [int(folder_id)])
@@ -1750,6 +1775,7 @@ class QueryManager:
                 return {
                     "id": str(result['id']),
                     "name": result['name'],
+                    "parent_id": result['parent_id'],
                     "created": result['created_at'][:10] if result['created_at'] else ''
                 }
 
@@ -2050,6 +2076,16 @@ class QueryManager:
                 # Check for circular reference (folder can't be moved into itself or its children)
                 if str(folder_id) == str(target_folder_id):
                     return {"success": False, "error": "circular_reference"}
+
+            # Check for name conflicts in target location
+            existing_folder_name = existing_folder['name']
+            name_conflict_check = self.connection_manager.execute_single("""
+                SELECT id FROM folders 
+                WHERE name = ? AND parent_id = ? AND id != ?
+            """, [existing_folder_name, int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
+
+            if name_conflict_check:
+                return {"success": False, "error": "duplicate_name"}
 
             # Update the folder's parent_id to the new destination
             with self.connection_manager.transaction() as conn:

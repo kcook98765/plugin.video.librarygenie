@@ -17,21 +17,63 @@ from typing import List, Union
 from lib.ui.localization import L
 
 
+def _is_folder_context(container_path, file_path):
+    """Check if we're in a folder context within LibraryGenie"""
+    try:
+        # Check if we're within LibraryGenie plugin
+        container_is_lg = container_path and container_path.startswith('plugin://plugin.video.librarygenie/')
+        file_is_lg = file_path and file_path.startswith('plugin://plugin.video.librarygenie/')
+        
+        is_lg_plugin = container_is_lg or file_is_lg
+        if not is_lg_plugin:
+            return False
+        
+        # Check for folder-specific URL parameters
+        container_has_folder = container_path and ('folder_id=' in container_path or 'list_type=folder' in container_path)
+        file_has_folder = file_path and ('folder_id=' in file_path or 'list_type=folder' in file_path)
+        
+        is_folder = container_has_folder or file_has_folder
+        
+        return bool(is_folder)
+        
+    except Exception as e:
+        xbmc.log(f"LibraryGenie: Error detecting folder context: {str(e)}", xbmc.LOGERROR)
+        return False
+
+
 def main():
     """Main context menu handler"""
     try:
-        # Debug: Log that context menu was triggered
-        xbmc.log("LibraryGenie: Context menu script triggered", xbmc.LOGINFO)
-        xbmc.log(f"LibraryGenie: Context script sys.argv: {sys.argv}", xbmc.LOGINFO)
-
+        
         addon = xbmcaddon.Addon()
 
-        # Debug: Log current item info
-        dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-        file_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
-        xbmc.log(f"LibraryGenie: Context - DBTYPE={dbtype}, FilePath={file_path}", xbmc.LOGINFO)
+        # Comprehensive context debugging - capture ALL available information
+        context_info = {
+            'container_path': xbmc.getInfoLabel('Container.FolderPath'),
+            'container_content': xbmc.getInfoLabel('Container.Content'),
+            'container_label': xbmc.getInfoLabel('Container.Label'),
+            'listitem_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'listitem_label': xbmc.getInfoLabel('ListItem.Label'),
+            'listitem_dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
+            'listitem_dbid': xbmc.getInfoLabel('ListItem.DBID'),
+            'listitem_title': xbmc.getInfoLabel('ListItem.Title'),
+            'listitem_plot': xbmc.getInfoLabel('ListItem.Plot'),
+            'window_property': xbmc.getInfoLabel('Window.Property(xmlfile)'),
+            'current_window': xbmc.getInfoLabel('System.CurrentWindow'),
+            'current_control': xbmc.getInfoLabel('System.CurrentControl'),
+        }
+        
 
-        # Always show LibraryGenie submenu with conditional options
+        # Test folder context detection with detailed logging
+        container_path = context_info['container_path']
+        file_path = context_info['listitem_path']
+        
+        # Skip context menu for folder contexts
+        is_folder_context = _is_folder_context(container_path, file_path)
+        if is_folder_context:
+            return
+        
+        # Show LibraryGenie submenu with conditional options for non-folder contexts
         _show_librarygenie_menu(addon)
 
     except Exception as e:
@@ -66,8 +108,6 @@ def _show_librarygenie_menu(addon):
             'hijack_armed': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
         }
 
-        # Debug log the cached info
-        xbmc.log(f"LibraryGenie: Cached item info: {item_info}", xbmc.LOGINFO)
 
         # Build options list
         options = []
@@ -101,21 +141,13 @@ def _show_librarygenie_menu(addon):
         _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_context)
         
 
-        # Show the menu - always display dialog so user controls what happens
-        xbmc.log(f"LibraryGenie: About to show context menu with {len(options)} options: {options}", xbmc.LOGINFO)
+        # Show the menu if options are available
         if len(options) > 0:
             dialog = xbmcgui.Dialog()
-            xbmc.log(f"LibraryGenie: Showing dialog with options: {options}", xbmc.LOGINFO)
             selected = dialog.select("LibraryGenie", options)
-            xbmc.log(f"LibraryGenie: Dialog returned selection: {selected}", xbmc.LOGINFO)
 
             if selected >= 0:
-                xbmc.log(f"LibraryGenie: Executing action: {actions[selected]}", xbmc.LOGINFO)
                 _execute_action(actions[selected], addon, item_info)
-            else:
-                xbmc.log("LibraryGenie: User canceled dialog or no selection made", xbmc.LOGINFO)
-        else:
-            xbmc.log("LibraryGenie: No options available for this context", xbmc.LOGINFO)
 
     except Exception as e:
         xbmc.log(f"LibraryGenie submenu error: {str(e)}", xbmc.LOGERROR)

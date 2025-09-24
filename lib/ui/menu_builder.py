@@ -39,10 +39,31 @@ class MenuBuilder:
             # v19/v20: Use setInfo() as fallback
             list_item.setInfo('video', {'plot': plot})
 
+    def _is_folder_context_breadcrumb(self, breadcrumb_path: str) -> bool:
+        """Check if breadcrumb indicates we're in a folder context where generic Tools & Options shouldn't be added"""
+        try:
+            
+            if not breadcrumb_path or not breadcrumb_path.strip():
+                return False
+            
+            # Parse breadcrumb to determine if we're viewing a folder
+            if " > " in breadcrumb_path:
+                parts = breadcrumb_path.split(" > ")
+                
+                if len(parts) == 2 and parts[0] == "Lists":
+                    # Format: "Lists > Folder Name" = folder context
+                    # Don't add generic Tools & Options here as folders handle their own
+                    return True
+            
+            # Single-level contexts that are not folders
+            return False
+            
+        except Exception as e:
+            self.logger.error("Error detecting folder context from breadcrumb '%s': %s", breadcrumb_path, e)
+            return False
+
     def build_menu(self, items, addon_handle, base_url, breadcrumb_path=None):
         """Build a directory menu from items with optional breadcrumb"""
-        self.logger.debug("MENU BUILD: Starting build_menu with %s items", len(items))
-        self.logger.debug("MENU BUILD: addon_handle=%s, base_url='%s', breadcrumb='%s'", addon_handle, base_url, breadcrumb_path)
 
         successful_items = 0
         failed_items = 0
@@ -51,7 +72,9 @@ class MenuBuilder:
 
         # Add Tools & Options with breadcrumb context for non-root views
         # But only if no Tools & Options item already exists in the menu items
+        # Also skip for folder contexts where the handler adds its own Tools & Options
         if breadcrumb_path and breadcrumb_path.strip():
+            
             # Check if any item is already a tools item to avoid duplicates
             has_tools_item = any(
                 item.get('url', '').endswith('action=show_list_tools') or
@@ -60,7 +83,11 @@ class MenuBuilder:
                 for item in items
             )
             
-            if not has_tools_item:
+            # Skip adding generic Tools & Options for folder contexts
+            # Folders should handle their own Tools & Options via proper handlers
+            is_folder_context = self._is_folder_context_breadcrumb(breadcrumb_path)
+            
+            if not has_tools_item and not is_folder_context:
                 try:
                     from lib.ui.breadcrumb_helper import get_breadcrumb_helper
                     breadcrumb_helper = get_breadcrumb_helper()
@@ -99,29 +126,20 @@ class MenuBuilder:
                         tools_item,
                         True
                     )
-                    self.logger.debug("MENU BUILD: Added Tools & Options with breadcrumb: %s", breadcrumb_text)
                 except Exception as e:
                     self.logger.error("MENU BUILD: Failed to add Tools & Options: %s", e)
-            else:
-                self.logger.debug("MENU BUILD: Skipping Tools & Options - already present in menu items")
 
         for idx, item in enumerate(items):
             try:
                 item_title = item.get('title', 'Unknown')
-                self.logger.debug("MENU BUILD: Processing menu item %s/%s: '%s'", idx+1, len(items), item_title)
-                self.logger.debug("MENU BUILD: Item %s data: %s", idx+1, item)
 
                 self._add_directory_item(item, addon_handle, base_url)
                 successful_items += 1
-                self.logger.debug("MENU BUILD: Successfully added menu item %s: '%s'", idx+1, item_title)
             except Exception as e:
                 failed_items += 1
                 self.logger.error("MENU BUILD: Failed to add menu item %s: %s", idx+1, e)
 
-        self.logger.debug("MENU BUILD: Added %s menu items successfully, %s failed", successful_items, failed_items)
-        self.logger.debug("MENU BUILD: Calling endOfDirectory(handle=%s, cacheToDisc=False)", addon_handle)
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
-        self.logger.debug("MENU BUILD: Completed endOfDirectory for menu with caching disabled")
 
     def _add_directory_item(self, item, addon_handle, base_url):
         """Add a single directory item with context menu support"""
@@ -214,14 +232,15 @@ class MenuBuilder:
 
         # Show breadcrumb notification for non-root views
         breadcrumb_path = options.get('breadcrumb_path')
-        self._show_breadcrumb_if_needed(breadcrumb_path)
+        if breadcrumb_path:
+            self._show_breadcrumb_if_needed(breadcrumb_path)
 
         # Add sort methods for movie lists
         sort_methods = [
             ('SORT_METHOD_LABEL_IGNORE_THE', xbmcplugin.SORT_METHOD_LABEL_IGNORE_THE),
-            ('SORT_METHOD_YEAR', xbmcplugin.SORT_METHOD_YEAR),
+            # ('SORT_METHOD_YEAR', xbmcplugin.SORT_METHOD_YEAR),  # Not available in Kodi 19
             ('SORT_METHOD_VIDEO_RATING', xbmcplugin.SORT_METHOD_VIDEO_RATING),
-            ('SORT_METHOD_DATE_ADDED', xbmcplugin.SORT_METHOD_DATE_ADDED),
+            # ('SORT_METHOD_DATE_ADDED', xbmcplugin.SORT_METHOD_DATE_ADDED),  # Not available in Kodi 19
             ('SORT_METHOD_VIDEO_RUNTIME', xbmcplugin.SORT_METHOD_VIDEO_RUNTIME)
         ]
 
@@ -329,15 +348,20 @@ class MenuBuilder:
             # Add stack trace to identify caller
             import traceback
             stack_info = traceback.extract_stack()
-            caller_info = stack_info[-2] if len(stack_info) > 1 else "unknown"
-            self.logger.info("MENU BUILDER CALLER: %s:%s in %s", caller_info.filename, caller_info.lineno, caller_info.name)
+            if len(stack_info) > 1:
+                caller_info = stack_info[-2]
+                self.logger.info("MENU BUILDER CALLER: %s:%s in %s", caller_info.filename, caller_info.lineno, caller_info.name)
+            else:
+                self.logger.info("MENU BUILDER CALLER: unknown")
 
             # Build URL
             url_params = [f"action={action}"]
             for key, value in params.items():
                 if value is not None:
                     url_params.append(f"{key}={value}")
-            url = f"{self.base_url}?{'&'.join(url_params)}"
+            # Note: base_url should be passed as parameter - this is a design issue
+            base_url = getattr(self, 'base_url', 'plugin://plugin.video.librarygenie/')
+            url = f"{base_url}?{'&'.join(url_params)}"
 
             # Create ListItem using renderer's method
             self.logger.info("MENU BUILDER: Calling renderer.create_simple_listitem for '%s'", label)
@@ -376,4 +400,5 @@ class MenuBuilder:
         except Exception as e:
             self.logger.error("MENU BUILDER: Failed to create menu item '%s': %s", label, e)
             # Return fallback
-            return f"{self.base_url}?action={action}", xbmcgui.ListItem(label=label, offscreen=True)
+            base_url = getattr(self, 'base_url', 'plugin://plugin.video.librarygenie/')
+            return f"{base_url}?action={action}", xbmcgui.ListItem(label=label, offscreen=True)
