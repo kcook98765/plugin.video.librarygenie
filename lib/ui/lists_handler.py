@@ -1078,8 +1078,8 @@ class ListsHandler:
                 return False
 
             # Fetch full library item data from Kodi
-            from lib.kodi.json_rpc_client import JSONRPCClient
-            kodi_client = JSONRPCClient()
+            from lib.kodi.json_rpc_client import KodiJsonRpcClient
+            kodi_client = KodiJsonRpcClient()
             
             library_item = None
             if dbtype == 'movie':
@@ -1165,7 +1165,7 @@ class ListsHandler:
             import xbmcgui
             if result:
                 # Get list name for notification
-                list_info = query_manager.get_list(default_list_id)
+                list_info = query_manager.get_list_by_id(default_list_id)
                 list_name = list_info.get('name', 'Default List') if list_info else 'Default List'
                 
                 xbmcgui.Dialog().notification(
