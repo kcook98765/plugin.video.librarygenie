@@ -147,10 +147,13 @@ class Router:
                 return response_handler.handle_directory_response(response, context)
             elif action == 'prompt_and_search':
                 from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.nav import finish_directory
                 factory = get_handler_factory()
                 factory.context = context # Set context before using factory
                 search_handler = factory.get_search_handler()
                 result = search_handler.prompt_and_search(context)
+                # Search results use PUSH semantics (new page, not refinement)
+                finish_directory(context.addon_handle, succeeded=result, update=False)
                 return result
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
