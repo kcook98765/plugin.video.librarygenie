@@ -162,7 +162,7 @@ class FolderToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._move_folder_to_parent(plugin_context, payload["folder_id"])
+            return tools_handler._move_folder(plugin_context, payload["folder_id"])
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.folder_provider')
