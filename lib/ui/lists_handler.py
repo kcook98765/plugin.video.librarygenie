@@ -576,7 +576,7 @@ class ListsHandler:
                 parent_path = context.build_url('show_folder', folder_id=parent_folder_id)
             else:
                 # Navigate to root plugin directory (main lists menu)
-                parent_path = context.build_url('')  # Empty action = main lists menu
+                parent_path = context.build_url('lists')  # Use 'lists' action for main menu
             
             context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
             xbmcplugin.setProperty(context.addon_handle, 'ParentDir', parent_path)
