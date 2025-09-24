@@ -25,6 +25,7 @@ class ToolsHandler:
             from lib.ui.listitem_builder import ListItemBuilder
             if context:
                 self.listitem_builder = ListItemBuilder(
+                    context=context,
                     addon_handle=context.addon_handle,
                     addon_id=context.addon.getAddonInfo('id')
                 )
@@ -136,7 +137,7 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36029), list(folder_options))  # "Select destination folder:"
+            selected_index = dialog.select(L(36029), folder_options)  # "Select destination folder:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -195,7 +196,7 @@ class ToolsHandler:
 
             # Show list selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36028), list(list_options))  # "Select list to merge:"
+            selected_index = dialog.select(L(36028), list_options)  # "Select list to merge:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -245,7 +246,7 @@ class ToolsHandler:
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select destination folder:", list(folder_options))
+            selected_index = dialog.select("Select destination folder:", folder_options)
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -654,6 +655,12 @@ class ToolsHandler:
             if not file_path:
                 return DialogResponse(success=False)  # User cancelled
 
+            # Handle file_path that might be a list from dialog.browse
+            if isinstance(file_path, list):
+                if not file_path:
+                    return DialogResponse(success=False)
+                file_path = file_path[0]
+
             # Get import engine
             import_engine = get_import_engine()
 
@@ -666,7 +673,7 @@ class ToolsHandler:
                     message=f"Invalid import file:\n{errors}"
                 )
 
-            # Preview import to show user what will happen
+            # Preview import to show user what will happen  
             preview = import_engine.preview_import(file_path)
             
             # Show confirmation with preview details (simplified for timestamped import folders)
