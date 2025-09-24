@@ -451,9 +451,8 @@ class ListsHandler:
                 if folder_name == 'Search History':
                     continue
 
-                context_menu = [
-                    (f"Tools & Options for '{folder_name}'", f"RunPlugin({context.build_url('show_tools', list_type='folder', list_id=folder_id)})")
-                ]
+                # Folder context menu handled by ContextMenuBuilder in listitem_renderer
+                context_menu = []
 
                 menu_items.append({
                     'label': folder_name,
@@ -597,27 +596,15 @@ class ListsHandler:
 
             menu_items = []
 
-            # Add Tools & Options for this folder with unified breadcrumb approach
-            breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_folder", {"folder_id": folder_id}, query_manager)
-            
-            menu_items.append({
-                'label': f"Tools & Options {breadcrumb_text}",
-                'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id, folder_id=folder_id),
-                'is_folder': True,
-                'icon': "DefaultAddonProgram.png",
-                'description': f"{description_text}Tools and options for this folder"
-            })
+            # Tools & Options for folders are now accessed through proper context menu only
 
             # Add subfolders in this folder
             for subfolder in subfolders:
                 subfolder_id = subfolder.get('id')
                 subfolder_name = subfolder.get('name', 'Unnamed Folder')
 
-                context_menu = [
-                    (f"Rename '{subfolder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=subfolder_id)})"),
-                    (f"Tools & Options for '{subfolder_name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='folder', list_id=subfolder_id, folder_id=subfolder_id)})"),
-                    (f"Delete '{subfolder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=subfolder_id)})")
-                ]
+                # Folder context menu handled by ContextMenuBuilder in listitem_renderer
+                context_menu = []
 
                 menu_items.append({
                     'label': f"📁 {subfolder_name}",
