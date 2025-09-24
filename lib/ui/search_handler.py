@@ -177,33 +177,13 @@ class SearchHandler:
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
 
-                    # Show explicit UX option: Show saved list now?
-                    dialog_title = "Search Saved"
-                    dialog_message = f"Saved {added} items to search history.\n\nShow the saved list now?"
-
-                    # Always show dialog if in forced mode, or based on user preference
-                    show_now = xbmcgui.Dialog().yesno(dialog_title, dialog_message)
-
-                    if show_now:
-                        # User chose to show saved list immediately - use PUSH semantics
-                        from lib.ui.response_types import NavigationIntent
-                        list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                        intent = NavigationIntent(url=list_url, mode='push')
-                        # Store intent for router to execute
-                        self._pending_intent = intent
-                        self._debug(f"Set navigation intent to PUSH to saved list: {list_url}")
-                    else:
-                        # User chose not to show - just notify
-                        # Use f-string formatting to avoid string formatting errors
-                        base_message = L(32102)  # Should be "Search saved: %d items" or similar
-                        if '%d' in base_message:
-                            formatted_message = base_message % added
-                        elif '{' in base_message:
-                            formatted_message = base_message.format(added)
-                        else:
-                            # Fallback message
-                            formatted_message = f"Search saved: {added} items"
-                        self._notify_info(formatted_message, ms=3000)
+                    # Automatically show saved list immediately - use PUSH semantics
+                    from lib.ui.response_types import NavigationIntent
+                    list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                    intent = NavigationIntent(url=list_url, mode='push')
+                    # Store intent for router to execute
+                    self._pending_intent = intent
+                    self._debug(f"Set navigation intent to PUSH to saved list: {list_url}")
 
                     return list_id  # Return the list ID on success
                 else:
