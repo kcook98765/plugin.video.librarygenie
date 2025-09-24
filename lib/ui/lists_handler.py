@@ -577,9 +577,13 @@ class ListsHandler:
             else:
                 # Navigate to root plugin directory (main lists menu)
                 parent_path = context.build_url('lists')  # Use 'lists' action for main menu
-            
+
             context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
-            xbmcplugin.setProperty(context.addon_handle, 'ParentDir', parent_path)
+            # Set parent directory using the correct xbmcplugin method
+            import xbmc
+            xbmc.executebuiltin(f'SetProperty(ParentDir,{parent_path})')
+            # Also try the container method
+            xbmc.executebuiltin(f'SetProperty(Container.ParentDir,{parent_path})')
 
             context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
