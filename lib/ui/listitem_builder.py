@@ -1170,7 +1170,7 @@ class ListItemBuilder:
                 art_dict = {}
                 if hasattr(listitem, 'getArt'):
                     try:
-                        art_dict = listitem.getArt()
+                        art_dict = listitem.getArt("")
                     except (TypeError, AttributeError):
                         # Some Kodi versions have different getArt() signatures
                         art_dict = {}
