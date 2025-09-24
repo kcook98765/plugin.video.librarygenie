@@ -454,6 +454,7 @@ class ListsHandler:
                 # Folder context menu with proper actions (no Tools & Options)
                 context_menu = [
                     (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
+                    (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
                     (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
                 ]
 
@@ -609,6 +610,7 @@ class ListsHandler:
                 # Subfolder context menu with proper actions (no Tools & Options)
                 context_menu = [
                     (f"Rename '{subfolder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=subfolder_id)})"),
+                    (f"Move '{subfolder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=subfolder_id)})"),
                     (f"Delete '{subfolder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=subfolder_id)})")
                 ]
 
