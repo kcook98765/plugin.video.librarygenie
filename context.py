@@ -44,6 +44,11 @@ def _is_folder_context(container_path, file_path):
 def main():
     """Main context menu handler"""
     try:
+        # Check if we're within LibraryGenie plugin - if so, skip global context menu
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        if container_path and container_path.startswith('plugin://plugin.video.librarygenie/'):
+            xbmc.log("LibraryGenie: Skipping global context menu within plugin", xbmc.LOGINFO)
+            return
 
         addon = xbmcaddon.Addon()
 
@@ -402,7 +407,7 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
 
     # Search option
     options.append("Search")
-    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.TVShowTitle')} {xbmc.getInfoLabel('ListItem.Title')}")
+    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.TVShowTitle')} {xbmc.getInfoLabel('ListItem.Title')})")
 
 
 
@@ -431,7 +436,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
     # Use hijack properties as fallback
     if not dbid and item_info.get('hijack_dbid'):
         dbid = item_info['hijack_dbid']
-    if not dbtype and item_info.get('hijack_dbtype']:
+    if not dbtype and item_info.get('hijack_dbtype'):
         dbtype = item_info['hijack_dbtype']
 
     xbmc.log(f"LibraryGenie: _add_librarygenie_item_options - dbtype={dbtype}, dbid={dbid}, media_item_id={media_item_id}", xbmc.LOGINFO)
