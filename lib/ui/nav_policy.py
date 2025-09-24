@@ -119,13 +119,23 @@ class NavigationPolicy:
                 self.logger.debug("NAV POLICY: Different %s (%s → %s) → different page (PUSH)", param, current_id, next_id)
                 return False
         
-        # Special case for list views: same list_id = page morph (REPLACE)
+        # Special case for list views: same list_id with explicit morph params = page morph (REPLACE)
         if action == 'show_list' and current_params.get('list_id') == next_params.get('list_id'):
-            self.logger.debug("NAV POLICY: Same list_id (%s) → page morph (REPLACE)", current_params.get('list_id'))
-            return True
+            # Only treat as page morph if we have explicit sorting/filtering changes
+            for param in morph_params:
+                if param in current_params or param in next_params:
+                    self.logger.debug("NAV POLICY: Same list_id (%s) with %s change → page morph (REPLACE)", 
+                                     current_params.get('list_id'), param)
+                    return True
+            # Same list without explicit morph params = new navigation (PUSH)
+            self.logger.debug("NAV POLICY: Same list_id (%s) without morph params → new navigation (PUSH)", 
+                             current_params.get('list_id'))
+            return False
         
-        # If we're here, it's likely a page morph
-        return True
+        # Default to PUSH for in-plugin navigation to maintain proper navigation stack
+        # Only true page morphs (with explicit sort/filter params) should use REPLACE
+        self.logger.debug("NAV POLICY: Default to new navigation (PUSH) to maintain navigation stack")
+        return False
 
     def should_refresh(self, reason: str) -> bool:
         """Determine if a refresh is needed instead of navigation"""

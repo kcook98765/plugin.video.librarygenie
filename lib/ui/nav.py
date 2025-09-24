@@ -50,15 +50,18 @@ class Navigator:
             return
             
         if intent.mode == 'push':
-            self.push(intent.url)
+            if intent.url:
+                self.push(intent.url)
         elif intent.mode == 'replace':
-            self.replace(intent.url)
+            if intent.url:
+                self.replace(intent.url)
         elif intent.mode == 'refresh':
             self.refresh()
         elif intent.mode is None:
             self.logger.debug("NAVIGATOR: Intent mode is None, no action taken")
         else:
             self.logger.warning("NAVIGATOR: Unknown intent mode: %s", intent.mode)
+
 
 
 # Global navigator instance
