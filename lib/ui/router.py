@@ -193,6 +193,9 @@ class Router:
                     lists_handler = factory.get_lists_handler()
                     response_handler = get_response_handler()
                     response = lists_handler.delete_folder(context, str(folder_id))
+                    # Auto-refresh after successful folder deletion
+                    if response.success:
+                        response.refresh_needed = True
                     success = response_handler.handle_dialog_response(response, context)
                     return bool(success) if success is not None else True
                 else:
@@ -210,6 +213,9 @@ class Router:
                     lists_handler = factory.get_lists_handler()
                     response_handler = get_response_handler()
                     response = lists_handler.rename_folder(context, str(folder_id))
+                    # Auto-refresh after successful folder rename
+                    if response.success:
+                        response.refresh_needed = True
                     success = response_handler.handle_dialog_response(response, context)
                     return bool(success) if success is not None else True
                 else:
@@ -227,6 +233,9 @@ class Router:
                     lists_handler = factory.get_lists_handler()
                     response_handler = get_response_handler()
                     response = lists_handler.move_folder(context, str(folder_id))
+                    # Auto-refresh after successful folder move
+                    if response.success:
+                        response.refresh_needed = True
                     success = response_handler.handle_dialog_response(response, context)
                     return bool(success) if success is not None else True
                 else:
