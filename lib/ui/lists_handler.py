@@ -657,9 +657,11 @@ class ListsHandler:
 
             # Use navigation policy to determine navigation mode
             from lib.ui.nav_policy import decide_mode
-            current_route = {'action': 'show_folder', 'folder_id': folder_id}
+            current_route = 'show_folder'
             next_route = current_route  # Same route for folder view
-            nav_mode = decide_mode(current_route, next_route, 'folder_view')
+            current_params = {'folder_id': folder_id}
+            next_params = current_params  # Same params for folder view
+            nav_mode = decide_mode(current_route, next_route, 'folder_view', current_params, next_params)
             update_listing = (nav_mode == 'replace')
 
             return DirectoryResponse(
