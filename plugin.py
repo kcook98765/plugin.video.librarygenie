@@ -816,16 +816,18 @@ def _handle_dialog_response(context: PluginContext, response):
     """Handle DialogResponse objects from handler methods"""
     from lib.ui.response_types import DialogResponse
     from lib.ui.response_handler import get_response_handler
-    import xbmcplugin
+    from lib.ui.nav import get_navigator
 
     if isinstance(response, DialogResponse):
         response_handler = get_response_handler()
         result = response_handler.handle_dialog_response(response, context)
         
-        # For context menu actions (handle=-1), ensure proper directory handling
-        if context.addon_handle == -1:
-            context.logger.debug("DIALOG RESPONSE: Context menu action completed, calling endOfDirectory")
-            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=response.success, updateListing=True, cacheToDisc=False)
+        # For context menu actions (handle=-1) that need refresh, use updateListing mechanism
+        if (context.addon_handle == -1 and response.success and 
+            getattr(response, 'refresh_needed', None)):
+            context.logger.debug("DIALOG RESPONSE: Context menu action with refresh_needed, calling endOfDirectory with updateListing=True")
+            navigator = get_navigator()
+            navigator.finish_directory(context.addon_handle, succeeded=True, update=True)
         
         return result
 
