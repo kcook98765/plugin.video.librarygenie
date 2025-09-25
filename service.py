@@ -22,7 +22,6 @@ from lib.data.storage_manager import get_storage_manager
 from lib.data.migrations import initialize_database
 from lib.data.db_config import get_db_config_calculator
 from lib.ui.localization import L
-from lib.ui.info_hijack_manager import InfoHijackManager # Import added
 
 addon = xbmcaddon.Addon()
 
@@ -56,7 +55,6 @@ class LibraryGenieService:
         self.monitor = LibraryGenieMonitor()
         self.sync_thread = None
         self.sync_stop_event = threading.Event()
-        self.hijack_manager = InfoHijackManager() # Hijack manager initialized
         
         # State tracking to reduce excessive logging
         self._last_ai_sync_state = None
@@ -69,12 +67,8 @@ class LibraryGenieService:
         self._service_start_time = time.time()
         
         
-        log_info("🚀 LibraryGenie service initialized with InfoHijack manager")
+        log_info("🚀 LibraryGenie service initialized")
 
-        # Debug: Check initial dialog state
-        initial_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        initial_dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-        log(f"SERVICE INIT: Initial dialog state - ID: {initial_dialog_id}, VideoInfo active: {initial_dialog_active}")
 
     def _show_notification(self, message: str, icon: str = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
         """Show a Kodi notification"""
@@ -310,7 +304,7 @@ class LibraryGenieService:
 
 
             # Main service loop
-            self.run() # Changed to call run() which contains the hijack manager loop
+            self.run() # Main service loop
 
             # Cleanup
             self._stop_ai_sync_thread()
@@ -324,13 +318,10 @@ class LibraryGenieService:
         log_info("🔥 LibraryGenie service starting main loop...")
         tick_count = 0
         last_dialog_active = False
-        last_armed_state = None
-        last_container_path = None
-        hijack_mode = False
         last_ai_sync_check = 0
 
         # Reduced logging frequency
-        log_interval = 300  # Log every 30 seconds in normal mode, 10 seconds in hijack mode
+        log_interval = 300  # Log every 30 seconds
         ai_sync_check_interval = 30  # Check AI sync activation every 30 seconds
 
         while not self.monitor.abortRequested():
@@ -339,62 +330,25 @@ class LibraryGenieService:
 
                 # Cache Kodi API queries within tick cycle to reduce redundant calls
                 dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-                armed_state = xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
                 
-                # Only query container path when dialog state changes or when forced
-                state_changed = (dialog_active != last_dialog_active or armed_state != last_armed_state)
-                if state_changed or last_container_path is None:
-                    container_path = xbmc.getInfoLabel('Container.FolderPath')
-                else:
-                    container_path = last_container_path  # Reuse cached value
-                
-                # Also check if we're in extended monitoring period for XSP auto-navigation
-                in_extended_monitoring = (
-                    hasattr(self.hijack_manager, '_hijack_monitoring_expires') and 
-                    time.time() < self.hijack_manager._hijack_monitoring_expires
-                )
+                state_changed = (dialog_active != last_dialog_active)
 
-                # Determine if we're in hijack mode (need frequent 100ms ticks)
-                needs_hijack = dialog_active or armed_state == '1' or in_extended_monitoring
 
-                # State change detection for mode switching
-                if needs_hijack != hijack_mode:
-                    hijack_mode = needs_hijack
-                    if hijack_mode:
-                        if in_extended_monitoring:
-                            log("Entering hijack mode - extended monitoring for XSP auto-navigation (120s)")
-                        else:
-                            log("Entering hijack mode - frequent ticking enabled")
-                        log_interval = 600  # 60 seconds in hijack mode (reduced from 10 seconds)
-                    else:
-                        log("Exiting hijack mode - entering idle mode")
-                        log_interval = 1800  # 180 seconds (3 minutes) in normal mode (reduced from 30 seconds)
-
-                # Conditional debug logging - only when state changes or at very long intervals
-                # Also only log if something interesting is happening (not just idle ticks)
+                # Conditional debug logging - only when state changes or at intervals
                 interval_reached = (tick_count % log_interval == 0)
-                something_interesting = dialog_active or armed_state == '1' or in_extended_monitoring
                 
-                should_log = (
-                    state_changed or  # Always log state changes
-                    (interval_reached and something_interesting)  # Only log intervals when something is happening
-                )
+                should_log = state_changed or interval_reached
 
-                if should_log:  # Using direct Kodi logging - no custom debug check needed
+                if should_log:
                     dialog_id = xbmcgui.getCurrentWindowDialogId()
-                    # Reuse cached container_path instead of querying again
-                    mode_str = "HIJACK" if hijack_mode else "IDLE"
                     
                     if state_changed:
-                        log(f"SERVICE STATE CHANGE [{mode_str}]: dialog_active={dialog_active}, dialog_id={dialog_id}, armed={armed_state}")
+                        log(f"SERVICE STATE CHANGE: dialog_active={dialog_active}, dialog_id={dialog_id}")
                     else:
-                        # Only log periodic ticks when in hijack mode and something is active
-                        log(f"SERVICE [{mode_str}] PERIODIC CHECK {tick_count}: dialog_active={dialog_active}, armed={armed_state}")
+                        log(f"SERVICE PERIODIC CHECK {tick_count}: dialog_active={dialog_active}")
 
                 # Store state for next comparison
                 last_dialog_active = dialog_active
-                last_armed_state = armed_state
-                last_container_path = container_path
 
                 # Check for AI sync activation changes periodically
                 if tick_count % ai_sync_check_interval == 0:
@@ -411,42 +365,15 @@ class LibraryGenieService:
                     self._check_cache_refresh_request()
                 
                 
-                # Check for periodic library sync (every 30 seconds when not in hijack mode)
-                # Only check when idle to avoid interference with dialog operations
-                if not hijack_mode and tick_count % 30 == 0:  # Every 30 seconds
+                # Check for periodic library sync (every 30 seconds)
+                if tick_count % 30 == 0:  # Every 30 seconds
                     self._check_and_perform_periodic_library_sync()
                 
 
-                # Run hijack manager tick only when needed
-                if hijack_mode:
-                    self.hijack_manager.tick()
-                    
-                    # Check if we can safely exit hijack mode AFTER hijack manager has processed
-                    # Stay in hijack mode if user is still on LibraryGenie XSP pages
-                    # Reuse cached container_path instead of querying again
-                    on_lg_hijack_xsp = container_path and (
-                        'lg_hijack_temp.xsp' in container_path or
-                        'lg_hijack_debug.xsp' in container_path
-                    )
-                    
-                    # Only allow hijack mode exit if NOT on our XSP pages
-                    if on_lg_hijack_xsp:
-                        # Force hijack mode to stay active for next iteration
-                        needs_hijack = True
-                        if not dialog_active and dialog_active != last_dialog_active:  # Log when dialog closes but still on XSP
-                            log("HIJACK: Dialog closed but staying in hijack mode - user on LibraryGenie XSP")
-                    # Normal hijack mode detection will handle other cases
 
-                # Adaptive sleep timing based on mode
-                if hijack_mode:
-                    # Reduced frequency ticking when hijack is needed (150ms instead of 100ms)
-                    # Still responsive but 33% less CPU usage
-                    if self.monitor.waitForAbort(0.15):
-                        break
-                else:
-                    # Slow ticking when idle to save resources (1 second)
-                    if self.monitor.waitForAbort(1.0):
-                        break
+                # Standard service timing - 1 second intervals
+                if self.monitor.waitForAbort(1.0):
+                    break
 
             except Exception as e:
                 log_error(f"💥 SERVICE ERROR: {e}")

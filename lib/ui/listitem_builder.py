@@ -254,7 +254,7 @@ class ListItemBuilder:
         try:
             title = item.get('title', 'Unknown')
             media_type = item.get('media_type', 'movie')
-            kodi_id = item.get('kodi_id')  # Keep for hijack functionality
+            kodi_id = item.get('kodi_id')  # Keep for library item database linking
 
             # Label: format based on media type
             # Check for episode formatting - either explicit media_type='episode' or presence of episode fields
@@ -303,22 +303,6 @@ class ListItemBuilder:
             is_folder = False
             
 
-            # Set InfoHijack properties only if user has enabled native Kodi info hijacking
-            try:
-                from lib.config.settings import SettingsManager
-                settings_manager = SettingsManager()
-                if settings_manager.get_use_native_kodi_info():
-                    li.setProperty("LG.InfoHijack.Armed", "1")
-                    li.setProperty("LG.InfoHijack.DBID", str(kodi_id) if kodi_id is not None else "0")
-                    li.setProperty("LG.InfoHijack.DBType", media_type)
-                    
-                    # OPTIMIZATION: Pre-populate navigation cache to eliminate cache misses during hijack detection
-                    self._preload_hijack_cache_properties(title, kodi_id, media_type)
-                else:
-                    # Setting is disabled - do not arm hijack
-                    pass
-            except Exception as e:
-                self.logger.error("LIB ITEM: ❌ Failed to set InfoHijack properties for '%s': %s", title, e)
 
             # Enhanced episode title formatting for maximum skin compatibility
             self._set_enhanced_episode_formatting(li, item, display_label, is_episode)
@@ -394,40 +378,6 @@ class ListItemBuilder:
             self.logger.error("LIB ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
             return None
 
-    def _preload_hijack_cache_properties(self, title: str, kodi_id, media_type: str):
-        """
-        Pre-populate navigation cache with hijack properties to eliminate cache misses
-        during hijack detection.
-        """
-        try:
-            from lib.ui.navigation_cache import get_navigation_cache
-            import time
-            
-            cache = get_navigation_cache()
-            now = time.monotonic()
-            
-            # Pre-populate cache with hijack properties that will be accessed during hijack detection
-            hijack_properties = {
-                'ListItem.Property(LG.InfoHijack.Armed)': '1',
-                'ListItem.Property(LG.InfoHijack.DBID)': str(kodi_id) if kodi_id is not None else '0',
-                'ListItem.Property(LG.InfoHijack.DBType)': media_type,
-                'ListItem.Label': title,
-                'ListItem.DBID': str(kodi_id) if kodi_id is not None else '',
-                'ListItem.DBTYPE': media_type
-            }
-            
-            # Populate cache directly to avoid API calls during hijack
-            with cache._lock:
-                for label, value in hijack_properties.items():
-                    cache._cache[label] = {
-                        'value': value,
-                        'timestamp': now,
-                        'generation': cache._generation
-                    }
-            
-            
-        except Exception as e:
-            self.logger.debug("CACHE PRELOAD: Failed to pre-populate cache for '%s': %s", title, e)
     
     def _add_media_context_menu(self, li: 'xbmcgui.ListItem', item: Dict[str, Any], media_type: str, kodi_id, title: str):
         """Add context menu items for media items when viewing lists"""
@@ -1086,9 +1036,7 @@ class ListItemBuilder:
         try:
             # Core properties to check
             properties_to_check = [
-                'IsPlayable', 'media_item_id', 'list_id', 
-                'LG.InfoHijack.Armed', 'LG.InfoHijack.DBID', 'LG.InfoHijack.DBType',
-                'LG.InfoHijack.Nav.Title', 'LG.InfoHijack.Nav.DBID', 'LG.InfoHijack.Nav.DBType'
+                'IsPlayable', 'media_item_id', 'list_id'
             ]
             
             self.logger.info("FIRST_PLAYABLE_DEBUG: --- PROPERTIES ---")
