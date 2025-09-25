@@ -560,16 +560,12 @@ class Router:
 
     def _handle_remove_from_list(self, context: PluginContext, lists_handler) -> bool:
         """Handles the remove_from_list action, including fallback logic."""
-        context.logger.debug("ROUTER _handle_remove_from_list: Called with list_id=%s, item_id=%s", 
-                           context.get_param('list_id'), context.get_param('item_id'))
         list_id = context.get_param('list_id')
         item_id = context.get_param('item_id')
 
         if item_id:
             # If item_id is directly provided, use it
             response = lists_handler.remove_from_list(context, list_id, item_id)
-            context.logger.debug("ROUTER _handle_remove_from_list: Got response success=%s, refresh_needed=%s", 
-                               getattr(response, 'success', None), getattr(response, 'refresh_needed', None))
             
             # Process DialogResponse for context menu actions
             if hasattr(response, 'success'):
@@ -582,7 +578,6 @@ class Router:
                 # For context menu actions (handle=-1) that need refresh, use updateListing mechanism
                 if (context.addon_handle == -1 and response.success and 
                     getattr(response, 'refresh_needed', None)):
-                    context.logger.debug("ROUTER: Context menu action with refresh_needed, calling endOfDirectory with updateListing=True")
                     navigator = get_navigator()
                     navigator.finish_directory(context.addon_handle, succeeded=True, update=True)
                 
