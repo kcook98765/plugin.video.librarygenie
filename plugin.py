@@ -816,31 +816,16 @@ def _handle_dialog_response(context: PluginContext, response):
     """Handle DialogResponse objects from handler methods"""
     from lib.ui.response_types import DialogResponse
     from lib.ui.response_handler import get_response_handler
-    from lib.ui.nav import get_navigator
 
     if isinstance(response, DialogResponse):
-        context.logger.debug("DIALOG RESPONSE: Processing DialogResponse - handle=%s, success=%s, refresh_needed=%s", 
-                           context.addon_handle, response.success, getattr(response, 'refresh_needed', None))
-        
         response_handler = get_response_handler()
-        result = response_handler.handle_dialog_response(response, context)
-        
-        # For context menu actions (handle=-1) that need refresh, use updateListing mechanism
-        if (context.addon_handle == -1 and response.success and 
-            getattr(response, 'refresh_needed', None)):
-            context.logger.debug("DIALOG RESPONSE: Context menu action with refresh_needed, calling endOfDirectory with updateListing=True")
-            navigator = get_navigator()
-            navigator.finish_directory(context.addon_handle, succeeded=True, update=True)
-        
-        return result
+        return response_handler.handle_dialog_response(response, context)
 
     return response
 
 
 def _handle_remove_from_list(context: PluginContext, lists_handler):
     """Handle remove_from_list with fallback logic"""
-    context.logger.debug("_HANDLE_REMOVE_FROM_LIST: Called with list_id=%s, item_id=%s", 
-                         context.get_param('list_id'), context.get_param('item_id'))
     list_id = context.get_param('list_id')
     item_id = context.get_param('item_id')
     
@@ -892,8 +877,6 @@ def _handle_remove_from_list(context: PluginContext, lists_handler):
                 message="Invalid remove request"
             )
     
-    context.logger.debug("_HANDLE_REMOVE_FROM_LIST: About to call _handle_dialog_response with response.success=%s", 
-                         getattr(response, 'success', None))
     return _handle_dialog_response(context, response)
 
 
