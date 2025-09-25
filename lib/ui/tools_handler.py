@@ -135,9 +135,10 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(success=False, message=L(34306))  # "Database error"
 
-            # Get available folders
+            # Get available folders (excluding Search History)
             all_folders = query_manager.get_all_folders()
-            folder_options = ["[Root Level]"] + [f['name'] for f in all_folders if f['name'] != 'Search History']
+            selectable_folders = [f for f in all_folders if f['name'] != 'Search History']
+            folder_options = ["[Root Level]"] + [f['name'] for f in selectable_folders]
 
             # Show folder selection dialog
             dialog = xbmcgui.Dialog()
@@ -147,7 +148,7 @@ class ToolsHandler:
                 return DialogResponse(success=False)
 
             # Move list
-            target_folder_id = None if selected_index == 0 else all_folders[selected_index - 1]['id']
+            target_folder_id = None if selected_index == 0 else selectable_folders[selected_index - 1]['id']
 
             self.logger.debug("Moving list %s to folder %s (selected_index: %s)", list_id, target_folder_id, selected_index)
 
