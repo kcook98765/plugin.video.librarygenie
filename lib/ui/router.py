@@ -466,39 +466,6 @@ class Router:
                         # It's a boolean or similar result
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=bool(result))
                         return bool(result)
-            elif action.startswith('remove_from_list') or action.startswith('remove_library_item_from_list'):
-                from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.response_handler import get_response_handler
-                from lib.ui.nav import execute_intent, refresh
-                factory = get_handler_factory()
-                factory.context = context
-                lists_handler = factory.get_lists_handler()
-                response_handler = get_response_handler()
-
-                is_context = context.is_from_outside_plugin()
-
-                # Dispatch based on specific action
-                if action == 'remove_from_list':
-                    result = lists_handler.remove_from_list(context)
-                elif action == 'remove_library_item_from_list':
-                    result = lists_handler.remove_library_item_from_list(context)
-
-                # Handle context actions differently
-                if is_context:
-                    # Pure context actions - no endOfDirectory, use NavigationIntent
-                    if result and hasattr(result, 'intent') and result.intent:
-                        execute_intent(result.intent)
-                    elif result:
-                        refresh()  # Fallback to refresh if no intent
-                    return bool(result and result.success)
-                else:
-                    # For plugin actions, handle normally through response handler
-                    if hasattr(result, 'success'):
-                        response_handler.handle_dialog_response(result, context)
-                        return result.success
-                    else:
-                        xbmcplugin.endOfDirectory(context.addon_handle, succeeded=bool(result))
-                        return bool(result)
             else:
                 # Check for registered handlers
                 handler = self._handlers.get(action)
