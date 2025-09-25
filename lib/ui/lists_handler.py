@@ -6,7 +6,6 @@ LibraryGenie - Lists Handler
 Handles lists display and navigation (refactored)
 """
 
-import time
 import xbmcplugin
 import xbmcgui
 
@@ -28,35 +27,18 @@ class ListsHandler:
     """Handles lists operations (refactored to use specialized modules)"""
 
     def __init__(self, context: PluginContext):
-        # CONSTRUCTOR TIMING: ListsHandler constructor start
-        constructor_start_time = time.time()
-
-        # CONSTRUCTOR TIMING: Basic initialization
-        basic_init_start_time = time.time()
         self.context = context
         self.logger = get_kodi_logger('lib.ui.lists_handler')
         self.query_manager = context.query_manager
         self.storage_manager = context.storage_manager
-        basic_init_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: Basic initialization took {basic_init_end_time - basic_init_start_time:.3f} seconds")
 
-        # CONSTRUCTOR TIMING: Breadcrumb helper
-        breadcrumb_start_time = time.time()
         self.breadcrumb_helper = get_breadcrumb_helper()
-        breadcrumb_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: Breadcrumb helper initialization took {breadcrumb_end_time - breadcrumb_start_time:.3f} seconds")
 
-        # CONSTRUCTOR TIMING: Core operation modules (import/export deferred for performance)
-        modules_start_time = time.time()
+        # Import/export deferred for performance
         self.list_ops = ListOperations(context)
         self.folder_ops = FolderOperations(context)
         self._import_export = None  # Lazy loaded on first use
-        modules_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: Core operation modules initialization took {modules_end_time - modules_start_time:.3f} seconds")
 
-        # CONSTRUCTOR TIMING: Complete constructor
-        constructor_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: ✅ Complete ListsHandler constructor took {constructor_end_time - constructor_start_time:.3f} seconds")
 
     @property
     def import_export(self):
