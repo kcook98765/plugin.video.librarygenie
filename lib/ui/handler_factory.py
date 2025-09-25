@@ -7,7 +7,6 @@ Provides lazy instantiation of handlers to improve plugin startup performance
 """
 
 from typing import Dict, Optional, Any, Callable
-import time
 from lib.utils.kodi_log import get_kodi_logger
 
 

@@ -10,7 +10,6 @@ from typing import Dict, Callable, Any
 from lib.ui.plugin_context import PluginContext
 import xbmcgui
 import xbmcplugin
-import time
 from lib.utils.kodi_log import get_kodi_logger
 
 
