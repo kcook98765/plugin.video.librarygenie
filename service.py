@@ -20,6 +20,7 @@ from lib.remote.ai_search_client import get_ai_search_client
 from lib.library.scanner import LibraryScanner
 from lib.data.storage_manager import get_storage_manager
 from lib.data.migrations import initialize_database
+from lib.data.db_config import get_db_config_calculator
 from lib.ui.localization import L
 from lib.ui.info_hijack_manager import InfoHijackManager # Import added
 
@@ -51,6 +52,7 @@ class LibraryGenieService:
         self.settings = SettingsManager()
         self.ai_client = get_ai_search_client()
         self.storage_manager = get_storage_manager()
+        self.db_config = get_db_config_calculator()
         self.monitor = LibraryGenieMonitor()
         self.sync_thread = None
         self.sync_stop_event = threading.Event()
@@ -176,65 +178,14 @@ class LibraryGenieService:
             # Don't fail initialization for this
 
     def _cache_database_metadata(self):
-        """Calculate database optimization metadata with schema validation"""
+        """Calculate database optimization metadata using centralized logic"""
         try:
-            import os
             import json
             
             db_path = self.storage_manager.get_database_path()
             
-            # Get current schema version for validation
-            try:
-                from lib.data.migrations import TARGET_SCHEMA_VERSION
-            except ImportError:
-                TARGET_SCHEMA_VERSION = 0  # Fallback if import fails
-                
-            try:
-                from lib.data import get_connection_manager
-                connection_manager = get_connection_manager()
-                with connection_manager.transaction() as conn:
-                    schema_version_result = conn.execute(
-                        "SELECT version FROM schema_version ORDER BY id DESC LIMIT 1"
-                    ).fetchone()
-                    current_schema_version = schema_version_result['version'] if schema_version_result else 0
-            except Exception as e:
-                log_error(f"Could not determine schema version: {e}")
-                current_schema_version = 0
-            
-            # Calculate optimization parameters (same logic as ConnectionManager)
-            metadata = {
-                'db_path': db_path,
-                'service_initialized': True,
-                'schema_version': current_schema_version,
-                'target_schema_version': TARGET_SCHEMA_VERSION
-            }
-            
-            if os.path.exists(db_path):
-                db_size_bytes = os.path.getsize(db_path)
-                db_size_mb = db_size_bytes / (1024 * 1024)
-                
-                # Same mmap calculation logic from ConnectionManager
-                if db_size_mb < 16:
-                    mmap_size = 33554432  # 32MB minimum
-                    cache_pages = 500     # 2MB cache
-                elif db_size_mb < 64:
-                    mmap_size = int(db_size_bytes * 2)
-                    cache_pages = min(1500, int(db_size_mb * 75))
-                else:
-                    mmap_size = min(int(db_size_bytes * 1.5), 134217728)
-                    cache_pages = 2000
-                    
-                metadata.update({
-                    'mmap_size': mmap_size,
-                    'cache_pages': cache_pages,
-                    'db_size_mb': db_size_mb
-                })
-            else:
-                # New database defaults
-                metadata.update({
-                    'mmap_size': 33554432,  # 32MB
-                    'cache_pages': 500      # 2MB cache
-                })
+            # Use centralized calculator to create complete metadata
+            metadata = self.db_config.create_service_metadata(db_path)
             
             # Cache in Window property for plugin access
             window = xbmcgui.Window(10000)
