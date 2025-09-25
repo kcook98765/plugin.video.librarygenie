@@ -12,7 +12,7 @@ from datetime import datetime
 from io import StringIO
 from typing import List, Dict, Any, Optional, Tuple
 from lib.import_export.data_schemas import ExportEnvelope
-from lib.import_export.storage_manager import get_storage_manager
+from lib.data.storage_manager import get_storage_manager
 from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
