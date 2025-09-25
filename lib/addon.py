@@ -15,6 +15,7 @@ import xbmcplugin
 from typing import Dict, Any
 from lib.utils.kodi_log import get_kodi_logger
 from lib.config import get_config
+from lib.ui.dialog_service import get_dialog_service
 
 
 class AddonController:
@@ -27,6 +28,7 @@ class AddonController:
         self.params = addon_params
         self.logger = get_kodi_logger('lib.addon')
         self.cfg = get_config()
+        self.dialog_service = get_dialog_service('lib.addon')
 
     def route(self):
         """Route requests to appropriate handlers"""
@@ -47,10 +49,10 @@ class AddonController:
 
         except Exception as e:
             self.logger.error("Error in route handling: %s", e)
-            xbmcgui.Dialog().notification(
-                self.addon.getAddonInfo('name'),
+            self.dialog_service.notification(
                 "An error occurred. Check logs for details.",
-                xbmcgui.NOTIFICATION_ERROR
+                icon="error",
+                title=self.addon.getAddonInfo('name')
             )
 
     def _set_listitem_title(self, list_item: xbmcgui.ListItem, title: str):
@@ -120,10 +122,10 @@ class AddonController:
             self.logger.error("SearchHandler error traceback: %s", traceback.format_exc())
 
             # Show error to user
-            xbmcgui.Dialog().notification(
-                self.addon.getAddonInfo('name'),
+            self.dialog_service.notification(
                 f"Search error: {str(e)}",
-                xbmcgui.NOTIFICATION_ERROR
+                icon="error",
+                title=self.addon.getAddonInfo('name')
             )
             self._show_main_menu()
 
@@ -141,10 +143,10 @@ class AddonController:
 
         except ImportError:
             self.logger.warning("Authorization module not available")
-            xbmcgui.Dialog().notification(
-                self.addon.getAddonInfo('name'),
+            self.dialog_service.notification(
                 "Authorization not implemented yet",
-                xbmcgui.NOTIFICATION_INFO
+                icon="info",
+                title=self.addon.getAddonInfo('name')
             )
             self._show_main_menu()
         except Exception as e:
@@ -162,16 +164,16 @@ class AddonController:
             success = clear_tokens()
 
             if success:
-                xbmcgui.Dialog().notification(
-                    self.addon.getAddonInfo('name'),
+                self.dialog_service.notification(
                     "Signed out successfully",
-                    xbmcgui.NOTIFICATION_INFO
+                    icon="info",
+                    title=self.addon.getAddonInfo('name')
                 )
             else:
-                xbmcgui.Dialog().notification(
-                    self.addon.getAddonInfo('name'),
+                self.dialog_service.notification(
                     "Error during sign out",
-                    xbmcgui.NOTIFICATION_WARNING
+                    icon="warning",
+                    title=self.addon.getAddonInfo('name')
                 )
 
             # Return to main menu
@@ -179,18 +181,18 @@ class AddonController:
 
         except ImportError:
             self.logger.warning("Auth state module not available")
-            xbmcgui.Dialog().notification(
-                self.addon.getAddonInfo('name'),
+            self.dialog_service.notification(
                 "Logout not implemented yet",
-                xbmcgui.NOTIFICATION_INFO
+                icon="info",
+                title=self.addon.getAddonInfo('name')
             )
             self._show_main_menu()
         except Exception as e:
             self.logger.error("Error in logout: %s", e)
-            xbmcgui.Dialog().notification(
-                self.addon.getAddonInfo('name'),
+            self.dialog_service.notification(
                 "Error during sign out",
-                xbmcgui.NOTIFICATION_ERROR
+                icon="error",
+                title=self.addon.getAddonInfo('name')
             )
             self._show_main_menu()
 
@@ -248,7 +250,8 @@ def main():
         logger = get_kodi_logger('lib.addon.main')
         logger.error("Fatal error in addon main: %s", e, exc_info=True)
         # Show user-friendly error
-        xbmcgui.Dialog().notification("LibraryGenie", "Addon startup failed", xbmcgui.NOTIFICATION_ERROR)
+        dialog_service = get_dialog_service('lib.addon.main')
+        dialog_service.notification("Addon startup failed", icon="error", title="LibraryGenie")
 
 
 def _diagnose_logging(logger):

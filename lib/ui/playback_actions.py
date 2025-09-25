@@ -14,6 +14,7 @@ from typing import Optional, Dict, Any
 
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.localization import L
+from lib.ui.dialog_service import get_dialog_service
 
 
 class PlaybackActionHandler:
@@ -21,6 +22,7 @@ class PlaybackActionHandler:
     
     def __init__(self):
         self.logger = get_kodi_logger('lib.ui.playback_actions')
+        self.dialog_service = get_dialog_service('lib.ui.playback_actions')
     
     def play_movie(self, kodi_id: int, resume: bool = False) -> bool:
         """Play a movie by Kodi ID, optionally resuming from last position"""
@@ -215,8 +217,7 @@ class PlaybackActionHandler:
         self.logger.error("Playback error for movie %s: %s", kodi_id, error_message)
         
         # Show user-friendly error dialog
-        dialog = xbmcgui.Dialog()
-        dialog.ok(L(35001) or "Playback Error", 
+        self.dialog_service.ok(L(35001) or "Playback Error", 
                  f"Unable to play movie.\n{error_message}\n\nPlease check that the file exists and is accessible.")
         
     def get_movie_file_path(self, kodi_id: int) -> Optional[str]:
@@ -255,6 +256,7 @@ class PlaybackContextMenuHandler:
         self.base_url = base_url
         self.playback_handler = PlaybackActionHandler()
         self._get_string = string_getter or self._fallback_string_getter
+        self.dialog_service = get_dialog_service('lib.ui.playback_actions')
     
     def handle_playback_action(self, action: str, kodi_id: int) -> bool:
         """Handle a playback action from the context menu"""
@@ -281,9 +283,8 @@ class PlaybackContextMenuHandler:
             success = self.playback_handler.queue_movie(kodi_id)
             if success:
                 # Show confirmation
-                xbmcgui.Dialog().notification(L(35002) or "LibraryGenie", 
-                                            L(35010) or "Movie added to playlist", 
-                                            xbmcgui.NOTIFICATION_INFO, 2000)
+                self.dialog_service.notification(L(35010) or "Movie added to playlist", 
+                                            icon="info", time_ms=2000, title=L(35002) or "LibraryGenie")
         
         elif action == "show_info":
             success = self.playback_handler.show_movie_info(kodi_id)

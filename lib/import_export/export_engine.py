@@ -15,6 +15,7 @@ from lib.import_export.data_schemas import ExportEnvelope
 from lib.data.storage_manager import get_storage_manager
 from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.dialog_service import get_dialog_service
 
 
 class ExportEngine:
@@ -465,17 +466,15 @@ class ExportEngine:
     def _prompt_for_export_location(self, config) -> Optional[str]:
         """Prompt user to set export location and save it to settings"""
         try:
-            import xbmcgui
-            
-            dialog = xbmcgui.Dialog()
+            dialog_service = get_dialog_service(logger_name='lib.import_export.export_engine._prompt_for_export_location')
             
             # Show information dialog first
-            dialog.ok("Export Location Required", 
+            dialog_service.ok("Export Location Required", 
                      "You need to set an export location before exporting files. "
                      "Please select a folder where exported files will be saved.")
             
             # Prompt for folder selection
-            export_path = dialog.browse(0, "Select Export Location", "files", "", False, False, "")
+            export_path = dialog_service.browse(0, "Select Export Location", "files", "", False, False, "")
             
             if export_path:
                 export_path = str(export_path).strip()
@@ -486,9 +485,7 @@ class ExportEngine:
                 self.logger.info("Export location set to: %s", export_path)
                 
                 # Show confirmation
-                dialog.notification("LibraryGenie", 
-                                  f"Export location set successfully", 
-                                  xbmcgui.NOTIFICATION_INFO, 3000)
+                dialog_service.show_success("Export location set successfully")
                 
                 return export_path
             else:

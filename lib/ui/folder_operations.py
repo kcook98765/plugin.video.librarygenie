@@ -13,6 +13,7 @@ from lib.ui.response_types import DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
 from lib.data.query_manager import get_query_manager
+from lib.ui.dialog_service import get_dialog_service
 
 
 class FolderOperations:
@@ -27,6 +28,7 @@ class FolderOperations:
             from lib.data.query_manager import get_query_manager
             self.query_manager = get_query_manager()
         self.storage_manager = context.storage_manager
+        self.dialog_service = get_dialog_service('lib.ui.folder_operations')
 
     def create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new folder"""
@@ -34,9 +36,9 @@ class FolderOperations:
             context.logger.info("Handling create folder request")
 
             # Get folder name from user
-            folder_name = xbmcgui.Dialog().input(
+            folder_name = self.dialog_service.input(
                 "Enter folder name:", # This string should also be localized
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not folder_name or not folder_name.strip():
@@ -116,13 +118,13 @@ class FolderOperations:
                     "All contents will be permanently removed."
                 ]
 
-                confirm = xbmcgui.Dialog().yesno(
+                confirm = self.dialog_service.yesno(
                     "Delete Folder",
                     "\n".join(dialog_lines)
                 )
             else:
                 # Simple confirmation for empty folder
-                confirm = xbmcgui.Dialog().yesno(
+                confirm = self.dialog_service.yesno(
                     "Delete Folder",
                     f"Delete folder '{folder_name}'?"
                 )
@@ -178,10 +180,10 @@ class FolderOperations:
                 )
 
             # Get new name from user
-            new_name = xbmcgui.Dialog().input(
+            new_name = self.dialog_service.input(
                 "Enter new folder name:", # This string should also be localized
-                defaultt=folder_info['name'],
-                type=xbmcgui.INPUT_ALPHANUM
+                default=folder_info['name'],
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not new_name or not new_name.strip():
@@ -259,8 +261,7 @@ class FolderOperations:
                         break
 
             # Show folder selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(f"Move '{list_name}' to folder:", folder_options)
+            selected_index = self.dialog_service.select(f"Move '{list_name}' to folder:", folder_options)
 
             if selected_index < 0:
                 context.logger.info("User cancelled moving list")
@@ -345,8 +346,7 @@ class FolderOperations:
                         break
 
             # Show folder selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(f"Move '{folder_name}' to:", folder_options)
+            selected_index = self.dialog_service.select(f"Move '{folder_name}' to:", folder_options)
 
             if selected_index < 0:
                 context.logger.info("User cancelled moving folder")

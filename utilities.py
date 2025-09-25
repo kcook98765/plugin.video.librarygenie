@@ -24,6 +24,7 @@ if lib_path not in sys.path:
 # Now import using absolute paths from lib/
 from utils.kodi_log import log, log_info, log_error
 from utils.error_handler import handle_error_with_notification, handle_success_with_notification
+from ui.dialog_service import get_dialog_service
 
 
 def main():
@@ -112,7 +113,7 @@ def handle_set_default_list():
             lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History']
             
             # Create selection dialog options
-            dialog = xbmcgui.Dialog()
+            dialog_service = get_dialog_service(logger_name='utilities.handle_set_default_list')
             list_names: List[Union[str, xbmcgui.ListItem]] = ["Add New List..."]  # First option for creating new list
             
             # Add existing lists
@@ -124,7 +125,7 @@ def handle_set_default_list():
             if not lists:
                 list_names.append("(No existing lists found)")
             
-            selected = dialog.select("Select Default List for Quick-Add", list_names)
+            selected = dialog_service.select("Select Default List for Quick-Add", list_names)
             
             if selected == -1:  # User cancelled
                 return
@@ -144,18 +145,10 @@ def handle_set_default_list():
                     new_list = query_manager.get_list_by_id(list_id)
                     list_name = new_list.get('name', 'New List') if new_list else 'New List'
                     
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        f"Created and set default list: {list_name}",
-                        xbmcgui.NOTIFICATION_INFO
-                    )
+                    dialog_service.show_success(f"Created and set default list: {list_name}")
                     log_info(f"Created new list and set as default: {list_name} (ID: {list_id})")
                     
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        f"Default list updated. Click OK to save settings.",
-                        xbmcgui.NOTIFICATION_INFO
-                    )
+                    dialog_service.show_success("Default list updated. Click OK to save settings.")
                     return
                 # If creation failed, continue the loop to show menu again
             else:
@@ -236,8 +229,8 @@ def _create_new_list_with_folder_selection(query_manager):
     """Helper function to create a new list with folder selection"""
     try:
         # Get list name from user
-        dialog = xbmcgui.Dialog()
-        list_name = dialog.input("Enter List Name", type=xbmcgui.INPUT_ALPHANUM)
+        dialog_service = get_dialog_service(logger_name='utilities._create_new_list_with_folder_selection')
+        list_name = dialog_service.input("Enter List Name", input_type=xbmcgui.INPUT_ALPHANUM)
         
         if not list_name or not list_name.strip():
             return None  # User cancelled or entered empty name
@@ -258,7 +251,7 @@ def _create_new_list_with_folder_selection(query_manager):
             folder_ids.append(folder['id'])
         
         # Show folder selection dialog
-        selected_folder_index = dialog.select(f"Select Folder for '{list_name}'", folder_options)
+        selected_folder_index = dialog_service.select(f"Select Folder for '{list_name}'", folder_options)
         
         if selected_folder_index == -1:
             return None  # User cancelled folder selection
@@ -269,11 +262,7 @@ def _create_new_list_with_folder_selection(query_manager):
         result = query_manager.create_list(list_name, description='', folder_id=selected_folder_id)
         
         if isinstance(result, dict) and result.get("error"):
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                f"Failed to create list: {result['error']}",
-                xbmcgui.NOTIFICATION_ERROR
-            )
+            dialog_service.show_error(f"Failed to create list: {result['error']}")
             return None
         elif result:
             # Successful creation - result might be a dict or just the ID
@@ -282,20 +271,13 @@ def _create_new_list_with_folder_selection(query_manager):
             else:
                 return result  # Already just the ID
         else:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Failed to create list",
-                xbmcgui.NOTIFICATION_ERROR
-            )
+            dialog_service.show_error("Failed to create list")
             return None
             
     except Exception as e:
         log_error(f"Error creating new list: {e}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"Error creating list: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities._create_new_list_with_folder_selection')
+        dialog_service.show_error(f"Error creating list: {str(e)}")
         return None
 
 
@@ -319,11 +301,8 @@ def handle_manual_library_sync():
         log_error(f"Error in handle_manual_library_sync: {e}")
         import traceback
         log_error(f"Manual sync error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"Manual sync error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_manual_library_sync')
+        dialog_service.show_error(f"Manual sync error: {str(e)}")
 
 
 def handle_import_shortlist():
@@ -341,11 +320,8 @@ def handle_import_shortlist():
         log_error(f"Error in handle_import_shortlist: {e}")
         import traceback
         log_error(f"Import shortlist error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"Import shortlist error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_import_shortlist')
+        dialog_service.show_error(f"Import shortlist error: {str(e)}")
 
 
 def handle_manual_backup():
@@ -359,6 +335,8 @@ def handle_manual_backup():
         backup_manager = get_timestamp_backup_manager()
         result = backup_manager.run_automatic_backup()
         
+        dialog_service = get_dialog_service(logger_name='utilities.handle_manual_backup')
+        
         if result["success"]:
             size_mb = round(result.get('file_size', 0) / 1024 / 1024, 2) if result.get('file_size') else 0
             message = (
@@ -368,22 +346,19 @@ def handle_manual_backup():
                 f"Items: {result.get('total_items', 0)}\n"
                 f"Location: {result.get('storage_location', 'Unknown')}"
             )
-            xbmcgui.Dialog().ok("Manual Backup", message)
+            dialog_service.ok("Manual Backup", message)
             log_info(f"Manual backup completed: {result.get('filename', 'Unknown')}")
         else:
             error_msg = result.get("error", "Unknown error")
-            xbmcgui.Dialog().ok("Manual Backup Failed", f"Backup failed:\n{error_msg}")
+            dialog_service.ok("Manual Backup Failed", f"Backup failed:\n{error_msg}")
             log_error(f"Manual backup failed: {error_msg}")
         
     except Exception as e:
         log_error(f"Error in handle_manual_backup: {e}")
         import traceback
         log_error(f"Manual backup error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"Manual backup error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_manual_backup')
+        dialog_service.show_error(f"Manual backup error: {str(e)}")
 
 
 def handle_restore_backup():
@@ -399,16 +374,13 @@ def handle_restore_backup():
         # Get available backup files
         available_backups = backup_manager.get_available_backups()
         
+        dialog_service = get_dialog_service(logger_name='utilities.handle_restore_backup')
+        
         if not available_backups:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "No backup files found",
-                xbmcgui.NOTIFICATION_WARNING
-            )
+            dialog_service.show_warning("No backup files found")
             return
         
         # Create selection dialog
-        dialog = xbmcgui.Dialog()
         backup_names: List[Union[str, xbmcgui.ListItem]] = []
         for backup in available_backups:
             # Format: filename (size, age)
@@ -416,7 +388,7 @@ def handle_restore_backup():
             age_days = backup.get('age_days', 0)
             backup_names.append(f"{backup['filename']} ({size_mb}MB, {age_days} days old)")
         
-        selected = dialog.select("Select Backup to Restore", backup_names)
+        selected = dialog_service.select("Select Backup to Restore", backup_names)
         
         if selected == -1:  # User cancelled
             return
@@ -424,11 +396,11 @@ def handle_restore_backup():
         selected_backup = available_backups[selected]
         
         # Confirm restore
-        if not dialog.yesno(
+        if not dialog_service.yesno(
             "Confirm Restore",
             f"This will restore from:\n{selected_backup['filename']}\n\nAll current data will be replaced. Continue?",
-            "Cancel",
-            "Restore"
+            no_label="Cancel",
+            yes_label="Restore"
         ):
             return
         
@@ -437,22 +409,19 @@ def handle_restore_backup():
         
         if result["success"]:
             message = f"Backup restored successfully!\n\nRestored {result.get('total_items', 0)} items"
-            xbmcgui.Dialog().ok("Backup Restored", message)
+            dialog_service.ok("Backup Restored", message)
             log_info(f"Backup restored: {selected_backup['filename']}")
         else:
             error_msg = result.get("error", "Unknown error")
-            xbmcgui.Dialog().ok("Restore Failed", f"Restore failed:\n{error_msg}")
+            dialog_service.ok("Restore Failed", f"Restore failed:\n{error_msg}")
             log_error(f"Backup restore failed: {error_msg}")
         
     except Exception as e:
         log_error(f"Error in handle_restore_backup: {e}")
         import traceback
         log_error(f"Restore backup error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"Restore backup error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_restore_backup')
+        dialog_service.show_error(f"Restore backup error: {str(e)}")
 
 
 def handle_authorize_ai_search():
@@ -470,12 +439,13 @@ def handle_authorize_ai_search():
         # Check if we already have a URL configured
         server_url = config.get("remote_server_url", "").strip()
         
+        dialog_service = get_dialog_service(logger_name='utilities.handle_authorize_ai_search')
+        
         if not server_url:
             # Streamlined workflow: Ask for URL first
-            dialog = xbmcgui.Dialog()
-            entered_url = dialog.input(
+            entered_url = dialog_service.input(
                 "Enter AI Search Server URL", 
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
             
             if not entered_url or not entered_url.strip():
@@ -496,29 +466,18 @@ def handle_authorize_ai_search():
         success = run_otp_authorization_flow(server_url)
         
         if success:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "AI search authorization completed successfully",
-                xbmcgui.NOTIFICATION_INFO
-            )
+            dialog_service.show_success("AI search authorization completed successfully")
             log_info("AI search authorization completed successfully")
         else:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Authorization failed",
-                xbmcgui.NOTIFICATION_ERROR
-            )
+            dialog_service.show_error("Authorization failed")
             log_error("AI search authorization failed")
         
     except Exception as e:
         log_error(f"Error in handle_authorize_ai_search: {e}")
         import traceback
         log_error(f"AI search authorization error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"AI search authorization error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_authorize_ai_search')
+        dialog_service.show_error(f"AI search authorization error: {str(e)}")
 
 
 def handle_deactivate_ai_search():
@@ -529,22 +488,19 @@ def handle_deactivate_ai_search():
         from auth.state import clear_auth_data, is_authorized
         from config.config_manager import get_config
         
+        dialog_service = get_dialog_service(logger_name='utilities.handle_deactivate_ai_search')
+        
         # Check if currently authorized
         if not is_authorized():
-            xbmcgui.Dialog().notification(
-                "LibraryGenie", 
-                "AI search is not currently activated",
-                xbmcgui.NOTIFICATION_WARNING
-            )
+            dialog_service.show_warning("AI search is not currently activated")
             return
         
         # Confirm deactivation
-        dialog = xbmcgui.Dialog()
-        if not dialog.yesno(
+        if not dialog_service.yesno(
             "Deactivate AI Search",
             "This will deactivate AI search and clear all authorization data.\n\nContinue?",
-            "Cancel",
-            "Deactivate"
+            no_label="Cancel",
+            yes_label="Deactivate"
         ):
             return
         
@@ -557,29 +513,18 @@ def handle_deactivate_ai_search():
             # Set activated status to false
             config.set('ai_search_activated', False)
             
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "AI search deactivated successfully", 
-                xbmcgui.NOTIFICATION_INFO
-            )
+            dialog_service.show_success("AI search deactivated successfully")
             log_info("AI search deactivated successfully")
         else:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Failed to deactivate AI search",
-                xbmcgui.NOTIFICATION_ERROR
-            )
+            dialog_service.show_error("Failed to deactivate AI search")
             log_error("Failed to clear auth data during deactivation")
         
     except Exception as e:
         log_error(f"Error in handle_deactivate_ai_search: {e}")
         import traceback
         log_error(f"AI search deactivation error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"AI search deactivation error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_deactivate_ai_search')
+        dialog_service.show_error(f"AI search deactivation error: {str(e)}")
 
 
 def handle_ai_search_replace_sync():
@@ -592,23 +537,19 @@ def handle_ai_search_replace_sync():
         from config.config_manager import get_config
         
         config = get_config()
+        dialog_service = get_dialog_service(logger_name='utilities.handle_ai_search_replace_sync')
         
         # Check if AI search is activated
         if not config.get_bool("ai_search_activated", False):
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "AI search is not activated",
-                xbmcgui.NOTIFICATION_WARNING
-            )
+            dialog_service.show_warning("AI search is not activated")
             return
         
         # Show confirmation
-        dialog = xbmcgui.Dialog()
-        if not dialog.yesno(
+        if not dialog_service.yesno(
             "AI Search Replace Sync",
             "This will replace all movie data with fresh AI search data.\n\nThis may take some time. Continue?",
-            "Cancel",
-            "Continue"
+            no_label="Cancel",
+            yes_label="Continue"
         ):
             return
         
@@ -619,34 +560,19 @@ def handle_ai_search_replace_sync():
             success = ai_service.perform_replace_sync()
             
             if success:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "AI search replace sync started",
-                    xbmcgui.NOTIFICATION_INFO
-                )
+                dialog_service.show_success("AI search replace sync started")
                 log_info("AI search replace sync started successfully")
             else:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "Failed to start AI search replace sync",
-                    xbmcgui.NOTIFICATION_ERROR
-                )
+                dialog_service.show_error("Failed to start AI search replace sync")
         else:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "AI search service not available",
-                xbmcgui.NOTIFICATION_ERROR
-            )
+            dialog_service.show_error("AI search service not available")
         
     except Exception as e:
         log_error(f"Error in handle_ai_search_replace_sync: {e}")
         import traceback
         log_error(f"AI search replace sync error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"AI search replace sync error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_ai_search_replace_sync')
+        dialog_service.show_error(f"AI search replace sync error: {str(e)}")
 
 
 def handle_ai_search_regular_sync():
@@ -659,23 +585,19 @@ def handle_ai_search_regular_sync():
         from config.config_manager import get_config
         
         config = get_config()
+        dialog_service = get_dialog_service(logger_name='utilities.handle_ai_search_regular_sync')
         
         # Check if AI search is activated
         if not config.get_bool("ai_search_activated", False):
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "AI search is not activated",
-                xbmcgui.NOTIFICATION_WARNING
-            )
+            dialog_service.show_warning("AI search is not activated")
             return
         
         # Show confirmation
-        dialog = xbmcgui.Dialog()
-        if not dialog.yesno(
+        if not dialog_service.yesno(
             "AI Search Regular Sync",
             "This will sync new movies with AI search data.\n\nThis may take some time. Continue?",
-            "Cancel",
-            "Continue"
+            no_label="Cancel",
+            yes_label="Continue"
         ):
             return
         
@@ -686,34 +608,19 @@ def handle_ai_search_regular_sync():
             success = ai_service.perform_regular_sync()
             
             if success:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "AI search regular sync started",
-                    xbmcgui.NOTIFICATION_INFO
-                )
+                dialog_service.show_success("AI search regular sync started")
                 log_info("AI search regular sync started successfully")
             else:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "Failed to start AI search regular sync",
-                    xbmcgui.NOTIFICATION_ERROR
-                )
+                dialog_service.show_error("Failed to start AI search regular sync")
         else:
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "AI search service not available",
-                xbmcgui.NOTIFICATION_ERROR
-            )
+            dialog_service.show_error("AI search service not available")
         
     except Exception as e:
         log_error(f"Error in handle_ai_search_regular_sync: {e}")
         import traceback
         log_error(f"AI search regular sync error traceback: {traceback.format_exc()}")
-        xbmcgui.Dialog().notification(
-            "LibraryGenie",
-            f"AI search regular sync error: {str(e)}",
-            xbmcgui.NOTIFICATION_ERROR
-        )
+        dialog_service = get_dialog_service(logger_name='utilities.handle_ai_search_regular_sync')
+        dialog_service.show_error(f"AI search regular sync error: {str(e)}")
 
 
 if __name__ == "__main__":
