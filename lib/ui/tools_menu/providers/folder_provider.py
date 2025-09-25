@@ -50,7 +50,7 @@ class FolderToolsProvider(BaseToolsProvider):
                     ),
                     self._create_action(
                         action_id="clear_search_history",
-                        label=L(37023),  # "Clear All Search History"
+                        label=L(36055),  # "Clear All Search History"
                         handler=self._handle_clear_search_history,
                         payload={"folder_id": context.folder_id},
                         needs_confirmation=ConfirmSpec(
