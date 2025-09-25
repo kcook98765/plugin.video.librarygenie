@@ -15,6 +15,7 @@ from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
 from lib.utils.error_handler import create_error_handler
+from lib.ui.dialog_service import get_dialog_service
 
 
 class FavoritesHandler:
@@ -23,6 +24,7 @@ class FavoritesHandler:
     def __init__(self):
         self.logger = get_kodi_logger('lib.ui.favorites_handler')
         self.error_handler = create_error_handler('lib.ui.favorites_handler')
+        self.dialog_service = get_dialog_service('lib.ui.favorites_handler')
 
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
@@ -224,12 +226,11 @@ class FavoritesHandler:
 
             if not user_lists:
                 # No lists available, offer to create one
-                if xbmcgui.Dialog().yesno(
+                if self.dialog_service.yesno(
                     L(35002),  # "LibraryGenie"
                     L(36071),  # "No lists found. Create a new list first?"
-                    "",
-                    nolabel=L(36003),  # "Cancel"
-                    yeslabel=L(37018)   # "Create New List"
+                    yes_label=L(37018),   # "Create New List"
+                    no_label=L(36003)  # "Cancel"
                 ):
                     # Redirect to create list
                     from lib.ui.lists_handler import ListsHandler
@@ -240,7 +241,7 @@ class FavoritesHandler:
 
             # Show list selection dialog
             list_names = [lst['name'] for lst in user_lists]
-            selected_index = xbmcgui.Dialog().select(L(31100), list_names)  # "Select a list"
+            selected_index = self.dialog_service.select(L(31100), list_names)  # "Select a list"
 
             if selected_index < 0:
                 self.logger.info("User cancelled list selection")
@@ -303,9 +304,8 @@ class FavoritesHandler:
                 )
 
             # Prompt for new list name
-            dialog = xbmcgui.Dialog()
             default_name = f"Kodi Favorites Copy - {datetime.now().strftime('%Y-%m-%d')}"
-            new_list_name = dialog.input(L(30590), default_name)  # "Enter list name"
+            new_list_name = self.dialog_service.input(L(30590), default=default_name)  # "Enter list name"
 
             if not new_list_name or not new_list_name.strip():
                 self.logger.info("User cancelled or entered empty list name")
@@ -325,7 +325,7 @@ class FavoritesHandler:
 
             # Ask user if they want to place it in a folder
             folder_names = [L(36032)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
-            selected_folder_index = dialog.select(L(36029), list(folder_names))  # "Select destination folder:"
+            selected_folder_index = self.dialog_service.select(L(36029), list(folder_names))  # "Select destination folder:"
 
             if selected_folder_index < 0:
                 self.logger.info("User cancelled folder selection")

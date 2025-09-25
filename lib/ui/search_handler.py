@@ -25,6 +25,7 @@ from lib.search.simple_search_engine import SimpleSearchEngine
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.localization import L
 from lib.ui.menu_builder import MenuBuilder
+from lib.ui.dialog_service import get_dialog_service
 
 try:
     from lib.ui.response_types import DirectoryResponse
@@ -46,6 +47,7 @@ class SearchHandler:
         self.addon_id = self.addon.getAddonInfo('id')
         self._pending_intent = None  # Store navigation intent for execution
         self._force_show_dialog = False  # Force show dialog option
+        self.dialog_service = get_dialog_service('lib.ui.search_handler')
 
     def prompt_and_search(self, context: PluginContext, media_scope: str = "movie") -> bool:
         """Main entry point for simple search"""
@@ -102,9 +104,9 @@ class SearchHandler:
     def _prompt_for_search_terms(self) -> Optional[str]:
         """Prompt user for search keywords"""
         try:
-            terms = xbmcgui.Dialog().input(
+            terms = self.dialog_service.input(
                 L(33002),  # "Enter search terms"
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None
         except Exception as e:
@@ -303,10 +305,10 @@ class SearchHandler:
         self.logger.error(msg)
 
     def _notify_info(self, msg: str, ms: int = 4000):
-        xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_INFO, ms)
+        self.dialog_service.notification(msg, icon="info", time_ms=ms, title="LibraryGenie")
 
     def _notify_error(self, msg: str, ms: int = 4000):
-        xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_ERROR, ms)
+        self.dialog_service.notification(msg, icon="error", time_ms=ms, title="LibraryGenie")
 
     def ai_search_prompt(self, context: PluginContext) -> bool:
         """Prompt user for AI search query and perform AI search"""
