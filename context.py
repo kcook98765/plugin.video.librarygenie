@@ -23,19 +23,19 @@ def _is_folder_context(container_path, file_path):
         # Check if we're within LibraryGenie plugin
         container_is_lg = container_path and container_path.startswith('plugin://plugin.video.librarygenie/')
         file_is_lg = file_path and file_path.startswith('plugin://plugin.video.librarygenie/')
-        
+
         is_lg_plugin = container_is_lg or file_is_lg
         if not is_lg_plugin:
             return False
-        
+
         # Check for folder-specific URL parameters
         container_has_folder = container_path and ('folder_id=' in container_path or 'list_type=folder' in container_path)
         file_has_folder = file_path and ('folder_id=' in file_path or 'list_type=folder' in file_path)
-        
+
         is_folder = container_has_folder or file_has_folder
-        
+
         return bool(is_folder)
-        
+
     except Exception as e:
         xbmc.log(f"LibraryGenie: Error detecting folder context: {str(e)}", xbmc.LOGERROR)
         return False
@@ -44,7 +44,12 @@ def _is_folder_context(container_path, file_path):
 def main():
     """Main context menu handler"""
     try:
-        
+        # Check if we're within LibraryGenie plugin - if so, skip global context menu
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        if container_path and container_path.startswith('plugin://plugin.video.librarygenie/'):
+            xbmc.log("LibraryGenie: Skipping global context menu within plugin", xbmc.LOGINFO)
+            return
+
         addon = xbmcaddon.Addon()
 
         # Comprehensive context debugging - capture ALL available information
@@ -62,17 +67,17 @@ def main():
             'current_window': xbmc.getInfoLabel('System.CurrentWindow'),
             'current_control': xbmc.getInfoLabel('System.CurrentControl'),
         }
-        
+
 
         # Test folder context detection with detailed logging
         container_path = context_info['container_path']
         file_path = context_info['listitem_path']
-        
+
         # Skip context menu for folder contexts
         is_folder_context = _is_folder_context(container_path, file_path)
         if is_folder_context:
             return
-        
+
         # Show LibraryGenie submenu with conditional options for non-folder contexts
         _show_librarygenie_menu(addon)
 
@@ -129,17 +134,17 @@ def _show_librarygenie_menu(addon):
 
         # FIRST: Check if we're in a LibraryGenie context (prioritize this over regular library items)
         container_path = xbmc.getInfoLabel('Container.FolderPath')
-        
+
         # Check for LibraryGenie context indicators
         is_librarygenie_context = (
             container_path.startswith('plugin://plugin.video.librarygenie/') or
             (file_path and file_path.startswith('plugin://plugin.video.librarygenie/')) or
             (item_info.get('hijack_armed') == '1' and item_info.get('hijack_dbid'))
         )
-        
+
         # Add common LibraryGenie actions in order of priority
         _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_context)
-        
+
 
         # Show the menu if options are available
         if len(options) > 0:
@@ -161,7 +166,7 @@ def _show_librarygenie_menu(addon):
 
 def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_context):
     """Add common LibraryGenie options in priority order"""
-    
+
     # Check settings for quick add and other configurations
     try:
         from lib.config.settings import SettingsManager
@@ -171,18 +176,18 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     except Exception:
         quick_add_enabled = False
         default_list_id = ""
-    
+
     # Determine if we're in a list context for remove option
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     in_list_context = 'list_id=' in container_path or item_info.get('list_id')
-    
+
     # 2. LG Quick Add (if enabled and configured)
     if quick_add_enabled and default_list_id:
         quick_add_label = L(37101)  # "LG Quick Add"
         if not quick_add_label or quick_add_label.startswith('LocMiss_'):
             quick_add_label = "LG Quick Add"
         options.append(quick_add_label)
-        
+
         # Determine appropriate quick add action based on context
         if item_info.get('media_item_id'):
             actions.append(f"quick_add&media_item_id={item_info['media_item_id']}")
@@ -190,13 +195,13 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append(f"quick_add_context&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
         else:
             actions.append("quick_add_external")
-    
+
     # 3. LG Add to List...
     add_list_label = L(37102)  # "LG Add to List..."
     if not add_list_label or add_list_label.startswith('LocMiss_'):
         add_list_label = "LG Add to List..."
     options.append(add_list_label)
-    
+
     # Determine appropriate add action based on context
     if item_info.get('media_item_id'):
         actions.append(f"add_to_list&media_item_id={item_info['media_item_id']}")
@@ -204,14 +209,14 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         actions.append(f"add_to_list&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
     else:
         actions.append("add_external_item")
-    
+
     # 4. LG Remove from List (if in list context)
     if in_list_context:
         remove_label = L(37103)  # "LG Remove from List"
         if not remove_label or remove_label.startswith('LocMiss_'):
             remove_label = "LG Remove from List"
         options.append(remove_label)
-        
+
         # Extract list_id for remove action
         list_id = item_info.get('list_id')
         if not list_id and 'list_id=' in container_path:
@@ -219,7 +224,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             list_id_match = re.search(r'list_id=(\d+)', container_path)
             if list_id_match:
                 list_id = list_id_match.group(1)
-        
+
         # Determine appropriate remove action
         if item_info.get('media_item_id') and list_id:
             actions.append(f"remove_from_list&list_id={list_id}&item_id={item_info['media_item_id']}")
@@ -239,7 +244,7 @@ def _show_search_submenu(addon):
             favorites_enabled = settings.get_enable_favorites_integration()
         except Exception:
             favorites_enabled = False
-        
+
         # Check if AI search is available/authorized
         ai_search_available = False
         try:
@@ -250,25 +255,25 @@ def _show_search_submenu(addon):
             ai_search_available = ai_search_activated and ai_search_api_key
         except Exception:
             pass
-        
+
         # Build search submenu options
         options = []
         actions = []
-        
+
         # Local Movie Search
         movie_search_label = L(37200)  # "Local Movie Search"
         if not movie_search_label or movie_search_label.startswith('LocMiss_'):
             movie_search_label = "Local Movie Search"
         options.append(movie_search_label)
         actions.append("search_movies")
-        
+
         # Local TV Search
         tv_search_label = L(37201)  # "Local TV Search"
         if not tv_search_label or tv_search_label.startswith('LocMiss_'):
             tv_search_label = "Local TV Search"
         options.append(tv_search_label)
         actions.append("search_tv")
-        
+
         # AI Movie Search (if available)
         if ai_search_available:
             ai_search_label = L(37202)  # "AI Movie Search"
@@ -276,14 +281,14 @@ def _show_search_submenu(addon):
                 ai_search_label = "AI Movie Search"
             options.append(ai_search_label)
             actions.append("search_ai")
-        
+
         # Search History
-        history_label = L(37203)  # "Search History"
-        if not history_label or history_label.startswith('LocMiss_'):
-            history_label = "Search History"
-        options.append(history_label)
-        actions.append("search_history")
-        
+        search_history_label = L(37202)  # "Search History"
+        if not search_history_label or search_history_label.startswith('LocMiss_'):
+            search_history_label = "Search History"
+        options.append(search_history_label)
+        actions.append("show_search_history")
+
         # Kodi Favorites (if enabled)
         if favorites_enabled:
             favorites_label = L(37204)  # "Kodi Favorites"
@@ -291,14 +296,14 @@ def _show_search_submenu(addon):
                 favorites_label = "Kodi Favorites"
             options.append(favorites_label)
             actions.append("show_favorites")
-        
+
         # Show the submenu
         dialog = xbmcgui.Dialog()
         selected = dialog.select("LibraryGenie Search Options", options)
-        
+
         if selected >= 0:
             _execute_action(actions[selected], addon)
-    
+
     except Exception as e:
         xbmc.log(f"LibraryGenie search submenu error: {str(e)}", xbmc.LOGERROR)
         # Fallback to basic search
@@ -402,7 +407,7 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
 
     # Search option
     options.append("Search")
-    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.TVShowTitle')} {xbmc.getInfoLabel('ListItem.Title')}")
+    actions.append(f"RunPlugin(plugin://{addon.getAddonInfo('id')}/?action=search_from_context&query={xbmc.getInfoLabel('ListItem.TVShowTitle')} {xbmc.getInfoLabel('ListItem.Title')})")
 
 
 
@@ -418,14 +423,14 @@ def _add_external_item_options(options, actions, addon):
 def _add_librarygenie_item_options(options, actions, addon, item_info):
     """Add options for LibraryGenie items"""
     xbmc.log(f"LibraryGenie: _add_librarygenie_item_options called with item_info: {item_info}", xbmc.LOGINFO)
-    
+
     # Use cached item metadata
     media_item_id = item_info['media_item_id']
     list_id = item_info['list_id']
     dbtype = item_info['dbtype']
     dbid = item_info['dbid']
     container_path = xbmc.getInfoLabel('Container.FolderPath')
-    
+
     xbmc.log(f"LibraryGenie: Current container path: {container_path}", xbmc.LOGINFO)
 
     # Use hijack properties as fallback
@@ -539,30 +544,29 @@ def _execute_action(action_with_params, addon, item_info=None):
         if action_with_params == "show_search_submenu":
             # Show the search submenu
             _show_search_submenu(addon)
-            
-            
+
         elif action_with_params == "search" or action_with_params == "search_movies":
-            # Launch LibraryGenie search (default to movies)
+            # Launch LibraryGenie search (default to movies) - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=search"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
-            
+
         elif action_with_params == "search_tv":
-            # Launch LibraryGenie TV search
+            # Launch LibraryGenie TV search - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=search&content_type=episodes"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
-            
+
         elif action_with_params == "search_ai":
-            # Launch AI Movie Search
+            # Launch AI Movie Search - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=ai_search"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
-            
+
         elif action_with_params == "search_history":
-            # Show search history
+            # Show search history - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=show_search_history"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
-            
+
         elif action_with_params == "show_favorites":
-            # Show Kodi Favorites
+            # Show Kodi Favorites - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=show_favorites"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
 
@@ -571,14 +575,14 @@ def _execute_action(action_with_params, addon, item_info=None):
             _handle_external_item_add(addon)
 
         elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
-            # Handle remove actions by building plugin URL
+            # Handle remove actions - pure context actions, no endOfDirectory
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
             xbmc.log(f"LibraryGenie: Executing remove action: {plugin_url}", xbmc.LOGINFO)
             xbmc.executebuiltin(f"RunPlugin({plugin_url})")
             xbmc.log(f"LibraryGenie: Remove action executed, waiting for result", xbmc.LOGINFO)
 
         else:
-            # Handle other actions by building plugin URL
+            # Handle other actions - pure context actions, no endOfDirectory
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
             xbmc.executebuiltin(f"RunPlugin({plugin_url})")
 
@@ -672,7 +676,7 @@ def _handle_external_item_add(addon):
             if isinstance(value, dict):
                 cleaned_data[key] = value
                 continue
-            
+
             if value and str(value).strip():
                 if key in ('year', 'season', 'episode', 'playcount'):
                     try:

@@ -60,7 +60,7 @@ class FavoritesHandler:
             # Set directory title with breadcrumb context
             from lib.ui.breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
-            
+
             directory_title = breadcrumb_helper.get_directory_title_breadcrumb("kodi_favorites", {}, None)
             if directory_title:
                 try:
@@ -70,15 +70,15 @@ class FavoritesHandler:
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
-            
+
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
-            
+
             tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
             self._set_listitem_plot(tools_item, description_text + "Tools and options for favorites")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
-            
+
             xbmcplugin.addDirectoryItem(
                 context.addon_handle,
                 context.build_url('show_list_tools', list_type='favorites'),
@@ -102,23 +102,18 @@ class FavoritesHandler:
                     False
                 )
 
-                # Smart caching for empty favorites
-                enable_caching = not context.get_param('rt')
-                
-                # Set content type and finish directory (use default for empty)
+                # Set content type and finish directory using Navigator
                 xbmcplugin.setContent(context.addon_handle, 'movies')
-                xbmcplugin.endOfDirectory(
+                from lib.ui.nav import finish_directory
+                finish_directory(
                     context.addon_handle,
                     succeeded=True,
-                    updateListing=True,
-                    cacheToDisc=False
+                    update=True
                 )
 
                 return DirectoryResponse(
                     items=[],
                     success=True,
-                    cache_to_disc=enable_caching,
-                    allow_caching=enable_caching,
                     content_type="movies"
                 )
             else:
@@ -128,7 +123,7 @@ class FavoritesHandler:
                 # Get query manager for content type detection
                 from lib.data.query_manager import get_query_manager
                 query_manager = get_query_manager()
-                
+
                 # Detect appropriate content type based on favorites contents
                 detected_content_type = query_manager.detect_content_type(favorites_items)
                 context.logger.debug("Detected content type: %s for %s favorites", detected_content_type, len(favorites_items))
@@ -145,15 +140,10 @@ class FavoritesHandler:
                     context_menu_callback=None # Context menus are now handled globally
                 )
 
-                # Smart caching for favorites content
-                enable_caching = not context.get_param('rt')
-                
                 # Return based on renderer success
                 return DirectoryResponse(
                     items=favorites_items,
                     success=success,
-                    cache_to_disc=enable_caching,
-                    allow_caching=enable_caching,
                     content_type=detected_content_type
                 )
 
@@ -422,8 +412,8 @@ class FavoritesHandler:
                     import xbmc
                     xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
                     # End directory properly
-                    import xbmcplugin
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
+                    from lib.ui.nav import finish_directory
+                    finish_directory(context.addon_handle, succeeded=True, update=True)
                     return
 
                 if hasattr(response, 'refresh_needed') and response.refresh_needed:

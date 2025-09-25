@@ -7,7 +7,6 @@ Handles plugin URL routing using new modular architecture
 """
 
 import sys
-import time
 
 import xbmcaddon
 import xbmcgui
@@ -458,58 +457,35 @@ def _standard_startup_initialization(context: PluginContext):
 def main():
     """Main plugin entry point using new modular architecture"""
     
-    # PLUGIN STARTUP TIMING: Complete plugin startup
-    startup_start_time = time.time()
 
     log("=== PLUGIN INVOCATION (REFACTORED) ===")
     log(f"Full sys.argv: {sys.argv}")
     log("Using modular handler architecture")
 
     try:
-        # PLUGIN STARTUP TIMING: PluginContext creation
-        context_start_time = time.time()
         context = PluginContext()
-        context_end_time = time.time()
-        log_info(f"PLUGIN STARTUP: PluginContext creation took {context_end_time - context_start_time:.3f} seconds")
 
         # Log window state for debugging
         _log_window_state(context)
 
-        # PLUGIN STARTUP TIMING: Startup initialization
-        init_start_time = time.time()
         _ensure_startup_initialization(context)
-        init_end_time = time.time()
-        log_info(f"PLUGIN STARTUP: Startup initialization took {init_end_time - init_start_time:.3f} seconds")
         
         # Check for fresh install and show setup modal if needed
         fresh_install_handled = _check_and_handle_fresh_install(context)
         # Continue to main menu even after fresh install setup
 
-        # PLUGIN STARTUP TIMING: Router creation and dispatch
-        router_start_time = time.time()
         router = Router()
         _register_all_handlers(router)
-        router_setup_end_time = time.time()
-        log_info(f"PLUGIN STARTUP: Router creation and handler registration took {router_setup_end_time - router_start_time:.3f} seconds")
 
         # Try to dispatch the request
-        dispatch_start_time = time.time()
         if not router.dispatch(context):
             # No handler found, show main menu using lazy factory
             factory = get_handler_factory()
             main_menu_handler = factory.get_main_menu_handler()
             main_menu_handler.show_main_menu(context)
-        dispatch_end_time = time.time()
-        log_info(f"PLUGIN STARTUP: Router dispatch took {dispatch_end_time - dispatch_start_time:.3f} seconds")
         
-        # PLUGIN STARTUP TIMING: Complete startup timing
-        startup_end_time = time.time()
-        log_info(f"PLUGIN STARTUP: ✅ Complete plugin startup took {startup_end_time - startup_start_time:.3f} seconds")
 
     except Exception as e:
-        # PLUGIN STARTUP TIMING: Log failed startup time
-        startup_end_time = time.time()
-        log_error(f"PLUGIN STARTUP: ❌ Plugin startup failed after {startup_end_time - startup_start_time:.3f} seconds")
         
         log_error(f"Fatal error in plugin main: {e}")
         import traceback

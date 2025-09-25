@@ -6,11 +6,10 @@ LibraryGenie - Lists Handler
 Handles lists display and navigation (refactored)
 """
 
-from typing import Dict, Any
-import time
 import xbmcplugin
 import xbmcgui
 
+from typing import Dict, Any
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
@@ -28,35 +27,18 @@ class ListsHandler:
     """Handles lists operations (refactored to use specialized modules)"""
 
     def __init__(self, context: PluginContext):
-        # CONSTRUCTOR TIMING: ListsHandler constructor start
-        constructor_start_time = time.time()
-        
-        # CONSTRUCTOR TIMING: Basic initialization
-        basic_init_start_time = time.time()
         self.context = context
         self.logger = get_kodi_logger('lib.ui.lists_handler')
         self.query_manager = context.query_manager
         self.storage_manager = context.storage_manager
-        basic_init_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: Basic initialization took {basic_init_end_time - basic_init_start_time:.3f} seconds")
-        
-        # CONSTRUCTOR TIMING: Breadcrumb helper
-        breadcrumb_start_time = time.time()
+
         self.breadcrumb_helper = get_breadcrumb_helper()
-        breadcrumb_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: Breadcrumb helper initialization took {breadcrumb_end_time - breadcrumb_start_time:.3f} seconds")
-        
-        # CONSTRUCTOR TIMING: Core operation modules (import/export deferred for performance)
-        modules_start_time = time.time()
+
+        # Import/export deferred for performance
         self.list_ops = ListOperations(context)
         self.folder_ops = FolderOperations(context)
         self._import_export = None  # Lazy loaded on first use
-        modules_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: Core operation modules initialization took {modules_end_time - modules_start_time:.3f} seconds")
-        
-        # CONSTRUCTOR TIMING: Complete constructor
-        constructor_end_time = time.time()
-        self.logger.info(f"CONSTRUCTOR: ✅ Complete ListsHandler constructor took {constructor_end_time - constructor_start_time:.3f} seconds")
+
 
     @property
     def import_export(self):
@@ -67,7 +49,7 @@ class ListsHandler:
             self._import_export = ImportExportHandler(self.context)
         return self._import_export
 
-    @property  
+    @property
     def listitem_renderer(self):
         """Lazy load ListItemRenderer only when needed for navigation rendering"""
         if not hasattr(self, '_listitem_renderer'):
@@ -75,7 +57,7 @@ class ListsHandler:
             from lib.ui.listitem_renderer import get_listitem_renderer
             self._listitem_renderer = get_listitem_renderer(
                 self.context.addon_handle,
-                self.context.addon_id, 
+                self.context.addon_id,
                 self.context
             )
         return self._listitem_renderer
@@ -85,14 +67,14 @@ class ListsHandler:
         try:
             # Create simple list item without heavy renderer dependencies
             list_item = xbmcgui.ListItem(label=title, offscreen=True)
-            
+
             # Set basic properties without renderer
             if description:
                 self._set_listitem_plot(list_item, description)
-            
+
             list_item.setProperty('IsPlayable', 'false')
             list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
-            
+
             # Add to directory
             xbmcplugin.addDirectoryItem(
                 context.addon_handle,
@@ -100,7 +82,7 @@ class ListsHandler:
                 list_item,
                 False
             )
-            
+
         except Exception as e:
             self.logger.error("Failed to create simple empty state item: %s", e)
 
@@ -123,10 +105,10 @@ class ListsHandler:
         try:
             # Get the lazy-loaded renderer instance to use its art methods
             renderer = self.listitem_renderer
-            
+
             # Determine if this is a list or folder based on the URL action
             url = item_data.get('url', '')
-            
+
             if 'action=show_list' in url:
                 # This is a user list - use list/playlist art with custom resources
                 renderer._apply_art(list_item, 'list')
@@ -140,7 +122,7 @@ class ListsHandler:
                 else:
                     # Use folder art as default for other navigable items
                     renderer._apply_art(list_item, 'folder')
-                    
+
         except Exception as e:
             # Fallback to original behavior
             self.logger.error("Custom art failed: %s", e)
@@ -152,7 +134,7 @@ class ListsHandler:
     # =================================
     # LIST OPERATION METHODS (delegated to ListOperations)
     # =================================
-    
+
     def create_list(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new list"""
         return self.list_ops.create_list(context)
@@ -184,7 +166,7 @@ class ListsHandler:
     # =================================
     # FOLDER OPERATION METHODS (delegated to FolderOperations)
     # =================================
-    
+
     def create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new folder"""
         return self.folder_ops.create_folder(context)
@@ -208,7 +190,7 @@ class ListsHandler:
     # =================================
     # IMPORT/EXPORT METHODS (delegated to ImportExportHandler)
     # =================================
-    
+
     def export_single_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Export a single list to a file"""
         return self.import_export.export_single_list(context, list_id)
@@ -232,7 +214,7 @@ class ListsHandler:
     # =================================
     # BACKWARD COMPATIBILITY ALIASES
     # =================================
-    
+
     def export_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Export a single list (backward compatibility alias)"""
         return self.export_single_list(context, list_id)
@@ -256,13 +238,9 @@ class ListsHandler:
 
             # Initialize query manager
             query_manager = get_query_manager()
-            
-            # SQL TIMING: Initialize query manager
-            sql_start_time = time.time()
+
             init_result = query_manager.initialize()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [ROOT NAV]: query_manager.initialize() took %.3f seconds", sql_end_time - sql_start_time)
-            
+
             if not init_result:
                 context.logger.error("Failed to initialize query manager")
                 return DirectoryResponse(
@@ -271,11 +249,7 @@ class ListsHandler:
                 )
 
             # Get all user lists and folders
-            # SQL TIMING: Get all lists with folders
-            sql_start_time = time.time()
             all_lists = query_manager.get_all_lists_with_folders()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [ROOT NAV]: query_manager.get_all_lists_with_folders() took %.3f seconds", sql_end_time - sql_start_time)
             context.logger.debug("Found %s total lists", len(all_lists))
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
@@ -290,7 +264,7 @@ class ListsHandler:
                 # Add "Tools & Options" with breadcrumb context
                 breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, query_manager)
                 description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, query_manager)
-                
+
                 menu_items.append({
                     'label': f"{L(36000)} {breadcrumb_text}",
                     'url': context.build_url('show_list_tools', list_type='lists_main'),
@@ -325,28 +299,20 @@ class ListsHandler:
                         item['is_folder']
                     )
 
-                # Smart caching: Allow cache for navigation, fresh after operations
-                enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
-                # End directory
-                xbmcplugin.endOfDirectory(
-                    context.addon_handle,
-                    succeeded=True,
-                    updateListing=True,
-                    cacheToDisc=False
-                )
+                # Determine if this is a refresh or initial load
+                is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
                 return DirectoryResponse(
                     items=menu_items,
                     success=True,
-                    cache_to_disc=enable_caching,
-                    allow_caching=enable_caching,
-                    content_type="files"
+                    content_type="files",
+                    update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
+                    intent=None  # Pure rendering, no navigation intent
                 )
 
             # Set directory title with breadcrumb context
             current_folder_id = context.get_param('folder_id')
-            
+
             # Determine breadcrumb context based on current location
             if current_folder_id:
                 breadcrumb_params = {'folder_id': current_folder_id}
@@ -388,30 +354,30 @@ class ListsHandler:
             config = get_config()
             favorites_enabled = config.get_bool('favorites_integration_enabled', False)
             kodi_favorites_item = None
-            
+
             # Find existing Kodi Favorites or create if needed
             for item in user_lists:
                 if item.get('name') == 'Kodi Favorites':
                     kodi_favorites_item = item
                     break
-            
+
             if favorites_enabled and not kodi_favorites_item:
                 # Create "Kodi Favorites" list if it doesn't exist but setting is enabled
                 context.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating it")
                 try:
                     from lib.config.favorites_helper import on_favorites_integration_enabled
                     on_favorites_integration_enabled()  # This will create the list if it doesn't exist
-                    
+
                     # Refresh the lists to include the newly created "Kodi Favorites"
                     all_lists = query_manager.get_all_lists_with_folders()
                     user_lists = all_lists
-                    
+
                     # Find the newly created Kodi Favorites
                     for item in user_lists:
                         if item.get('name') == 'Kodi Favorites':
                             kodi_favorites_item = item
                             break
-                    
+
                     context.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
                 except Exception as e:
                     context.logger.error("LISTS HANDLER: Error ensuring Kodi Favorites list exists: %s", e)
@@ -436,11 +402,7 @@ class ListsHandler:
                 })
 
             # Get all existing folders to display as navigable items
-            # SQL TIMING: Get all folders
-            sql_start_time = time.time()
             all_folders = query_manager.get_all_folders()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [ROOT NAV]: query_manager.get_all_folders() took %.3f seconds", sql_end_time - sql_start_time)
 
             # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
@@ -519,23 +481,15 @@ class ListsHandler:
                     item['is_folder']
                 )
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
-            # End directory
-            xbmcplugin.endOfDirectory(
-                context.addon_handle,
-                succeeded=True,
-                updateListing=True,
-                cacheToDisc=False
-            )
+            # Determine if this is a refresh or initial load
+            is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=enable_caching,
-                allow_caching=enable_caching,
-                content_type="files"
+                content_type="files",
+                update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
+                intent=None  # Pure rendering, no navigation intent
             )
 
         except Exception as e:
@@ -552,13 +506,9 @@ class ListsHandler:
 
             # Initialize query manager
             query_manager = get_query_manager()
-            
-            # SQL TIMING: Initialize query manager
-            sql_start_time = time.time()
+
             init_result = query_manager.initialize()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.initialize() took %.3f seconds", sql_end_time - sql_start_time)
-            
+
             if not init_result:
                 context.logger.error("Failed to initialize query manager")
                 return DirectoryResponse(
@@ -567,23 +517,36 @@ class ListsHandler:
                 )
 
             # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
-            # SQL TIMING: Batch query for folder navigation
-            sql_start_time = time.time()
+            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
             navigation_data = query_manager.get_folder_navigation_batch(folder_id)
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_folder_navigation_batch() took %.3f seconds (replaces 3 separate queries)", sql_end_time - sql_start_time)
-            
+
             # Extract data from batch result
             folder_info = navigation_data['folder_info']
-            subfolders = navigation_data['subfolders'] 
+            subfolders = navigation_data['subfolders']
             lists_in_folder = navigation_data['lists']
-            
+
             if not folder_info:
                 context.logger.error("Folder %s not found", folder_id)
                 return DirectoryResponse(
                     items=[],
                     success=False
                 )
+
+            # Set proper parent directory for navigation
+            parent_folder_id = folder_info.get('parent_folder_id')
+            if parent_folder_id:
+                # Navigate to parent folder
+                parent_path = context.build_url('show_folder', folder_id=parent_folder_id)
+            else:
+                # Navigate to root plugin directory (main lists menu)
+                parent_path = context.build_url('lists')  # Use 'lists' action for main menu
+
+            context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
+            # Set parent directory using the correct xbmcplugin method
+            import xbmc
+            xbmc.executebuiltin(f'SetProperty(ParentDir,{parent_path})')
+            # Also try the container method
+            xbmc.executebuiltin(f'SetProperty(Container.ParentDir,{parent_path})')
 
             context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
@@ -599,8 +562,6 @@ class ListsHandler:
                     context.logger.debug("Could not set directory title: %s", e)
 
             menu_items = []
-
-            # Tools & Options for folders are now accessed through proper context menu only
 
             # Add subfolders in this folder
             for subfolder in subfolders:
@@ -645,15 +606,26 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
+            # Add Tools & Options for folders that support it
+            if self._folder_has_tools(folder_info):
+                tools_menu_item = {
+                    'label': "⚙️ Tools & Options",
+                    'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
+                    'is_folder': True,
+                    'description': f"Tools & Options for {folder_info.get('name', 'Folder')}",
+                    'icon': "DefaultAddonProgram.png",
+                    'context_menu': []  # No context menu for tools item itself
+                }
+                # Insert at the beginning of the menu for visibility
+                menu_items.insert(0, tools_menu_item)
+
             # If folder is empty, show message using lightweight method to avoid loading full renderer
-            if not lists_in_folder:
+            if not lists_in_folder and not subfolders: # Also check for subfolders being empty
                 self._create_simple_empty_state_item(
                     context,
                     "Folder is empty",  # TODO: Add L() ID for this
-                    'This folder contains no lists'  # This string should also be localized
+                    'This folder contains no lists or subfolders'  # This string should also be localized
                 )
-
-            # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
             for item in menu_items:
@@ -675,23 +647,21 @@ class ListsHandler:
                     item['is_folder']
                 )
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
-            # End directory
-            xbmcplugin.endOfDirectory(
-                context.addon_handle,
-                succeeded=True,
-                updateListing=True,
-                cacheToDisc=False
-            )
+            # Use navigation policy to determine navigation mode
+            from lib.ui.nav_policy import decide_mode
+            current_route = 'show_folder'
+            next_route = current_route  # Same route for folder view
+            current_params = {'folder_id': folder_id}
+            next_params = current_params  # Same params for folder view
+            nav_mode = decide_mode(current_route, next_route, 'folder_view', current_params, next_params)
+            update_listing = (nav_mode == 'replace')
 
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=enable_caching,
-                allow_caching=enable_caching,
-                content_type="files"
+                content_type="files",
+                update_listing=update_listing,  # Use nav_policy decision
+                intent=None  # Pure rendering, no navigation intent
             )
 
         except Exception as e:
@@ -705,6 +675,9 @@ class ListsHandler:
         """Display contents of a specific list"""
         try:
             context.logger.debug("Displaying list %s", list_id)
+
+            # Determine navigation mode (push or replace)
+            nav_mode = context.get_param('nav_mode', 'push') # Default to push
 
             # Check for custom parent path to fix navigation from search results
             parent_path = context.get_param('parent_path')
@@ -733,21 +706,21 @@ class ListsHandler:
 
             # Get pagination parameters
             current_page = int(context.get_param('page', '1'))
-            
-            # Import pagination manager 
+
+            # Import pagination manager
             from lib.ui.pagination_manager import get_pagination_manager
             pagination_manager = get_pagination_manager()
-            
+
             # Get total count first for pagination calculation
             total_items = query_manager.get_list_item_count(int(list_id))
-            
+
             # Calculate pagination using settings-based page size
             pagination_info = pagination_manager.calculate_pagination(
                 total_items=total_items,
                 current_page=current_page,
                 base_page_size=100  # Base size for auto mode calculation
             )
-            
+
             # Get list items with pagination
             list_items = query_manager.get_list_items(
                 list_id,
@@ -767,15 +740,15 @@ class ListsHandler:
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
-            
+
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
-            
+
             tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
             self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
-            
+
             xbmcplugin.addDirectoryItem(
                 context.addon_handle,
                 context.build_url('show_list_tools', list_type='user_list', list_id=list_id),
@@ -792,18 +765,18 @@ class ListsHandler:
                     'This list contains no items'  # This string should also be localized
                 )
 
-                # End directory
-                xbmcplugin.endOfDirectory(
-                    context.addon_handle,
-                    succeeded=True,
-                    updateListing=True,
-                    cacheToDisc=False
-                )
+                # Use navigation mode for update_listing decision
+                update_listing = (nav_mode == 'replace')
+
+                from lib.ui.response_types import NavigationIntent
+                intent = NavigationIntent(mode=nav_mode if nav_mode != 'push' else None, url=None)
 
                 return DirectoryResponse(
                     items=[],
                     success=True,
-                    content_type="files"
+                    content_type="files",
+                    update_listing=update_listing, # REPLACE for same list, PUSH for different list
+                    intent=intent
                 )
 
             # Add pagination controls if needed
@@ -814,7 +787,7 @@ class ListsHandler:
                     'action': 'show_list',
                     'list_id': list_id
                 }  # Include action and list_id in parameters
-                
+
                 # Insert pagination controls into list_items
                 list_items = pagination_manager.insert_pagination_items(
                     items=list_items,
@@ -823,7 +796,7 @@ class ListsHandler:
                     url_params=url_params,
                     placement='bottom'
                 )
-                context.logger.debug("Added pagination controls to list (page %d/%d)", 
+                context.logger.debug("Added pagination controls to list (page %d/%d)",
                                    pagination_info.current_page, pagination_info.total_pages)
 
             # Build media items using ListItemBuilder
@@ -834,12 +807,22 @@ class ListsHandler:
                 success = builder.build_directory(list_items, None)
                 if success:
                     context.logger.debug("Successfully built directory with %s items", len(list_items))
-                    
+
+                    # Determine if this is a refresh or initial load
+                    is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
+
+                    # Use navigation mode for update_listing decision
+                    update_listing = (nav_mode == 'replace')
+                    from lib.ui.response_types import NavigationIntent
+                    intent = NavigationIntent(mode=nav_mode if nav_mode != 'push' else None, url=None)
+
                     # Return proper DirectoryResponse
                     return DirectoryResponse(
                         items=list_items,
                         success=True,
-                        content_type="movies" if list_items and list_items[0].get('media_type') == 'movie' else "files"
+                        content_type="movies" if list_items and list_items[0].get('media_type') == 'movie' else "files",
+                        update_listing=update_listing, # REPLACE for same list, PUSH for different list
+                        intent=intent
                     )
             except Exception as e:
                 context.logger.error("Error building list items: %s", e)
@@ -863,21 +846,20 @@ class ListsHandler:
             # Set content type for better Kodi integration
             xbmcplugin.setContent(context.addon_handle, detected_content_type)
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
+            # Determine if this is a refresh or initial load
+            is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
-            # End directory
-            xbmcplugin.endOfDirectory(
-                context.addon_handle,
-                succeeded=True,
-                updateListing=True,
-                cacheToDisc=False
-            )
+            # Use navigation mode for update_listing decision
+            update_listing = (nav_mode == 'replace')
+            from lib.ui.response_types import NavigationIntent
+            intent = NavigationIntent(mode=nav_mode if nav_mode != 'push' else None, url=None)
 
             return DirectoryResponse(
                 items=list_items,
                 success=True,
-                content_type=detected_content_type
+                content_type=detected_content_type,
+                update_listing=update_listing, # REPLACE for same list, PUSH for different list
+                intent=intent
             )
 
         except Exception as e:
@@ -910,7 +892,7 @@ class ListsHandler:
                 if folder.get('name') == 'Search History':
                     search_folder = folder
                     break
-            
+
             if not search_folder:
                 # Create search history folder if it doesn't exist
                 result = query_manager.create_folder('Search History')
@@ -967,8 +949,6 @@ class ListsHandler:
                     'Search results will appear here'
                 )
 
-            # Breadcrumb context now integrated into Tools & Options labels
-
             # Build directory items
             for item in menu_items:
                 list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
@@ -989,23 +969,15 @@ class ListsHandler:
                     item['is_folder']
                 )
 
-            # Smart caching: Allow cache for navigation, fresh after operations
-            enable_caching = not context.get_param('rt')  # No cache if refresh token present
-
-            # End directory
-            xbmcplugin.endOfDirectory(
-                context.addon_handle,
-                succeeded=True,
-                updateListing=True,
-                cacheToDisc=False
-            )
+            # Determine if this is a refresh or initial load
+            is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
-                cache_to_disc=enable_caching,
-                allow_caching=enable_caching,
-                content_type="files"
+                content_type="files",
+                update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
+                intent=None  # Pure rendering, no navigation intent
             )
 
         except Exception as e:
@@ -1018,7 +990,7 @@ class ListsHandler:
     # =================================
     # LEGACY/COMPATIBILITY METHODS
     # =================================
-    
+
     def _show_empty_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show menu when no lists exist"""
         if xbmcgui.Dialog().yesno(
@@ -1029,10 +1001,12 @@ class ListsHandler:
             # Convert DialogResponse to DirectoryResponse
             return DirectoryResponse(
                 items=[],
-                success=create_response.success
+                success=create_response.success,
+                update_listing=False, # PUSH semantics for initial load
+                intent=None # Pure rendering, no navigation intent
             )
 
-        return DirectoryResponse(items=[], success=True)
+        return DirectoryResponse(items=[], success=True, update_listing=False, intent=None)
 
     # Additional compatibility methods for context menus and other operations
     def add_to_list_context(self, context: PluginContext) -> bool:
@@ -1087,14 +1061,14 @@ class ListsHandler:
 
             # Add to default list - this will fetch metadata if needed
             result = query_manager.add_library_item_to_list(default_list_id, library_item)
-            
+
             # Show success notification
             import xbmcgui
             if result:
                 # Get list name for notification
                 list_info = query_manager.get_list_by_id(default_list_id)
                 list_name = list_info.get('name', 'Default List') if list_info else 'Default List'
-                
+
                 xbmcgui.Dialog().notification(
                     "LibraryGenie",
                     f"Added '{title}' to {list_name}",
@@ -1282,4 +1256,22 @@ class ListsHandler:
 
         except Exception as e:
             context.logger.error("Error removing library item from list: %s", e)
+            return False
+
+    def _folder_has_tools(self, folder_info: dict) -> bool:
+        """Check if a folder should have Tools & Options available"""
+        try:
+            # Search History folder always has tools
+            if folder_info.get('is_reserved', False):
+                return True
+            
+            # Check by folder name as fallback
+            folder_name = folder_info.get('name', '').lower()
+            if folder_name == 'search history':
+                return True
+                
+            return False  # For now, only show for Search History
+            
+        except Exception as e:
+            self.logger.warning("Error checking folder tools availability: %s", e)
             return False

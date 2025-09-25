@@ -57,7 +57,7 @@ COLOR_MAP = {
     
     # Action Labels (should be yellow for emphasis)
     37022: "yellow",      # Move to New List
-    37023: "yellow",      # Clear All Search History
+    36055: "yellow",      # Clear All Search History
     
     # Navigation Labels (should be white/neutral)
     36032: "white",       # [Root Level]

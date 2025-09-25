@@ -66,10 +66,8 @@ class ListItemBuilder:
                 from lib.data.query_manager import get_query_manager
                 query_manager = get_query_manager()
                 content_type = query_manager.detect_content_type(items)
-                self.logger.debug("DIRECTORY BUILD: Auto-detected content type: %s", content_type)
             
             self.logger.info("DIRECTORY BUILD: Starting build with %s items (content_type='%s')", count, content_type)
-            self.logger.debug("DIRECTORY BUILD: Setting content type to '%s' for handle %s", content_type, self.addon_handle)
             xbmcplugin.setContent(self.addon_handle, content_type)
 
             # Add a few sane sort methods once
@@ -78,10 +76,8 @@ class ListItemBuilder:
                 ("SORT_METHOD_DATE", xbmcplugin.SORT_METHOD_DATE),
                 ("SORT_METHOD_VIDEO_YEAR", xbmcplugin.SORT_METHOD_VIDEO_YEAR),
             ]
-            self.logger.debug("DIRECTORY BUILD: Adding %s sort methods", len(sort_methods))
             for method_name, const in sort_methods:
                 xbmcplugin.addSortMethod(self.addon_handle, const)
-                self.logger.debug("DIRECTORY BUILD: Added sort method %s", method_name)
 
             tuples: List[tuple] = []
             ok = 0
@@ -92,11 +88,7 @@ class ListItemBuilder:
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
-                        
-                        # PLAYBACK_DEBUG: Log URL being added to directory
                         title = item.get('title', 'Unknown')
-                        self.logger.debug("PLAYBACK_DEBUG: DIRECTORY_ADD #%s '%s' - url='%s', is_folder=%s", 
-                                        idx, title, url, is_folder)
                         
                         # Critical check for empty URLs in directory build
                         if not url or not url.strip():
@@ -131,10 +123,8 @@ class ListItemBuilder:
             # OPTIMIZED: Add all items in a single batch operation
             self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
             
-            # PLAYBACK_DEBUG: Log final batch URLs being sent to Kodi
+            # Check for empty URLs in final batch
             for idx, (batch_url, batch_li, batch_is_folder) in enumerate(batch_items, start=1):
-                self.logger.debug("PLAYBACK_DEBUG: BATCH_FINAL #%s - url='%s', is_folder=%s", 
-                                idx, batch_url, batch_is_folder)
                 if not batch_url or not batch_url.strip():
                     self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty URL in final batch at position %s!", idx)
             
@@ -144,13 +134,14 @@ class ListItemBuilder:
             
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
-            # Use updateListing for pagination to control navigation history
+            # Use Navigator for pagination with proper semantics: page>1 is a morph (replace)
             current_page = int(self.context.get_param('page', '1'))
-            update_listing = current_page > 1  # Replace current listing for page 2+, create new entry for page 1
+            update = current_page > 1  # Replace current listing for page 2+, create new entry for page 1
             
-            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=True, updateListing=%s)", 
-                             self.addon_handle, update_listing)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=update_listing)
+            from lib.ui.nav import finish_directory
+            self.logger.debug("DIRECTORY BUILD: Calling Navigator.finish_directory(handle=%s, succeeded=True, update=%s)", 
+                             self.addon_handle, update)
+            finish_directory(self.addon_handle, succeeded=True, update=update)
             
             # Calculate and log complete build time
             build_end_time = time.time()
@@ -159,8 +150,9 @@ class ListItemBuilder:
             return True
         except Exception as e:
             self.logger.error("DIRECTORY BUILD: fatal error: %s", e)
-            self.logger.debug("DIRECTORY BUILD: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False)
+            self.logger.debug("DIRECTORY BUILD: Calling Navigator.finish_directory(handle=%s, succeeded=False)", self.addon_handle)
+            from lib.ui.nav import finish_directory
+            finish_directory(self.addon_handle, succeeded=False)
             
             # Calculate and log complete build time even on failure
             build_end_time = time.time()
@@ -289,30 +281,27 @@ class ListItemBuilder:
             # Use direct file path for consistent playback behavior across all Kodi versions
             file_path = item.get('file_path') or item.get('play')
             if not file_path or not file_path.strip():
-                self.logger.error("LIB ITEM: No valid file path available for '%s'", title)
-                return None
+                # No direct file path available - generate plugin URL for library item
+                media_item_id = item.get('media_item_id') or item.get('id')
+                if media_item_id:
+                    # Use media_item_id for LibraryGenie items
+                    playback_url = f"plugin://{self.addon_id}/?action=play_item&item_id={media_item_id}"
+                elif kodi_id:
+                    # Use kodi_id for library items
+                    playback_url = f"plugin://{self.addon_id}/?action=play_library_item&kodi_id={kodi_id}&media_type={media_type}"
+                else:
+                    self.logger.error("LIB ITEM: No valid file path or ID available for '%s'", title)
+                    return None
+                self.logger.debug("LIB ITEM: Generated plugin URL for '%s': %s", title, playback_url)
+            else:
+                playback_url = file_path
                 
-            li.setPath(file_path)
-            playback_url = file_path
+            li.setPath(playback_url)
             # Set IsPlayable=true for proper playback and context menu support
             li.setProperty('IsPlayable', 'true')
-            self.logger.debug("LIB ITEM: Using file path for '%s': %s", title, file_path)
 
             is_folder = False
             
-            # PLAYBACK_DEBUG: Log ListItem path and playback details
-            try:
-                # Get the actual path set on the ListItem
-                actual_listitem_path = li.getPath() if hasattr(li, 'getPath') else 'N/A'
-                is_playable = li.getProperty('IsPlayable') if hasattr(li, 'getProperty') else 'N/A'
-                
-                self.logger.debug("PLAYBACK_DEBUG: '%s' - file_path='%s', li.getPath()='%s', IsPlayable='%s'", 
-                                title, playback_url, actual_listitem_path, is_playable)
-                
-                self.logger.debug("PLAYBACK_DEBUG: '%s' - using FILE PATH: %s", title, playback_url)
-                    
-            except Exception as debug_e:
-                self.logger.warning("PLAYBACK_DEBUG: Failed to get ListItem debug info for '%s': %s", title, debug_e)
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
@@ -327,7 +316,7 @@ class ListItemBuilder:
                     self._preload_hijack_cache_properties(title, kodi_id, media_type)
                 else:
                     # Setting is disabled - do not arm hijack
-                    self.logger.debug("📱 HIJACK DISABLED: '%s' - use_native_kodi_info setting is off", title)
+                    pass
             except Exception as e:
                 self.logger.error("LIB ITEM: ❌ Failed to set InfoHijack properties for '%s': %s", title, e)
 
@@ -384,11 +373,9 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
-            # PLAYBACK_DEBUG: Final validation before returning tuple
+            # Final validation before returning tuple
             try:
                 final_path_check = li.getPath() if hasattr(li, 'getPath') else 'N/A'
-                self.logger.debug("PLAYBACK_DEBUG: '%s' - RETURNING tuple(playback_url='%s', final_li_path='%s', is_folder=%s)", 
-                                title, playback_url, final_path_check, is_folder)
                 
                 # Critical validation: Check for empty URLs that could cause V22 failures
                 if not playback_url or not playback_url.strip():
@@ -399,6 +386,9 @@ class ListItemBuilder:
             except Exception as debug_e:
                 self.logger.warning("PLAYBACK_DEBUG: Failed final validation for '%s': %s", title, debug_e)
 
+            # Add context menu options for list items
+            self._add_media_context_menu(li, item, media_type, kodi_id, title)
+            
             return playback_url, li, is_folder
         except Exception as e:
             self.logger.error("LIB ITEM: failed for '%s': %s", item.get('title','Unknown'), e)
@@ -438,6 +428,45 @@ class ListItemBuilder:
             
         except Exception as e:
             self.logger.debug("CACHE PRELOAD: Failed to pre-populate cache for '%s': %s", title, e)
+    
+    def _add_media_context_menu(self, li: 'xbmcgui.ListItem', item: Dict[str, Any], media_type: str, kodi_id, title: str):
+        """Add context menu items for media items when viewing lists"""
+        try:
+            # Check if we're in a list context
+            list_id = item.get('list_id') or self.context.get_param('list_id')
+            if not list_id:
+                return
+            
+            # Get media_item_id if available (preferred for LibraryGenie items)
+            media_item_id = item.get('media_item_id') or item.get('id')
+            
+            context_items = []
+            
+            # Import localization for labels
+            try:
+                from lib.ui.localization import L
+                remove_label = L(31010) if L(31010) else "Remove from List"
+            except ImportError:
+                remove_label = "Remove from List"
+            
+            # Build the appropriate remove action URL based on available data
+            if media_item_id and media_item_id != '':
+                # Use media_item_id for LibraryGenie items
+                remove_url = f"RunPlugin(plugin://{self.addon_id}/?action=remove_from_list&list_id={list_id}&item_id={media_item_id})"
+            elif media_type and kodi_id is not None:
+                # Use library item identifiers
+                remove_url = f"RunPlugin(plugin://{self.addon_id}/?action=remove_library_item_from_list&list_id={list_id}&dbtype={media_type}&dbid={kodi_id}&title={title})"
+            else:
+                # No valid identifiers available
+                return
+            
+            context_items.append((remove_label, remove_url))
+            
+            # Add the context menu items to the ListItem
+            li.addContextMenuItems(context_items)
+            
+        except Exception as e:
+            self.logger.error("CONTEXT: Failed to add context menu for '%s': %s", title, e)
 
     def _create_action_item(self, item: Dict[str, Any]) -> Optional[tuple]:
         """
@@ -679,11 +708,23 @@ class ListItemBuilder:
         Return direct play URL if provided; otherwise build a plugin URL
         that routes to info/play handling.
         """
-        play = item.get('play')
-        if play:
+        play = item.get('play') or item.get('file_path')
+        if play and play.strip():
             return play
-        item_id = item.get('id') or item.get('imdb_id') or ''
-        return f"plugin://{self.addon_id}?action=info&item_id={item_id}"
+            
+        # Try to build plugin URL with available identifiers
+        media_item_id = item.get('media_item_id') or item.get('id')
+        kodi_id = item.get('kodi_id')
+        media_type = item.get('media_type', 'movie')
+        
+        if media_item_id:
+            return f"plugin://{self.addon_id}/?action=play_item&item_id={media_item_id}"
+        elif kodi_id:
+            return f"plugin://{self.addon_id}/?action=play_library_item&kodi_id={kodi_id}&media_type={media_type}"
+        else:
+            # Fallback to info action with any available ID
+            fallback_id = item.get('imdb_id') or item.get('tmdb_id') or ''
+            return f"plugin://{self.addon_id}/?action=info&item_id={fallback_id}"
 
     def _set_external_context_menu(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
         """Context menu for external items"""
@@ -1125,7 +1166,7 @@ class ListItemBuilder:
                 art_dict = {}
                 if hasattr(listitem, 'getArt'):
                     try:
-                        art_dict = listitem.getArt()
+                        art_dict = listitem.getArt("")
                     except (TypeError, AttributeError):
                         # Some Kodi versions have different getArt() signatures
                         art_dict = {}

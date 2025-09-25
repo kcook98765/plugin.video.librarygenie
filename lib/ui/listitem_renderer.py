@@ -379,14 +379,18 @@ class ListItemRenderer:
                 xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
 
             self.logger.debug("RENDERER DIRECTORY: Successfully added %s/%s items to directory", success_count, len(items))
-            self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=True, cacheToDisc=False)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
+            
+            # Use Navigator for focus preservation - always use update=True for REPLACE & REFRESH semantics
+            from lib.ui.nav import finish_directory
+            self.logger.debug("RENDERER DIRECTORY: Calling Navigator.finish_directory(handle=%s, succeeded=True, update=True)", self.addon_handle)
+            finish_directory(self.addon_handle, succeeded=True, update=True)
             return True
 
         except Exception as e:
             self.logger.error("RENDERER DIRECTORY: Fatal error in render_directory: %s", e)
-            self.logger.debug("RENDERER DIRECTORY: Calling endOfDirectory(handle=%s, succeeded=False)", self.addon_handle)
-            xbmcplugin.endOfDirectory(self.addon_handle, succeeded=False, updateListing=True, cacheToDisc=False)
+            from lib.ui.nav import finish_directory
+            self.logger.debug("RENDERER DIRECTORY: Calling Navigator.finish_directory(handle=%s, succeeded=False, update=True)", self.addon_handle)
+            finish_directory(self.addon_handle, succeeded=False, update=True)
             return False
 
     def render_list_items(self, list_id: int, sort_method: Optional[str] = None) -> None:

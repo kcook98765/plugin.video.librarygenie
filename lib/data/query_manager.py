@@ -311,7 +311,6 @@ class QueryManager:
                         art_dict = json.loads(item['art'])
                         kodi_major = get_kodi_major_version()
                         item['art'] = self._format_art_for_kodi_version(art_dict, kodi_major)
-                        self.logger.debug("OPTIMIZED ART: Parsed and formatted art for item %s", item.get('title', 'Unknown'))
                     except json.JSONDecodeError:
                         self.logger.warning("OPTIMIZED ART: Failed to parse art JSON for item %s", item.get('title', 'Unknown'))
                         item['art'] = {}
@@ -492,16 +491,25 @@ class QueryManager:
 
             with self.connection_manager.transaction() as conn:
                 # Delete from list_items (item_id is media_item_id in unified structure)
-                conn.execute("""
+                cursor = conn.execute("""
                     DELETE FROM list_items 
                     WHERE media_item_id = ? AND list_id = ?
                 """, [int(item_id), int(list_id)])
-
-            return True
+                
+                # Check if any rows were actually deleted
+                rows_deleted = cursor.rowcount
+                self.logger.debug("Delete operation affected %d rows", rows_deleted)
+                
+                if rows_deleted == 0:
+                    self.logger.warning("No rows deleted - item %s not found in list %s", item_id, list_id)
+                    return {"error": "item_not_found"}
+                
+                self.logger.info("Successfully deleted %d rows for item %s from list %s", rows_deleted, item_id, list_id)
+                return True
 
         except Exception as e:
             self.logger.error("Failed to delete item %s from list %s: %s", item_id, list_id, e)
-            return False
+            return {"error": str(e)}
 
     def rename_list(self, list_id, new_name):
         """Rename a list with validation using unified lists table"""

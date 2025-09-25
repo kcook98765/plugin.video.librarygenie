@@ -10,7 +10,7 @@ import xbmcgui
 from datetime import datetime
 from typing import Dict, Any, Optional, Literal
 from lib.ui.plugin_context import PluginContext
-from lib.ui.response_types import DialogResponse
+from lib.ui.response_types import DialogResponse, NavigationIntent
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
 
@@ -33,7 +33,7 @@ class ToolsHandler:
                 self.listitem_builder = None
         except ImportError:
             self.listitem_builder = None
-            
+
         # Tools menu system is lazy loaded on first use for better startup performance
         self._tools_service = None
 
@@ -80,7 +80,7 @@ class ToolsHandler:
                 list_id=list_id,
                 folder_id=list_id if list_type == "folder" else None
             )
-            
+
             # Get provider for specific context - lazy instantiation for performance
             provider = self._get_provider_for_context(list_type)
             if not provider:
@@ -88,7 +88,7 @@ class ToolsHandler:
                     success=False,
                     message=f"No provider available for context: {list_type}"
                 )
-            
+
             # Build menu actions using the context-specific provider
             actions = provider.build_tools(tools_context, context)
             if not actions:
@@ -96,10 +96,10 @@ class ToolsHandler:
                     success=False,
                     message=L(30504)  # "Operation failed"
                 )
-            
+
             # Determine appropriate title based on context
             title = self._get_tools_title(list_type)
-            
+
             # Show centralized tools menu
             return self.tools_service.show_menu(title, actions, context)
 
@@ -109,7 +109,7 @@ class ToolsHandler:
                 success=False,
                 message=L(30504)  # "Operation failed"
             )
-    
+
     def _get_tools_title(self, list_type: str) -> str:
         """Get appropriate title for tools menu based on context"""
         titles = {
@@ -397,35 +397,35 @@ class ToolsHandler:
             # Present export scope options
             import xbmcgui
             dialog = xbmcgui.Dialog()
-            
+
             export_options = [
                 f"Export only '{list_info['name']}' list",
             ]
-            
+
             # Check if list has a parent folder for branch export option
             parent_folder_name = "Lists"  # Default for root level
             folder_id = list_info.get('folder_id')
-            
+
             if folder_id:
                 folder_info = query_manager.get_folder_by_id(folder_id)
                 if folder_info:
                     parent_folder_name = folder_info['name']
                     export_options.append(f"Export '{parent_folder_name}' branch (folder + subfolders)")
-            
+
             export_options.append("Cancel")
-            
+
             selected_option = dialog.select(
                 f"Export '{list_info['name']}'",
                 export_options
             )
-            
+
             if selected_option == -1 or selected_option == len(export_options) - 1:  # Cancel
                 return DialogResponse(success=False)
 
             # Get export engine (lazy import)
             from lib.import_export.export_engine import get_export_engine
             export_engine = get_export_engine()
-            
+
             if selected_option == 0:
                 # Export single list only
                 context_filter = {"list_id": list_id}
@@ -434,7 +434,7 @@ class ToolsHandler:
                     file_format="json",
                     context_filter=context_filter
                 )
-                
+
                 if result["success"]:
                     message = (
                         f"Export completed for list '{list_info['name']}':\n"
@@ -444,7 +444,7 @@ class ToolsHandler:
                     )
                 else:
                     message = f"Export failed: {result.get('error', 'Unknown error')}"
-                    
+
             elif selected_option == 1 and folder_id:
                 # Export parent folder as branch
                 context_filter = {
@@ -456,7 +456,7 @@ class ToolsHandler:
                     file_format="json",
                     context_filter=context_filter
                 )
-                
+
                 if result["success"]:
                     message = (
                         f"Export completed for branch '{parent_folder_name}':\n"
@@ -521,25 +521,25 @@ class ToolsHandler:
             # Present export scope options
             import xbmcgui
             dialog = xbmcgui.Dialog()
-            
+
             # Get subfolder count for branch export option
             subfolders = query_manager.get_all_folders(parent_id=folder_id)
             subfolder_count = len(subfolders) if subfolders else 0
-            
+
             export_options = [
                 f"Export only '{folder_info['name']}' folder ({list_count} lists)",
                 f"Export '{folder_info['name']}' branch (folder + {subfolder_count} subfolders)",
                 "Cancel"
             ]
-            
+
             selected_option = dialog.select(
                 f"Export from '{folder_info['name']}'",
                 export_options
             )
-            
+
             if selected_option == -1 or selected_option == 2:  # Cancel
                 return DialogResponse(success=False)
-            
+
             # Determine export scope
             include_subfolders = (selected_option == 1)  # Branch export
 
@@ -552,7 +552,7 @@ class ToolsHandler:
                 "folder_id": folder_id,
                 "include_subfolders": include_subfolders
             }
-            
+
             result = export_engine.export_data(
                 export_types=["lists", "list_items"],
                 file_format="json",
@@ -627,7 +627,7 @@ class ToolsHandler:
                         file_size = 0
                 elif file_size is None:
                     file_size = 0
-                
+
                 return DialogResponse(
                     success=True,
                     message=f"Exported all {list_count} lists:\n"
@@ -650,7 +650,7 @@ class ToolsHandler:
         """Import lists from file"""
         try:
             from lib.import_export.import_engine import get_import_engine
-            
+
             # Show file browser for selection
             import xbmcgui
             dialog = xbmcgui.Dialog()
@@ -663,7 +663,7 @@ class ToolsHandler:
                 False,  # Treat as folder
                 ""      # Default path
             )
-            
+
             if not file_path:
                 return DialogResponse(success=False)  # User cancelled
 
@@ -687,7 +687,7 @@ class ToolsHandler:
 
             # Preview import to show user what will happen  
             preview = import_engine.preview_import(file_path)
-            
+
             # Show confirmation with preview details (simplified for timestamped import folders)
             preview_text = (
                 f"Import Preview (into timestamped import folder):\n"
@@ -695,7 +695,7 @@ class ToolsHandler:
                 f"• {preview.items_to_add} items to add\n"
                 f"• {preview.items_unmatched} items that cannot be matched"
             )
-            
+
             if preview.warnings:
                 preview_text += "\n\nWarnings:\n" + "\n".join(f"• {w}" for w in preview.warnings)
 
@@ -812,10 +812,8 @@ class ToolsHandler:
             else:
                 message = f"Manual backup failed: {result['error']}"
 
-            return DialogResponse(
-                success=result.get("success", False),
-                message=message
-            )
+            intent = NavigationIntent('refresh')
+            return DialogResponse(success=True, message=message, intent=intent)
 
         except Exception as e:
             self.logger.error("Error running manual backup: %s", e)
@@ -880,7 +878,8 @@ class ToolsHandler:
                     f"Items: {restore_result.get('items_restored', 0)}\n"
                     f"Total restored: {total_restored}"
                 )
-                return DialogResponse(success=True, message=message, refresh_needed=True)
+                intent = NavigationIntent('refresh')
+                return DialogResponse(success=True, message=message, intent=intent)
             else:
                 message = f"Backup restore failed: {restore_result.get('error', 'Unknown error')}"
                 return DialogResponse(success=False, message=message)
@@ -952,7 +951,8 @@ class ToolsHandler:
                         f"Items skipped: {result.get('items_skipped', 0)}\n"
                         f"Lists created: {result.get('lists_created', 0)}"
                     )
-                    return DialogResponse(success=True, message=message, refresh_needed=True)
+                    intent = NavigationIntent('refresh')
+                    return DialogResponse(success=True, message=message, intent=intent)
                 else:
                     error_msg = result.get("error", "Unknown error")
                     return DialogResponse(success=False, message=f"Restore failed:\n{error_msg}")
@@ -1408,15 +1408,15 @@ class ToolsHandler:
         """Execute local search directly"""
         try:
             from lib.ui.handler_factory import get_handler_factory
-            
+
             # Get search handler and execute search
             factory = get_handler_factory()
             factory.context = context
             search_handler = factory.get_search_handler()
-            
+
             # Execute the search directly
             success = search_handler.prompt_and_search(context)
-            
+
             if success:
                 return DialogResponse(
                     success=True, 
@@ -1438,15 +1438,15 @@ class ToolsHandler:
         """Execute local episodes search directly"""
         try:
             from lib.ui.handler_factory import get_handler_factory
-            
+
             # Get search handler and execute search
             factory = get_handler_factory()
             factory.context = context
             search_handler = factory.get_search_handler()
-            
+
             # Execute the search directly with episode media scope
             success = search_handler.prompt_and_search(context, media_scope="episode")
-            
+
             if success:
                 return DialogResponse(
                     success=True, 
@@ -1476,37 +1476,27 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Failed to open AI search")
 
     def _handle_search_history(self, context: PluginContext) -> DialogResponse:
-        """Display search history folder contents directly"""
+        """Navigate to search history folder"""
         try:
             query_manager = context.query_manager
             if not query_manager:
                 return DialogResponse(success=False, message="Query manager not available")
-                
+
             search_folder_id = query_manager.get_or_create_search_history_folder()
-            
+
             if search_folder_id:
-                # Directly display the search history folder contents instead of navigating
-                context.logger.debug("TOOLS: Directly displaying search history folder %s contents", search_folder_id)
+                # Navigate to the search history folder using proper navigation
+                context.logger.debug("TOOLS: Navigating to search history folder %s", search_folder_id)
                 
-                from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.response_handler import get_response_handler
-                
-                factory = get_handler_factory()
-                factory.context = context
-                lists_handler = factory.get_lists_handler()
-                response_handler = get_response_handler()
-                
-                # Display the folder contents directly
-                folder_response = lists_handler.show_folder(context, str(search_folder_id))
-                
-                # Process the response to display the folder contents
-                response_handler.handle_directory_response(folder_response, context)
-                
-                return DialogResponse(success=True, message="")
+                return DialogResponse(
+                    success=True,
+                    message="",
+                    navigate_to_folder=str(search_folder_id)
+                )
             else:
                 return DialogResponse(success=False, message="Could not access search history")
         except Exception as e:
-            context.logger.error("Error displaying search history: %s", e)
+            context.logger.error("Error navigating to search history: %s", e)
             return DialogResponse(success=False, message="Failed to open search history")
 
     def _handle_create_folder(self, context: PluginContext) -> DialogResponse:
@@ -1561,11 +1551,11 @@ class ToolsHandler:
             from lib.ui.lists_handler import ListsHandler
             lists_handler = ListsHandler(context)
             result = lists_handler.create_list(context)
-            
+
             # Navigate back to lists main menu after creation
             if result.success:
                 result.navigate_to_lists = True
-                
+
             return result
         except Exception as e:
             self.logger.error("Error creating list: %s", e)

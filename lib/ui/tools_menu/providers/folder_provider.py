@@ -35,6 +35,10 @@ class FolderToolsProvider(BaseToolsProvider):
             is_reserved = folder_info.get('is_reserved', False)
             folder_name = folder_info['name']
             
+            # Add name-based detection as fallback for Search History
+            if not is_reserved and folder_name and folder_name.lower() == 'search history':
+                is_reserved = True
+            
             if is_reserved:
                 # Search History folder - limited operations
                 return [
@@ -46,7 +50,7 @@ class FolderToolsProvider(BaseToolsProvider):
                     ),
                     self._create_action(
                         action_id="clear_search_history",
-                        label=L(37023),  # "Clear All Search History"
+                        label=L(36055),  # "Clear All Search History"
                         handler=self._handle_clear_search_history,
                         payload={"folder_id": context.folder_id},
                         needs_confirmation=ConfirmSpec(
