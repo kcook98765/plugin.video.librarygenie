@@ -61,11 +61,20 @@ class ListItemBuilder:
         try:
             count = len(items)
             
+            # 🔍 DEBUG PHASE 3A: Initial build_directory entry
+            self.logger.info("🔍 DEBUG PHASE 3A: build_directory ENTRY with %d items", count)
+            if count > 0:
+                first_item_sample = items[0]
+                self.logger.info("🔍 DEBUG PHASE 3A: First item keys: %s", list(first_item_sample.keys()) if first_item_sample else "None")
+            
             # Auto-detect content type if not provided
             if content_type is None:
                 from lib.data.query_manager import get_query_manager
                 query_manager = get_query_manager()
                 content_type = query_manager.detect_content_type(items)
+            
+            # 🔍 DEBUG PHASE 3A: Content type detection
+            self.logger.info("🔍 DEBUG PHASE 3A: Content type detected/set: '%s'", content_type)
             
             self.logger.info("DIRECTORY BUILD: Starting build with %s items (content_type='%s')", count, content_type)
             xbmcplugin.setContent(self.addon_handle, content_type)
@@ -82,13 +91,24 @@ class ListItemBuilder:
             tuples: List[tuple] = []
             ok = 0
             fail = 0
+            
+            # 🔍 DEBUG PHASE 3B: Start processing items
+            self.logger.info("🔍 DEBUG PHASE 3B: Starting to process %d items one by one", count)
+            
             for idx, raw in enumerate(items, start=1):
                 try:
+                    # 🔍 DEBUG: Log each item being processed
+                    item_title = raw.get('title', 'NO_TITLE')
+                    self.logger.debug("🔍 DEBUG PHASE 3B: Processing item #%d: '%s'", idx, item_title)
+                    
                     item = self._normalize_item(raw)  # canonical shape
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
                         title = item.get('title', 'Unknown')
+                        
+                        # 🔍 DEBUG: Log successful item build
+                        self.logger.debug("🔍 DEBUG PHASE 3B: Successfully built item #%d: '%s', url='%s'", idx, title, url[:50] + '...' if len(url) > 50 else url)
                         
                         # Critical check for empty URLs in directory build
                         if not url or not url.strip():
@@ -98,15 +118,23 @@ class ListItemBuilder:
                         ok += 1
                     else:
                         fail += 1
+                        self.logger.warning("🔍 DEBUG PHASE 3B: Failed to build item #%d: '%s'", idx, raw.get('title','Unknown'))
                         self.logger.warning("DIRECTORY BUILD: failed to build #%s: '%s'", idx, raw.get('title','Unknown'))
                 except Exception as ie:
                     fail += 1
+                    self.logger.error("🔍 DEBUG PHASE 3B: Exception processing item #%d: %s", idx, ie)
                     self.logger.error("DIRECTORY BUILD: exception for #%s: %s", idx, ie)
 
+            # 🔍 DEBUG PHASE 3B: Summary of processing
+            self.logger.info("🔍 DEBUG PHASE 3B: Item processing complete - %d successful, %d failed, %d total tuples", ok, fail, len(tuples))
             self.logger.info("DIRECTORY BUILD: Processed %s items - %s OK, %s failed", count, ok, fail)
 
             # OPTIMIZED: Prepare items for batch rendering
             batch_items = []
+            
+            # 🔍 DEBUG PHASE 3C: Start batch preparation
+            self.logger.info("🔍 DEBUG PHASE 3C: Preparing %d tuples for batch rendering", len(tuples))
+            
             for idx, (url, li, is_folder, item) in enumerate(tuples, start=1):
                 # Set properties for global context menu detection
                 media_item_id = item.get('media_item_id') or item.get('id')
@@ -120,6 +148,9 @@ class ListItemBuilder:
 
                 batch_items.append((url, li, is_folder))
 
+            # 🔍 DEBUG PHASE 3C: Batch preparation complete
+            self.logger.info("🔍 DEBUG PHASE 3C: Batch preparation complete - %d items ready for Kodi", len(batch_items))
+
             # OPTIMIZED: Add all items in a single batch operation
             self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
             
@@ -132,16 +163,22 @@ class ListItemBuilder:
             if self._should_debug_first_playable():
                 self._debug_first_playable_item(batch_items, tuples)
             
+            # 🔍 DEBUG PHASE 3D: Add items to Kodi
+            self.logger.info("🔍 DEBUG PHASE 3D: Calling xbmcplugin.addDirectoryItems with %d items", len(batch_items))
             xbmcplugin.addDirectoryItems(self.addon_handle, batch_items)
+            self.logger.info("🔍 DEBUG PHASE 3D: addDirectoryItems call completed")
 
             # Use Navigator for pagination with proper semantics: page>1 is a morph (replace)
             current_page = int(self.context.get_param('page', '1'))
             update = current_page > 1  # Replace current listing for page 2+, create new entry for page 1
             
+            # 🔍 DEBUG PHASE 3E: Finish directory
+            self.logger.info("🔍 DEBUG PHASE 3E: Calling finish_directory with handle=%d, update=%s", self.addon_handle, update)
             from lib.ui.nav import finish_directory
             self.logger.debug("DIRECTORY BUILD: Calling Navigator.finish_directory(handle=%s, succeeded=True, update=%s)", 
                              self.addon_handle, update)
             finish_directory(self.addon_handle, succeeded=True, update=update)
+            self.logger.info("🔍 DEBUG PHASE 3E: finish_directory call completed")
             
             # Calculate and log complete build time
             build_end_time = time.time()
