@@ -12,6 +12,7 @@ from typing import Any
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.nav import get_navigator
+from lib.ui.dialog_service import get_dialog_service
 from lib.utils.kodi_log import get_kodi_logger
 
 
@@ -21,6 +22,7 @@ class ResponseHandler:
     def __init__(self):
         self.logger = get_kodi_logger('lib.ui.response_handler')
         self.navigator = get_navigator()
+        self.dialog = get_dialog_service('lib.ui.response_handler')
 
     def handle_dialog_response(self, response: DialogResponse, context: PluginContext) -> None:
         """Handle DialogResponse by showing messages and performing actions"""
@@ -30,19 +32,9 @@ class ResponseHandler:
             # Show message if present
             if response.message:
                 if response.success:
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        response.message,
-                        xbmcgui.NOTIFICATION_INFO,
-                        3000
-                    )
+                    self.dialog.show_success(response.message, time_ms=3000)
                 else:
-                    xbmcgui.Dialog().notification(
-                        "LibraryGenie",
-                        response.message,
-                        xbmcgui.NOTIFICATION_ERROR,
-                        5000
-                    )
+                    self.dialog.show_error(response.message, time_ms=5000)
 
             # Handle navigation based on NavigationIntent (primary) or legacy flags (fallback)
             if response.success:
@@ -156,12 +148,7 @@ class ResponseHandler:
         except Exception as e:
             context.logger.error("Error handling dialog response: %s", e)
             # Fallback error notification
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "An error occurred",
-                xbmcgui.NOTIFICATION_ERROR,
-                3000
-            )
+            self.dialog.show_error("An error occurred", time_ms=3000)
 
     def handle_directory_response(self, response: DirectoryResponse, context: PluginContext) -> bool:
         """
@@ -273,18 +260,13 @@ class ResponseHandler:
             if not response.success:
                 if response.message:
                     self.logger.debug("RESPONSE HANDLER: Showing error message: %s", response.message)
-                    xbmcgui.Dialog().ok("Error", response.message)
+                    self.dialog.ok("Error", response.message)
                 return
 
             # Show success message if provided
             if response.message:
                 self.logger.debug("RESPONSE HANDLER: Showing success message: %s", response.message)
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    response.message,
-                    xbmcgui.NOTIFICATION_INFO,
-                    3000
-                )
+                self.dialog.show_success(response.message, time_ms=3000)
 
             # Handle navigation based on response flags - don't continue processing after navigation
             if response.navigate_to_main:
@@ -323,7 +305,7 @@ class ResponseHandler:
 
         except Exception as e:
             self.logger.error("Error handling dialog response: %s", e)
-            xbmcgui.Dialog().ok("Error", "An error occurred while processing the request")
+            self.dialog.ok("Error", "An error occurred while processing the request")
 
 
 # Factory function
