@@ -729,8 +729,6 @@ class ListsHandler:
     def view_list(self, context: PluginContext, list_id: str) -> DirectoryResponse:
         """Display contents of a specific list"""
         try:
-            # Phase 1: DEBUG Entry Point
-            context.logger.info("🔍 DEBUG PHASE 1: view_list ENTRY - list_id=%s", list_id)
             context.logger.debug("Displaying list %s", list_id)
 
             # Determine navigation mode (push or replace)
@@ -754,16 +752,12 @@ class ListsHandler:
 
             # Get list info
             list_info = query_manager.get_list_by_id(list_id)
-            # Phase 1: DEBUG List Info
             if not list_info:
-                context.logger.error("🔍 DEBUG PHASE 1: List %s not found in database", list_id)
+                context.logger.error("List %s not found in database", list_id)
                 return DirectoryResponse(
                     items=[],
                     success=False
                 )
-            else:
-                context.logger.info("🔍 DEBUG PHASE 1: Found list info - name='%s', list_id=%s", 
-                                  list_info.get('name', 'Unknown'), list_info.get('id', 'Unknown'))
 
             # Get pagination parameters
             current_page = int(context.get_param('page', '1'))
@@ -774,8 +768,6 @@ class ListsHandler:
 
             # Get total count first for pagination calculation
             total_items = query_manager.get_list_item_count(int(list_id))
-            # Phase 2: DEBUG Item Count
-            context.logger.info("🔍 DEBUG PHASE 2: Database reports %d total items in list %s", total_items, list_id)
 
             # Calculate pagination using settings-based page size
             pagination_info = pagination_manager.calculate_pagination(
@@ -791,19 +783,6 @@ class ListsHandler:
                 offset=pagination_info.start_index
             )
             
-            # Phase 2: DEBUG Retrieved Items
-            context.logger.info("🔍 DEBUG PHASE 2: Retrieved %d items from database for list %s (limit=%d, offset=%d)", 
-                              len(list_items), list_id, pagination_info.page_size, pagination_info.start_index)
-            
-            if list_items:
-                # Sample first item for debugging
-                first_item = list_items[0]
-                context.logger.info("🔍 DEBUG PHASE 2: First item sample - title='%s', media_type='%s', url='%s'", 
-                                  first_item.get('title', 'NO_TITLE'), 
-                                  first_item.get('media_type', 'NO_TYPE'),
-                                  first_item.get('url', 'NO_URL'))
-            else:
-                context.logger.warning("🔍 DEBUG PHASE 2: No items retrieved from database query")
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
@@ -835,7 +814,6 @@ class ListsHandler:
 
             # Handle empty lists using lightweight method to avoid loading full renderer
             if not list_items:
-                context.logger.warning("🔍 DEBUG PHASE 2: List appears empty, showing empty state")
                 context.logger.debug("List is empty")
                 self._create_simple_empty_state_item(
                     context,
@@ -879,19 +857,13 @@ class ListsHandler:
 
             # Build media items using ListItemBuilder
             try:
-                # Phase 3: DEBUG ListItem Building
-                context.logger.info("🔍 DEBUG PHASE 3: Starting ListItemBuilder with %d items", len(list_items))
                 from lib.ui.listitem_builder import ListItemBuilder
                 builder = ListItemBuilder(context.addon_handle, context.addon_id, context)
                 # Use auto-detect for content type (None) instead of hardcoding "movies"
                 success = builder.build_directory(list_items, None)
                 
-                # Phase 3: DEBUG Build Result
                 if success:
-                    context.logger.info("🔍 DEBUG PHASE 3: ListItemBuilder reported success with %d items", len(list_items))
                     context.logger.debug("Successfully built directory with %s items", len(list_items))
-                else:
-                    context.logger.error("🔍 DEBUG PHASE 3: ListItemBuilder reported FAILURE")
 
                     # Determine if this is a refresh or initial load
                     is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
@@ -901,21 +873,15 @@ class ListsHandler:
                     from lib.ui.response_types import NavigationIntent
                     intent = NavigationIntent(mode=nav_mode if nav_mode != 'push' else None, url=None)
 
-                    # Phase 4: DEBUG Directory Response
-                    final_content_type = "movies" if list_items and list_items[0].get('media_type') == 'movie' else "files"
-                    context.logger.info("🔍 DEBUG PHASE 4: Returning DirectoryResponse - items=%d, content_type='%s', update_listing=%s", 
-                                      len(list_items), final_content_type, update_listing)
-                    
                     # Return proper DirectoryResponse
                     return DirectoryResponse(
                         items=list_items,
                         success=True,
-                        content_type=final_content_type,
+                        content_type="movies" if list_items and list_items[0].get('media_type') == 'movie' else "files",
                         update_listing=update_listing, # REPLACE for same list, PUSH for different list
                         intent=intent
                     )
             except Exception as e:
-                context.logger.error("🔍 DEBUG PHASE 3: Exception in ListItemBuilder: %s", e)
                 context.logger.error("Error building list items: %s", e)
                 return DirectoryResponse(
                     items=[],

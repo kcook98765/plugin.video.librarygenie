@@ -72,22 +72,17 @@ class SearchHandler:
             list_id = self._save_search_history(search_terms, search_options, results)
 
             if list_id:
-                # Always navigate to the saved search list after creating it
-                # The _save_search_history method sets self._pending_intent
-                if self._pending_intent:
-                    # Execute the navigation intent using REPLACE semantics
-                    from lib.ui.nav import execute_intent
-                    execute_intent(self._pending_intent)
-                    self._end_directory(succeeded=True, update=False)  # REPLACE semantics
+                # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
+                # This eliminates the double endOfDirectory/Container.Update issue that prevents
+                # the search results from displaying in Kodi V22
+                success = self._render_saved_search_list_directly(list_id, context)
+                if success:
+                    self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
                     return True
                 else:
-                    # Fallback: if pending intent wasn't set properly, use direct navigation with REPLACE
-                    # to ensure correct parent path for search results
-                    list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                    from lib.ui.nav import replace
-                    replace(list_url)
-                    self._end_directory(succeeded=True, update=False)
-                    return True
+                    self._error(f"Failed to render search results directly for list {list_id}")
+                    self._end_directory(succeeded=False, update=False)
+                    return False
             else:
                 # Failed to save search history, fallback to redirect method
                 self._warn("Failed to save search history, attempting fallback redirect")
