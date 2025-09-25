@@ -281,11 +281,22 @@ class ListItemBuilder:
             # Use direct file path for consistent playback behavior across all Kodi versions
             file_path = item.get('file_path') or item.get('play')
             if not file_path or not file_path.strip():
-                self.logger.error("LIB ITEM: No valid file path available for '%s'", title)
-                return None
+                # No direct file path available - generate plugin URL for library item
+                media_item_id = item.get('media_item_id') or item.get('id')
+                if media_item_id:
+                    # Use media_item_id for LibraryGenie items
+                    playback_url = f"plugin://{self.addon_id}/?action=play_item&item_id={media_item_id}"
+                elif kodi_id:
+                    # Use kodi_id for library items
+                    playback_url = f"plugin://{self.addon_id}/?action=play_library_item&kodi_id={kodi_id}&media_type={media_type}"
+                else:
+                    self.logger.error("LIB ITEM: No valid file path or ID available for '%s'", title)
+                    return None
+                self.logger.debug("LIB ITEM: Generated plugin URL for '%s': %s", title, playback_url)
+            else:
+                playback_url = file_path
                 
-            li.setPath(file_path)
-            playback_url = file_path
+            li.setPath(playback_url)
             # Set IsPlayable=true for proper playback and context menu support
             li.setProperty('IsPlayable', 'true')
 
@@ -697,11 +708,23 @@ class ListItemBuilder:
         Return direct play URL if provided; otherwise build a plugin URL
         that routes to info/play handling.
         """
-        play = item.get('play')
-        if play:
+        play = item.get('play') or item.get('file_path')
+        if play and play.strip():
             return play
-        item_id = item.get('id') or item.get('imdb_id') or ''
-        return f"plugin://{self.addon_id}?action=info&item_id={item_id}"
+            
+        # Try to build plugin URL with available identifiers
+        media_item_id = item.get('media_item_id') or item.get('id')
+        kodi_id = item.get('kodi_id')
+        media_type = item.get('media_type', 'movie')
+        
+        if media_item_id:
+            return f"plugin://{self.addon_id}/?action=play_item&item_id={media_item_id}"
+        elif kodi_id:
+            return f"plugin://{self.addon_id}/?action=play_library_item&kodi_id={kodi_id}&media_type={media_type}"
+        else:
+            # Fallback to info action with any available ID
+            fallback_id = item.get('imdb_id') or item.get('tmdb_id') or ''
+            return f"plugin://{self.addon_id}/?action=info&item_id={fallback_id}"
 
     def _set_external_context_menu(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
         """Context menu for external items"""
