@@ -40,18 +40,18 @@ class ResponseHandler:
             if response.success:
                 # Check for legacy navigation flags for backward compatibility
                 if getattr(response, 'navigate_to_folder', None):
-                    # Navigate to specific folder (highest priority for folder operations)
-                    from lib.ui.session_state import get_session_state
-                    
-                    # Bump refresh token for cache-busting
-                    session_state = get_session_state()
-                    session_state.bump_refresh_token()
-                    
+                    # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
+                    # This eliminates the Container.Update issue that prevents folder navigation
+                    # from working in Kodi V22
                     folder_id = response.navigate_to_folder
-                    folder_url = context.build_cache_busted_url("show_folder", folder_id=folder_id)
-                    context.logger.debug("RESPONSE HANDLER: Navigating to folder %s with cache-busted URL: %s", folder_id, folder_url)
-                    self.navigator.replace(folder_url)
-                    return
+                    success = self._render_folder_directly(context, folder_id)
+                    if success:
+                        context.logger.debug("RESPONSE HANDLER: Successfully displayed folder %s using direct rendering", folder_id)
+                        return
+                    else:
+                        context.logger.warning("RESPONSE HANDLER: Failed direct folder rendering for %s, falling back to refresh", folder_id)
+                        self.navigator.refresh()
+                        return
 
                 elif getattr(response, 'navigate_to_lists', None):
                     # Navigate to lists menu
@@ -286,13 +286,17 @@ class ResponseHandler:
                 self.navigator.replace(lists_url)
                 return
             elif response.navigate_to_folder:
-                self.logger.debug("RESPONSE HANDLER: Navigating to folder: %s", response.navigate_to_folder)
-                from lib.ui.session_state import get_session_state
-                session_state = get_session_state()
-                session_state.bump_refresh_token()
-                folder_url = context.build_cache_busted_url("show_folder", folder_id=response.navigate_to_folder)
-                self.navigator.replace(folder_url)
-                return
+                # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
+                folder_id = response.navigate_to_folder
+                self.logger.debug("RESPONSE HANDLER: Directly rendering folder: %s", folder_id)
+                success = self._render_folder_directly(context, folder_id)
+                if success:
+                    self.logger.debug("RESPONSE HANDLER: Successfully displayed folder %s using direct rendering", folder_id)
+                    return
+                else:
+                    self.logger.warning("RESPONSE HANDLER: Failed direct folder rendering for %s, falling back to refresh", folder_id)
+                    self.navigator.refresh()
+                    return
             elif response.refresh_needed:
                 self.logger.debug("RESPONSE HANDLER: Refreshing current container")
                 self.navigator.refresh()
@@ -306,6 +310,37 @@ class ResponseHandler:
         except Exception as e:
             self.logger.error("Error handling dialog response: %s", e)
             self.dialog.ok("Error", "An error occurred while processing the request")
+
+    def _render_folder_directly(self, context: PluginContext, folder_id: str) -> bool:
+        """Directly render folder contents without Container.Update redirect"""
+        try:
+            self.logger.debug("RESPONSE HANDLER: Directly rendering folder ID: %s", folder_id)
+
+            # Import and instantiate ListsHandler  
+            from lib.ui.handler_factory import get_handler_factory
+
+            factory = get_handler_factory()
+            factory.context = context
+            lists_handler = factory.get_lists_handler()
+
+            # Directly call show_folder with the folder ID
+            directory_response = lists_handler.show_folder(context, folder_id)
+
+            # Handle the DirectoryResponse using self to avoid recursion
+            success = self.handle_directory_response(directory_response, context)
+
+            if success:
+                self.logger.debug("RESPONSE HANDLER: Successfully rendered folder %s directly", folder_id)
+                return True
+            else:
+                self.logger.warning("RESPONSE HANDLER: Failed to handle directory response for folder %s", folder_id)
+                return False
+
+        except Exception as e:
+            self.logger.error("RESPONSE HANDLER: Error rendering folder directly: %s", e)
+            import traceback
+            self.logger.error("RESPONSE HANDLER: Direct folder rendering traceback: %s", traceback.format_exc())
+            return False
 
 
 # Factory function
