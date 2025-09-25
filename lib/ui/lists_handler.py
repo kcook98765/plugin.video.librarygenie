@@ -610,9 +610,9 @@ class ListsHandler:
             if self._folder_has_tools(folder_info):
                 tools_menu_item = {
                     'label': "⚙️ Tools & Options",
-                    'url': context.build_url('show_list_tools', list_type='folder', folder_id=folder_id),
+                    'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
                     'is_folder': True,
-                    'description': f"Tools & Options for {folder_info['name']}",
+                    'description': f"Tools & Options for {folder_info.get('name', 'Folder')}",
                     'icon': "DefaultAddonProgram.png",
                     'context_menu': []  # No context menu for tools item itself
                 }
