@@ -12,6 +12,7 @@ from lib.utils.kodi_log import get_kodi_logger
 from lib.auth.state import is_authorized, get_api_key, clear_auth_data
 from lib.auth.otp_auth import run_otp_authorization_flow, test_api_connection, is_api_key_valid
 from lib.config import get_config
+from lib.ui.dialog_service import get_dialog_service
 
 
 class AuthorizationHelper:
@@ -40,13 +41,13 @@ class AuthorizationHelper:
                 clear_auth_data()
 
         # Show authorization prompt
-        dialog = xbmcgui.Dialog()
+        dialog_service = get_dialog_service('lib.auth.auth_helper')
         
-        result = dialog.yesno(
+        result = dialog_service.yesno(
             "Authentication Required",
             f"The {feature_name} feature requires authorization with the remote server.\n\nWould you like to authorize this device now?",
-            nolabel="Cancel",
-            yeslabel="Authorize Device"
+            no_label="Cancel",
+            yes_label="Authorize Device"
         )
 
         if not result:
@@ -74,7 +75,7 @@ class AuthorizationHelper:
 
     def show_authorization_status(self):
         """Show current authorization status to user"""
-        dialog = xbmcgui.Dialog()
+        dialog_service = get_dialog_service('lib.auth.auth_helper')
 
         if is_authorized():
             # Test the connection
@@ -84,26 +85,26 @@ class AuthorizationHelper:
             if server_url:
                 test_result = test_api_connection(str(server_url))
                 if test_result.get('success'):
-                    dialog.ok(
+                    dialog_service.ok(
                         "Authorization Status",
                         f"Device is authorized for AI search.\n\nUser: {test_result.get('user_email', 'Unknown')}\nRole: {test_result.get('user_role', 'Unknown')}"
                     )
                 else:
-                    dialog.ok(
+                    dialog_service.ok(
                         "Authorization Status",
                         f"Device has an API key but connection test failed:\n\n{test_result.get('error', 'Unknown error')}"
                     )
             else:
-                dialog.ok(
+                dialog_service.ok(
                     "Authorization Status",
                     "Device has an API key but no server URL is configured."
                 )
         else:
-            result = dialog.yesno(
+            result = dialog_service.yesno(
                 "Authorization Status",
                 "Device is not authorized for AI search.\n\nWould you like to authorize now?",
-                nolabel="Cancel",
-                yeslabel="Authorize Device"
+                no_label="Cancel",
+                yes_label="Authorize Device"
             )
 
             if result:
@@ -116,7 +117,8 @@ class AuthorizationHelper:
             server_url = cfg.get('ai_search_server_url', '')
             
             if not server_url:
-                xbmcgui.Dialog().ok(
+                dialog_service = get_dialog_service('lib.auth.auth_helper')
+                dialog_service.ok(
                     "Configuration Required",
                     "Please configure the AI Search Server URL in addon settings before authorizing."
                 )
@@ -134,10 +136,10 @@ class AuthorizationHelper:
                 
         except Exception as e:
             self.logger.error("Error during OTP authorization: %s", e)
-            xbmcgui.Dialog().notification(
-                "Authorization Error",
+            dialog_service = get_dialog_service('lib.auth.auth_helper')
+            dialog_service.show_error(
                 f"Failed to authorize device: {str(e)[:50]}...",
-                xbmcgui.NOTIFICATION_ERROR
+                title="Authorization Error"
             )
             return False
 
@@ -146,10 +148,10 @@ class AuthorizationHelper:
         try:
             result = clear_auth_data()
             if result:
-                xbmcgui.Dialog().notification(
-                    "Authorization Cleared",
+                dialog_service = get_dialog_service('lib.auth.auth_helper')
+                dialog_service.show_success(
                     "Device authorization has been cleared.",
-                    xbmcgui.NOTIFICATION_INFO
+                    title="Authorization Cleared"
                 )
             return result
         except Exception as e:
