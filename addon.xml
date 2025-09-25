@@ -15,9 +15,7 @@
     <menu id="kodi.core.main">
       <item library="context.py">
         <label>37028</label>
-        <visible>( ListItem.IsPlayable | ListItem.Property(IsPlayable) )
-          + !ListItem.IsFolder
-          + !String.Contains(Container.FolderPath,plugin.video.librarygenie) + !String.Contains(ListItem.FileNameAndPath,plugin.video.librarygenie)</visible>
+        <visible>!ListItem.IsFolder + !String.Contains(Container.FolderPath,plugin.video.librarygenie) + !String.Contains(ListItem.FileNameAndPath,plugin.video.librarygenie)</visible>
       </item>
     </menu>
   </extension>
