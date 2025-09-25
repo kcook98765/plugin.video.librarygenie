@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from lib.import_export.export_engine import get_export_engine
-from lib.import_export.storage_manager import get_storage_manager
+from lib.data.storage_manager import get_storage_manager
 from lib.config import get_config
 from lib.utils.kodi_log import get_kodi_logger
 from lib.config.settings import SettingsManager

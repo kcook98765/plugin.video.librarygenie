@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.librarygenie"
        name="LibraryGenie"
-       version="0.8.15"
+       version="0.8.16"
        provider-name="LibraryGenie Team">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
@@ -15,9 +15,7 @@
     <menu id="kodi.core.main">
       <item library="context.py">
         <label>37028</label>
-        <visible>( ListItem.IsPlayable | ListItem.Property(IsPlayable) )
-          + !ListItem.IsFolder
-          + !String.Contains(Container.FolderPath,plugin.video.librarygenie) + !String.Contains(ListItem.FileNameAndPath,plugin.video.librarygenie)</visible>
+        <visible>!ListItem.IsFolder + !String.Contains(Container.FolderPath,plugin.video.librarygenie) + !String.Contains(ListItem.FileNameAndPath,plugin.video.librarygenie)</visible>
       </item>
     </menu>
   </extension>
