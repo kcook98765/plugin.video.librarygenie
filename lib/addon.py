@@ -135,8 +135,15 @@ class AddonController:
             self.logger.info("Handling authorization")
 
             # Import and run authorization flow (lazy import)
-            from lib.auth.device_code import run_authorize_flow
-            run_authorize_flow()
+            from lib.auth.otp_auth import run_otp_authorization_flow
+            from lib.config.settings import SettingsManager
+            
+            settings = SettingsManager()
+            server_url = settings.get_remote_server_url()
+            if server_url:
+                run_otp_authorization_flow(server_url)
+            else:
+                self.logger.warning("No server URL configured for authorization")
 
             # Return to main menu after authorization attempt
             self._show_main_menu()
