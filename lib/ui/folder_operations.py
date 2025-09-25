@@ -22,11 +22,16 @@ class FolderOperations:
     def __init__(self, context: PluginContext):
         self.context = context
         self.logger = get_kodi_logger('lib.ui.folder_operations')
-        # Get query manager with fallback
+        # Get query manager with fallback and validation
         self.query_manager = context.query_manager
         if self.query_manager is None:
             from lib.data.query_manager import get_query_manager
             self.query_manager = get_query_manager()
+            
+        # Final validation - log warning if still None
+        if self.query_manager is None:
+            self.logger.warning("Query manager is None after initialization")
+            
         self.storage_manager = context.storage_manager
         self.dialog_service = get_dialog_service('lib.ui.folder_operations')
 
@@ -46,7 +51,7 @@ class FolderOperations:
                 return DialogResponse(success=False, message="")
 
             # Use injected query manager and create folder
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -87,7 +92,7 @@ class FolderOperations:
             context.logger.info("Deleting folder %s", folder_id)
 
             # Use injected query manager
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -104,8 +109,8 @@ class FolderOperations:
             folder_name = folder_info.get('name', 'Unnamed Folder')
 
             # Check if folder has lists or subfolders
-            lists_in_folder = self.query_manager.get_lists_in_folder(folder_id)
-            subfolders = self.query_manager.get_all_folders(parent_id=folder_id)
+            lists_in_folder = self.query_manager.get_lists_in_folder(folder_id) or []
+            subfolders = self.query_manager.get_all_folders(parent_id=folder_id) or []
 
             if lists_in_folder or subfolders:
                 # Show warning about contents
@@ -164,7 +169,7 @@ class FolderOperations:
             context.logger.info("Renaming folder %s", folder_id)
 
             # Use injected query manager
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -224,9 +229,8 @@ class FolderOperations:
         try:
             context.logger.info("Moving list %s", list_id)
 
-            # Initialize query manager
-            query_manager = get_query_manager()
-            if not query_manager.initialize():
+            # Use injected query manager
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -234,7 +238,7 @@ class FolderOperations:
                 )
 
             # Get current list info
-            list_info = query_manager.get_list_by_id(list_id)
+            list_info = self.query_manager.get_list_by_id(list_id)
             if not list_info:
                 return DialogResponse(
                     success=False,
@@ -245,7 +249,7 @@ class FolderOperations:
             current_folder_id = list_info.get('folder_id')
 
             # Get all available folders
-            all_folders = self.query_manager.get_all_folders()
+            all_folders = self.query_manager.get_all_folders() or []
             folder_options = ["[ROOT] (No folder)"]  # Option for root level
             folder_ids = [None]  # None represents root level
 
@@ -307,7 +311,7 @@ class FolderOperations:
             context.logger.info("Moving folder %s", folder_id)
 
             # Use injected query manager
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,

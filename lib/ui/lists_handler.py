@@ -49,6 +49,48 @@ class ListsHandler:
             from lib.ui.import_export_handler import ImportExportHandler
             self._import_export = ImportExportHandler(self.context)
         return self._import_export
+    
+    def quick_add_to_default_list(self, context: PluginContext) -> DialogResponse:
+        """Quick add item to default list"""
+        try:
+            media_item_id = context.get_param('media_item_id')
+            if not media_item_id:
+                return DialogResponse(success=False, message="Missing media item ID")
+            
+            # Use list operations to add to default list
+            return self.list_ops.add_item_to_default_list(context, media_item_id)
+            
+        except Exception as e:
+            self.logger.error("Error in quick_add_to_default_list: %s", e)
+            return DialogResponse(success=False, message="Failed to add item to default list")
+    
+    def quick_add_library_item_to_default_list(self, context: PluginContext) -> DialogResponse:
+        """Quick add library item to default list"""
+        try:
+            media_item_id = context.get_param('media_item_id')
+            if not media_item_id:
+                return DialogResponse(success=False, message="Missing media item ID")
+            
+            # Use list operations to add library item to default list  
+            return self.list_ops.add_library_item_to_default_list(context, media_item_id)
+            
+        except Exception as e:
+            self.logger.error("Error in quick_add_library_item_to_default_list: %s", e)
+            return DialogResponse(success=False, message="Failed to add library item to default list")
+    
+    def quick_add_external_item_to_default_list(self, context: PluginContext) -> DialogResponse:
+        """Quick add external item to default list"""
+        try:
+            media_item_id = context.get_param('media_item_id')
+            if not media_item_id:
+                return DialogResponse(success=False, message="Missing media item ID")
+            
+            # Use list operations to add external item to default list
+            return self.list_ops.add_external_item_to_default_list(context, media_item_id)
+            
+        except Exception as e:
+            self.logger.error("Error in quick_add_external_item_to_default_list: %s", e)
+            return DialogResponse(success=False, message="Failed to add external item to default list")
 
     @property
     def listitem_renderer(self):

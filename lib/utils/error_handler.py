@@ -143,7 +143,7 @@ class ErrorHandler:
             )
     
     def build_error_dialog_response(self, operation_name: str, exception: Exception, 
-                                   default_message: str = None) -> DialogResponse:
+                                   default_message: Optional[str] = None) -> DialogResponse:
         """
         Build a DialogResponse for boundary error handling
         
@@ -168,7 +168,7 @@ class ErrorHandler:
     
     def handle_boundary_exception(self, operation_name: str, exception: Exception,
                                  user_friendly_action: str, 
-                                 cleanup_functions: list = None,
+                                 cleanup_functions: Optional[list] = None,
                                  timeout_ms: int = 5000) -> DialogResponse:
         """
         Handle exception at UI/router/provider boundaries with cleanup

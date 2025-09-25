@@ -9,7 +9,7 @@ Handles Kodi favorites integration and management
 import xbmcplugin
 import xbmcgui
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
@@ -21,10 +21,20 @@ from lib.ui.dialog_service import get_dialog_service
 class FavoritesHandler:
     """Handles Kodi favorites operations"""
 
-    def __init__(self):
+    def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_kodi_logger('lib.ui.favorites_handler')
         self.error_handler = create_error_handler('lib.ui.favorites_handler')
         self.dialog_service = get_dialog_service('lib.ui.favorites_handler')
+        
+        # Initialize context and related components
+        self.plugin_context = context
+        if context:
+            self.query_manager = context.query_manager
+            # Lazy load listitem_builder when needed
+            self._listitem_builder = None
+        else:
+            self.query_manager = None
+            self._listitem_builder = None
 
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
@@ -41,7 +51,57 @@ class FavoritesHandler:
             # v19/v20: Use setInfo() as fallback
             list_item.setInfo('video', {'plot': plot})
 
+    @property
+    def listitem_builder(self):
+        """Get listitem builder singleton (lazy loaded)"""
+        if self._listitem_builder is None and self.plugin_context:
+            from lib.ui.listitem_renderer import get_listitem_renderer
+            self._listitem_builder = get_listitem_renderer(
+                self.plugin_context.addon_handle,
+                self.plugin_context.addon_id,
+                self.plugin_context
+            )
+        return self._listitem_builder
+    
+    def _build_unmapped_favorite_item(self, favorite: Dict[str, Any]):
+        """Build listitem for unmapped favorite using favorite data"""
+        try:
+            # Create basic listitem from favorite data
+            title = favorite.get('name', 'Unknown Title')
+            listitem = xbmcgui.ListItem(label=title, offscreen=True)
+            
+            # Set basic metadata if available
+            if 'plot' in favorite:
+                self._set_listitem_plot(listitem, favorite['plot'])
+                
+            # Set art if available
+            art_dict = {}
+            if 'thumb' in favorite:
+                art_dict['thumb'] = favorite['thumb']
+            if 'icon' in favorite:
+                art_dict['icon'] = favorite['icon']
+            if art_dict:
+                listitem.setArt(art_dict)
+                
+            # Build URL for playback
+            url = favorite.get('path', '')
+            if not url and self.plugin_context:
+                url = self.plugin_context.build_url('play_favorite', favorite_id=favorite.get('id', ''))
+            
+            return listitem, url
+            
+        except Exception as e:
+            self.logger.error("Error building unmapped favorite item: %s", e)
+            # Return basic fallback
+            fallback_item = xbmcgui.ListItem(label="Error Loading Item", offscreen=True)
+            return fallback_item, ""
+    
     def show_favorites_menu(self, context: PluginContext) -> DirectoryResponse:
+        """Show main Kodi favorites menu"""
+        # Update context reference if provided
+        if context and not self.plugin_context:
+            self.plugin_context = context
+            self.query_manager = context.query_manager
         """Show main Kodi favorites menu"""
         try:
             self.logger.info("Displaying Kodi favorites menu")
@@ -566,10 +626,21 @@ class FavoritesHandler:
             for fav in mapped_favorites:
                 try:
                     # Get enhanced media item data for mapped favorite
-                    media_item = self.query_manager.get_media_item_by_id(fav['media_item_id'])
+                    # Use available query manager method (get_media_item_by_id may not exist)
+                    media_item = None
+                    if hasattr(self.query_manager, 'get_media_item_by_id'):
+                        media_item = self.query_manager.get_media_item_by_id(fav['media_item_id'])
+                    else:
+                        # Fallback to basic favorite data
+                        media_item = None
                     if media_item:
                         # Use enhanced media_items data - no JSON RPC calls needed
-                        listitem, url = self.listitem_builder.build_media_listitem(media_item)
+                        # Use available listitem builder method
+                        if self.listitem_builder and hasattr(self.listitem_builder, 'build_media_listitem'):
+                            listitem, url = self.listitem_builder.build_media_listitem(media_item)
+                        else:
+                            # Fallback to unmapped item builder
+                            listitem, url = self._build_unmapped_favorite_item(fav)
                     else:
                         # Fallback for missing media item
                         listitem, url = self._build_unmapped_favorite_item(fav)

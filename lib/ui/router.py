@@ -372,7 +372,7 @@ class Router:
                 return bool(success) if success is not None else True
 
             elif action == "authorize_ai_search":
-                from lib.ai_search_handler import AISearchHandler
+                from lib.ui.ai_search_handler import AISearchHandler
                 ai_handler = AISearchHandler()
                 result = ai_handler.authorize_ai_search(context)
                 return result if isinstance(result, bool) else True

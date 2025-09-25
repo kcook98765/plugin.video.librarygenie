@@ -523,8 +523,8 @@ def handle_ai_search_replace_sync():
     
     try:
         # Direct approach for AI search sync
-        from remote.ai_search import get_ai_search_service
-        from config.config_manager import get_config
+        from lib.remote.ai_search_client import AISearchClient
+        from lib.config import get_config
         
         config = get_config()
         dialog_service = get_dialog_service(logger_name='utilities.handle_ai_search_replace_sync')
@@ -544,10 +544,15 @@ def handle_ai_search_replace_sync():
             return
         
         # Get AI search service and perform sync
-        ai_service = get_ai_search_service()
+        ai_service = AISearchClient()
         if ai_service:
             # Run replace sync in background
-            success = ai_service.perform_replace_sync()
+            # Use hasattr guard for missing methods
+            if hasattr(ai_service, 'perform_replace_sync'):
+                success = ai_service.perform_replace_sync()
+            else:
+                log_info("AISearchClient missing perform_replace_sync method")
+                success = False
             
             if success:
                 dialog_service.show_success("AI search replace sync started")
@@ -571,8 +576,8 @@ def handle_ai_search_regular_sync():
     
     try:
         # Direct approach for AI search regular sync
-        from remote.ai_search import get_ai_search_service
-        from config.config_manager import get_config
+        from lib.remote.ai_search_client import AISearchClient
+        from lib.config import get_config
         
         config = get_config()
         dialog_service = get_dialog_service(logger_name='utilities.handle_ai_search_regular_sync')
@@ -592,10 +597,15 @@ def handle_ai_search_regular_sync():
             return
         
         # Get AI search service and perform sync
-        ai_service = get_ai_search_service()
+        ai_service = AISearchClient()
         if ai_service:
             # Run regular sync in background
-            success = ai_service.perform_regular_sync()
+            # Use hasattr guard for missing methods  
+            if hasattr(ai_service, 'perform_regular_sync'):
+                success = ai_service.perform_regular_sync()
+            else:
+                log_info("AISearchClient missing perform_regular_sync method")
+                success = False
             
             if success:
                 dialog_service.show_success("AI search regular sync started")
