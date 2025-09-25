@@ -236,8 +236,6 @@ class QueryManager:
     def get_list_items(self, list_id, limit=100, offset=0):
         """Get items from a specific list with paging, normalized to canonical format"""
         try:
-            # 🔍 DEBUG PHASE 2A: Database query entry
-            self.logger.info("🔍 DEBUG PHASE 2A: get_list_items called with list_id=%s, limit=%s, offset=%s", list_id, limit, offset)
             self.logger.debug("Getting list items for list_id=%s, limit=%s, offset=%s", list_id, limit, offset)
 
             connection = self.connection_manager.get_connection()
@@ -283,33 +281,18 @@ class QueryManager:
             """
 
 
-            # 🔍 DEBUG PHASE 2B: Execute database query
-            self.logger.info("🔍 DEBUG PHASE 2B: Executing SQL query with parameters: list_id=%s, limit=%s, offset=%s", list_id, limit, offset)
             cursor.execute(query, (list_id, limit, offset))
             rows = cursor.fetchall()
-
-            # 🔍 DEBUG PHASE 2B: Query results
-            self.logger.info("🔍 DEBUG PHASE 2B: SQL query returned %d rows", len(rows))
-            if rows:
-                first_row = dict(rows[0])
-                self.logger.info("🔍 DEBUG PHASE 2B: First row sample - title='%s', media_type='%s', kodi_id=%s", 
-                                first_row.get('title', 'NO_TITLE'), first_row.get('media_type', 'NO_TYPE'), first_row.get('kodi_id', 'NO_ID'))
-            else:
-                self.logger.warning("🔍 DEBUG PHASE 2B: No rows returned from database query")
             
             self.logger.debug("Query returned %s rows", len(rows))
 
             items = []
             
-            # 🔍 DEBUG PHASE 2C: Start processing rows
-            self.logger.info("🔍 DEBUG PHASE 2C: Starting to process %d database rows", len(rows))
 
             for row_idx, row in enumerate(rows):
                 # Convert row to dict
                 item = dict(row)
 
-                # 🔍 DEBUG: Log each row being processed
-                self.logger.debug("🔍 DEBUG PHASE 2C: Processing row #%d: title='%s'", row_idx + 1, item.get('title', 'NO_TITLE'))
 
                 # Parse JSON data if present
                 if item.get('data_json'):
@@ -344,14 +327,9 @@ class QueryManager:
                 # Normalize to canonical format using optimized data
                 canonical_item = self._normalize_to_canonical(item)
                 
-                # 🔍 DEBUG: Log canonical item
-                self.logger.debug("🔍 DEBUG PHASE 2C: Normalized item #%d: title='%s', url='%s'", 
-                                 row_idx + 1, canonical_item.get('title', 'NO_TITLE'), canonical_item.get('url', 'NO_URL'))
 
                 items.append(canonical_item)
 
-            # 🔍 DEBUG PHASE 2D: Final results
-            self.logger.info("🔍 DEBUG PHASE 2D: Processed %d rows into %d canonical items", len(rows), len(items))
             
             return items
 
