@@ -73,16 +73,17 @@ class SearchHandler:
                 # Always navigate to the saved search list after creating it
                 # The _save_search_history method sets self._pending_intent
                 if self._pending_intent:
-                    # Execute the navigation intent using PUSH semantics
+                    # Execute the navigation intent using REPLACE semantics
                     from lib.ui.nav import execute_intent
                     execute_intent(self._pending_intent)
-                    self._end_directory(succeeded=True, update=False)  # PUSH semantics
+                    self._end_directory(succeeded=True, update=False)  # REPLACE semantics
                     return True
                 else:
-                    # Fallback: if pending intent wasn't set properly, use direct navigation
+                    # Fallback: if pending intent wasn't set properly, use direct navigation with REPLACE
+                    # to ensure correct parent path for search results
                     list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                    from lib.ui.nav import push
-                    push(list_url)
+                    from lib.ui.nav import replace
+                    replace(list_url)
                     self._end_directory(succeeded=True, update=False)
                     return True
             else:
@@ -181,13 +182,15 @@ class SearchHandler:
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
 
-                    # Automatically show saved list immediately - use PUSH semantics
+                    # Automatically show saved list immediately - use REPLACE semantics to fix parent path
+                    # This ensures search results have the correct parent (Search History) rather than
+                    # inheriting an incorrect parent path from where the search was initiated
                     from lib.ui.response_types import NavigationIntent
                     list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                    intent = NavigationIntent(url=list_url, mode='push')
+                    intent = NavigationIntent(url=list_url, mode='replace')
                     # Store intent for router to execute
                     self._pending_intent = intent
-                    self._debug(f"Set navigation intent to PUSH to saved list: {list_url}")
+                    self._debug(f"Set navigation intent to REPLACE to saved list: {list_url}")
 
                     return list_id  # Return the list ID on success
                 else:
@@ -255,9 +258,9 @@ class SearchHandler:
 
             self._debug(f"Redirecting to most recent search history list ID: {list_id}")
             list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-            from lib.ui.nav import push
-            push(list_url)  # Use PUSH semantics for search results navigation
-            self._end_directory(succeeded=True, update=False)  # PUSH semantics
+            from lib.ui.nav import replace
+            replace(list_url)  # Use REPLACE semantics to fix parent path for search results
+            self._end_directory(succeeded=True, update=False)  # REPLACE semantics  
             return True
 
         except Exception as e:
