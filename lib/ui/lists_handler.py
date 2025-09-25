@@ -592,7 +592,7 @@ class ListsHandler:
 
                 context_menu = [
                     (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
+                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
                     (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
                     (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
                 ]
@@ -1261,16 +1261,8 @@ class ListsHandler:
     def _folder_has_tools(self, folder_info: dict) -> bool:
         """Check if a folder should have Tools & Options available"""
         try:
-            # Search History folder always has tools
-            if folder_info.get('is_reserved', False):
-                return True
-            
-            # Check by folder name as fallback
-            folder_name = folder_info.get('name', '').lower()
-            if folder_name == 'search history':
-                return True
-                
-            return False  # For now, only show for Search History
+            # All folders should have tools available
+            return True
             
         except Exception as e:
             self.logger.warning("Error checking folder tools availability: %s", e)
