@@ -608,11 +608,23 @@ class ListsHandler:
 
             # Add Tools & Options for folders that support it
             if self._folder_has_tools(folder_info):
+                # Generate breadcrumb for Tools & Options
+                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
+                    'show_folder', 
+                    {'folder_id': folder_id}, 
+                    context.query_manager
+                )
+                description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description(
+                    'show_folder', 
+                    {'folder_id': folder_id}, 
+                    context.query_manager
+                )
+                
                 tools_menu_item = {
-                    'label': "⚙️ Tools & Options",
+                    'label': f"⚙️ Tools & Options {breadcrumb_text}",
                     'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
                     'is_folder': True,
-                    'description': f"Tools & Options for {folder_info.get('name', 'Folder')}",
+                    'description': f"{description_text}Tools and options for this folder",
                     'icon': "DefaultAddonProgram.png",
                     'context_menu': []  # No context menu for tools item itself
                 }
