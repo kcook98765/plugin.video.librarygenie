@@ -839,6 +839,8 @@ def _handle_dialog_response(context: PluginContext, response):
 
 def _handle_remove_from_list(context: PluginContext, lists_handler):
     """Handle remove_from_list with fallback logic"""
+    context.logger.debug("_HANDLE_REMOVE_FROM_LIST: Called with list_id=%s, item_id=%s", 
+                         context.get_param('list_id'), context.get_param('item_id'))
     list_id = context.get_param('list_id')
     item_id = context.get_param('item_id')
     
@@ -890,6 +892,8 @@ def _handle_remove_from_list(context: PluginContext, lists_handler):
                 message="Invalid remove request"
             )
     
+    context.logger.debug("_HANDLE_REMOVE_FROM_LIST: About to call _handle_dialog_response with response.success=%s", 
+                         getattr(response, 'success', None))
     return _handle_dialog_response(context, response)
 
 
