@@ -44,7 +44,7 @@ This document provides a complete analysis of all navigation patterns, context a
 
 **Context Detection Logic:**
 1. **Folder Context Check**: `_is_folder_context()` - skips context menu for folder navigation
-2. **LibraryGenie Context Detection**: Checks for plugin:// URLs and hijack properties
+2. **LibraryGenie Context Detection**: Checks for plugin:// URLs and context properties
 3. **Library Item Detection**: Uses DBTYPE/DBID for library items
 4. **External Item Detection**: For plugin content without library mapping
 
@@ -522,261 +522,7 @@ elif action == "show_list_tools":
 5. **Maintainable**: Each provider encapsulates its specific logic
 6. **Performance**: Lazy loading and context filtering reduce overhead
 
-## 6. Info Hijack System (NEW)
-
-### Overview
-
-The Info Hijack System intercepts Kodi info dialogs for plugin-sourced media to provide native Kodi library dialogs with full metadata, artwork, and functionality. This creates a seamless integration between LibraryGenie content and Kodi's native interface.
-
-**Files**: 
-- `lib/ui/info_hijack_manager.py` - Main controller
-- `lib/ui/info_hijack_helpers.py` - XSP generation and dialog utilities
-
-### Core Architecture
-
-#### InfoHijackManager - Main Controller
-
-```python
-class InfoHijackManager:
-    """
-    Redesigned hijack manager that separates native info opening from directory rebuild.
-    
-    Flow:
-    1. When tagged item detected -> save return target and open native info immediately
-    2. When native info closes -> restore container to original plugin path
-    """
-```
-
-**State Tracking**:
-- **Dialog State**: Monitors `DialogVideoInfo.xml` activation/deactivation
-- **Hijack Progress**: Prevents re-entry during active hijack operations
-- **XSP Monitoring**: Tracks temporary XSP files and auto-navigation
-- **Cooldown Management**: Prevents spam hijacking with adaptive timing
-
-### 5-Step Hijack Process
-
-The system follows a precise 5-step process to seamlessly replace plugin info dialogs with native Kodi dialogs:
-
-#### Step 1: 💾 Trust Kodi Navigation
-```python
-# STEP 1: TRUST KODI NAVIGATION HISTORY
-log("HIJACK STEP 1: Using Kodi's navigation history (no saving needed)")
-log("HIJACK STEP 1 COMPLETE: Navigation history will handle return")
-```
-- **Purpose**: Rely on Kodi's built-in navigation stack
-- **Benefit**: Eliminates need for manual path saving
-- **Navigation**: Uses Kodi's back navigation for seamless return
-
-#### Step 2: 🚪 Close Current Dialog
-```python
-# STEP 2: CLOSE CURRENT DIALOG
-log("HIJACK STEP 2: CLOSING CURRENT DIALOG")
-if not close_video_info_dialog(self._logger, timeout=1.0):
-    log_error("❌ HIJACK STEP 2 FAILED: Could not close dialog - ActivateWindow will be refused")
-    return  # Abort early to prevent ActivateWindow refusal
-```
-- **Purpose**: Close plugin info dialog to prepare for native dialog
-- **Method**: Uses `xbmc.executebuiltin('Action(Back)')` with timeout
-- **Safety**: Aborts hijack if dialog cannot be closed (prevents ActivateWindow refusal)
-
-#### Step 3: 🚀 Open Native Info via XSP
-```python
-# STEP 3: OPEN NATIVE INFO VIA XSP
-self._logger.debug("HIJACK STEP 3: OPENING NATIVE INFO for %s %s", dbtype, dbid_int)
-ok = open_native_info_fast(dbtype, dbid_int, self._logger)
-```
-- **XSP Generation**: Creates temporary smart playlist targeting specific DBID
-- **Navigation**: Opens XSP in native library view
-- **Timing**: Optimized for fast execution with minimal UI disruption
-
-#### Step 4: 📺 Native Dialog Opens
-- **Result**: User sees full native Kodi info dialog
-- **Features**: Complete metadata, artwork, play options, library integration
-- **State**: `_native_info_was_open = True` for close detection
-
-#### Step 5: 🔄 Double-Back Navigation
-```python
-# PRIMARY DETECTION: dialog was active, now not active, and we had a native info open
-if last_active and not dialog_active and self._native_info_was_open:
-    log("HIJACK STEP 5: DETECTED DIALOG CLOSE via state change - initiating navigation back to plugin")
-    self._handle_native_info_closed()
-```
-- **Detection**: Monitors dialog state changes for close events
-- **Restoration**: Returns user to original plugin location
-- **Cleanup**: Removes temporary XSP files and resets state
-
-### XSP (Smart Playlist) System
-
-#### XSP File Structure
-
-**Movie XSP Example**:
-```xml
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<smartplaylist type="movies">
-  <name>LG Hijack movie 123</name>
-  <match>all</match>
-  <rule field="filename" operator="contains">
-    <value>MovieTitle</value>
-  </rule>
-  <order direction="ascending">title</order>
-</smartplaylist>
-```
-
-#### XSP Creation Process
-
-**Dynamic Generation**:
-```python
-def create_movie_xsp(dbid: int, title: str) -> str:
-    """Create XSP file for movie with specific DBID"""
-    # Generate unique filename with timestamp
-    # Create XML content targeting specific movie
-    # Write to hijack directory
-    # Return file path for navigation
-```
-
-**File Management**:
-- **Location**: `special://profile/addon_data/plugin.video.librarygenie/hijack/`
-- **Naming**: `hijack_movie_{dbid}_{timestamp}.xsp`
-- **Lifecycle**: Created on hijack, cleaned up after use
-- **Safety**: Multiple XSP files supported for concurrent users
-
-### Dialog State Monitoring
-
-#### Advanced State Detection
-
-```python
-def tick(self):
-    """Main monitoring loop with dual detection system"""
-    dialog_active = xbmc.getCondVisibility('Window.IsActive(DialogVideoInfo.xml)')
-    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    
-    # PRIMARY DETECTION: State change monitoring
-    if last_active and not dialog_active and self._native_info_was_open:
-        self._handle_native_info_closed()
-    
-    # SECONDARY DETECTION: Fallback for missed changes
-    if not dialog_active and self._native_info_was_open:
-        self._handle_native_info_closed()  # Fallback
-```
-
-**Monitoring Features**:
-- **Dual Detection**: Primary state change + fallback detection
-- **Adaptive Polling**: Optimized polling intervals for performance
-- **State Persistence**: Tracks last known dialog state across ticks
-- **Spam Prevention**: Cooldown periods and attempt counters
-
-### Armed Item Detection
-
-#### Item Tagging System
-
-```python
-# Items are "armed" by setting ListItem properties
-list_item.setProperty('LG.InfoHijack.Armed', '1')
-list_item.setProperty('LG.InfoHijack.DBID', str(dbid))
-list_item.setProperty('LG.InfoHijack.DBType', dbtype)
-```
-
-**Armed Detection**:
-```python
-def _collect_hijack_properties_batch(self) -> dict:
-    """Batch collect all hijack properties for performance"""
-    return {
-        'armed': get_cached_info('ListItem.Property(LG.InfoHijack.Armed)') == '1',
-        'dbid': get_cached_info('ListItem.Property(LG.InfoHijack.DBID)'),
-        'dbtype': get_cached_info('ListItem.Property(LG.InfoHijack.DBType)'),
-        'label': get_cached_info('ListItem.Label')
-    }
-```
-
-### Navigation Integration
-
-#### Container Restoration
-
-**XSP Auto-Navigation Monitoring**:
-```python
-def _monitor_and_handle_xsp_appearance(self, current_time: float):
-    """Monitor for user landing on LibraryGenie XSP pages and navigate back"""
-    if time.time() < self._hijack_monitoring_expires:
-        container_path = get_cached_info('Container.FolderPath')
-        if self._is_hijack_xsp_path(container_path):
-            # User landed on our XSP - navigate back immediately
-            restore_container_after_close()
-```
-
-**Back Navigation**:
-- **Detection**: Monitors for XSP container paths
-- **Action**: Issues `xbmc.executebuiltin('Action(Back)')` to return to plugin
-- **Timing**: 120-second monitoring window after hijack
-- **Safety**: Multiple back navigation attempts with exponential backoff
-
-### Performance Optimizations
-
-#### Caching and Efficiency
-
-**Navigation Cache Integration**:
-```python
-from lib.ui.navigation_cache import get_cached_info, navigation_action
-
-# Cached info retrieval reduces Kodi API calls
-container_path = get_cached_info('Container.FolderPath')
-listitem_label = get_cached_info('ListItem.Label')
-```
-
-**Batch Property Collection**:
-- **Single API Call**: Collect all hijack properties at once
-- **Performance**: Reduces API overhead during dialog detection
-- **Efficiency**: Optimized for low-power devices
-
-#### Anti-Spam Mechanisms
-
-**Cooldown System**:
-```python
-# Set cooldown based on operation time
-operation_time = time.time() - current_time
-self._cooldown_until = time.time() + max(0.5, operation_time * 2)
-```
-
-**Rate Limiting**:
-- **Dialog Detection**: Prevent duplicate hijack attempts
-- **Logging**: Reduced frequency debug logging (every 10 seconds)
-- **Container Scanning**: Periodic armed item detection (every 2.5 seconds)
-
-### Error Handling and Recovery
-
-#### Graceful Degradation
-
-**Hijack Failure Recovery**:
-```python
-try:
-    ok = open_native_info_fast(dbtype, dbid_int, self._logger)
-    if ok:
-        # Success path
-        self._native_info_was_open = True
-    else:
-        # Failed to open native dialog - graceful degradation
-        log_error("❌ HIJACK STEP 3 FAILED: Failed to open native info")
-except Exception as e:
-    log_error("HIJACK: 💥 Exception during hijack: %s", e)
-finally:
-    self._in_progress = False
-```
-
-**Safety Mechanisms**:
-- **Exception Handling**: Full try/catch with detailed logging
-- **State Reset**: Always reset `_in_progress` flag in finally blocks
-- **Timeout Protection**: Dialog close operations with configurable timeouts
-- **Abort Conditions**: Early exit when preconditions not met
-
-### Benefits of Info Hijack System
-
-1. **Native Integration**: Full Kodi library features (play options, artwork, metadata)
-2. **Seamless UX**: Transparent transition between plugin and native dialogs  
-3. **Performance**: Optimized caching and batch operations
-4. **Reliability**: Dual detection system with fallback mechanisms
-5. **Maintainability**: Clear separation between hijack controller and helpers
-6. **Extensibility**: XSP system supports movies, episodes, and future media types
-
-## 7. Centralized Navigation System
+## 6. Centralized Navigation System
 
 ### Navigator Class - Centralized Container Mutations
 **File**: `lib/ui/nav.py`
@@ -885,7 +631,7 @@ def get_navigator() -> Navigator:
 - `router.py`: Uses Navigator for smart navigation
 - All handlers: Access via `get_navigator()` for consistent behavior
 
-## 8. Response Handler System (UPDATED)
+## 7. Response Handler System (UPDATED)
 
 ### Overview
 
@@ -1136,7 +882,7 @@ except Exception as e:
 5. **Error Resilience**: Comprehensive error handling with graceful degradation
 6. **Session Management**: Tools return location and cache-busting support
 
-## 7. Pagination and Update Listing
+## 8. Pagination and Update Listing
 
 ### Pagination Control
 **File**: `lib/ui/listitem_builder.py`
@@ -1158,7 +904,7 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True, cacheToDisc=False)
 ```
 
-## 8. Special Navigation Cases
+## 9. Special Navigation Cases
 
 ### Library Item Playback
 **Function**: `handle_on_select()` in `plugin.py`
@@ -1175,7 +921,7 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 - **Manual Backup**: Dialog-based, `endOfDirectory(succeeded=False)`
 - **Import Operations**: Progress dialogs, no container navigation
 
-## 9. Context Action Navigation Summary
+## 10. Context Action Navigation Summary
 
 | Context Action | Entry Point | Container Refresh | Container Update | endOfDirectory |
 |---|---|---|---|---|
@@ -1188,7 +934,7 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 | Search Actions | Context submenu | No | Yes (to results) | succeeded=True |
 | External Add | External context | Yes (if successful) | Optional | Context: succeeded=False |
 
-## 10. Navigation Flow Patterns (UPDATED)
+## 11. Navigation Flow Patterns (UPDATED)
 
 ### Standard Directory Navigation (UPDATED)
 1. **Action Triggered** → Router dispatch
@@ -1214,7 +960,7 @@ xbmcplugin.endOfDirectory(self.addon_handle, succeeded=True, updateListing=True,
 4. **Navigation Response** → refresh_needed/navigate_to flags
 5. **Container Management** → Refresh or navigate as appropriate
 
-## 11. Centralized Navigation Benefits
+## 12. Centralized Navigation Benefits
 
 The new Navigator system provides several key improvements over the previous scattered navigation approach:
 
