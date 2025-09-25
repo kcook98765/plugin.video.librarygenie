@@ -468,13 +468,18 @@ class FavoritesHandler:
 
             if isinstance(response, DialogResponse) and response.success:
                 if hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites:
-                    # Navigate back to favorites view after successful scan
-                    import xbmc
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
-                    # End directory properly
-                    from lib.ui.nav import finish_directory
-                    finish_directory(context.addon_handle, succeeded=True, update=True)
-                    return
+                    # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
+                    # This eliminates the Container.Update + finish_directory race condition
+                    success = self._render_favorites_directly(context)
+                    if success:
+                        self.logger.debug("FAVORITES: Successfully displayed favorites using direct rendering")
+                        return
+                    else:
+                        self.logger.warning("FAVORITES: Failed direct rendering, falling back to container refresh")
+                        # Fallback to just refreshing instead of navigation
+                        import xbmc
+                        xbmc.executebuiltin('Container.Refresh')
+                        return
 
                 if hasattr(response, 'refresh_needed') and response.refresh_needed:
                     # Refresh the container to show updated favorites
@@ -502,6 +507,38 @@ class FavoritesHandler:
                 "scanning favorites",
                 timeout_ms=3000
             )
+
+    def _render_favorites_directly(self, context: PluginContext) -> bool:
+        """Directly render favorites list without Container.Update redirect"""
+        try:
+            self.logger.debug("FAVORITES: Directly rendering favorites list")
+
+            # Import handler factory and response handler
+            from lib.ui.handler_factory import get_handler_factory
+            from lib.ui.response_handler import get_response_handler
+
+            factory = get_handler_factory()
+            factory.context = context
+            response_handler = get_response_handler()
+
+            # Call show_favorites directly to get DirectoryResponse
+            directory_response = self.show_favorites(context)
+
+            # Handle the DirectoryResponse
+            success = response_handler.handle_directory_response(directory_response, context)
+
+            if success:
+                self.logger.debug("FAVORITES: Successfully rendered favorites directly")
+                return True
+            else:
+                self.logger.warning("FAVORITES: Failed to handle directory response")
+                return False
+
+        except Exception as e:
+            self.logger.error("FAVORITES: Error rendering favorites directly: %s", e)
+            import traceback
+            self.logger.error("FAVORITES: Direct rendering traceback: %s", traceback.format_exc())
+            return False
 
     def handle_save_favorites_as(self, context: PluginContext) -> None:
         """Handle save favorites as action with navigation"""
