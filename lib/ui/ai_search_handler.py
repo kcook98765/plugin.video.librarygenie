@@ -14,6 +14,7 @@ from typing import Optional, List, Dict, Any
 from lib.data.query_manager import get_query_manager
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.localization import L
+from lib.ui.dialog_service import get_dialog_service
 
 # Import the real PluginContext
 from lib.ui.plugin_context import PluginContext
@@ -25,6 +26,7 @@ class AISearchHandler:
         self.logger = get_kodi_logger('lib.ui.ai_search_handler')
         self._ai_client = None  # Lazy loaded on first use for better startup performance
         self.query_manager = get_query_manager()
+        self.dialog = get_dialog_service('lib.ui.ai_search_handler')
 
     @property
     def ai_client(self):
@@ -51,12 +53,7 @@ class AISearchHandler:
             # Check if AI search is activated
             if not self.ai_client.is_activated():
                 self.logger.warning("AI SEARCH: AI search not activated")
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "AI Search not activated",
-                    xbmcgui.NOTIFICATION_WARNING,
-                    5000
-                )
+                self.dialog.show_warning("AI Search not activated", time_ms=5000)
                 return False
 
             # Show progress dialog
@@ -70,12 +67,7 @@ class AISearchHandler:
                 progress.close()
                 error_msg = connection_test.get('error', 'Connection failed')
                 self.logger.error("AI SEARCH: Connection test failed: %s", error_msg)
-                xbmcgui.Dialog().notification(
-                    "AI Search",
-                    f"Connection failed: {error_msg}",
-                    xbmcgui.NOTIFICATION_ERROR,
-                    5000
-                )
+                self.dialog.show_error(f"Connection failed: {error_msg}", title="AI Search", time_ms=5000)
                 return False
 
             progress.update(40, "Performing AI search...")
@@ -87,12 +79,7 @@ class AISearchHandler:
                 progress.close()
                 error_msg = search_results.get('error', 'Unknown error') if search_results else 'No response from server'
                 self.logger.error("AI SEARCH: Search failed: %s", error_msg)
-                xbmcgui.Dialog().notification(
-                    "AI Search",
-                    f"Search failed: {error_msg}",
-                    xbmcgui.NOTIFICATION_ERROR,
-                    5000
-                )
+                self.dialog.show_error(f"Search failed: {error_msg}", title="AI Search", time_ms=5000)
                 return False
 
             ai_results = search_results.get('results', [])
@@ -100,12 +87,7 @@ class AISearchHandler:
 
             if not ai_results:
                 progress.close()
-                xbmcgui.Dialog().notification(
-                    "AI Search",
-                    "No results found",
-                    xbmcgui.NOTIFICATION_INFO,
-                    3000
-                )
+                self.dialog.show_success("No results found", title="AI Search", time_ms=3000)
                 return False
 
             progress.update(60, "Matching with local library...")
@@ -133,12 +115,7 @@ class AISearchHandler:
                     self.logger.info("AI SEARCH: Successfully created search history list %s with %s items", list_id, len(matched_items))
 
                     # Show success notification
-                    xbmcgui.Dialog().notification(
-                        "AI Search",
-                        f"Found {len(matched_items)} matches in your library",
-                        xbmcgui.NOTIFICATION_INFO,
-                        5000
-                    )
+                    self.dialog.show_success(f"Found {len(matched_items)} matches in your library", title="AI Search", time_ms=5000)
 
                     # Redirect to the created list
                     self._redirect_to_search_list(list_id)
@@ -146,22 +123,12 @@ class AISearchHandler:
                 else:
                     progress.close()
                     self.logger.error("AI SEARCH: Failed to create search history list")
-                    xbmcgui.Dialog().notification(
-                        "AI Search",
-                        "Failed to save search results",
-                        xbmcgui.NOTIFICATION_ERROR,
-                        5000
-                    )
+                    self.dialog.show_error("Failed to save search results", title="AI Search", time_ms=5000)
                     return False
             else:
                 progress.close()
                 self.logger.info("AI SEARCH: No matches found in local library")
-                xbmcgui.Dialog().notification(
-                    "AI Search",
-                    f"No matches found in your library (searched {len(ai_results)} movies)",
-                    xbmcgui.NOTIFICATION_INFO,
-                    5000
-                )
+                self.dialog.show_success(f"No matches found in your library (searched {len(ai_results)} movies)", title="AI Search", time_ms=5000)
                 return False
 
         except Exception as e:
@@ -171,12 +138,7 @@ class AISearchHandler:
             self.logger.error("AI SEARCH: Error performing AI search: %s", e)
             import traceback
             self.logger.error("AI SEARCH: Traceback: %s", traceback.format_exc())
-            xbmcgui.Dialog().notification(
-                "AI Search",
-                "Search error occurred",
-                xbmcgui.NOTIFICATION_ERROR,
-                5000
-            )
+            self.dialog.show_error("Search error occurred", title="AI Search", time_ms=5000)
             return False
 
     def _match_imdb_ids_to_media_items(self, imdb_ids: List[str]) -> List[Dict[str, Any]]:
@@ -316,10 +278,9 @@ class AISearchHandler:
         """
         try:
             # Get search query from user
-            dialog = xbmcgui.Dialog()
-            query = dialog.input(
+            query = self.dialog.input(
                 "Enter AI Search Query", 
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not query or not query.strip():
@@ -355,12 +316,7 @@ class AISearchHandler:
 
             if not imdb_id or not imdb_id.startswith('tt'):
                 self.logger.error("SIMILAR MOVIES: Invalid or missing IMDb ID")
-                xbmcgui.Dialog().notification(
-                    "Similar Movies",
-                    "No valid IMDb ID found",
-                    xbmcgui.NOTIFICATION_ERROR,
-                    3000
-                )
+                self.dialog.show_error("No valid IMDb ID found", title="Similar Movies", time_ms=3000)
                 return False
 
             self.logger.debug("SIMILAR MOVIES: Finding movies similar to %s (%s)", title, imdb_id)
@@ -368,12 +324,7 @@ class AISearchHandler:
             # Check if AI search is activated
             if not self.ai_client.is_activated():
                 self.logger.warning("SIMILAR MOVIES: AI search not activated")
-                xbmcgui.Dialog().notification(
-                    "Similar Movies",
-                    "AI Search not activated",
-                    xbmcgui.NOTIFICATION_WARNING,
-                    5000
-                )
+                self.dialog.show_warning("AI Search not activated", title="Similar Movies", time_ms=5000)
                 return False
 
             # Show facet selection dialog
@@ -394,12 +345,7 @@ class AISearchHandler:
                 progress.close()
                 error_msg = connection_test.get('error', 'Connection failed')
                 self.logger.error("SIMILAR MOVIES: Connection test failed: %s", error_msg)
-                xbmcgui.Dialog().notification(
-                    "Similar Movies",
-                    f"Connection failed: {error_msg}",
-                    xbmcgui.NOTIFICATION_ERROR,
-                    5000
-                )
+                self.dialog.show_error(f"Connection failed: {error_msg}", title="Similar Movies", time_ms=5000)
                 return False
 
             progress.update(40, "Searching for similar movies...")
@@ -410,12 +356,7 @@ class AISearchHandler:
             if not similar_imdb_ids:
                 progress.close()
                 self.logger.debug("SIMILAR MOVIES: No similar movies found")
-                xbmcgui.Dialog().notification(
-                    "Similar Movies",
-                    "No similar movies found",
-                    xbmcgui.NOTIFICATION_INFO,
-                    3000
-                )
+                self.dialog.show_success("No similar movies found", title="Similar Movies", time_ms=3000)
                 return False
 
             progress.update(60, "Matching with local library...")
@@ -434,12 +375,7 @@ class AISearchHandler:
                     self.logger.debug("SIMILAR MOVIES: Successfully created list %s with %s items", list_id, len(matched_items))
 
                     # Show success notification
-                    xbmcgui.Dialog().notification(
-                        "Similar Movies",
-                        f"Found {len(matched_items)} similar movies in your library",
-                        xbmcgui.NOTIFICATION_INFO,
-                        5000
-                    )
+                    self.dialog.show_success(f"Found {len(matched_items)} similar movies in your library", title="Similar Movies", time_ms=5000)
 
                     # Always attempt to redirect to the created list
                     # The redirect logic will handle whether navigation is appropriate
@@ -449,22 +385,12 @@ class AISearchHandler:
                 else:
                     progress.close()
                     self.logger.error("SIMILAR MOVIES: Failed to create search history list")
-                    xbmcgui.Dialog().notification(
-                        "Similar Movies",
-                        "Failed to save results",
-                        xbmcgui.NOTIFICATION_ERROR,
-                        5000
-                    )
+                    self.dialog.show_error("Failed to save results", title="Similar Movies", time_ms=5000)
                     return False
             else:
                 progress.close()
                 self.logger.debug("SIMILAR MOVIES: No matches found in local library")
-                xbmcgui.Dialog().notification(
-                    "Similar Movies",
-                    f"No similar movies found in your library (searched {len(similar_imdb_ids)} movies)",
-                    xbmcgui.NOTIFICATION_INFO,
-                    5000
-                )
+                self.dialog.show_success(f"No similar movies found in your library (searched {len(similar_imdb_ids)} movies)", title="Similar Movies", time_ms=5000)
                 return False
 
         except Exception as e:
@@ -474,12 +400,7 @@ class AISearchHandler:
             self.logger.error("SIMILAR MOVIES: Error finding similar movies: %s", e)
             import traceback
             self.logger.error("SIMILAR MOVIES: Traceback: %s", traceback.format_exc())
-            xbmcgui.Dialog().notification(
-                "Similar Movies",
-                "Error occurred",
-                xbmcgui.NOTIFICATION_ERROR,
-                5000
-            )
+            self.dialog.show_error("Error occurred", title="Similar Movies", time_ms=5000)
             return False
 
     def _show_facet_selection_dialog(self) -> Optional[Dict[str, bool]]:
@@ -499,6 +420,7 @@ class AISearchHandler:
             ]
 
             # Show multi-select dialog
+            # Note: DialogService doesn't have multiselect method yet, so keeping direct xbmcgui call
             dialog = xbmcgui.Dialog()
             selected_indices = dialog.multiselect(
                 "Select similarity aspects to compare:",
@@ -595,16 +517,16 @@ class AISearchHandler:
             # Check if already authorized
             ai_client = self.ai_client
             if ai_client.is_activated():
-                xbmcgui.Dialog().ok(
+                self.dialog.ok(
                     "Already Authorized", 
                     "AI Search is already activated and working."
                 )
                 return
 
             # Show OTP input dialog
-            otp_code = xbmcgui.Dialog().input(
+            otp_code = self.dialog.input(
                 "Enter 8-digit pairing code from AI Search website:",
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not otp_code:
@@ -621,26 +543,26 @@ class AISearchHandler:
                 progress.close()
 
                 if result['success']:
-                    xbmcgui.Dialog().ok(
+                    self.dialog.ok(
                         "Success!",
                         f"AI Search activated successfully!\nUser: {result.get('user_email', 'Unknown')}"
                     )
                 else:
-                    xbmcgui.Dialog().ok(
+                    self.dialog.ok(
                         "Activation Failed",
                         f"Error: {result.get('error', 'Unknown error')}"
                     )
             except Exception as e:
                 progress.close()
                 context.logger.error("Error during activation: %s", e)
-                xbmcgui.Dialog().ok(
+                self.dialog.ok(
                     "Error", 
                     f"Failed to activate AI Search: {str(e)}"
                 )
 
         except Exception as e:
             context.logger.error("Error in authorize_ai_search: %s", e)
-            xbmcgui.Dialog().ok(
+            self.dialog.ok(
                 "Error",
                 f"An error occurred: {str(e)}"
             )
@@ -652,21 +574,20 @@ class AISearchHandler:
 
             # Check if AI Search is activated
             if not ai_client.is_activated():
-                xbmcgui.Dialog().ok(
+                self.dialog.ok(
                     "Not Activated",
                     "AI Search must be activated before syncing.\nUse 'Authorize AI Search' first."
                 )
                 return
 
             # Confirm replace sync
-            dialog = xbmcgui.Dialog()
-            if not dialog.yesno(
+            if not self.dialog.yesno(
                 "AI Search Replace Sync",
                 "This will replace the entire server movie collection with your current Kodi library.\n\n"
                 "Server movies not in Kodi will be removed.\n\n"
                 "Continue with replace sync?",
-                nolabel="Cancel",
-                yeslabel="Continue"
+                no_label="Cancel",
+                yes_label="Continue"
             ):
                 return
 
@@ -698,7 +619,7 @@ class AISearchHandler:
 
                 if not movies_with_imdb:
                     dialog_bg.close()
-                    xbmcgui.Dialog().ok(
+                    self.dialog.ok(
                         "No Movies Found",
                         "No movies with IMDb IDs found in your library."
                     )
@@ -734,10 +655,10 @@ class AISearchHandler:
                         f"Invalid: {sync_results.get('invalid', 0)}"
                     )
 
-                    xbmcgui.Dialog().ok("Sync Complete", message)
+                    self.dialog.ok("Sync Complete", message)
                 else:
                     error_msg = result.get('error', 'Unknown error') if result else 'No response from server'
-                    xbmcgui.Dialog().ok(
+                    self.dialog.ok(
                         "Sync Failed",
                         f"Replace sync failed: {error_msg}"
                     )
@@ -746,14 +667,14 @@ class AISearchHandler:
                 if dialog_bg:
                     dialog_bg.close()
                 context.logger.error("Error during replace sync: %s", e)
-                xbmcgui.Dialog().ok(
+                self.dialog.ok(
                     "Error",
                     f"Failed to perform replace sync: {str(e)}"
                 )
 
         except Exception as e:
             context.logger.error("Error in trigger_replace_sync: %s", e)
-            xbmcgui.Dialog().ok(
+            self.dialog.ok(
                 "Sync Error",
                 f"An error occurred during sync: {str(e)}"
             )
@@ -765,18 +686,18 @@ class AISearchHandler:
 
             # Check if AI Search is activated
             if not ai_client.is_activated():
-                xbmcgui.Dialog().ok(
+                self.dialog.ok(
                     "Not Activated",
                     "AI Search must be activated before syncing.\nUse 'Authorize AI Search' first."
                 )
                 return
 
             # Confirm sync operation
-            if not xbmcgui.Dialog().yesno(
+            if not self.dialog.yesno(
                 "AI Search Regular Sync",
                 "Start regular library sync?\n\nThis will add new movies to your AI Search library without removing existing ones.",
-                "Cancel",
-                "Start Sync"
+                no_label="Cancel",
+                yes_label="Start Sync"
             ):
                 return
 
@@ -795,7 +716,7 @@ class AISearchHandler:
 
                 if not movies:
                     progress.close()
-                    xbmcgui.Dialog().ok(
+                    self.dialog.ok(
                         "No Movies",
                         "No movies with IMDb IDs found in library."
                     )
@@ -826,10 +747,10 @@ class AISearchHandler:
                         f"Already existed: {results.get('duplicates', 0)}\n"
                         f"Total in library: {result.get('user_movie_count', 0)}"
                     )
-                    xbmcgui.Dialog().ok("Sync Complete", message)
+                    self.dialog.ok("Sync Complete", message)
                 else:
                     error_msg = result.get('error', 'Unknown error') if result else 'No response'
-                    xbmcgui.Dialog().ok(
+                    self.dialog.ok(
                         "Sync Failed",
                         f"Regular sync failed: {error_msg}"
                     )
@@ -837,14 +758,14 @@ class AISearchHandler:
             except Exception as e:
                 progress.close()
                 context.logger.error("Error during regular sync: %s", e)
-                xbmcgui.Dialog().ok(
+                self.dialog.ok(
                     "Sync Error", 
                     f"An error occurred during sync: {str(e)}"
                 )
 
         except Exception as e:
             context.logger.error("Error in trigger_regular_sync: %s", e)
-            xbmcgui.Dialog().ok(
+            self.dialog.ok(
                 "Sync Error",
                 f"An error occurred during sync: {str(e)}"
             )
