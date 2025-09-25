@@ -18,6 +18,7 @@ from typing import Dict, Any, Optional
 from lib.config import get_config
 from lib.utils.kodi_log import get_kodi_logger
 from lib.auth.state import save_api_key, get_api_key, clear_auth_data
+from lib.ui.dialog_service import get_dialog_service
 # Avoid circular import - get_ai_search_client imported when needed
 
 logger = get_kodi_logger('lib.auth.otp_auth')
@@ -347,10 +348,10 @@ def run_otp_authorization_flow(server_url: str) -> bool:
 
     try:
         # Get OTP code from user
-        dialog = xbmcgui.Dialog()
-        otp_code = dialog.input(
+        dialog_service = get_dialog_service('lib.auth.otp_auth')
+        otp_code = dialog_service.input(
             "Enter the 8-digit OTP code from the website:",
-            type=xbmcgui.INPUT_NUMERIC
+            input_type=xbmcgui.INPUT_NUMERIC
         )
 
         if not otp_code:
@@ -367,7 +368,7 @@ def run_otp_authorization_flow(server_url: str) -> bool:
 
             if result['success']:
                 # Success - show confirmation
-                dialog.ok(
+                dialog_service.ok(
                     "Authorization Complete",
                     f"AI Search activated successfully!\n\nUser: {result.get('user_email', 'Unknown')}"
                 )
@@ -397,7 +398,7 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                 return True
             else:
                 # Failed - show error
-                dialog.ok(
+                dialog_service.ok(
                     "Authorization Failed",
                     f"Failed to activate AI Search:\n\n{result['error']}"
                 )
@@ -411,7 +412,8 @@ def run_otp_authorization_flow(server_url: str) -> bool:
 
     except Exception as e:
         logger.error("Error in OTP authorization flow: %s", e)
-        xbmcgui.Dialog().ok(
+        dialog_service = get_dialog_service('lib.auth.otp_auth')
+        dialog_service.ok(
             "Authorization Error",
             f"An unexpected error occurred:\n\n{str(e)[:100]}..."
         )
