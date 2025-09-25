@@ -445,7 +445,7 @@ class ListsHandler:
                 else:
                     context_menu = [
                         (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                        (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
+                        (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
                         (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
                         (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
                     ]
