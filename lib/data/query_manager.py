@@ -311,7 +311,6 @@ class QueryManager:
                         art_dict = json.loads(item['art'])
                         kodi_major = get_kodi_major_version()
                         item['art'] = self._format_art_for_kodi_version(art_dict, kodi_major)
-                        self.logger.debug("OPTIMIZED ART: Parsed and formatted art for item %s", item.get('title', 'Unknown'))
                     except json.JSONDecodeError:
                         self.logger.warning("OPTIMIZED ART: Failed to parse art JSON for item %s", item.get('title', 'Unknown'))
                         item['art'] = {}
