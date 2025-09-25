@@ -280,8 +280,6 @@ class QueryManager:
                 LIMIT ? OFFSET ?
             """
 
-            self.logger.debug("Executing query: %s", query)
-            self.logger.debug("Query parameters: list_id=%s, limit=%s, offset=%s", list_id, limit, offset)
 
             cursor.execute(query, (list_id, limit, offset))
             rows = cursor.fetchall()
