@@ -472,33 +472,17 @@ class Router:
                 if not handler:
                     self.logger.debug("No handler found for action '%s', will show main menu (redirecting to Lists)", action)
 
-                    # ROUTER TIMING: Handler factory import
-                    import_start_time = time.time()
                     from lib.ui.handler_factory import get_handler_factory
                     from lib.ui.response_handler import get_response_handler
-                    import_end_time = time.time()
-                    self.logger.info(f"ROUTER: Handler factory import took {import_end_time - import_start_time:.3f} seconds")
 
-                    # ROUTER TIMING: Factory instance creation
-                    factory_creation_start_time = time.time()
                     factory = get_handler_factory()
                     factory.context = context
                     response_handler = get_response_handler()
-                    factory_creation_end_time = time.time()
-                    self.logger.info(f"ROUTER: Handler factory creation and context setup took {factory_creation_end_time - factory_creation_start_time:.3f} seconds")
 
-                    # ROUTER TIMING: Lists handler retrieval
-                    lists_handler_start_time = time.time()
                     lists_handler = factory.get_lists_handler()
-                    lists_handler_end_time = time.time()
-                    self.logger.info(f"ROUTER: Lists handler retrieval took {lists_handler_end_time - lists_handler_start_time:.3f} seconds")
 
-                    # ROUTER TIMING: Main menu handler execution
-                    main_menu_start_time = time.time()
                     response = lists_handler.show_lists_menu(context)
                     success = response_handler.handle_directory_response(response, context)
-                    main_menu_end_time = time.time()
-                    self.logger.info(f"ROUTER: Main menu handler execution took {main_menu_end_time - main_menu_start_time:.3f} seconds")
 
                     return success
                 # Use the registered handler
