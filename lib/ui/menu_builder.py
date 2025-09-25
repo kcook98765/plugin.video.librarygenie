@@ -54,6 +54,10 @@ class MenuBuilder:
                     # Format: "Lists > Folder Name" = folder context
                     # Don't add generic Tools & Options here as folders handle their own
                     return True
+                elif len(parts) == 2 and parts[0] == "Search History":
+                    # Format: "Search History > SearchTerm" = search results context
+                    # Don't add Tools & Options here to avoid interfering with ".." parent navigation
+                    return True
             
             # Single-level contexts that are not folders
             return False
