@@ -13,6 +13,7 @@ from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DialogResponse, NavigationIntent
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.dialog_service import get_dialog_service
 
 
 class ToolsHandler:
@@ -21,6 +22,7 @@ class ToolsHandler:
     def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_kodi_logger('lib.ui.tools_handler')
         self.context = context
+        self.dialog = get_dialog_service('lib.ui.tools_handler')
         try:
             from lib.ui.listitem_builder import ListItemBuilder
             if context:
@@ -141,8 +143,7 @@ class ToolsHandler:
             folder_options = ["[Root Level]"] + [f['name'] for f in selectable_folders]
 
             # Show folder selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36029), folder_options)  # "Select destination folder:"
+            selected_index = self.dialog.select(L(36029), folder_options)  # "Select destination folder:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -200,8 +201,7 @@ class ToolsHandler:
             list_options = [list_item['name'] for list_item in source_lists]
 
             # Show list selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(36028), list_options)  # "Select list to merge:"
+            selected_index = self.dialog.select(L(36028), list_options)  # "Select list to merge:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -210,7 +210,7 @@ class ToolsHandler:
 
             # Confirm merge
             message = f"{L(36022) % source_list['name']}\n{L(36024)}"  # "Merge '%s' into target list?\nThe source list will remain unchanged."
-            if not dialog.yesno(
+            if not self.dialog.yesno(
                 L(36021),  # "Confirm Merge"
                 message
             ):
@@ -250,8 +250,7 @@ class ToolsHandler:
                     folder_mapping.append(f['id'])
 
             # Show folder selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select("Select destination folder:", folder_options)
+            selected_index = self.dialog.select("Select destination folder:", folder_options)
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -303,9 +302,9 @@ class ToolsHandler:
             self.logger.debug("TOOLS DEBUG: _create_list_in_folder called with folder_id: %s", folder_id)
 
             # Get list name from user
-            new_name = xbmcgui.Dialog().input(
+            new_name = self.dialog.input(
                 L(36056),  # "Enter name for new list:"
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not new_name or not new_name.strip():
@@ -347,9 +346,9 @@ class ToolsHandler:
             self.logger.debug("TOOLS DEBUG: _create_subfolder called with parent_folder_id: %s", parent_folder_id)
 
             # Get folder name from user
-            folder_name = xbmcgui.Dialog().input(
+            folder_name = self.dialog.input(
                 "Enter folder name:",
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not folder_name or not folder_name.strip():
@@ -401,7 +400,6 @@ class ToolsHandler:
 
             # Present export scope options
             import xbmcgui
-            dialog = xbmcgui.Dialog()
 
             export_options = [
                 f"Export only '{list_info['name']}' list",
@@ -419,7 +417,7 @@ class ToolsHandler:
 
             export_options.append("Cancel")
 
-            selected_option = dialog.select(
+            selected_option = self.dialog.select(
                 f"Export '{list_info['name']}'",
                 export_options
             )
@@ -525,7 +523,6 @@ class ToolsHandler:
 
             # Present export scope options
             import xbmcgui
-            dialog = xbmcgui.Dialog()
 
             # Get subfolder count for branch export option
             subfolders = query_manager.get_all_folders(parent_id=folder_id)
@@ -537,7 +534,7 @@ class ToolsHandler:
                 "Cancel"
             ]
 
-            selected_option = dialog.select(
+            selected_option = self.dialog.select(
                 f"Export from '{folder_info['name']}'",
                 export_options
             )
@@ -603,12 +600,11 @@ class ToolsHandler:
 
             # Confirm export
             import xbmcgui
-            dialog = xbmcgui.Dialog()
-            if not dialog.yesno(
+            if not self.dialog.yesno(
                 "Confirm Export",
                 f"Export all {list_count} lists in your library?\nThis will include all list items and metadata.",
-                "Cancel",    # nolabel (No button)
-                "Export"     # yeslabel (Yes button)
+                no_label="Cancel",    # nolabel (No button)
+                yes_label="Export"     # yeslabel (Yes button)
             ):
                 return DialogResponse(success=False)
 
@@ -658,8 +654,8 @@ class ToolsHandler:
 
             # Show file browser for selection
             import xbmcgui
-            dialog = xbmcgui.Dialog()
-            file_path = dialog.browse(
+            dialog_obj = xbmcgui.Dialog()
+            file_path = dialog_obj.browse(
                 1,  # Type: ShowAndGetFile
                 "Select import file",
                 "files",
@@ -704,11 +700,11 @@ class ToolsHandler:
             if preview.warnings:
                 preview_text += "\n\nWarnings:\n" + "\n".join(f"• {w}" for w in preview.warnings)
 
-            if not dialog.yesno(
+            if not self.dialog.yesno(
                 "Confirm Import",
                 preview_text + "\n\nProceed with import?",
-                "Cancel",     # nolabel (No button)
-                "Import"      # yeslabel (Yes button)
+                no_label="Cancel",     # nolabel (No button)
+                yes_label="Import"      # yeslabel (Yes button)
             ):
                 return DialogResponse(success=False)
 
@@ -850,8 +846,7 @@ class ToolsHandler:
                 backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB • {backup['storage_type']}")
 
             import xbmcgui
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(L(37014), backup_options)  # "Select backup to restore"
+            selected_index = self.dialog.select(L(37014), backup_options)  # "Select backup to restore"
 
             if selected_index < 0:
                 return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
@@ -859,13 +854,12 @@ class ToolsHandler:
             selected_backup = backups[selected_index]
 
             # Confirm restore
-            dialog = xbmcgui.Dialog()
             restore_message = f"{L(37007) % selected_backup['display_name']}\n{L(34014)}\n{L(34602)}"
-            if not dialog.yesno(
+            if not self.dialog.yesno(
                 L(34007),  # "Restore from Backup"
                 restore_message,
-                nolabel=L(36003),  # "Cancel"
-                yeslabel=L(34007)  # "Restore from Backup"
+                no_label=L(36003),  # "Cancel"
+                yes_label=L(34007)  # "Restore from Backup"
             ):
                 return DialogResponse(success=False)
 
@@ -903,11 +897,10 @@ class ToolsHandler:
             backup_manager = get_timestamp_backup_manager()
 
             import xbmcgui
-            dialog = xbmcgui.Dialog()
 
             # Prompt for replace or append
             options = [L(37015), L(37016)] # "Replace existing data", "Append to existing data"
-            selected_option = dialog.select(L(36073), options) # "Restore Backup Options"
+            selected_option = self.dialog.select(L(36073), options) # "Restore Backup Options"
 
             if selected_option == -1:  # User cancelled
                 return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
@@ -930,7 +923,7 @@ class ToolsHandler:
                 size_mb = round(backup['file_size'] / 1024 / 1024, 2)
                 backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB")
 
-            backup_index = dialog.select(L(36060), backup_options)  # "Select Backup File"
+            backup_index = self.dialog.select(L(36060), backup_options)  # "Select Backup File"
 
             if backup_index == -1:  # User cancelled
                 return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
@@ -1015,8 +1008,8 @@ class ToolsHandler:
             import_engine = get_import_engine()
 
             # Show file browser for selection
-            dialog = xbmcgui.Dialog()
-            file_path = dialog.browse(
+            dialog_obj = xbmcgui.Dialog()
+            file_path = dialog_obj.browse(
                 1,  # Type: ShowAndGetFile
                 "Select file to import",
                 "files",
@@ -1091,13 +1084,12 @@ class ToolsHandler:
                 list_count = len(all_lists)
 
                 # Confirm export
-                dialog = xbmcgui.Dialog()
                 export_message = f"{L(36070) % list_count}\n{L(36039)}"
-                if not dialog.yesno(
+                if not self.dialog.yesno(
                     L(36037),  # "Confirm Export"
                     export_message,
-                    nolabel=L(36003),  # "Cancel"
-                    yeslabel=L(36007)   # "Export"
+                    no_label=L(36003),  # "Cancel"
+                    yes_label=L(36007)   # "Export"
                 ):
                     return DialogResponse(success=False)
 
@@ -1140,12 +1132,11 @@ class ToolsHandler:
                 )
 
             # Confirm deletion
-            dialog = xbmcgui.Dialog()
-            if not dialog.yesno(
+            if not self.dialog.yesno(
                 L(36067),  # "Clear Search History"
                 f"{L(36068) % len(search_lists)}\n{L(30502)}",  # "Delete all %d search history lists?" + "This action cannot be undone."
-                nolabel=L(36003),  # "Cancel"
-                yeslabel=L(36069)   # "Clear"
+                no_label=L(36003),  # "Cancel"
+                yes_label=L(36069)   # "Clear"
             ):
                 return DialogResponse(success=False)
 
@@ -1215,10 +1206,10 @@ class ToolsHandler:
                 if end > start:
                     suggested_name = original_name[start:end]
 
-            new_name = xbmcgui.Dialog().input(
+            new_name = self.dialog.input(
                 "Enter name for new list:",
-                defaultt=suggested_name,
-                type=xbmcgui.INPUT_ALPHANUM
+                default=suggested_name,
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not new_name or not new_name.strip():
@@ -1238,7 +1229,7 @@ class ToolsHandler:
             folder_options.append("+ Create New Folder")
 
             # Show folder selection dialog
-            selected_index = xbmcgui.Dialog().select("Move to folder:", folder_options)
+            selected_index = self.dialog.select("Move to folder:", folder_options)
 
             if selected_index < 0:
                 return DialogResponse(success=False, message="")
@@ -1247,9 +1238,9 @@ class ToolsHandler:
             destination_name = "root level"
 
             if selected_index == len(folder_options) - 1:  # Create new folder
-                folder_name = xbmcgui.Dialog().input(
+                folder_name = self.dialog.input(
                     "Enter folder name:",
-                    type=xbmcgui.INPUT_ALPHANUM
+                    input_type=xbmcgui.INPUT_ALPHANUM
                 )
 
                 if not folder_name or not folder_name.strip():
@@ -1341,12 +1332,12 @@ class ToolsHandler:
             # Get available backups
             backups = backup_manager.list_backups()
             if not backups:
-                xbmcgui.Dialog().ok(L(34018), L(34018))  # "No backups found"
+                self.dialog.ok(L(34018), L(34018))  # "No backups found"
                 return DialogResponse(success=False, message="No backups found")
 
             # Let user select backup
             labels = [f"{backup['name']} ({backup['date']})" for backup in backups]
-            selected = xbmcgui.Dialog().select(L(37014), labels)  # "Select backup to restore"
+            selected = self.dialog.select(L(37014), labels)  # "Select backup to restore"
 
             if selected < 0:
                 return DialogResponse(success=False, message="Restore cancelled")
@@ -1354,17 +1345,17 @@ class ToolsHandler:
             selected_backup = backups[selected]
 
             # Confirm restoration
-            if xbmcgui.Dialog().yesno(
+            if self.dialog.yesno(
                 L(36063),  # "LibraryGenie Restore"
                 L(37007) % selected_backup['name'],  # "Restore from: %s"
                 L(36065)   # "This will replace all current data."
             ):
                 success = backup_manager.restore_backup(selected_backup['path'])
                 if success:
-                    xbmcgui.Dialog().ok(L(34011), L(34011))  # "Restore completed successfully"
+                    self.dialog.ok(L(34011), L(34011))  # "Restore completed successfully"
                     return DialogResponse(success=True, message="Restore completed successfully", refresh_needed=True)
                 else:
-                    xbmcgui.Dialog().ok(L(34012), L(34012))  # "Restore failed"
+                    self.dialog.ok(L(34012), L(34012))  # "Restore failed"
                     return DialogResponse(success=False, message="Restore failed")
 
             return DialogResponse(success=False, message="Restore cancelled")
@@ -1385,7 +1376,7 @@ class ToolsHandler:
 
             # Check if already authorized
             if auth_helper.verify_api_key():
-                xbmcgui.Dialog().ok(
+                self.dialog.ok(
                     "Already Authorized",
                     "AI Search is already activated and working."
                 )
@@ -1395,11 +1386,11 @@ class ToolsHandler:
             success = auth_helper.start_device_authorization()
 
             if success:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
+                self.dialog.notification(
                     "AI Search activated successfully!",
-                    xbmcgui.NOTIFICATION_INFO,
-                    5000
+                    "info",
+                    5000,
+                    "LibraryGenie"
                 )
                 return DialogResponse(success=True, message="AI Search activated successfully!")
 
@@ -1510,9 +1501,9 @@ class ToolsHandler:
             self.logger.debug("TOOLS DEBUG: _handle_create_folder called for top-level folder")
 
             # Get folder name from user
-            folder_name = xbmcgui.Dialog().input(
+            folder_name = self.dialog.input(
                 "Enter folder name:",
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not folder_name or not folder_name.strip():
