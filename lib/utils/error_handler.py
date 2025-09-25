@@ -10,6 +10,7 @@ import xbmc
 import xbmcgui
 from typing import Optional, Union
 from .kodi_log import get_kodi_logger
+from lib.ui.dialog_service import get_dialog_service
 
 
 class ErrorHandler:
@@ -25,6 +26,7 @@ class ErrorHandler:
         """
         self.logger = get_kodi_logger(logger_name) if logger_name else get_kodi_logger()
         self.app_name = app_name
+        self.dialog = get_dialog_service(logger_name, app_name)
     
     def log_and_notify_error(self, 
                            log_message: str, 
@@ -54,16 +56,7 @@ class ErrorHandler:
         self.logger.error(full_log_message)
         
         # Show user-friendly notification
-        try:
-            xbmcgui.Dialog().notification(
-                self.app_name,
-                user_message,
-                xbmcgui.NOTIFICATION_ERROR,
-                timeout_ms
-            )
-        except Exception as notify_error:
-            # Fallback if notification fails
-            self.logger.error(f"Failed to show notification: {notify_error}")
+        self.dialog.show_error(user_message, time_ms=timeout_ms)
     
     def log_and_notify_success(self,
                               log_message: str,
@@ -79,15 +72,7 @@ class ErrorHandler:
         """
         self.logger.info(log_message)
         
-        try:
-            xbmcgui.Dialog().notification(
-                self.app_name,
-                user_message,
-                xbmcgui.NOTIFICATION_INFO,
-                timeout_ms
-            )
-        except Exception as notify_error:
-            self.logger.error(f"Failed to show success notification: {notify_error}")
+        self.dialog.show_success(user_message, time_ms=timeout_ms)
     
     def log_and_notify_warning(self,
                               log_message: str,
@@ -103,15 +88,7 @@ class ErrorHandler:
         """
         self.logger.warning(log_message)
         
-        try:
-            xbmcgui.Dialog().notification(
-                self.app_name,
-                user_message,
-                xbmcgui.NOTIFICATION_WARNING,
-                timeout_ms
-            )
-        except Exception as notify_error:
-            self.logger.error(f"Failed to show warning notification: {notify_error}")
+        self.dialog.show_warning(user_message, time_ms=timeout_ms)
     
     def handle_exception(self,
                         operation_name: str,
