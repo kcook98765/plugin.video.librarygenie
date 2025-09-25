@@ -359,7 +359,6 @@ class ListItemMetadataManager:
             info['mediatype'] = item_data.get('media_type', 'movie')
             
             list_item.setInfo('video', info)
-            self.logger.debug("METADATA: Set comprehensive setInfo metadata for '%s'", title)
             return True
             
         except Exception as e:

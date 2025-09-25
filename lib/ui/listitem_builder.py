@@ -66,10 +66,8 @@ class ListItemBuilder:
                 from lib.data.query_manager import get_query_manager
                 query_manager = get_query_manager()
                 content_type = query_manager.detect_content_type(items)
-                self.logger.debug("DIRECTORY BUILD: Auto-detected content type: %s", content_type)
             
             self.logger.info("DIRECTORY BUILD: Starting build with %s items (content_type='%s')", count, content_type)
-            self.logger.debug("DIRECTORY BUILD: Setting content type to '%s' for handle %s", content_type, self.addon_handle)
             xbmcplugin.setContent(self.addon_handle, content_type)
 
             # Add a few sane sort methods once
@@ -78,10 +76,8 @@ class ListItemBuilder:
                 ("SORT_METHOD_DATE", xbmcplugin.SORT_METHOD_DATE),
                 ("SORT_METHOD_VIDEO_YEAR", xbmcplugin.SORT_METHOD_VIDEO_YEAR),
             ]
-            self.logger.debug("DIRECTORY BUILD: Adding %s sort methods", len(sort_methods))
             for method_name, const in sort_methods:
                 xbmcplugin.addSortMethod(self.addon_handle, const)
-                self.logger.debug("DIRECTORY BUILD: Added sort method %s", method_name)
 
             tuples: List[tuple] = []
             ok = 0
@@ -92,11 +88,7 @@ class ListItemBuilder:
                     built = self._build_single_item(item)
                     if built:
                         url, listitem, is_folder = built
-                        
-                        # PLAYBACK_DEBUG: Log URL being added to directory
                         title = item.get('title', 'Unknown')
-                        self.logger.debug("PLAYBACK_DEBUG: DIRECTORY_ADD #%s '%s' - url='%s', is_folder=%s", 
-                                        idx, title, url, is_folder)
                         
                         # Critical check for empty URLs in directory build
                         if not url or not url.strip():
@@ -131,10 +123,8 @@ class ListItemBuilder:
             # OPTIMIZED: Add all items in a single batch operation
             self.logger.debug("DIRECTORY BUILD: Adding %s directory items to Kodi in batch", len(batch_items))
             
-            # PLAYBACK_DEBUG: Log final batch URLs being sent to Kodi
+            # Check for empty URLs in final batch
             for idx, (batch_url, batch_li, batch_is_folder) in enumerate(batch_items, start=1):
-                self.logger.debug("PLAYBACK_DEBUG: BATCH_FINAL #%s - url='%s', is_folder=%s", 
-                                idx, batch_url, batch_is_folder)
                 if not batch_url or not batch_url.strip():
                     self.logger.error("PLAYBACK_DEBUG: ❌ CRITICAL - Empty URL in final batch at position %s!", idx)
             
@@ -298,23 +288,9 @@ class ListItemBuilder:
             playback_url = file_path
             # Set IsPlayable=true for proper playback and context menu support
             li.setProperty('IsPlayable', 'true')
-            self.logger.debug("LIB ITEM: Using file path for '%s': %s", title, file_path)
 
             is_folder = False
             
-            # PLAYBACK_DEBUG: Log ListItem path and playback details
-            try:
-                # Get the actual path set on the ListItem
-                actual_listitem_path = li.getPath() if hasattr(li, 'getPath') else 'N/A'
-                is_playable = li.getProperty('IsPlayable') if hasattr(li, 'getProperty') else 'N/A'
-                
-                self.logger.debug("PLAYBACK_DEBUG: '%s' - file_path='%s', li.getPath()='%s', IsPlayable='%s'", 
-                                title, playback_url, actual_listitem_path, is_playable)
-                
-                self.logger.debug("PLAYBACK_DEBUG: '%s' - using FILE PATH: %s", title, playback_url)
-                    
-            except Exception as debug_e:
-                self.logger.warning("PLAYBACK_DEBUG: Failed to get ListItem debug info for '%s': %s", title, debug_e)
 
             # Set InfoHijack properties only if user has enabled native Kodi info hijacking
             try:
@@ -329,7 +305,7 @@ class ListItemBuilder:
                     self._preload_hijack_cache_properties(title, kodi_id, media_type)
                 else:
                     # Setting is disabled - do not arm hijack
-                    self.logger.debug("📱 HIJACK DISABLED: '%s' - use_native_kodi_info setting is off", title)
+                    pass
             except Exception as e:
                 self.logger.error("LIB ITEM: ❌ Failed to set InfoHijack properties for '%s': %s", title, e)
 
@@ -386,11 +362,9 @@ class ListItemBuilder:
             # Resume (always for library movies/episodes)
             self._set_resume_info_versioned(li, item)
 
-            # PLAYBACK_DEBUG: Final validation before returning tuple
+            # Final validation before returning tuple
             try:
                 final_path_check = li.getPath() if hasattr(li, 'getPath') else 'N/A'
-                self.logger.debug("PLAYBACK_DEBUG: '%s' - RETURNING tuple(playback_url='%s', final_li_path='%s', is_folder=%s)", 
-                                title, playback_url, final_path_check, is_folder)
                 
                 # Critical validation: Check for empty URLs that could cause V22 failures
                 if not playback_url or not playback_url.strip():
@@ -479,7 +453,6 @@ class ListItemBuilder:
             
             # Add the context menu items to the ListItem
             li.addContextMenuItems(context_items)
-            self.logger.debug("CONTEXT: Added context menu for '%s' in list %s", title, list_id)
             
         except Exception as e:
             self.logger.error("CONTEXT: Failed to add context menu for '%s': %s", title, e)
