@@ -606,6 +606,19 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
+            # Add Tools & Options for folders that support it
+            if self._folder_has_tools(folder_info):
+                tools_menu_item = {
+                    'label': "⚙️ Tools & Options",
+                    'url': context.build_url('show_list_tools', list_type='folder', folder_id=folder_id),
+                    'is_folder': True,
+                    'description': f"Tools & Options for {folder_info['name']}",
+                    'icon': "DefaultAddonProgram.png",
+                    'context_menu': []  # No context menu for tools item itself
+                }
+                # Insert at the beginning of the menu for visibility
+                menu_items.insert(0, tools_menu_item)
+
             # If folder is empty, show message using lightweight method to avoid loading full renderer
             if not lists_in_folder and not subfolders: # Also check for subfolders being empty
                 self._create_simple_empty_state_item(
@@ -1243,4 +1256,22 @@ class ListsHandler:
 
         except Exception as e:
             context.logger.error("Error removing library item from list: %s", e)
+            return False
+
+    def _folder_has_tools(self, folder_info: dict) -> bool:
+        """Check if a folder should have Tools & Options available"""
+        try:
+            # Search History folder always has tools
+            if folder_info.get('is_reserved', False):
+                return True
+            
+            # Check by folder name as fallback
+            folder_name = folder_info.get('name', '').lower()
+            if folder_name == 'search history':
+                return True
+                
+            return False  # For now, only show for Search History
+            
+        except Exception as e:
+            self.logger.warning("Error checking folder tools availability: %s", e)
             return False
