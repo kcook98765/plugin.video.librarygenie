@@ -12,6 +12,7 @@ import xbmcgui
 import xbmcplugin
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.dialog_service import get_dialog_service
+# Router uses manual error handling due to boolean return type
 
 
 class Router:
@@ -101,8 +102,8 @@ class Router:
             # Tools & Options don't need breadcrumbs - skip for performance
             context.breadcrumb_path = None
 
+        # Handle special router-managed actions
         try:
-            # Handle special router-managed actions
             if action == "show_list_tools":
                 from lib.ui.handler_factory import get_handler_factory
                 from lib.ui.response_handler import get_response_handler
