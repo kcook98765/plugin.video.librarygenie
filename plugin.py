@@ -819,6 +819,9 @@ def _handle_dialog_response(context: PluginContext, response):
     from lib.ui.nav import get_navigator
 
     if isinstance(response, DialogResponse):
+        context.logger.debug("DIALOG RESPONSE: Processing DialogResponse - handle=%s, success=%s, refresh_needed=%s", 
+                           context.addon_handle, response.success, getattr(response, 'refresh_needed', None))
+        
         response_handler = get_response_handler()
         result = response_handler.handle_dialog_response(response, context)
         
