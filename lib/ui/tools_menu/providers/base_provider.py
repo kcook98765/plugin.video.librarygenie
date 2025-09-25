@@ -59,8 +59,9 @@ class BaseToolsProvider(ABC):
                 # to avoid spurious UI notifications
                 return DialogResponse(success=True)
         except Exception as e:
-            self.error_handler.logger.error(f"Error in {operation_name}: %s", e)
-            return DialogResponse(
-                success=False,
-                message=f"Error in {operation_name.replace('_', ' ')}"
+            # Use enhanced ErrorHandler to provide user notification and proper error classification
+            return self.error_handler.handle_boundary_exception(
+                operation_name=operation_name,
+                exception=e,
+                user_friendly_action=f"executing {operation_name.replace('_', ' ')}"
             )

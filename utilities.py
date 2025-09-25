@@ -24,9 +24,11 @@ if lib_path not in sys.path:
 # Now import using absolute paths from lib/
 from utils.kodi_log import log, log_info, log_error
 from utils.error_handler import handle_error_with_notification, handle_success_with_notification
+from utils.boundary_decorators import script_action
 from ui.dialog_service import get_dialog_service
 
 
+@script_action("utilities.main", "processing settings action")
 def main():
     """Main entry point for RunScript calls from settings"""
     log_info("=== UTILITIES HANDLER CALLED ===")
@@ -43,41 +45,29 @@ def main():
     
     log_info(f"Handling settings action: '{action}'")
     
-    try:
-        if action == "set_default_list":
-            handle_set_default_list()
-        elif action == "manual_library_sync":
-            handle_manual_library_sync()
-        elif action == "import_shortlist":
-            handle_import_shortlist()
-        elif action == "manual_backup":
-            handle_manual_backup()
-        elif action == "restore_backup":
-            handle_restore_backup()
-        elif action == "authorize_ai_search":
-            handle_authorize_ai_search()
-        elif action == "ai_search_replace_sync":
-            handle_ai_search_replace_sync()
-        elif action == "ai_search_regular_sync":
-            handle_ai_search_regular_sync()
-        elif action == "deactivate_ai_search":
-            handle_deactivate_ai_search()
-        else:
-            handle_error_with_notification(
-                "utilities.main",
-                f"Unknown action: {action}",
-                f"Unknown action: {action}"
-            )
-    
-    except Exception as e:
-        import traceback
-        log_error(f"Utilities handler error traceback: {traceback.format_exc()}")
-        handle_error_with_notification(
-            "utilities.main",
-            f"Error in utilities handler for action '{action}': {e}",
-            f"Error in {action}",
-            exception=e
-        )
+    # Dispatch to appropriate handler (let exceptions bubble up to decorator)
+    if action == "set_default_list":
+        handle_set_default_list()
+    elif action == "manual_library_sync":
+        handle_manual_library_sync()
+    elif action == "import_shortlist":
+        handle_import_shortlist()
+    elif action == "manual_backup":
+        handle_manual_backup()
+    elif action == "restore_backup":
+        handle_restore_backup()
+    elif action == "authorize_ai_search":
+        handle_authorize_ai_search()
+    elif action == "ai_search_replace_sync":
+        handle_ai_search_replace_sync()
+    elif action == "ai_search_regular_sync":
+        handle_ai_search_regular_sync()
+    elif action == "deactivate_ai_search":
+        handle_deactivate_ai_search()
+    else:
+        # Import the custom error types
+        from utils.errors import user_error
+        raise user_error(f"Unknown action: {action}", f"Unknown settings action: {action}")
 
 
 def handle_set_default_list():
