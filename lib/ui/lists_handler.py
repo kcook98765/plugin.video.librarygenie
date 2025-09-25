@@ -239,11 +239,7 @@ class ListsHandler:
             # Initialize query manager
             query_manager = get_query_manager()
 
-            # SQL TIMING: Initialize query manager
-            sql_start_time = time.time()
             init_result = query_manager.initialize()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [ROOT NAV]: query_manager.initialize() took %.3f seconds", sql_end_time - sql_start_time)
 
             if not init_result:
                 context.logger.error("Failed to initialize query manager")
@@ -253,11 +249,7 @@ class ListsHandler:
                 )
 
             # Get all user lists and folders
-            # SQL TIMING: Get all lists with folders
-            sql_start_time = time.time()
             all_lists = query_manager.get_all_lists_with_folders()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [ROOT NAV]: query_manager.get_all_lists_with_folders() took %.3f seconds", sql_end_time - sql_start_time)
             context.logger.debug("Found %s total lists", len(all_lists))
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
@@ -410,11 +402,7 @@ class ListsHandler:
                 })
 
             # Get all existing folders to display as navigable items
-            # SQL TIMING: Get all folders
-            sql_start_time = time.time()
             all_folders = query_manager.get_all_folders()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [ROOT NAV]: query_manager.get_all_folders() took %.3f seconds", sql_end_time - sql_start_time)
 
             # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
@@ -519,11 +507,7 @@ class ListsHandler:
             # Initialize query manager
             query_manager = get_query_manager()
 
-            # SQL TIMING: Initialize query manager
-            sql_start_time = time.time()
             init_result = query_manager.initialize()
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.initialize() took %.3f seconds", sql_end_time - sql_start_time)
 
             if not init_result:
                 context.logger.error("Failed to initialize query manager")
@@ -533,11 +517,8 @@ class ListsHandler:
                 )
 
             # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
-            # SQL TIMING: Batch query for folder navigation
-            sql_start_time = time.time()
+            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
             navigation_data = query_manager.get_folder_navigation_batch(folder_id)
-            sql_end_time = time.time()
-            context.logger.info("SQL TIMING [FOLDER NAV]: query_manager.get_folder_navigation_batch() took %.3f seconds (replaces 3 separate queries)", sql_end_time - sql_start_time)
 
             # Extract data from batch result
             folder_info = navigation_data['folder_info']

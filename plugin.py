@@ -7,7 +7,6 @@ Handles plugin URL routing using new modular architecture
 """
 
 import sys
-import time
 
 import xbmcaddon
 import xbmcgui
