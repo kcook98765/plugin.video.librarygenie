@@ -35,6 +35,10 @@ class FolderToolsProvider(BaseToolsProvider):
             is_reserved = folder_info.get('is_reserved', False)
             folder_name = folder_info['name']
             
+            # Add name-based detection as fallback for Search History
+            if not is_reserved and folder_name and folder_name.lower() == 'search history':
+                is_reserved = True
+            
             if is_reserved:
                 # Search History folder - limited operations
                 return [
