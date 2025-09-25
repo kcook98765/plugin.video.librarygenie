@@ -298,6 +298,26 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
 
+            elif action == 'move_list_to_folder':
+                list_id = params.get('list_id')
+                if list_id:
+                    from lib.ui.handler_factory import get_handler_factory
+                    from lib.ui.response_handler import get_response_handler
+                    factory = get_handler_factory()
+                    factory.context = context
+                    tools_handler = factory.get_tools_handler()
+                    response_handler = get_response_handler()
+                    response = tools_handler.move_list_to_folder(context, str(list_id))
+                    # Auto-refresh after successful list move
+                    if response.success:
+                        response.refresh_needed = True
+                    success = response_handler.handle_dialog_response(response, context)
+                    return bool(success) if success is not None else True
+                else:
+                    self.logger.error("Missing list_id parameter for move_list_to_folder")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
             elif action == 'show_search_history':
                 # Handle search history folder access - look up folder ID only when needed
                 query_manager = context.query_manager
