@@ -35,7 +35,6 @@ class ConfigManager:
             # Library sync settings
             "sync_movies": True,
             "first_run_completed": False,
-            "use_native_kodi_info": True,
             "library_sync_interval": 2,  # 0=disabled, 1=5min, 2=hourly, 3=daily
             
             # Search settings
@@ -401,7 +400,6 @@ class ConfigManager:
             "favorites_batch_processing",
             "shortlist_clear_before_import",
             "background_token_refresh",
-            "info_hijack_enabled",
             # Debug settings
             "debug_first_playable",
             # Initialization state settings

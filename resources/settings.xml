@@ -15,11 +15,6 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="info_hijack_enabled" type="boolean" label="32087" help="35545">
-          <level>0</level>
-          <default>true</default>
-          <control type="toggle"/>
-        </setting>
         <setting id="search_page_size" type="integer" label="30025" help="35552">
           <level>0</level>
           <default>200</default>
