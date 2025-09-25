@@ -70,7 +70,8 @@ class SearchHandler:
             list_id = self._save_search_history(search_terms, search_options, results)
 
             if list_id:
-                # Check if user chose to show saved list immediately
+                # Always navigate to the saved search list after creating it
+                # The _save_search_history method sets self._pending_intent
                 if self._pending_intent:
                     # Execute the navigation intent using PUSH semantics
                     from lib.ui.nav import execute_intent
@@ -78,7 +79,10 @@ class SearchHandler:
                     self._end_directory(succeeded=True, update=False)  # PUSH semantics
                     return True
                 else:
-                    # User chose not to show - end directory normally
+                    # Fallback: if pending intent wasn't set properly, use direct navigation
+                    list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                    from lib.ui.nav import push
+                    push(list_url)
                     self._end_directory(succeeded=True, update=False)
                     return True
             else:
