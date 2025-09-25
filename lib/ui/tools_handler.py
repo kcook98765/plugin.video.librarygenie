@@ -124,6 +124,10 @@ class ToolsHandler:
 
 
 
+    def move_list_to_folder(self, context: PluginContext, list_id: str) -> DialogResponse:
+        """Move a list to a different folder - public interface"""
+        return self._move_list_to_folder(context, list_id)
+
     def _move_list_to_folder(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Move a list to a different folder"""
         try:
