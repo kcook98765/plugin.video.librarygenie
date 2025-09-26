@@ -80,17 +80,9 @@ class BookmarksHandler:
     def show_bookmark_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Show bookmarks within a specific folder"""
         try:
-            folder_id_int = int(folder_id) if folder_id else None
-            
-            # Get folder info
-            folder_info = None
-            if folder_id_int:
-                folder_info = self.query_manager.get_folder_by_id(folder_id_int)
-                if not folder_info:
-                    return DirectoryResponse(
-                        success=False,
-                        message="Bookmark folder not found"
-                    )
+            # For now, bookmark folders are not implemented - redirect to main view
+            self.logger.warning("Bookmark folders not yet implemented, showing main bookmarks view")
+            return self.show_bookmarks_menu(context)
             
             # Get bookmarks in this folder
             bookmarks = self._get_bookmarks_in_folder(folder_id_int)
@@ -315,7 +307,7 @@ class BookmarksHandler:
             ]
             listitem.addContextMenuItems(context_menu)
             
-            return (url, listitem, True)
+            return (url, listitem, is_folder)
             
         except Exception as e:
             self.logger.error("Error building bookmark listitem: %s", e)
