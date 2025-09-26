@@ -64,6 +64,14 @@ class HandlerFactory:
             self.logger.debug("Created ToolsHandler instance")
         return self._handler_cache['tools']
 
+    def get_bookmarks_handler(self):
+        """Get BookmarksHandler instance (lazy loaded)"""
+        if 'bookmarks' not in self._handler_cache:
+            from lib.ui.bookmarks_handler import BookmarksHandler
+            self._handler_cache['bookmarks'] = BookmarksHandler(self.context)
+            self.logger.debug("Created BookmarksHandler instance")
+        return self._handler_cache['bookmarks']
+
     def clear_cache(self):
         """Clear handler cache (useful for testing)"""
         self._handler_cache.clear()
