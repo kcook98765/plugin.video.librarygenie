@@ -9,6 +9,7 @@ Lightweight caching for plugin directory views without database dependencies
 import time
 import json
 import threading
+import os
 from typing import Dict, Any, Optional, List
 from lib.utils.kodi_log import get_kodi_logger
 
@@ -47,10 +48,20 @@ class DirectoryCacheManager:
             'evictions': 0,
             'stores': 0
         }
+        
+        # Cross-invocation persistence for low-power devices
+        self._cache_file = None
+        self._cache_schema_version = 1
         self._initialized = True
         
-        self.logger.debug("DirectoryCacheManager initialized (max_entries: %d, default_ttl: %d min)", 
-                         self._max_entries, self._default_ttl_minutes)
+        # Initialize persistent cache file path
+        self._init_cache_file_path()
+        
+        # Load existing cache on startup
+        self._load_cache_from_disk()
+        
+        self.logger.debug("DirectoryCacheManager initialized (max_entries: %d, default_ttl: %d min, persistent: %s)", 
+                         self._max_entries, self._default_ttl_minutes, bool(self._cache_file))
     
     def _generate_cache_key(self, action: str, params: Dict[str, Any], refresh_token: int) -> str:
         """Generate cache key from action, parameters, and refresh token"""
@@ -170,6 +181,9 @@ class DirectoryCacheManager:
                 
                 self.logger.debug("Cached directory for key: %s (ttl: %d min, entries: %d)", 
                                 cache_key, ttl, len(self._memory_cache))
+                
+                # Save to disk for cross-invocation persistence
+                self._save_cache_to_disk()
                 return True
                 
         except Exception as e:
@@ -186,6 +200,9 @@ class DirectoryCacheManager:
                 entries_cleared = len(self._memory_cache)
                 self._memory_cache.clear()
                 
+            # Clear persistent cache file as well
+            self._clear_cache_file()
+            
             self.logger.info("Cache invalidated - cleared %d entries (reason: %s)", 
                            entries_cleared, reason)
             
@@ -216,6 +233,10 @@ class DirectoryCacheManager:
                 
                 for key in keys_to_remove:
                     del self._memory_cache[key]
+                
+                # Save updated cache to disk if entries were removed
+                if keys_to_remove:
+                    self._save_cache_to_disk()
                 
                 self.logger.debug("Invalidated %d cache entries matching pattern: %s", 
                                 len(keys_to_remove), pattern)
@@ -254,6 +275,101 @@ class DirectoryCacheManager:
             
         self.logger.debug("Adapted TTL to %d minutes based on query time %.1fms", 
                          self._default_ttl_minutes, avg_query_time_ms)
+
+    def _init_cache_file_path(self):
+        """Initialize the path for persistent cache storage"""
+        try:
+            import xbmcvfs
+            import xbmcaddon
+            
+            addon = xbmcaddon.Addon()
+            profile_dir = xbmcvfs.translatePath(addon.getAddonInfo('profile'))
+            
+            # Ensure profile directory exists
+            if not xbmcvfs.exists(profile_dir):
+                xbmcvfs.mkdirs(profile_dir)
+            
+            self._cache_file = os.path.join(profile_dir, 'directory_cache.json')
+            self.logger.debug("Cache file path: %s", self._cache_file)
+            
+        except Exception as e:
+            self.logger.warning("Failed to initialize cache file path: %s", e)
+            self._cache_file = None
+
+    def _load_cache_from_disk(self):
+        """Load cached data from disk on startup"""
+        if not self._cache_file or not os.path.exists(self._cache_file):
+            return
+            
+        try:
+            with open(self._cache_file, 'r', encoding='utf-8') as f:
+                cache_data = json.load(f)
+            
+            # Validate schema version
+            if cache_data.get('schema_version') != self._cache_schema_version:
+                self.logger.debug("Cache schema version mismatch, clearing cache")
+                self._clear_cache_file()
+                return
+            
+            # Load cache entries
+            current_time = time.time()
+            valid_entries = 0
+            
+            for cache_key, entry in cache_data.get('cache_entries', {}).items():
+                # Skip expired entries
+                if self._is_cache_valid(entry):
+                    self._memory_cache[cache_key] = entry
+                    valid_entries += 1
+            
+            self.logger.debug("Loaded %d valid cache entries from disk", valid_entries)
+            
+        except Exception as e:
+            self.logger.warning("Failed to load cache from disk: %s", e)
+            self._clear_cache_file()
+
+    def _save_cache_to_disk(self):
+        """Save current cache state to disk for cross-invocation persistence"""
+        if not self._cache_file:
+            return
+            
+        try:
+            # Only save valid, non-expired entries to keep file size small
+            current_time = time.time()
+            valid_entries = {}
+            
+            for cache_key, entry in self._memory_cache.items():
+                if self._is_cache_valid(entry):
+                    valid_entries[cache_key] = entry
+            
+            cache_data = {
+                'schema_version': self._cache_schema_version,
+                'saved_at': current_time,
+                'cache_entries': valid_entries
+            }
+            
+            # Atomic write to prevent corruption
+            temp_file = self._cache_file + '.tmp'
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, separators=(',', ':'))  # Compact format
+            
+            # Atomic replace
+            if os.path.exists(self._cache_file):
+                os.remove(self._cache_file)
+            os.rename(temp_file, self._cache_file)
+            
+            self.logger.debug("Saved %d cache entries to disk", len(valid_entries))
+            
+        except Exception as e:
+            self.logger.warning("Failed to save cache to disk: %s", e)
+
+    def _clear_cache_file(self):
+        """Clear the persistent cache file"""
+        try:
+            if self._cache_file and os.path.exists(self._cache_file):
+                os.remove(self._cache_file)
+                self.logger.debug("Cleared cache file")
+        except Exception as e:
+            self.logger.warning("Failed to clear cache file: %s", e)
 
 
 # Global cache manager instance
