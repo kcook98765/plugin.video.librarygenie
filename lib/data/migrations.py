@@ -11,7 +11,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 3
+TARGET_SCHEMA_VERSION = 4
 
 
 class MigrationManager:
@@ -57,7 +57,12 @@ class MigrationManager:
                     self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
                     self.logger.info("Schema version tracking added to existing database")
             else:
-                self.logger.debug("Database already at version %s", current_version)
+                # Check if we need to run migrations for version upgrades
+                if current_version < TARGET_SCHEMA_VERSION:
+                    self.logger.info("Upgrading database from version %s to %s", current_version, TARGET_SCHEMA_VERSION)
+                    self._run_migrations(conn, current_version)
+                else:
+                    self.logger.debug("Database already at version %s", current_version)
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
@@ -102,7 +107,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 3, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 4, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -302,6 +307,30 @@ class MigrationManager:
         
         INSERT INTO folders (name, parent_id)
         VALUES ('Search History', NULL);
+        
+        -- Bookmarks table for saving links to folders and content
+        CREATE TABLE bookmarks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT NOT NULL,
+            normalized_url TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            bookmark_type TEXT NOT NULL CHECK (bookmark_type IN ('plugin','file','network','library','special')),
+            description TEXT,
+            metadata TEXT,
+            art_data TEXT,
+            folder_id INTEGER,
+            position INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+        );
+        
+        CREATE UNIQUE INDEX idx_bookmarks_unique ON bookmarks (folder_id, normalized_url);
+        CREATE INDEX idx_bookmarks_type ON bookmarks (bookmark_type);
+        CREATE INDEX idx_bookmarks_folder ON bookmarks (folder_id);
+        CREATE INDEX idx_bookmarks_position ON bookmarks (folder_id, position);
+        CREATE INDEX idx_bookmarks_display_name ON bookmarks (folder_id, lower(display_name));
+        CREATE INDEX idx_bookmarks_updated ON bookmarks (updated_at);
         """
         
         # Execute the complete schema script
@@ -351,6 +380,61 @@ class MigrationManager:
             
             
 
+
+    def _run_migrations(self, conn, current_version):
+        """Run incremental migrations from current_version to TARGET_SCHEMA_VERSION"""
+        try:
+            # Version 3 to 4: Add bookmarks table
+            if current_version < 4:
+                self.logger.info("Running migration: Add bookmarks table (v3 -> v4)")
+                self._migrate_v3_to_v4(conn)
+                
+            # Set final version
+            self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
+            self.logger.info("Database migration completed successfully")
+            
+        except Exception as e:
+            self.logger.error("Migration failed: %s", e)
+            raise
+            
+    def _migrate_v3_to_v4(self, conn):
+        """Add bookmarks table for v3 -> v4 migration"""
+        migration_sql = """
+        -- Bookmarks table for saving links to folders and content
+        CREATE TABLE bookmarks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT NOT NULL,
+            normalized_url TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            bookmark_type TEXT NOT NULL CHECK (bookmark_type IN ('plugin','file','network','library','special')),
+            description TEXT,
+            metadata TEXT,
+            art_data TEXT,
+            folder_id INTEGER,
+            position INTEGER,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+        );
+        
+        CREATE UNIQUE INDEX idx_bookmarks_unique ON bookmarks (folder_id, normalized_url);
+        CREATE INDEX idx_bookmarks_type ON bookmarks (bookmark_type);
+        CREATE INDEX idx_bookmarks_folder ON bookmarks (folder_id);
+        CREATE INDEX idx_bookmarks_position ON bookmarks (folder_id, position);
+        CREATE INDEX idx_bookmarks_display_name ON bookmarks (folder_id, lower(display_name));
+        CREATE INDEX idx_bookmarks_updated ON bookmarks (updated_at);
+        """
+        
+        try:
+            conn.executescript(migration_sql)
+            self.logger.debug("Bookmarks table created successfully in migration")
+        except AttributeError:
+            # Fallback for connections that don't support executescript
+            statements = [stmt.strip() for stmt in migration_sql.split(';') if stmt.strip()]
+            for statement in statements:
+                if statement:
+                    conn.execute(statement)
+            self.logger.debug("Bookmarks table created successfully in migration (fallback method)")
 
     def run_migrations(self):
         """Run all pending migrations - framework preserved for future use"""
