@@ -163,38 +163,19 @@ class Router:
             elif action == 'save_bookmark':
                 # Handle bookmark saving with category from context menu confirmation
                 return self._handle_bookmark_save_with_category(context)
-            elif action == 'show_bookmarks':
-                # Show main bookmarks menu
+            elif action == 'add_external_item':
+                # Handle adding external item (including bookmarks) to list
                 from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.response_handler import get_response_handler
                 factory = get_handler_factory()
                 factory.context = context
-                bookmarks_handler = factory.get_bookmarks_handler()
-                response_handler = get_response_handler()
-                response = bookmarks_handler.show_bookmarks_menu(context)
-                return response_handler.handle_directory_response(response, context)
-            elif action == 'show_bookmark_folder':
-                # Show bookmarks in a specific folder
-                folder_id = context.get_param('folder_id')
-                from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.response_handler import get_response_handler
-                factory = get_handler_factory()
-                factory.context = context
-                bookmarks_handler = factory.get_bookmarks_handler()
-                response_handler = get_response_handler()
-                response = bookmarks_handler.show_bookmark_folder(context, folder_id)
-                return response_handler.handle_directory_response(response, context)
-            elif action == 'navigate_to_bookmark':
-                # Navigate to a saved bookmark
-                bookmark_id = context.get_param('bookmark_id')
-                from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.response_handler import get_response_handler
-                factory = get_handler_factory()
-                factory.context = context
-                bookmarks_handler = factory.get_bookmarks_handler()
-                response_handler = get_response_handler()
-                response = bookmarks_handler.navigate_to_bookmark(context, bookmark_id)
-                return response_handler.handle_directory_response(response, context)
+                lists_handler = factory.get_lists_handler()
+                result = lists_handler.add_external_item_to_list(context)
+                
+                # Handle context menu invocation properly
+                if not result:
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                
+                return result if isinstance(result, bool) else True
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
@@ -935,6 +916,7 @@ class Router:
             )
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
+
 
     def _determine_bookmark_type(self, url):
         """Determine bookmark type from URL"""
