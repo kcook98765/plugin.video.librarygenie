@@ -50,50 +50,87 @@ class SearchHandler:
         self.dialog_service = get_dialog_service('lib.ui.search_handler')
 
     def prompt_and_search(self, context: PluginContext, media_scope: str = "movie") -> bool:
-        """Main entry point for simple search"""
+        """Main entry point for simple search with improved error handling"""
         self._ensure_handle_from_context(context)
+        
+        # Store original session state to restore if needed
+        from lib.ui.session_state import get_session_state
+        session_state = get_session_state()
+        original_return_location = session_state.get_tools_return_location()
+        
+        # Add platform detection for debugging
+        is_android = xbmc.getCondVisibility('system.platform.android')
+        self._debug(f"SEARCH DEBUG: Platform Android={is_android}, Starting search process")
 
-        # Step 1: Get search keywords
-        search_terms = self._prompt_for_search_terms()
-        if not search_terms:
-            self._info("No search terms entered")
-            self._end_directory(succeeded=False, update=False)
-            return False
+        try:
+            # Step 1: Get search keywords
+            search_terms = self._prompt_for_search_terms()
+            if not search_terms:
+                self._info("No search terms entered")
+                self._end_directory(succeeded=False, update=False)
+                return False
 
-        # Step 2: Use default search options (always search both title and plot)
-        search_options = {"search_scope": "both", "match_logic": "all", "media_scope": media_scope}
+            # Step 2: Use default search options (always search both title and plot)
+            search_options = {"search_scope": "both", "match_logic": "all", "media_scope": media_scope}
 
-        # Step 3: Execute search
-        results = self._execute_simple_search(search_terms, search_options, context)
+            # Step 3: Execute search
+            results = self._execute_simple_search(search_terms, search_options, context)
 
-        # Step 4: Save results and handle user's choice
-        if results.total_count > 0:
-            # Save search history and get the created list ID
-            list_id = self._save_search_history(search_terms, search_options, results)
+            # Step 4: Save results and handle user's choice
+            if results.total_count > 0:
+                # Save search history and get the created list ID
+                list_id = self._save_search_history(search_terms, search_options, results)
 
-            if list_id:
-                # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
-                # This eliminates the double endOfDirectory/Container.Update issue that prevents
-                # the search results from displaying in Kodi V22
-                success = self._render_saved_search_list_directly(list_id, context)
-                if success:
-                    self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
-                    return True
+                if list_id:
+                    # Clear any tools return location to prevent confusion
+                    session_state.clear_tools_return_location()
+                    self._debug(f"SEARCH DEBUG: Attempting direct render for list_id={list_id}")
+                    
+                    # IMPROVED: Use direct rendering with enhanced error handling
+                    success = self._render_saved_search_list_directly(list_id, context)
+                    if success:
+                        self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
+                        return True
+                    else:
+                        # IMPROVED: Try redirect fallback before failing
+                        self._warn(f"Direct rendering failed for list {list_id}, trying redirect fallback")
+                        
+                        # Restore session state for fallback attempt
+                        session_state.set_tools_return_location(original_return_location)
+                        
+                        if self._try_redirect_to_saved_search_list():
+                            self._debug(f"Redirect fallback succeeded for list {list_id}")
+                            return True
+                        
+                        # If both methods fail, show user-friendly error and stay in current context
+                        # instead of triggering router fallback that could show Tools & Options
+                        self.dialog_service.show_error(
+                            "Search results saved but could not be displayed. Check Search History.", 
+                            time_ms=4000
+                        )
+                        self._end_directory(succeeded=True, update=False)  # succeeded=True prevents router fallback
+                        return True
                 else:
-                    self._error(f"Failed to render search results directly for list {list_id}")
-                    self._end_directory(succeeded=False, update=False)
-                    return False
+                    # Failed to save search history, try redirect method as fallback
+                    self._warn("Failed to save search history, attempting fallback redirect")
+                    if self._try_redirect_to_saved_search_list():
+                        return True
+                    else:
+                        # Show user-friendly error instead of triggering router fallback
+                        self.dialog_service.show_error("Search completed but results could not be displayed.", time_ms=4000)
+                        self._end_directory(succeeded=True, update=False)  # succeeded=True prevents router fallback
+                        return True
             else:
-                # Failed to save search history, fallback to redirect method
-                self._warn("Failed to save search history, attempting fallback redirect")
-                if not self._try_redirect_to_saved_search_list():
-                    self._error("Failed to redirect to saved search list")
-                    self._end_directory(succeeded=False, update=False)
-                    return False
+                self._show_no_results_message(search_terms)
+                self._end_directory(succeeded=True, update=False)
                 return True
-        else:
-            self._show_no_results_message(search_terms)
-            self._end_directory(succeeded=True, update=False)
+        except Exception as e:
+            # Restore session state on any error
+            session_state.set_tools_return_location(original_return_location)
+            self._error(f"Search process failed: {e}")
+            # Show user-friendly error and prevent router fallback
+            self.dialog_service.show_error("Search failed. Please try again.", time_ms=4000)
+            self._end_directory(succeeded=True, update=False)  # succeeded=True prevents router fallback
             return True
 
     def _prompt_for_search_terms(self) -> Optional[str]:
@@ -204,9 +241,19 @@ class SearchHandler:
             return None
 
     def _render_saved_search_list_directly(self, list_id: str, context: PluginContext) -> bool:
-        """Directly render saved search list without Container.Update redirect"""
+        """Directly render saved search list with platform-specific timing"""
         try:
             self._debug(f"Directly rendering saved search list ID: {list_id}")
+            
+            # Add platform detection and timing adjustment for Android devices
+            is_android = xbmc.getCondVisibility('system.platform.android')
+            self._debug(f"SEARCH DEBUG: Platform Android={is_android}, rendering list {list_id}")
+            
+            if is_android:
+                # Android devices need a small delay for container operations
+                import time
+                time.sleep(0.1)
+                self._debug(f"SEARCH DEBUG: Applied Android timing delay before rendering")
 
             # Import and instantiate ListsHandler
             from lib.ui.handler_factory import get_handler_factory
@@ -218,16 +265,25 @@ class SearchHandler:
             response_handler = get_response_handler()
 
             # Directly call view_list with the saved list ID
+            self._debug(f"SEARCH DEBUG: Calling view_list for list {list_id}")
             directory_response = lists_handler.view_list(context, list_id)
 
             # Handle the DirectoryResponse
+            self._debug(f"SEARCH DEBUG: Handling directory response for list {list_id}")
             success = response_handler.handle_directory_response(directory_response, context)
 
             if success:
+                # On Android, wait a bit more to ensure navigation completes
+                if is_android:
+                    import time
+                    time.sleep(0.05)
+                    self._debug(f"SEARCH DEBUG: Applied Android timing delay after successful rendering")
+                
                 self._debug(f"Successfully rendered saved search list {list_id} directly")
                 return True
             else:
                 self._warn(f"Failed to handle directory response for list {list_id}")
+                self._debug(f"SEARCH DEBUG: Directory response handling failed for list {list_id}")
                 return False
 
         except Exception as e:
