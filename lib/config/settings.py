@@ -210,10 +210,6 @@ class SettingsManager:
         config = get_config()
         return config.get_bool('enable_auto_token_refresh', True)
 
-    def get_use_native_kodi_info(self) -> bool:
-        """Get use native Kodi info for library items setting"""
-        config = get_config()
-        return config.get_bool('info_hijack_enabled', True)
 
     def get_debug_first_playable(self) -> bool:
         """Get whether to enable first playable listitem debugging"""

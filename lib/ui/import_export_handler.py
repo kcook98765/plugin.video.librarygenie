@@ -15,6 +15,7 @@ from lib.ui.response_types import DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
 from lib.data.query_manager import get_query_manager
+from lib.ui.dialog_service import get_dialog_service
 
 
 class ImportExportHandler:
@@ -241,7 +242,8 @@ class ImportExportHandler:
                 context.logger.info("Import engine not available, showing basic import dialog")
                 
                 # Show info dialog about import functionality
-                xbmcgui.Dialog().ok(
+                dialog_service = get_dialog_service(logger_name='lib.ui.import_export_handler.import_lists')
+                dialog_service.ok(
                     "Import Lists",
                     "Import functionality requires the import engine to be available.\n\n"
                     "Please ensure the import engine is properly configured."
@@ -302,7 +304,8 @@ class ImportExportHandler:
                 )
 
             # Show confirmation dialog
-            confirm = xbmcgui.Dialog().yesno(
+            dialog_service = get_dialog_service(logger_name='lib.ui.import_export_handler.merge_lists')
+            confirm = dialog_service.yesno(
                 "Merge Lists",
                 f"Merge {len(source_items)} items from '{source_name}' into '{target_name}'?\n\n"
                 f"Duplicate items will be skipped."
@@ -384,7 +387,8 @@ class ImportExportHandler:
                 list_ids.append(lst['id'])
 
             # Select source list
-            source_index = xbmcgui.Dialog().select("Select source list (items FROM):", list_options)
+            dialog_service = get_dialog_service(logger_name='lib.ui.import_export_handler.select_lists_for_merge')
+            source_index = dialog_service.select("Select source list (items FROM):", list_options)
             if source_index < 0:
                 return DialogResponse(success=False, message="")
 
@@ -394,7 +398,7 @@ class ImportExportHandler:
             target_options.pop(source_index)
             target_ids.pop(source_index)
 
-            target_index = xbmcgui.Dialog().select("Select target list (items TO):", target_options)
+            target_index = dialog_service.select("Select target list (items TO):", target_options)
             if target_index < 0:
                 return DialogResponse(success=False, message="")
 

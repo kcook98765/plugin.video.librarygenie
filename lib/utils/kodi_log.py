@@ -16,29 +16,34 @@ def log(message, level=xbmc.LOGDEBUG):
         message: Log message (should be pre-formatted string)  
         level: xbmc log level (defaults to LOGDEBUG per Kodi standards)
     """
-    xbmc.log(f"[LibraryGenie] {message}", level)
+    xbmc.log(f"[LG-LibraryGenie] {message}", level)
 
 
 def log_error(message):
     """Error logging shorthand"""
-    xbmc.log(f"[LibraryGenie] {message}", xbmc.LOGERROR)
+    xbmc.log(f"[LG-LibraryGenie] {message}", xbmc.LOGERROR)
 
 
 def log_info(message):
     """Info logging shorthand - use sparingly per Kodi standards"""
-    xbmc.log(f"[LibraryGenie] {message}", xbmc.LOGINFO)
+    xbmc.log(f"[LG-LibraryGenie] {message}", xbmc.LOGINFO)
 
 
 def log_warning(message):
     """Warning logging shorthand"""
-    xbmc.log(f"[LibraryGenie] {message}", xbmc.LOGWARNING)
+    xbmc.log(f"[LG-LibraryGenie] {message}", xbmc.LOGWARNING)
 
 
 class KodiLogger:
     """Compatibility adapter that mimics Python logging API but routes to direct Kodi logging"""
     
     def __init__(self, name=None):
-        self.name = name or "LibraryGenie"
+        base_name = name or "LibraryGenie"
+        # Avoid double-prefixing if name already starts with LG-
+        if base_name.startswith("LG-"):
+            self.name = base_name
+        else:
+            self.name = f"LG-{base_name}"
     
     def debug(self, message, *args, **kwargs):
         """Debug-level logging with %-style formatting support"""

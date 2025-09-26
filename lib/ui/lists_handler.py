@@ -17,6 +17,7 @@ from lib.ui.breadcrumb_helper import get_breadcrumb_helper
 from lib.utils.kodi_log import get_kodi_logger
 from lib.data.query_manager import get_query_manager
 from lib.utils.kodi_version import get_kodi_major_version
+from lib.ui.dialog_service import get_dialog_service
 
 # Import the specialized operation modules
 from lib.ui.list_operations import ListOperations
@@ -48,6 +49,48 @@ class ListsHandler:
             from lib.ui.import_export_handler import ImportExportHandler
             self._import_export = ImportExportHandler(self.context)
         return self._import_export
+    
+    def quick_add_to_default_list(self, context: PluginContext) -> DialogResponse:
+        """Quick add item to default list"""
+        try:
+            media_item_id = context.get_param('media_item_id')
+            if not media_item_id:
+                return DialogResponse(success=False, message="Missing media item ID")
+            
+            # Use list operations to add to default list
+            return self.list_ops.add_item_to_default_list(context, media_item_id)
+            
+        except Exception as e:
+            self.logger.error("Error in quick_add_to_default_list: %s", e)
+            return DialogResponse(success=False, message="Failed to add item to default list")
+    
+    def quick_add_library_item_to_default_list(self, context: PluginContext) -> DialogResponse:
+        """Quick add library item to default list"""
+        try:
+            media_item_id = context.get_param('media_item_id')
+            if not media_item_id:
+                return DialogResponse(success=False, message="Missing media item ID")
+            
+            # Use list operations to add library item to default list  
+            return self.list_ops.add_library_item_to_default_list(context, media_item_id)
+            
+        except Exception as e:
+            self.logger.error("Error in quick_add_library_item_to_default_list: %s", e)
+            return DialogResponse(success=False, message="Failed to add library item to default list")
+    
+    def quick_add_external_item_to_default_list(self, context: PluginContext) -> DialogResponse:
+        """Quick add external item to default list"""
+        try:
+            media_item_id = context.get_param('media_item_id')
+            if not media_item_id:
+                return DialogResponse(success=False, message="Missing media item ID")
+            
+            # Use list operations to add external item to default list
+            return self.list_ops.add_external_item_to_default_list(context, media_item_id)
+            
+        except Exception as e:
+            self.logger.error("Error in quick_add_external_item_to_default_list: %s", e)
+            return DialogResponse(success=False, message="Failed to add external item to default list")
 
     @property
     def listitem_renderer(self):
@@ -445,7 +488,7 @@ class ListsHandler:
                 else:
                     context_menu = [
                         (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                        (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
+                        (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
                         (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
                         (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
                     ]
@@ -592,7 +635,7 @@ class ListsHandler:
 
                 context_menu = [
                     (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
+                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
                     (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
                     (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
                 ]
@@ -608,11 +651,23 @@ class ListsHandler:
 
             # Add Tools & Options for folders that support it
             if self._folder_has_tools(folder_info):
+                # Generate breadcrumb for Tools & Options
+                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
+                    'show_folder', 
+                    {'folder_id': folder_id}, 
+                    context.query_manager
+                )
+                description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description(
+                    'show_folder', 
+                    {'folder_id': folder_id}, 
+                    context.query_manager
+                )
+                
                 tools_menu_item = {
-                    'label': "⚙️ Tools & Options",
+                    'label': f"⚙️ Tools & Options {breadcrumb_text}",
                     'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
                     'is_folder': True,
-                    'description': f"Tools & Options for {folder_info.get('name', 'Folder')}",
+                    'description': f"{description_text}Tools and options for this folder",
                     'icon': "DefaultAddonProgram.png",
                     'context_menu': []  # No context menu for tools item itself
                 }
@@ -698,7 +753,7 @@ class ListsHandler:
             # Get list info
             list_info = query_manager.get_list_by_id(list_id)
             if not list_info:
-                context.logger.error("List %s not found", list_id)
+                context.logger.error("List %s not found in database", list_id)
                 return DirectoryResponse(
                     items=[],
                     success=False
@@ -727,6 +782,7 @@ class ListsHandler:
                 limit=pagination_info.page_size,
                 offset=pagination_info.start_index
             )
+            
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
@@ -805,6 +861,7 @@ class ListsHandler:
                 builder = ListItemBuilder(context.addon_handle, context.addon_id, context)
                 # Use auto-detect for content type (None) instead of hardcoding "movies"
                 success = builder.build_directory(list_items, None)
+                
                 if success:
                     context.logger.debug("Successfully built directory with %s items", len(list_items))
 
@@ -993,7 +1050,9 @@ class ListsHandler:
 
     def _show_empty_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show menu when no lists exist"""
-        if xbmcgui.Dialog().yesno(
+        dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler._show_empty_lists_menu')
+        
+        if dialog_service.yesno(
             L(35002), # "LibraryGenie"
             "No lists found. Create your first list?" # This string should also be localized
         ):
@@ -1035,15 +1094,11 @@ class ListsHandler:
             from lib.config.settings import SettingsManager
             settings = SettingsManager()
             default_list_id = settings.get_default_list_id()
+            
+            dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.quick_add_context')
 
             if not default_list_id:
-                import xbmcgui
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "No default list configured",
-                    xbmcgui.NOTIFICATION_WARNING,
-                    3000
-                )
+                dialog_service.show_warning("No default list configured")
                 return False
 
             # Create minimal library item data - add_library_item_to_list will handle metadata fetching
@@ -1063,37 +1118,21 @@ class ListsHandler:
             result = query_manager.add_library_item_to_list(default_list_id, library_item)
 
             # Show success notification
-            import xbmcgui
             if result:
                 # Get list name for notification
                 list_info = query_manager.get_list_by_id(default_list_id)
                 list_name = list_info.get('name', 'Default List') if list_info else 'Default List'
 
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    f"Added '{title}' to {list_name}",
-                    xbmcgui.NOTIFICATION_INFO,
-                    3000
-                )
+                dialog_service.show_success(f"Added '{title}' to {list_name}")
                 return True
             else:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    f"Failed to add '{title}' to list",
-                    xbmcgui.NOTIFICATION_ERROR,
-                    3000
-                )
+                dialog_service.show_error(f"Failed to add '{title}' to list")
                 return False
 
         except Exception as e:
             context.logger.error("Error quick adding to list from context: %s", e)
-            import xbmcgui
-            xbmcgui.Dialog().notification(
-                "LibraryGenie",
-                "Quick add failed",
-                xbmcgui.NOTIFICATION_ERROR,
-                3000
-            )
+            dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.quick_add_context')
+            dialog_service.show_error("Quick add failed")
             return False
 
     def add_external_item_to_list(self, context: PluginContext) -> bool:
@@ -1143,7 +1182,9 @@ class ListsHandler:
             all_lists = query_manager.get_all_lists_with_folders()
             if not all_lists:
                 # Offer to create a new list
-                if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
+                dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.add_external_item_to_list')
+                
+                if dialog_service.yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
                         # Refresh lists and continue
@@ -1164,16 +1205,11 @@ class ListsHandler:
                     list_ids.append(item['id'])
 
             if not list_options:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "No lists available", # Localize this string
-                    xbmcgui.NOTIFICATION_WARNING,
-                    3000
-                )
+                dialog_service.show_warning("No lists available") # Localize this string
                 return False
 
             # Show list selection dialog
-            selected_index = xbmcgui.Dialog().select(
+            selected_index = dialog_service.select(
                 f"Add '{media_item['title']}' to list:", # Localize this string
                 list_options
             )
@@ -1189,23 +1225,13 @@ class ListsHandler:
             success = result is not None and result.get("success", False)
 
             if success:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    f"Added '{media_item['title']}' to '{selected_list_name}'", # Localize this string
-                    xbmcgui.NOTIFICATION_INFO,
-                    3000
-                )
+                dialog_service.show_success(f"Added '{media_item['title']}' to '{selected_list_name}'") # Localize this string
                 # Refresh container to show changes
                 import xbmc
                 xbmc.executebuiltin('Container.Refresh')
                 return True
             else:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "Failed to add item to list", # Localize this string
-                    xbmcgui.NOTIFICATION_ERROR,
-                    3000
-                )
+                dialog_service.show_error("Failed to add item to list") # Localize this string
                 return False
 
         except Exception as e:
@@ -1233,11 +1259,8 @@ class ListsHandler:
 
             if not matching_item or 'id' not in matching_item:
                 context.logger.warning("Could not find library item %s:%s in list %s", dbtype, dbid, list_id)
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "Item not found in list",
-                    xbmcgui.NOTIFICATION_WARNING
-                )
+                dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.remove_library_item_from_list')
+                dialog_service.show_warning("Item not found in list")
                 return False
 
             # Use the regular remove method with the found item ID
@@ -1261,16 +1284,8 @@ class ListsHandler:
     def _folder_has_tools(self, folder_info: dict) -> bool:
         """Check if a folder should have Tools & Options available"""
         try:
-            # Search History folder always has tools
-            if folder_info.get('is_reserved', False):
-                return True
-            
-            # Check by folder name as fallback
-            folder_name = folder_info.get('name', '').lower()
-            if folder_name == 'search history':
-                return True
-                
-            return False  # For now, only show for Search History
+            # All folders should have tools available
+            return True
             
         except Exception as e:
             self.logger.warning("Error checking folder tools availability: %s", e)

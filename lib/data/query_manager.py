@@ -280,15 +280,14 @@ class QueryManager:
                 LIMIT ? OFFSET ?
             """
 
-            self.logger.debug("Executing query: %s", query)
-            self.logger.debug("Query parameters: list_id=%s, limit=%s, offset=%s", list_id, limit, offset)
 
             cursor.execute(query, (list_id, limit, offset))
             rows = cursor.fetchall()
-
+            
             self.logger.debug("Query returned %s rows", len(rows))
 
             items = []
+            
 
             for row_idx, row in enumerate(rows):
                 # Convert row to dict
@@ -327,10 +326,11 @@ class QueryManager:
 
                 # Normalize to canonical format using optimized data
                 canonical_item = self._normalize_to_canonical(item)
-
+                
 
                 items.append(canonical_item)
 
+            
             return items
 
         except Exception as e:

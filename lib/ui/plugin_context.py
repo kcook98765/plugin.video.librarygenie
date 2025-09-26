@@ -94,6 +94,26 @@ class PluginContext:
     def get_params(self) -> Dict[str, Any]:
         """Get all parameters"""
         return self.params
+    
+    def is_from_outside_plugin(self) -> bool:
+        """Check if request is from outside the plugin (e.g., context menu)"""
+        # Check if called from context menu or external source
+        # This can be determined by looking at the addon handle or other markers
+        external_param = self.params.get('external', False)
+        is_external = isinstance(external_param, bool) and external_param
+        return self.addon_handle == -1 or is_external
+    
+    def set_content_type(self, content_type: str = 'files'):
+        """Set content type for directory listing"""
+        if self.addon_handle >= 0:
+            import xbmcplugin
+            xbmcplugin.setContent(self.addon_handle, content_type)
+    
+    def add_item(self, url: str, listitem, isFolder: bool = False):
+        """Add item to directory listing"""
+        if self.addon_handle >= 0:  # Valid handle
+            import xbmcplugin
+            xbmcplugin.addDirectoryItem(self.addon_handle, url, listitem, isFolder)
 
     def require_param(self, key: str) -> Any:
         """Get required parameter, raises ValueError if missing"""

@@ -9,20 +9,32 @@ Handles Kodi favorites integration and management
 import xbmcplugin
 import xbmcgui
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
-from lib.utils.error_handler import create_error_handler
+# Error handling now consolidated in DialogService
+from lib.ui.dialog_service import get_dialog_service
 
 
 class FavoritesHandler:
     """Handles Kodi favorites operations"""
 
-    def __init__(self):
+    def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_kodi_logger('lib.ui.favorites_handler')
-        self.error_handler = create_error_handler('lib.ui.favorites_handler')
+        # Unified dialog service handles both UI interactions and error handling
+        self.dialog_service = get_dialog_service('lib.ui.favorites_handler')
+        
+        # Initialize context and related components
+        self.plugin_context = context
+        if context:
+            self.query_manager = context.query_manager
+            # Lazy load listitem_builder when needed
+            self._listitem_builder = None
+        else:
+            self.query_manager = None
+            self._listitem_builder = None
 
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""
@@ -39,7 +51,57 @@ class FavoritesHandler:
             # v19/v20: Use setInfo() as fallback
             list_item.setInfo('video', {'plot': plot})
 
+    @property
+    def listitem_builder(self):
+        """Get listitem builder singleton (lazy loaded)"""
+        if self._listitem_builder is None and self.plugin_context:
+            from lib.ui.listitem_renderer import get_listitem_renderer
+            self._listitem_builder = get_listitem_renderer(
+                self.plugin_context.addon_handle,
+                self.plugin_context.addon_id,
+                self.plugin_context
+            )
+        return self._listitem_builder
+    
+    def _build_unmapped_favorite_item(self, favorite: Dict[str, Any]):
+        """Build listitem for unmapped favorite using favorite data"""
+        try:
+            # Create basic listitem from favorite data
+            title = favorite.get('name', 'Unknown Title')
+            listitem = xbmcgui.ListItem(label=title, offscreen=True)
+            
+            # Set basic metadata if available
+            if 'plot' in favorite:
+                self._set_listitem_plot(listitem, favorite['plot'])
+                
+            # Set art if available
+            art_dict = {}
+            if 'thumb' in favorite:
+                art_dict['thumb'] = favorite['thumb']
+            if 'icon' in favorite:
+                art_dict['icon'] = favorite['icon']
+            if art_dict:
+                listitem.setArt(art_dict)
+                
+            # Build URL for playback
+            url = favorite.get('path', '')
+            if not url and self.plugin_context:
+                url = self.plugin_context.build_url('play_favorite', favorite_id=favorite.get('id', ''))
+            
+            return listitem, url
+            
+        except Exception as e:
+            self.logger.error("Error building unmapped favorite item: %s", e)
+            # Return basic fallback
+            fallback_item = xbmcgui.ListItem(label="Error Loading Item", offscreen=True)
+            return fallback_item, ""
+    
     def show_favorites_menu(self, context: PluginContext) -> DirectoryResponse:
+        """Show main Kodi favorites menu"""
+        # Update context reference if provided
+        if context and not self.plugin_context:
+            self.plugin_context = context
+            self.query_manager = context.query_manager
         """Show main Kodi favorites menu"""
         try:
             self.logger.info("Displaying Kodi favorites menu")
@@ -224,12 +286,11 @@ class FavoritesHandler:
 
             if not user_lists:
                 # No lists available, offer to create one
-                if xbmcgui.Dialog().yesno(
+                if self.dialog_service.yesno(
                     L(35002),  # "LibraryGenie"
                     L(36071),  # "No lists found. Create a new list first?"
-                    "",
-                    nolabel=L(36003),  # "Cancel"
-                    yeslabel=L(37018)   # "Create New List"
+                    yes_label=L(37018),   # "Create New List"
+                    no_label=L(36003)  # "Cancel"
                 ):
                     # Redirect to create list
                     from lib.ui.lists_handler import ListsHandler
@@ -240,7 +301,7 @@ class FavoritesHandler:
 
             # Show list selection dialog
             list_names = [lst['name'] for lst in user_lists]
-            selected_index = xbmcgui.Dialog().select(L(31100), list_names)  # "Select a list"
+            selected_index = self.dialog_service.select(L(31100), list_names)  # "Select a list"
 
             if selected_index < 0:
                 self.logger.info("User cancelled list selection")
@@ -303,9 +364,8 @@ class FavoritesHandler:
                 )
 
             # Prompt for new list name
-            dialog = xbmcgui.Dialog()
             default_name = f"Kodi Favorites Copy - {datetime.now().strftime('%Y-%m-%d')}"
-            new_list_name = dialog.input(L(30590), default_name)  # "Enter list name"
+            new_list_name = self.dialog_service.input(L(30590), default=default_name)  # "Enter list name"
 
             if not new_list_name or not new_list_name.strip():
                 self.logger.info("User cancelled or entered empty list name")
@@ -325,7 +385,7 @@ class FavoritesHandler:
 
             # Ask user if they want to place it in a folder
             folder_names = [L(36032)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
-            selected_folder_index = dialog.select(L(36029), list(folder_names))  # "Select destination folder:"
+            selected_folder_index = self.dialog_service.select(L(36029), list(folder_names))  # "Select destination folder:"
 
             if selected_folder_index < 0:
                 self.logger.info("User cancelled folder selection")
@@ -408,13 +468,18 @@ class FavoritesHandler:
 
             if isinstance(response, DialogResponse) and response.success:
                 if hasattr(response, 'navigate_to_favorites') and response.navigate_to_favorites:
-                    # Navigate back to favorites view after successful scan
-                    import xbmc
-                    xbmc.executebuiltin(f'Container.Update({context.build_url("kodi_favorites")},replace)')
-                    # End directory properly
-                    from lib.ui.nav import finish_directory
-                    finish_directory(context.addon_handle, succeeded=True, update=True)
-                    return
+                    # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
+                    # This eliminates the Container.Update + finish_directory race condition
+                    success = self._render_favorites_directly(context)
+                    if success:
+                        self.logger.debug("FAVORITES: Successfully displayed favorites using direct rendering")
+                        return
+                    else:
+                        self.logger.warning("FAVORITES: Failed direct rendering, falling back to container refresh")
+                        # Fallback to just refreshing instead of navigation
+                        import xbmc
+                        xbmc.executebuiltin('Container.Refresh')
+                        return
 
                 if hasattr(response, 'refresh_needed') and response.refresh_needed:
                     # Refresh the container to show updated favorites
@@ -422,26 +487,58 @@ class FavoritesHandler:
                     xbmc.executebuiltin('Container.Refresh')
 
                 if response.message:
-                    self.error_handler.log_and_notify_success(
+                    self.dialog_service.log_and_notify_success(
                         f"Favorites scan completed: {response.message}",
                         response.message,
                         5000
                     )
             elif isinstance(response, DialogResponse):
                 # Show error message
-                self.error_handler.log_and_notify_error(
+                self.dialog_service.log_and_notify_error(
                     f"Favorites scan failed: {response.message or 'Unknown error'}",
                     response.message or "Scan failed",
                     timeout_ms=5000
                 )
 
         except Exception as e:
-            self.error_handler.handle_exception(
+            self.dialog_service.handle_exception(
                 "scan favorites handler",
                 e,
                 "scanning favorites",
                 timeout_ms=3000
             )
+
+    def _render_favorites_directly(self, context: PluginContext) -> bool:
+        """Directly render favorites list without Container.Update redirect"""
+        try:
+            self.logger.debug("FAVORITES: Directly rendering favorites list")
+
+            # Import handler factory and response handler
+            from lib.ui.handler_factory import get_handler_factory
+            from lib.ui.response_handler import get_response_handler
+
+            factory = get_handler_factory()
+            factory.context = context
+            response_handler = get_response_handler()
+
+            # Call show_favorites directly to get DirectoryResponse
+            directory_response = self.show_favorites(context)
+
+            # Handle the DirectoryResponse
+            success = response_handler.handle_directory_response(directory_response, context)
+
+            if success:
+                self.logger.debug("FAVORITES: Successfully rendered favorites directly")
+                return True
+            else:
+                self.logger.warning("FAVORITES: Failed to handle directory response")
+                return False
+
+        except Exception as e:
+            self.logger.error("FAVORITES: Error rendering favorites directly: %s", e)
+            import traceback
+            self.logger.error("FAVORITES: Direct rendering traceback: %s", traceback.format_exc())
+            return False
 
     def handle_save_favorites_as(self, context: PluginContext) -> None:
         """Handle save favorites as action with navigation"""
@@ -449,7 +546,7 @@ class FavoritesHandler:
             response = self.save_favorites_as(context)
 
             if isinstance(response, DialogResponse) and response.success:
-                self.error_handler.log_and_notify_success(
+                self.dialog_service.log_and_notify_success(
                     f"Favorites saved as new list: {response.message or 'Success'}",
                     response.message or "Favorites saved as new list",
                     5000
@@ -462,14 +559,14 @@ class FavoritesHandler:
 
             elif isinstance(response, DialogResponse):
                 if response.message:
-                    self.error_handler.log_and_notify_error(
+                    self.dialog_service.log_and_notify_error(
                         f"Failed to save favorites as new list: {response.message}",
                         response.message,
                         timeout_ms=5000
                     )
 
         except Exception as e:
-            self.error_handler.handle_exception(
+            self.dialog_service.handle_exception(
                 "save favorites as handler",
                 e,
                 "saving favorites",
@@ -566,10 +663,21 @@ class FavoritesHandler:
             for fav in mapped_favorites:
                 try:
                     # Get enhanced media item data for mapped favorite
-                    media_item = self.query_manager.get_media_item_by_id(fav['media_item_id'])
+                    # Use available query manager method (get_media_item_by_id may not exist)
+                    media_item = None
+                    if hasattr(self.query_manager, 'get_media_item_by_id'):
+                        media_item = self.query_manager.get_media_item_by_id(fav['media_item_id'])
+                    else:
+                        # Fallback to basic favorite data
+                        media_item = None
                     if media_item:
                         # Use enhanced media_items data - no JSON RPC calls needed
-                        listitem, url = self.listitem_builder.build_media_listitem(media_item)
+                        # Use available listitem builder method
+                        if self.listitem_builder and hasattr(self.listitem_builder, 'build_media_listitem'):
+                            listitem, url = self.listitem_builder.build_media_listitem(media_item)
+                        else:
+                            # Fallback to unmapped item builder
+                            listitem, url = self._build_unmapped_favorite_item(fav)
                     else:
                         # Fallback for missing media item
                         listitem, url = self._build_unmapped_favorite_item(fav)

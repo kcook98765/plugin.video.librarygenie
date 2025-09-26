@@ -9,7 +9,7 @@ Common interface for all tools providers
 from abc import ABC, abstractmethod
 from typing import List, Any
 from ..types import ToolAction, ToolsContext
-from lib.utils.error_handler import create_error_handler
+from lib.ui.dialog_service import get_dialog_service
 from lib.ui.response_types import DialogResponse
 
 
@@ -18,7 +18,7 @@ class BaseToolsProvider(ABC):
     
     def __init__(self):
         """Initialize base provider with error handling"""
-        self.error_handler = create_error_handler(self.__class__.__module__)
+        self.dialog = get_dialog_service(self.__class__.__module__)
     
     @abstractmethod
     def build_tools(self, context: ToolsContext, plugin_context: Any) -> List[ToolAction]:
@@ -59,8 +59,9 @@ class BaseToolsProvider(ABC):
                 # to avoid spurious UI notifications
                 return DialogResponse(success=True)
         except Exception as e:
-            self.error_handler.logger.error(f"Error in {operation_name}: %s", e)
-            return DialogResponse(
-                success=False,
-                message=f"Error in {operation_name.replace('_', ' ')}"
+            # Use enhanced DialogService to provide user notification and proper error classification
+            return self.dialog.handle_boundary_exception(
+                operation_name=operation_name,
+                exception=e,
+                user_friendly_action=f"executing {operation_name.replace('_', ' ')}"
             )

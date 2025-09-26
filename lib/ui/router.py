@@ -11,6 +11,8 @@ from lib.ui.plugin_context import PluginContext
 import xbmcgui
 import xbmcplugin
 from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.dialog_service import get_dialog_service
+# Router uses manual error handling due to boolean return type
 
 
 class Router:
@@ -19,6 +21,7 @@ class Router:
     def __init__(self):
         self.logger = get_kodi_logger('lib.ui.router')
         self._handlers: Dict[str, Callable] = {}
+        self.dialog_service = get_dialog_service('lib.ui.router')
 
     def _get_current_route_info(self):
         """Get current route information for navigation decisions"""
@@ -99,8 +102,8 @@ class Router:
             # Tools & Options don't need breadcrumbs - skip for performance
             context.breadcrumb_path = None
 
+        # Handle special router-managed actions
         try:
-            # Handle special router-managed actions
             if action == "show_list_tools":
                 from lib.ui.handler_factory import get_handler_factory
                 from lib.ui.response_handler import get_response_handler
@@ -298,6 +301,26 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
 
+            elif action == 'move_list_to_folder':
+                list_id = params.get('list_id')
+                if list_id:
+                    from lib.ui.handler_factory import get_handler_factory
+                    from lib.ui.response_handler import get_response_handler
+                    factory = get_handler_factory()
+                    factory.context = context
+                    tools_handler = factory.get_tools_handler()
+                    response_handler = get_response_handler()
+                    response = tools_handler.move_list_to_folder(context, str(list_id))
+                    # Auto-refresh after successful list move
+                    if response.success:
+                        response.refresh_needed = True
+                    success = response_handler.handle_dialog_response(response, context)
+                    return bool(success) if success is not None else True
+                else:
+                    self.logger.error("Missing list_id parameter for move_list_to_folder")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
             elif action == 'show_search_history':
                 # Handle search history folder access - look up folder ID only when needed
                 query_manager = context.query_manager
@@ -349,7 +372,7 @@ class Router:
                 return bool(success) if success is not None else True
 
             elif action == "authorize_ai_search":
-                from lib.ai_search_handler import AISearchHandler
+                from lib.ui.ai_search_handler import AISearchHandler
                 ai_handler = AISearchHandler()
                 result = ai_handler.authorize_ai_search(context)
                 return result if isinstance(result, bool) else True
@@ -495,10 +518,10 @@ class Router:
 
             # Show error to user
             try:
-                xbmcgui.Dialog().notification(
-                    context.addon.getLocalizedString(35002),
+                self.dialog_service.notification(
                     f"Error in {action}",
-                    xbmcgui.NOTIFICATION_ERROR
+                    icon="error",
+                    title=context.addon.getLocalizedString(35002)
                 )
             except Exception:
                 pass
@@ -576,10 +599,10 @@ class Router:
             else:
                 self.logger.error("Cannot remove from list: missing item_id, dbtype, or dbid.")
                 try:
-                    xbmcgui.Dialog().notification(
-                        context.addon.getLocalizedString(35002),
+                    self.dialog_service.notification(
                         "Could not remove item from list.",
-                        xbmcgui.NOTIFICATION_ERROR
+                        icon="error",
+                        title=context.addon.getLocalizedString(35002)
                     )
                 except Exception:
                     pass
@@ -600,23 +623,22 @@ class Router:
             # Check server URL first
             if not server_url or len(server_url.strip()) == 0:
                 self.logger.warning("Server URL validation failed - URL: '%s'", server_url)
-                xbmcgui.Dialog().ok(
+                self.dialog_service.ok(
                     "Configuration Required",
                     "Please configure the AI Search Server URL before authorizing.\n\nMake sure it's not empty and contains a valid URL."
                 )
                 return False
 
             # Pop up keyboard for OTP entry
-            dialog = xbmcgui.Dialog()
-            otp_code = dialog.input(
+            otp_code = self.dialog_service.input(
                 "Enter OTP Code",
-                "Enter the 8-digit OTP code from your server:"
+                default="Enter the 8-digit OTP code from your server:"
             )
 
             # Check if user cancelled or entered invalid code
             if not otp_code or len(otp_code.strip()) != 8:
                 if otp_code:  # User entered something but it's invalid
-                    xbmcgui.Dialog().ok(
+                    self.dialog_service.ok(
                         "Invalid OTP Code",
                         "Please enter a valid 8-digit OTP code."
                     )
@@ -642,7 +664,7 @@ class Router:
                     self.logger.info("✅ AI Search activated with server URL: %s", server_url)
 
                     # Show success dialog
-                    xbmcgui.Dialog().ok(
+                    self.dialog_service.ok(
                         "Authorization Complete",
                         f"AI Search activated successfully!\n\nUser: {result.get('user_email', 'Unknown')}"
                     )
@@ -651,7 +673,7 @@ class Router:
                     return True
                 else:
                     # Failed - show error
-                    xbmcgui.Dialog().ok(
+                    self.dialog_service.ok(
                         "Authorization Failed",
                         f"Failed to activate AI Search:\n\n{result['error']}"
                     )
@@ -665,7 +687,7 @@ class Router:
 
         except Exception as e:
             self.logger.error("Error in authorize_ai_search handler: %s", e)
-            xbmcgui.Dialog().ok(
+            self.dialog_service.ok(
                 "Authorization Error",
                 f"An unexpected error occurred:\n\n{str(e)[:100]}..."
             )

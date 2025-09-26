@@ -13,6 +13,7 @@ from lib.ui.response_types import DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
 from lib.data.query_manager import get_query_manager
+from lib.ui.dialog_service import get_dialog_service
 
 
 class FolderOperations:
@@ -21,12 +22,18 @@ class FolderOperations:
     def __init__(self, context: PluginContext):
         self.context = context
         self.logger = get_kodi_logger('lib.ui.folder_operations')
-        # Get query manager with fallback
+        # Get query manager with fallback and validation
         self.query_manager = context.query_manager
         if self.query_manager is None:
             from lib.data.query_manager import get_query_manager
             self.query_manager = get_query_manager()
+            
+        # Final validation - log warning if still None
+        if self.query_manager is None:
+            self.logger.warning("Query manager is None after initialization")
+            
         self.storage_manager = context.storage_manager
+        self.dialog_service = get_dialog_service('lib.ui.folder_operations')
 
     def create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new folder"""
@@ -34,9 +41,9 @@ class FolderOperations:
             context.logger.info("Handling create folder request")
 
             # Get folder name from user
-            folder_name = xbmcgui.Dialog().input(
+            folder_name = self.dialog_service.input(
                 "Enter folder name:", # This string should also be localized
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not folder_name or not folder_name.strip():
@@ -44,7 +51,7 @@ class FolderOperations:
                 return DialogResponse(success=False, message="")
 
             # Use injected query manager and create folder
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -85,7 +92,7 @@ class FolderOperations:
             context.logger.info("Deleting folder %s", folder_id)
 
             # Use injected query manager
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -102,8 +109,8 @@ class FolderOperations:
             folder_name = folder_info.get('name', 'Unnamed Folder')
 
             # Check if folder has lists or subfolders
-            lists_in_folder = self.query_manager.get_lists_in_folder(folder_id)
-            subfolders = self.query_manager.get_all_folders(parent_id=folder_id)
+            lists_in_folder = self.query_manager.get_lists_in_folder(folder_id) or []
+            subfolders = self.query_manager.get_all_folders(parent_id=folder_id) or []
 
             if lists_in_folder or subfolders:
                 # Show warning about contents
@@ -116,13 +123,13 @@ class FolderOperations:
                     "All contents will be permanently removed."
                 ]
 
-                confirm = xbmcgui.Dialog().yesno(
+                confirm = self.dialog_service.yesno(
                     "Delete Folder",
                     "\n".join(dialog_lines)
                 )
             else:
                 # Simple confirmation for empty folder
-                confirm = xbmcgui.Dialog().yesno(
+                confirm = self.dialog_service.yesno(
                     "Delete Folder",
                     f"Delete folder '{folder_name}'?"
                 )
@@ -162,7 +169,7 @@ class FolderOperations:
             context.logger.info("Renaming folder %s", folder_id)
 
             # Use injected query manager
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -178,10 +185,10 @@ class FolderOperations:
                 )
 
             # Get new name from user
-            new_name = xbmcgui.Dialog().input(
+            new_name = self.dialog_service.input(
                 "Enter new folder name:", # This string should also be localized
-                defaultt=folder_info['name'],
-                type=xbmcgui.INPUT_ALPHANUM
+                default=folder_info['name'],
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
 
             if not new_name or not new_name.strip():
@@ -222,9 +229,8 @@ class FolderOperations:
         try:
             context.logger.info("Moving list %s", list_id)
 
-            # Initialize query manager
-            query_manager = get_query_manager()
-            if not query_manager.initialize():
+            # Use injected query manager
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -232,7 +238,7 @@ class FolderOperations:
                 )
 
             # Get current list info
-            list_info = query_manager.get_list_by_id(list_id)
+            list_info = self.query_manager.get_list_by_id(list_id)
             if not list_info:
                 return DialogResponse(
                     success=False,
@@ -243,7 +249,7 @@ class FolderOperations:
             current_folder_id = list_info.get('folder_id')
 
             # Get all available folders
-            all_folders = self.query_manager.get_all_folders()
+            all_folders = self.query_manager.get_all_folders() or []
             folder_options = ["[ROOT] (No folder)"]  # Option for root level
             folder_ids = [None]  # None represents root level
 
@@ -259,8 +265,7 @@ class FolderOperations:
                         break
 
             # Show folder selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(f"Move '{list_name}' to folder:", folder_options)
+            selected_index = self.dialog_service.select(f"Move '{list_name}' to folder:", folder_options)
 
             if selected_index < 0:
                 context.logger.info("User cancelled moving list")
@@ -306,7 +311,7 @@ class FolderOperations:
             context.logger.info("Moving folder %s", folder_id)
 
             # Use injected query manager
-            if not self.query_manager.initialize():
+            if self.query_manager is None or not self.query_manager.initialize():
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
@@ -345,8 +350,7 @@ class FolderOperations:
                         break
 
             # Show folder selection dialog
-            dialog = xbmcgui.Dialog()
-            selected_index = dialog.select(f"Move '{folder_name}' to:", folder_options)
+            selected_index = self.dialog_service.select(f"Move '{folder_name}' to:", folder_options)
 
             if selected_index < 0:
                 context.logger.info("User cancelled moving folder")

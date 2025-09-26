@@ -25,6 +25,7 @@ from lib.search.simple_search_engine import SimpleSearchEngine
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.localization import L
 from lib.ui.menu_builder import MenuBuilder
+from lib.ui.dialog_service import get_dialog_service
 
 try:
     from lib.ui.response_types import DirectoryResponse
@@ -46,6 +47,7 @@ class SearchHandler:
         self.addon_id = self.addon.getAddonInfo('id')
         self._pending_intent = None  # Store navigation intent for execution
         self._force_show_dialog = False  # Force show dialog option
+        self.dialog_service = get_dialog_service('lib.ui.search_handler')
 
     def prompt_and_search(self, context: PluginContext, media_scope: str = "movie") -> bool:
         """Main entry point for simple search"""
@@ -70,21 +72,17 @@ class SearchHandler:
             list_id = self._save_search_history(search_terms, search_options, results)
 
             if list_id:
-                # Always navigate to the saved search list after creating it
-                # The _save_search_history method sets self._pending_intent
-                if self._pending_intent:
-                    # Execute the navigation intent using PUSH semantics
-                    from lib.ui.nav import execute_intent
-                    execute_intent(self._pending_intent)
-                    self._end_directory(succeeded=True, update=False)  # PUSH semantics
+                # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
+                # This eliminates the double endOfDirectory/Container.Update issue that prevents
+                # the search results from displaying in Kodi V22
+                success = self._render_saved_search_list_directly(list_id, context)
+                if success:
+                    self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
                     return True
                 else:
-                    # Fallback: if pending intent wasn't set properly, use direct navigation
-                    list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                    from lib.ui.nav import push
-                    push(list_url)
-                    self._end_directory(succeeded=True, update=False)
-                    return True
+                    self._error(f"Failed to render search results directly for list {list_id}")
+                    self._end_directory(succeeded=False, update=False)
+                    return False
             else:
                 # Failed to save search history, fallback to redirect method
                 self._warn("Failed to save search history, attempting fallback redirect")
@@ -101,9 +99,9 @@ class SearchHandler:
     def _prompt_for_search_terms(self) -> Optional[str]:
         """Prompt user for search keywords"""
         try:
-            terms = xbmcgui.Dialog().input(
+            terms = self.dialog_service.input(
                 L(33002),  # "Enter search terms"
-                type=xbmcgui.INPUT_ALPHANUM
+                input_type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None
         except Exception as e:
@@ -181,13 +179,15 @@ class SearchHandler:
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
 
-                    # Automatically show saved list immediately - use PUSH semantics
+                    # Automatically show saved list immediately - use REPLACE semantics to fix parent path
+                    # This ensures search results have the correct parent (Search History) rather than
+                    # inheriting an incorrect parent path from where the search was initiated
                     from lib.ui.response_types import NavigationIntent
                     list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                    intent = NavigationIntent(url=list_url, mode='push')
+                    intent = NavigationIntent(url=list_url, mode='replace')
                     # Store intent for router to execute
                     self._pending_intent = intent
-                    self._debug(f"Set navigation intent to PUSH to saved list: {list_url}")
+                    self._debug(f"Set navigation intent to REPLACE to saved list: {list_url}")
 
                     return list_id  # Return the list ID on success
                 else:
@@ -255,9 +255,9 @@ class SearchHandler:
 
             self._debug(f"Redirecting to most recent search history list ID: {list_id}")
             list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-            from lib.ui.nav import push
-            push(list_url)  # Use PUSH semantics for search results navigation
-            self._end_directory(succeeded=True, update=False)  # PUSH semantics
+            from lib.ui.nav import replace
+            replace(list_url)  # Use REPLACE semantics to fix parent path for search results
+            self._end_directory(succeeded=True, update=False)  # REPLACE semantics  
             return True
 
         except Exception as e:
@@ -300,10 +300,10 @@ class SearchHandler:
         self.logger.error(msg)
 
     def _notify_info(self, msg: str, ms: int = 4000):
-        xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_INFO, ms)
+        self.dialog_service.notification(msg, icon="info", time_ms=ms, title="LibraryGenie")
 
     def _notify_error(self, msg: str, ms: int = 4000):
-        xbmcgui.Dialog().notification("LibraryGenie", msg, xbmcgui.NOTIFICATION_ERROR, ms)
+        self.dialog_service.notification(msg, icon="error", time_ms=ms, title="LibraryGenie")
 
     def ai_search_prompt(self, context: PluginContext) -> bool:
         """Prompt user for AI search query and perform AI search"""

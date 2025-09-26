@@ -107,10 +107,6 @@ def _show_librarygenie_menu(addon):
             'container_content': xbmc.getInfoLabel('Container.Content'),
             'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
             'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
-            # Try InfoHijack properties as fallback
-            'hijack_dbid': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBID)'),
-            'hijack_dbtype': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.DBType)'),
-            'hijack_armed': xbmc.getInfoLabel('ListItem.Property(LG.InfoHijack.Armed)')
         }
 
 
@@ -123,14 +119,6 @@ def _show_librarygenie_menu(addon):
         dbid = item_info['dbid']
         file_path = item_info['file_path']
 
-        # Use hijack properties as fallback if regular properties are empty
-        if not dbid and item_info['hijack_dbid']:
-            dbid = item_info['hijack_dbid']
-            xbmc.log(f"LibraryGenie: Using hijack DBID fallback: {dbid}", xbmc.LOGINFO)
-
-        if not dbtype and item_info['hijack_dbtype']:
-            dbtype = item_info['hijack_dbtype']
-            xbmc.log(f"LibraryGenie: Using hijack DBType fallback: {dbtype}", xbmc.LOGINFO)
 
         # FIRST: Check if we're in a LibraryGenie context (prioritize this over regular library items)
         container_path = xbmc.getInfoLabel('Container.FolderPath')
@@ -138,8 +126,7 @@ def _show_librarygenie_menu(addon):
         # Check for LibraryGenie context indicators
         is_librarygenie_context = (
             container_path.startswith('plugin://plugin.video.librarygenie/') or
-            (file_path and file_path.startswith('plugin://plugin.video.librarygenie/')) or
-            (item_info.get('hijack_armed') == '1' and item_info.get('hijack_dbid'))
+            (file_path and file_path.startswith('plugin://plugin.video.librarygenie/'))
         )
 
         # Add common LibraryGenie actions in order of priority
@@ -433,11 +420,6 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
 
     xbmc.log(f"LibraryGenie: Current container path: {container_path}", xbmc.LOGINFO)
 
-    # Use hijack properties as fallback
-    if not dbid and item_info.get('hijack_dbid'):
-        dbid = item_info['hijack_dbid']
-    if not dbtype and item_info.get('hijack_dbtype'):
-        dbtype = item_info['hijack_dbtype']
 
     xbmc.log(f"LibraryGenie: _add_librarygenie_item_options - dbtype={dbtype}, dbid={dbid}, media_item_id={media_item_id}", xbmc.LOGINFO)
     xbmc.log(f"LibraryGenie: Container path: {container_path}", xbmc.LOGINFO)
