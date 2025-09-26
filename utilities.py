@@ -23,7 +23,6 @@ if lib_path not in sys.path:
 
 # Now import using absolute paths from lib/
 from utils.kodi_log import log, log_info, log_error
-from utils.error_handler import handle_error_with_notification, handle_success_with_notification
 from utils.boundary_decorators import script_action
 from ui.dialog_service import get_dialog_service
 
@@ -80,8 +79,8 @@ def handle_set_default_list():
         
         query_manager = get_query_manager()
         if not query_manager or not query_manager.initialize():
-            handle_error_with_notification(
-                "utilities.handle_set_default_list",
+            dialog_service = get_dialog_service("utilities.handle_set_default_list")
+            dialog_service.log_and_notify_error(
                 "Database initialization failed",
                 "Database not available"
             )
@@ -154,15 +153,13 @@ def handle_set_default_list():
                 # Update the display setting
                 _update_default_list_display(config, selected_list['id'])
                 
-                handle_success_with_notification(
-                    "utilities.handle_set_default_list",
+                dialog_service.log_and_notify_success(
                     f"Default list set to: {selected_list['name']}",
                     f"Default list set to: {selected_list['name']}"
                 )
                 log_info(f"Default list set to: {selected_list['name']} (ID: {selected_list['id']})")
                 
-                handle_success_with_notification(
-                    "utilities.handle_set_default_list",
+                dialog_service.log_and_notify_success(
                     "Default list updated",
                     "Default list updated. Click OK to save settings."
                 )
@@ -171,8 +168,8 @@ def handle_set_default_list():
     except Exception as e:
         import traceback
         log_error(f"Set default list error traceback: {traceback.format_exc()}")
-        handle_error_with_notification(
-            "utilities.handle_set_default_list",
+        dialog_service = get_dialog_service("utilities.handle_set_default_list")
+        dialog_service.log_and_notify_error(
             f"Error in handle_set_default_list: {e}",
             f"Error setting default list: {str(e)}",
             exception=e
