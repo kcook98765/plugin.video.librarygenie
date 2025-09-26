@@ -1191,10 +1191,25 @@ class ListsHandler:
             if not external_data.get('file_path') and external_data.get('url'):
                 external_data['file_path'] = external_data['url']
             
+            # Determine database-compatible media type
+            if is_bookmark:
+                # Bookmarks must use 'movie' for database compatibility
+                db_media_type = 'movie'
+            else:
+                # For non-bookmarks, check if it's an episode or default to movie
+                if (external_data.get('season') is not None and 
+                    external_data.get('episode') is not None):
+                    db_media_type = 'episode'
+                else:
+                    db_media_type = external_data.get('media_type', 'movie')
+                    # Ensure only valid types reach database
+                    if db_media_type not in ('movie', 'episode'):
+                        db_media_type = 'movie'
+            
             media_item = {
                 'id': f"external_{stable_id}",
                 'title': external_data['title'],
-                'media_type': 'folder' if is_bookmark else external_data.get('media_type', 'movie'),
+                'media_type': db_media_type,
                 'source': 'external'
             }
             
