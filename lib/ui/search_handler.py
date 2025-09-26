@@ -57,10 +57,6 @@ class SearchHandler:
         from lib.ui.session_state import get_session_state
         session_state = get_session_state()
         original_return_location = session_state.get_tools_return_location()
-        
-        # Add platform detection for debugging
-        is_android = xbmc.getCondVisibility('system.platform.android')
-        self._debug(f"SEARCH DEBUG: Platform Android={is_android}, Starting search process")
 
         try:
             # Step 1: Get search keywords
@@ -84,7 +80,6 @@ class SearchHandler:
                 if list_id:
                     # Clear any tools return location to prevent confusion
                     session_state.clear_tools_return_location()
-                    self._debug(f"SEARCH DEBUG: Attempting direct render for list_id={list_id}")
                     
                     # IMPROVED: Use direct rendering with enhanced error handling
                     success = self._render_saved_search_list_directly(list_id, context)
@@ -241,19 +236,13 @@ class SearchHandler:
             return None
 
     def _render_saved_search_list_directly(self, list_id: str, context: PluginContext) -> bool:
-        """Directly render saved search list with platform-specific timing"""
+        """Directly render saved search list with timing to prevent race conditions"""
         try:
             self._debug(f"Directly rendering saved search list ID: {list_id}")
             
-            # Add platform detection and timing adjustment for Android devices
-            is_android = xbmc.getCondVisibility('system.platform.android')
-            self._debug(f"SEARCH DEBUG: Platform Android={is_android}, rendering list {list_id}")
-            
-            if is_android:
-                # Android devices need a small delay for container operations
-                import time
-                time.sleep(0.1)
-                self._debug(f"SEARCH DEBUG: Applied Android timing delay before rendering")
+            # Add small delay to prevent navigation race conditions
+            import time
+            time.sleep(0.1)
 
             # Import and instantiate ListsHandler
             from lib.ui.handler_factory import get_handler_factory
@@ -265,25 +254,18 @@ class SearchHandler:
             response_handler = get_response_handler()
 
             # Directly call view_list with the saved list ID
-            self._debug(f"SEARCH DEBUG: Calling view_list for list {list_id}")
             directory_response = lists_handler.view_list(context, list_id)
 
             # Handle the DirectoryResponse
-            self._debug(f"SEARCH DEBUG: Handling directory response for list {list_id}")
             success = response_handler.handle_directory_response(directory_response, context)
 
             if success:
-                # On Android, wait a bit more to ensure navigation completes
-                if is_android:
-                    import time
-                    time.sleep(0.05)
-                    self._debug(f"SEARCH DEBUG: Applied Android timing delay after successful rendering")
-                
+                # Small delay after successful rendering to ensure navigation completes
+                time.sleep(0.05)
                 self._debug(f"Successfully rendered saved search list {list_id} directly")
                 return True
             else:
                 self._warn(f"Failed to handle directory response for list {list_id}")
-                self._debug(f"SEARCH DEBUG: Directory response handling failed for list {list_id}")
                 return False
 
         except Exception as e:
