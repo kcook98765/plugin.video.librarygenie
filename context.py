@@ -733,15 +733,159 @@ def _handle_external_item_add(addon):
 
         external_data = "&".join(url_params)
 
-        # Launch add to list for external item
-        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&external_item=true&{external_data}"
-        xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+        # Handle bookmark save directly without plugin calls
+        _save_bookmark_directly(cleaned_data, addon)
 
     except Exception as e:
         xbmc.log(f"LibraryGenie external item add error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Failed to process external item",
+            xbmcgui.NOTIFICATION_ERROR,
+            3000
+        )
+
+
+def _save_bookmark_directly(item_data, addon):
+    """Save bookmark directly to database without plugin calls"""
+    try:
+        # Initialize database connection directly
+        from lib.data.query_manager import get_query_manager
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Database initialization failed",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            return
+        
+        # Get all available lists
+        all_lists = query_manager.get_all_lists_with_folders()
+        if not all_lists:
+            # Offer to create a new list
+            if xbmcgui.Dialog().yesno("LibraryGenie", "No lists found. Create a new list?"):
+                list_name = xbmcgui.Dialog().input("Enter list name:", type=xbmcgui.INPUT_ALPHANUM)
+                if list_name:
+                    # Create new list
+                    result = query_manager.create_list(list_name.strip())
+                    if result and result.get('success'):
+                        selected_list_id = result.get('list_id')
+                        selected_list_name = list_name.strip()
+                    else:
+                        xbmcgui.Dialog().notification(
+                            "LibraryGenie",
+                            "Failed to create list",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            3000
+                        )
+                        return
+                else:
+                    return
+            else:
+                return
+        else:
+            # Build list selection options
+            list_options = []
+            list_ids = []
+            
+            for item in all_lists:
+                if item.get('type') == 'list':
+                    list_name = item['name']
+                    list_options.append(list_name)
+                    list_ids.append(item['id'])
+            
+            if not list_options:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "No lists available",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    3000
+                )
+                return
+            
+            # Show list selection dialog
+            selected_index = xbmcgui.Dialog().select(
+                f"Add '{item_data['title']}' to list:",
+                list_options
+            )
+            
+            if selected_index < 0:
+                return  # User cancelled
+            
+            selected_list_id = int(list_ids[selected_index])
+            selected_list_name = list_options[selected_index]
+        
+        # Create stable ID for bookmark
+        import hashlib
+        stable_id = hashlib.sha1(item_data['file_path'].encode('utf-8')).hexdigest()[:16]
+        
+        # Add the bookmark to the selected list
+        try:
+            with query_manager.connection_manager.transaction() as conn:
+                # Use the standard add_item_to_list method
+                result = query_manager.add_item_to_list(
+                    list_id=selected_list_id,
+                    title=item_data['title'],
+                    year=item_data.get('year'),
+                    imdb_id=item_data.get('imdbnumber'),
+                    tmdb_id=item_data.get('tmdb_id'),
+                    kodi_id=item_data.get('kodi_id'),
+                    art_data={},  # Art will be handled separately
+                    tvshowtitle=item_data.get('tvshowtitle'),
+                    season=item_data.get('season'),
+                    episode=item_data.get('episode'),
+                    aired=item_data.get('aired')
+                )
+                
+                # If successful, update the media item to store the bookmark URL
+                if result and result.get('success') and result.get('media_item_id'):
+                    media_item_id = result['media_item_id']
+                    bookmark_url = item_data.get('file_path', '')
+                    
+                    # Update the media item to include bookmark data
+                    conn.execute("""
+                        UPDATE media_items 
+                        SET play = ?, file_path = ?, source = 'bookmark', plot = ?
+                        WHERE id = ?
+                    """, [bookmark_url, bookmark_url, f"Bookmark: {item_data['title']}", media_item_id])
+                    
+                    # Success notification
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"Added '{item_data['title']}' to '{selected_list_name}'",
+                        xbmcgui.NOTIFICATION_INFO,
+                        3000
+                    )
+                    
+                    # Refresh container to show changes if we're in the plugin
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    if 'plugin.video.librarygenie' in container_path:
+                        xbmc.executebuiltin('Container.Refresh')
+                    
+                else:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Failed to add bookmark to list",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    
+        except Exception as e:
+            xbmc.log(f"LibraryGenie bookmark save error: {e}", xbmc.LOGERROR)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to save bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+    
+    except Exception as e:
+        xbmc.log(f"LibraryGenie bookmark save error: {e}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Bookmark save failed",
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )
@@ -819,27 +963,16 @@ def _handle_bookmark_save(action_with_params, addon):
         if thumb:
             art_data['thumb'] = thumb
         
-        # Save via plugin URL (let the router handle the actual saving)
-        encoded_url = urllib.parse.quote(bookmark_url)
-        encoded_name = urllib.parse.quote(bookmark_name)
-        encoded_type = urllib.parse.quote(bookmark_type)
+        # Save bookmark directly without plugin calls
+        bookmark_data = {
+            'title': bookmark_name,
+            'file_path': bookmark_url,
+            'media_type': 'movie',  # Bookmarks use movie type for database compatibility
+            'metadata': metadata,
+            'art_data': art_data
+        }
         
-        plugin_url = f"plugin://plugin.video.librarygenie/?action=save_bookmark_from_context"
-        plugin_url += f"&url={encoded_url}&name={encoded_name}&type={encoded_type}"
-        
-        # Add metadata and art as JSON if present
-        if metadata:
-            import json
-            encoded_metadata = urllib.parse.quote(json.dumps(metadata))
-            plugin_url += f"&metadata={encoded_metadata}"
-        
-        if art_data:
-            import json
-            encoded_art = urllib.parse.quote(json.dumps(art_data))
-            plugin_url += f"&art={encoded_art}"
-        
-        xbmc.log(f"LibraryGenie: Saving bookmark via: {plugin_url}", xbmc.LOGINFO)
-        xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+        _save_bookmark_directly(bookmark_data, addon)
         
     except Exception as e:
         xbmc.log(f"LibraryGenie bookmark save error: {str(e)}", xbmc.LOGERROR)
