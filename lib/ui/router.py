@@ -191,7 +191,7 @@ class Router:
                 bookmarks_handler = factory.get_bookmarks_handler()
                 response_handler = get_response_handler()
                 response = bookmarks_handler.navigate_to_bookmark(context, bookmark_id)
-                return response_handler.handle_dialog_response(response, context)
+                return response_handler.handle_directory_response(response, context)
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
