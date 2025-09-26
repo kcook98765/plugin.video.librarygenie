@@ -1173,12 +1173,28 @@ class ListsHandler:
                 return False
 
             # Convert to format expected by add_to_list system
+            # Check if this is a bookmark and set appropriate metadata
+            is_bookmark = external_data.get('type') == 'bookmark'
+            
+            # Create stable ID for consistent deduplication across sessions
+            import hashlib
+            id_source = external_data.get('file_path', external_data['title'])
+            stable_id = hashlib.sha1(id_source.encode('utf-8')).hexdigest()[:16]
+            
             media_item = {
-                'id': f"external_{hash(external_data.get('file_path', external_data['title']))}",
+                'id': f"external_{stable_id}",
                 'title': external_data['title'],
-                'media_type': external_data.get('media_type', 'movie'),
+                'media_type': 'folder' if is_bookmark else external_data.get('media_type', 'movie'),
                 'source': 'external'
             }
+            
+            # Add bookmark-specific properties for proper navigation
+            if is_bookmark:
+                media_item.update({
+                    'type': 'bookmark',
+                    'mediatype': 'folder',
+                    'is_folder': True
+                })
 
             # Copy over all the gathered metadata
             for key in ['originaltitle', 'year', 'plot', 'rating', 'votes', 'genre',
@@ -1202,47 +1218,64 @@ class ListsHandler:
                 context.logger.error("Failed to initialize query manager")
                 return False
 
-            # Get all available lists
-            all_lists = query_manager.get_all_lists_with_folders()
-            if not all_lists:
-                # Offer to create a new list
-                dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.add_external_item_to_list')
-                
-                if dialog_service.yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
-                    result = self.create_list(context)
-                    if result.success:
-                        # Refresh lists and continue
-                        all_lists = query_manager.get_all_lists_with_folders()
+            # Check if list_id is provided (for direct addition, e.g., from context menu)
+            target_list_id = context.get_param('list_id')
+            dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.add_external_item_to_list')
+            
+            if target_list_id:
+                # Direct addition to specified list
+                try:
+                    selected_list_id = int(target_list_id)
+                    # Verify the list exists
+                    list_info = query_manager.get_list_by_id(selected_list_id)
+                    if not list_info:
+                        dialog_service.show_error("Target list not found") # Localize this string
+                        return False
+                    selected_list_name = list_info.get('name', 'Unknown List')
+                except (ValueError, TypeError):
+                    dialog_service.show_error("Invalid list ID") # Localize this string
+                    return False
+            else:
+                # No list_id provided, show selection dialog
+                # Get all available lists
+                all_lists = query_manager.get_all_lists_with_folders()
+                if not all_lists:
+                    # Offer to create a new list
+                    if dialog_service.yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
+                        result = self.create_list(context)
+                        if result.success:
+                            # Refresh lists and continue
+                            all_lists = query_manager.get_all_lists_with_folders()
+                        else:
+                            return False
                     else:
                         return False
-                else:
+
+                # Build list selection options
+                list_options = []
+                list_ids = []
+
+                for item in all_lists:
+                    if item.get('type') == 'list':
+                        list_name = item['name']
+                        list_options.append(list_name)
+                        list_ids.append(item['id'])
+
+                if not list_options:
+                    dialog_service.show_warning("No lists available") # Localize this string
                     return False
 
-            # Build list selection options
-            list_options = []
-            list_ids = []
+                # Show list selection dialog
+                selected_index = dialog_service.select(
+                    f"Add '{media_item['title']}' to list:", # Localize this string
+                    list_options
+                )
 
-            for item in all_lists:
-                if item.get('type') == 'list':
-                    list_name = item['name']
-                    list_options.append(list_name)
-                    list_ids.append(item['id'])
+                if selected_index < 0:
+                    return False  # User cancelled
 
-            if not list_options:
-                dialog_service.show_warning("No lists available") # Localize this string
-                return False
-
-            # Show list selection dialog
-            selected_index = dialog_service.select(
-                f"Add '{media_item['title']}' to list:", # Localize this string
-                list_options
-            )
-
-            if selected_index < 0:
-                return False  # User cancelled
-
-            selected_list_id = list_ids[selected_index]
-            selected_list_name = list_options[selected_index]
+                selected_list_id = list_ids[selected_index]
+                selected_list_name = list_options[selected_index]
 
             # Add the external item to the selected list
             result = query_manager.add_item_to_list(selected_list_id, media_item)
