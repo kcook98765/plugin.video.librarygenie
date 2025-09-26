@@ -1315,10 +1315,7 @@ class ListsHandler:
                     from lib.utils.kodi_version import get_kodi_major_version
                     import json
                     
-                    # Try using the standard add_item_to_list method first with correct parameters
-                    logger.debug(f"Attempting standard add_item_to_list for bookmark: {media_item['title']}")
-                    
-                    # Use the standard method but with the bookmark URL in plot field since add_item_to_list doesn't handle play field
+                    # Use the standard add_item_to_list method and then update with bookmark data
                     result = query_manager.add_item_to_list(
                         list_id=selected_list_id,
                         title=media_item['title'],
@@ -1338,27 +1335,19 @@ class ListsHandler:
                         media_item_id = result['media_item_id']
                         bookmark_url = external_data.get('url', '')
                         
-                        logger.debug(f"Updating media item {media_item_id} with bookmark URL: {bookmark_url}")
-                        
                         # Update the media item to include bookmark data
                         conn.execute("""
                             UPDATE media_items 
-                            SET play = ?, file_path = ?, source = 'external', plot = ?
+                            SET play = ?, file_path = ?, source = 'bookmark', plot = ?
                             WHERE id = ?
                         """, [bookmark_url, bookmark_url, f"Bookmark: {media_item['title']}", media_item_id])
-                        
-                        logger.debug(f"Successfully updated bookmark data for media item {media_item_id}")
                 
             except Exception as e:
-                logger.error(f"DEBUG: Exception during bookmark save: {e}")
-                import traceback
-                logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
+                logger.error(f"Exception during bookmark save: {e}")
                 result = {'success': False}
             
             if not result:
-                # Manual construction since add_item_to_list failed
                 result = {'success': False}
-                logger.error("DEBUG: Final result is None/False")
             success = result is not None and result.get("success", False)
 
             if success:

@@ -542,23 +542,21 @@ class ListItemBuilder:
             li.setPath(url)
 
             # Keep folder/playable flags correct - IsPlayable="true" only for playable rows
-            # Special handling for bookmarks: Only plugin:// URLs should be treated as navigable folders
-            # External media URLs (http/https video files) should remain playable
-            play_url = item.get('play', '')
+            # Clean handling based on source type
             action = item.get("action", "")
-            is_bookmark = (item.get('source') == 'external' and 
-                          play_url.startswith('plugin://'))
+            source = item.get('source', '')
+            play_url = item.get('play', '')
             
             # Consolidated logic to avoid override issues
             if action == "show_list":
                 is_folder = True  # Lists should be navigable folders
                 is_playable = False
-            elif is_bookmark:
-                # Plugin bookmarks should be navigable folders, not playable items
+            elif source == 'bookmark':
+                # Bookmarks should be navigable folders, not playable items
                 is_folder = True
                 is_playable = False
             else:
-                # Regular external items and media
+                # Regular external items and media (including source='external')
                 is_playable = bool(play_url)
                 is_folder = False
 
