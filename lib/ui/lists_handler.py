@@ -1309,76 +1309,56 @@ class ListsHandler:
 
             # Add the external item to the selected list
             # Use direct database insertion for external items since add_item_to_list is for library items only
-            with query_manager.connection_manager.transaction() as conn:
-                # Create complete media_data for external item
-                from lib.utils.kodi_version import get_kodi_major_version
-                import json
-                
-                kodi_major = get_kodi_major_version()
-                art_dict = media_item.get('art_data', {})
-                
-                # Prepare complete media data for external items
-                media_data = {
-                    'media_type': media_item['media_type'],
-                    'title': media_item['title'],
-                    'year': media_item.get('year', 0),
-                    'imdbnumber': media_item.get('imdbnumber', ''),
-                    'tmdb_id': media_item.get('tmdb_id', ''),
-                    'kodi_id': media_item.get('kodi_id'),
-                    'source': 'external',
-                    'play': external_data.get('url', ''),  # Store bookmark URL here
-                    'file_path': external_data.get('url', ''),  # Also set file_path for compatibility
-                    'plot': f"Bookmark: {media_item['title']}",
-                    'rating': 0.0,
-                    'votes': 0,
-                    'duration': 0,
-                    'mpaa': '',
-                    'genre': '',
-                    'director': '',
-                    'studio': '',
-                    'country': '',
-                    'writer': '',
-                    'cast': '',
-                    'art': json.dumps(query_manager._format_art_for_kodi_version(art_dict, kodi_major)),
-                    'tvshowtitle': media_item.get('tvshowtitle', ''),
-                    'season': media_item.get('season'),
-                    'episode': media_item.get('episode'),
-                    'aired': media_item.get('aired', '')
-                }
-                
-                # Insert the media item
-                media_item_id = query_manager._insert_or_get_media_item(conn, media_data)
-                if not media_item_id:
-                    result = None
-                else:
-                    # Check for duplicates first
-                    existing = conn.execute("SELECT 1 FROM list_items WHERE list_id = ? AND media_item_id = ?", 
-                                           [selected_list_id, media_item_id]).fetchone()
+            try:
+                with query_manager.connection_manager.transaction() as conn:
+                    # Create complete media_data for external item
+                    from lib.utils.kodi_version import get_kodi_major_version
+                    import json
                     
-                    if not existing:
-                        # Add to list - get next position and insert
-                        position_result = conn.execute("SELECT COALESCE(MAX(position), 0) + 1 FROM list_items WHERE list_id = ?", [selected_list_id]).fetchone()
-                        position = position_result[0] if position_result else 1
+                    # Try using the standard add_item_to_list method first with correct parameters
+                    logger.debug(f"Attempting standard add_item_to_list for bookmark: {media_item['title']}")
+                    
+                    # Use the standard method but with the bookmark URL in plot field since add_item_to_list doesn't handle play field
+                    result = query_manager.add_item_to_list(
+                        list_id=selected_list_id,
+                        title=media_item['title'],
+                        year=media_item.get('year'),
+                        imdb_id=media_item.get('imdbnumber'),
+                        tmdb_id=media_item.get('tmdb_id'),
+                        kodi_id=media_item.get('kodi_id'),
+                        art_data=media_item.get('art_data', {}),
+                        tvshowtitle=media_item.get('tvshowtitle'),
+                        season=media_item.get('season'),
+                        episode=media_item.get('episode'),
+                        aired=media_item.get('aired')
+                    )
+                    
+                    # If successful, update the media item to store the bookmark URL
+                    if result and result.get('success') and result.get('media_item_id'):
+                        media_item_id = result['media_item_id']
+                        bookmark_url = external_data.get('url', '')
                         
-                        # Insert list item
+                        logger.debug(f"Updating media item {media_item_id} with bookmark URL: {bookmark_url}")
+                        
+                        # Update the media item to include bookmark data
                         conn.execute("""
-                            INSERT INTO list_items (list_id, media_item_id, position)
-                            VALUES (?, ?, ?)
-                        """, [selected_list_id, media_item_id, position])
-                    else:
-                        position = 0  # Already exists
-                    
-                    # Return success result
-                    result = {
-                        'success': True,
-                        'media_item_id': media_item_id,
-                        'list_id': selected_list_id,
-                        'position': position
-                    }
+                            UPDATE media_items 
+                            SET play = ?, file_path = ?, source = 'external', plot = ?
+                            WHERE id = ?
+                        """, [bookmark_url, bookmark_url, f"Bookmark: {media_item['title']}", media_item_id])
+                        
+                        logger.debug(f"Successfully updated bookmark data for media item {media_item_id}")
+                
+            except Exception as e:
+                logger.error(f"DEBUG: Exception during bookmark save: {e}")
+                import traceback
+                logger.error(f"DEBUG: Traceback: {traceback.format_exc()}")
+                result = {'success': False}
             
             if not result:
                 # Manual construction since add_item_to_list failed
                 result = {'success': False}
+                logger.error("DEBUG: Final result is None/False")
             success = result is not None and result.get("success", False)
 
             if success:
