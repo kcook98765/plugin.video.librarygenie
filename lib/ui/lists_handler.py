@@ -1168,9 +1168,14 @@ class ListsHandler:
                 if key not in ('action', 'external_item'):
                     external_data[key] = value
 
-            if not external_data.get('title'):
-                context.logger.error("No title found for external item")
+            # Get title from either 'title' or 'name' parameter
+            title = external_data.get('title') or external_data.get('name')
+            if not title:
+                context.logger.error("No title or name found for external item")
                 return False
+            
+            # Ensure title is set for downstream processing
+            external_data['title'] = title
 
             # Convert to format expected by add_to_list system
             # Check if this is a bookmark and set appropriate metadata
