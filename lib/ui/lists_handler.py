@@ -1228,6 +1228,11 @@ class ListsHandler:
                        'banner', 'clearlogo', 'imdbnumber', 'file_path']:
                 if key in external_data:
                     media_item[key] = external_data[key]
+            
+            # Ensure the bookmark URL is stored in the play field for navigation
+            if is_bookmark and external_data.get('url'):
+                media_item['play'] = external_data['url']
+                media_item['file_path'] = external_data['url']
 
             # Episode-specific fields
             if external_data.get('media_type') == 'episode':
@@ -1299,24 +1304,81 @@ class ListsHandler:
                 if selected_index < 0:
                     return False  # User cancelled
 
-                selected_list_id = list_ids[selected_index]
+                selected_list_id = int(list_ids[selected_index])  # Ensure integer
                 selected_list_name = list_options[selected_index]
 
             # Add the external item to the selected list
-            # Extract individual parameters from media_item for the query manager
-            result = query_manager.add_item_to_list(
-                list_id=selected_list_id,
-                title=media_item['title'],
-                year=media_item.get('year'),
-                imdb_id=media_item.get('imdbnumber'),
-                tmdb_id=media_item.get('tmdb_id'),
-                kodi_id=media_item.get('kodi_id'),
-                art_data=media_item.get('art_data'),
-                tvshowtitle=media_item.get('tvshowtitle'),
-                season=media_item.get('season'),
-                episode=media_item.get('episode'),
-                aired=media_item.get('aired')
-            )
+            # Use direct database insertion for external items since add_item_to_list is for library items only
+            with query_manager.connection_manager.transaction() as conn:
+                # Create complete media_data for external item
+                from lib.utils.kodi_version import get_kodi_major_version
+                import json
+                
+                kodi_major = get_kodi_major_version()
+                art_dict = media_item.get('art_data', {})
+                
+                # Prepare complete media data for external items
+                media_data = {
+                    'media_type': media_item['media_type'],
+                    'title': media_item['title'],
+                    'year': media_item.get('year', 0),
+                    'imdbnumber': media_item.get('imdbnumber', ''),
+                    'tmdb_id': media_item.get('tmdb_id', ''),
+                    'kodi_id': media_item.get('kodi_id'),
+                    'source': 'external',
+                    'play': external_data.get('url', ''),  # Store bookmark URL here
+                    'file_path': external_data.get('url', ''),  # Also set file_path for compatibility
+                    'plot': f"Bookmark: {media_item['title']}",
+                    'rating': 0.0,
+                    'votes': 0,
+                    'duration': 0,
+                    'mpaa': '',
+                    'genre': '',
+                    'director': '',
+                    'studio': '',
+                    'country': '',
+                    'writer': '',
+                    'cast': '',
+                    'art': json.dumps(query_manager._format_art_for_kodi_version(art_dict, kodi_major)),
+                    'tvshowtitle': media_item.get('tvshowtitle', ''),
+                    'season': media_item.get('season'),
+                    'episode': media_item.get('episode'),
+                    'aired': media_item.get('aired', '')
+                }
+                
+                # Insert the media item
+                media_item_id = query_manager._insert_or_get_media_item(conn, media_data)
+                if not media_item_id:
+                    result = None
+                else:
+                    # Check for duplicates first
+                    existing = conn.execute("SELECT 1 FROM list_items WHERE list_id = ? AND media_item_id = ?", 
+                                           [selected_list_id, media_item_id]).fetchone()
+                    
+                    if not existing:
+                        # Add to list - get next position and insert
+                        position_result = conn.execute("SELECT COALESCE(MAX(position), 0) + 1 FROM list_items WHERE list_id = ?", [selected_list_id]).fetchone()
+                        position = position_result[0] if position_result else 1
+                        
+                        # Insert list item
+                        conn.execute("""
+                            INSERT INTO list_items (list_id, media_item_id, position)
+                            VALUES (?, ?, ?)
+                        """, [selected_list_id, media_item_id, position])
+                    else:
+                        position = 0  # Already exists
+                    
+                    # Return success result
+                    result = {
+                        'success': True,
+                        'media_item_id': media_item_id,
+                        'list_id': selected_list_id,
+                        'position': position
+                    }
+            
+            if not result:
+                # Manual construction since add_item_to_list failed
+                result = {'success': False}
             success = result is not None and result.get("success", False)
 
             if success:
