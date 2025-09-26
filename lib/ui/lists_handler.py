@@ -220,21 +220,62 @@ class ListsHandler:
                 success=False
             )
 
+    def _invalidate_directory_cache(self, reason: str, pattern: str = "all"):
+        """
+        Invalidate directory cache after structural changes.
+        
+        Args:
+            reason: Reason for invalidation (for logging)
+            pattern: Cache pattern to invalidate:
+                    - "all" - invalidate everything
+                    - "lists" - invalidate main lists view
+                    - "folder:{folder_id}" - invalidate specific folder
+        """
+        try:
+            from lib.ui.directory_cache import get_directory_cache_manager
+            from lib.ui.session_state import get_session_state
+            
+            cache_manager = get_directory_cache_manager()
+            session_state = get_session_state()
+            
+            # Increment refresh token to invalidate all cached data for this session
+            session_state.increment_refresh_token()
+            
+            # Also explicitly invalidate cache patterns for immediate effect
+            if pattern == "all":
+                cache_manager.invalidate_cache(reason)
+            else:
+                cache_manager.invalidate_pattern(pattern)
+                
+            self.logger.debug("Cache invalidated - reason: %s, pattern: %s", reason, pattern)
+            
+        except Exception as e:
+            self.logger.error("Error invalidating directory cache: %s", e)
+
     # =================================
     # LIST OPERATION METHODS (delegated to ListOperations)
     # =================================
 
     def create_list(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new list"""
-        return self.list_ops.create_list(context)
+        result = self.list_ops.create_list(context)
+        if result.success:
+            self._invalidate_directory_cache("list_created", "all")
+        return result
 
     def delete_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle deleting a list"""
-        return self.list_ops.delete_list(context, list_id)
+        result = self.list_ops.delete_list(context, list_id)
+        if result.success:
+            self._invalidate_directory_cache("list_deleted", "all")
+        return result
 
     def rename_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle renaming a list"""
-        return self.list_ops.rename_list(context, list_id)
+        result = self.list_ops.rename_list(context, list_id)
+        if result.success:
+            self._invalidate_directory_cache("list_renamed", "all")
+        return result
 
     def remove_from_list(self, context: PluginContext, list_id: str, item_id: str) -> DialogResponse:
         """Handle removing an item from a list"""
@@ -258,23 +299,40 @@ class ListsHandler:
 
     def create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new folder"""
-        return self.folder_ops.create_folder(context)
+        result = self.folder_ops.create_folder(context)
+        if result.success:
+            self._invalidate_directory_cache("folder_created", "all")
+        return result
 
     def delete_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle deleting a folder"""
-        return self.folder_ops.delete_folder(context, folder_id)
+        result = self.folder_ops.delete_folder(context, folder_id)
+        if result.success:
+            self._invalidate_directory_cache("folder_deleted", "all")
+        return result
 
     def rename_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle renaming a folder"""
-        return self.folder_ops.rename_folder(context, folder_id)
+        result = self.folder_ops.rename_folder(context, folder_id)
+        if result.success:
+            # Invalidate the specific folder and lists view  
+            self._invalidate_directory_cache("folder_renamed", f"folder:{folder_id}")
+            self._invalidate_directory_cache("folder_renamed_lists", "lists")
+        return result
 
     def move_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle moving a list to a different folder"""
-        return self.folder_ops.move_list(context, list_id)
+        result = self.folder_ops.move_list(context, list_id)
+        if result.success:
+            self._invalidate_directory_cache("list_moved", "all")
+        return result
 
     def move_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle moving a folder to a different parent folder"""
-        return self.folder_ops.move_folder(context, folder_id)
+        result = self.folder_ops.move_folder(context, folder_id)
+        if result.success:
+            self._invalidate_directory_cache("folder_moved", "all")
+        return result
 
     # =================================
     # IMPORT/EXPORT METHODS (delegated to ImportExportHandler)
@@ -282,15 +340,21 @@ class ListsHandler:
 
     def export_single_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Export a single list to a file"""
+        # Export operations don't change structure, so no cache invalidation needed
         return self.import_export.export_single_list(context, list_id)
 
     def export_folder_lists(self, context: PluginContext, folder_id: str, include_subfolders: bool = False) -> DialogResponse:
         """Export all lists in a folder"""
+        # Export operations don't change structure, so no cache invalidation needed
         return self.import_export.export_folder_lists(context, folder_id, include_subfolders)
 
     def import_lists(self, context: PluginContext) -> DialogResponse:
         """Import lists from a file"""
-        return self.import_export.import_lists(context)
+        result = self.import_export.import_lists(context)
+        if result.success:
+            # Import operations can create new lists and potentially folders
+            self._invalidate_directory_cache("lists_imported", "all")
+        return result
 
     def merge_lists(self, context: PluginContext, source_list_id: str, target_list_id: str) -> DialogResponse:
         """Merge items from source list into target list"""
