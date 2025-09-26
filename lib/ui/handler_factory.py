@@ -6,6 +6,7 @@ LibraryGenie - Handler Factory
 Provides lazy instantiation of handlers to improve plugin startup performance
 """
 
+import time
 from typing import Dict, Optional, Any, Callable
 from lib.utils.kodi_log import get_kodi_logger
 
@@ -22,9 +23,11 @@ class HandlerFactory:
     def get_main_menu_handler(self):
         """Get MainMenuHandler instance (lazy loaded)"""
         if 'main_menu' not in self._handler_cache:
+            handler_start = time.time()
             from lib.ui.main_menu_handler import MainMenuHandler
             self._handler_cache['main_menu'] = MainMenuHandler()
-            self.logger.debug("Created MainMenuHandler instance")
+            handler_time = (time.time() - handler_start) * 1000
+            self.logger.debug("TIMING: MainMenuHandler instantiation took %.2f ms", handler_time)
         return self._handler_cache['main_menu']
 
     def get_search_handler(self):
@@ -38,8 +41,11 @@ class HandlerFactory:
     def get_lists_handler(self):
         """Get lists handler instance"""
         if 'lists' not in self._handler_cache:
+            handler_start = time.time()
             from lib.ui.lists_handler import ListsHandler
             self._handler_cache['lists'] = ListsHandler(self.context)
+            handler_time = (time.time() - handler_start) * 1000
+            self.logger.debug("TIMING: ListsHandler instantiation took %.2f ms", handler_time)
         return self._handler_cache['lists']
 
     def get_favorites_handler(self):
