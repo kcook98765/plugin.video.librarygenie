@@ -816,33 +816,33 @@ def _save_bookmark_directly(item_data, addon):
                 # Build list selection options
                 list_options = []
                 list_ids = []
-            
-            for item in all_lists:
-                if item.get('type') == 'list':
-                    list_name = item['name']
-                    list_options.append(list_name)
-                    list_ids.append(item['id'])
-            
-            if not list_options:
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "No lists available",
-                    xbmcgui.NOTIFICATION_WARNING,
-                    3000
+                
+                for item in all_lists:
+                    if item.get('type') == 'list':
+                        list_name = item['name']
+                        list_options.append(list_name)
+                        list_ids.append(item['id'])
+                
+                if not list_options:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "No lists available",
+                        xbmcgui.NOTIFICATION_WARNING,
+                        3000
+                    )
+                    return
+                
+                # Show list selection dialog
+                selected_index = xbmcgui.Dialog().select(
+                    f"Add '{item_data['title']}' to list:",
+                    list_options
                 )
-                return
-            
-            # Show list selection dialog
-            selected_index = xbmcgui.Dialog().select(
-                f"Add '{item_data['title']}' to list:",
-                list_options
-            )
-            
-            if selected_index < 0:
-                return  # User cancelled
-            
-            selected_list_id = int(list_ids[selected_index])
-            selected_list_name = list_options[selected_index]
+                
+                if selected_index < 0:
+                    return  # User cancelled
+                
+                selected_list_id = int(list_ids[selected_index])
+                selected_list_name = list_options[selected_index]
         
         # Create stable ID for bookmark
         import hashlib
