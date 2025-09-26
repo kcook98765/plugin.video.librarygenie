@@ -657,7 +657,32 @@ class ListsHandler:
     def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Display contents of a specific folder"""
         try:
+            show_folder_start = time.time()
             context.logger.debug("Displaying folder %s", folder_id)
+
+            # CACHE-FIRST STRATEGY: Check cache before any database initialization
+            from lib.ui.directory_cache import get_directory_cache_manager
+            from lib.ui.session_state import get_session_state
+            
+            cache_manager = get_directory_cache_manager()
+            session_state = get_session_state()
+            refresh_token = session_state.get_refresh_token()
+            
+            # Try cache first (no database dependencies)
+            cached_data = cache_manager.get_cached_directory(
+                action='show_folder',
+                params={'folder_id': folder_id},
+                refresh_token=refresh_token
+            )
+            
+            if cached_data:
+                # Cache hit - return immediately without database initialization
+                cache_time = (time.time() - show_folder_start) * 1000
+                context.logger.debug("CACHE HIT: Returned folder %s in %.2f ms (skipped DB init)", folder_id, cache_time)
+                return self._render_cached_directory(context, cached_data)
+
+            # Cache miss - proceed with database initialization
+            context.logger.debug("CACHE MISS: Proceeding with database initialization for folder %s", folder_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -822,6 +847,28 @@ class ListsHandler:
             next_params = current_params  # Same params for folder view
             nav_mode = decide_mode(current_route, next_route, 'folder_view', current_params, next_params)
             update_listing = (nav_mode == 'replace')
+
+            # Cache the fresh data for future requests (adaptive TTL)
+            # Note: batch navigation query is already fast, but cache saves initialization overhead
+            cache_manager.adapt_ttl_for_device(50)  # Folder views are fast due to batch optimization
+            
+            # Prepare data for caching (menu items + metadata)
+            cache_data = {
+                'menu_items': menu_items,
+                'update_listing': update_listing,
+                'folder_id': folder_id
+            }
+            
+            # Cache for future requests
+            cache_manager.cache_directory(
+                action='show_folder',
+                params={'folder_id': folder_id},
+                refresh_token=refresh_token,
+                data=cache_data
+            )
+            
+            total_time = (time.time() - show_folder_start) * 1000
+            context.logger.debug("TIMING: Total show_folder execution took %.2f ms (cached for future)", total_time)
 
             return DirectoryResponse(
                 items=menu_items,
