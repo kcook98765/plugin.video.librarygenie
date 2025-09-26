@@ -1343,7 +1343,7 @@ class ListsHandler:
                         """, [bookmark_url, bookmark_url, f"Bookmark: {media_item['title']}", media_item_id])
                 
             except Exception as e:
-                logger.error(f"Exception during bookmark save: {e}")
+                context.logger.error(f"Exception during bookmark save: {e}")
                 result = {'success': False}
             
             if not result:
