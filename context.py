@@ -852,11 +852,30 @@ def _handle_bookmark_save(action_with_params, addon):
 
 
 def _handle_bookmark_confirmation(addon):
-    """Show confirmation dialog for bookmark saving with name editing"""
+    """Show confirmation dialog for bookmark saving with name editing and folder selection"""
     try:
         # Get current location information
         container_path = xbmc.getInfoLabel('Container.FolderPath')
-        container_label = xbmc.getInfoLabel('Container.Label') or 'Current Folder'
+        
+        # Try multiple methods to get a good default name
+        container_label = (
+            xbmc.getInfoLabel('Container.FolderName') or
+            xbmc.getInfoLabel('Container.Label') or 
+            xbmc.getInfoLabel('ListItem.Label') or
+            'Current Folder'
+        )
+        
+        # Fallback: extract name from path if label is empty or generic
+        if not container_label or container_label in ('Container.Label', 'Container.FolderName', ''):
+            if container_path:
+                # Extract meaningful name from URL path
+                import re
+                # Try to extract addon name or path segment
+                path_match = re.search(r'plugin://([^/]+)', container_path)
+                if path_match:
+                    container_label = path_match.group(1).replace('plugin.', '').replace('.', ' ').title()
+                else:
+                    container_label = 'Current Folder'
         
         if not container_path:
             xbmcgui.Dialog().notification(
@@ -870,29 +889,47 @@ def _handle_bookmark_confirmation(addon):
         # Show dialog to edit bookmark name
         dialog = xbmcgui.Dialog()
         
-        # Ask user to confirm and edit bookmark name
+        # Step 1: Ask user to confirm and edit bookmark name
         bookmark_name = dialog.input(
-            "Save Bookmark",
+            "Bookmark Name",
             container_label,
             xbmcgui.INPUT_ALPHANUM
         )
         
-        if bookmark_name:  # User didn't cancel
-            # URL encode the parameters
-            bookmark_url = urllib.parse.quote(container_path)
-            encoded_name = urllib.parse.quote(bookmark_name)
+        if not bookmark_name:  # User cancelled
+            return
             
-            # Execute the bookmark save action
-            plugin_url = f"plugin://plugin.video.librarygenie/?action=save_bookmark&url={bookmark_url}&name={encoded_name}"
-            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+        # Step 2: Ask user to choose bookmark category/folder
+        category_options = [
+            "General",
+            "Movies", 
+            "TV Shows",
+            "Music",
+            "Addons",
+            "Network Sources",
+            "File Sources"
+        ]
+        
+        selected_category = dialog.select(
+            "Choose Bookmark Category",
+            category_options
+        )
+        
+        if selected_category == -1:  # User cancelled
+            return
             
-            # Show confirmation
-            dialog.notification(
-                "LibraryGenie",
-                f"Bookmark '{bookmark_name}' saved",
-                xbmcgui.NOTIFICATION_INFO,
-                3000
-            )
+        category = category_options[selected_category]
+        
+        # URL encode the parameters  
+        bookmark_url = urllib.parse.quote(container_path)
+        encoded_name = urllib.parse.quote(bookmark_name)
+        encoded_category = urllib.parse.quote(category)
+        
+        # Execute the bookmark save action with category
+        plugin_url = f"plugin://plugin.video.librarygenie/?action=save_bookmark&url={bookmark_url}&name={encoded_name}&category={encoded_category}"
+        xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+        
+        # Note: Success/failure notification is now handled by the router after actual save operation
         
     except Exception as e:
         xbmc.log(f"LibraryGenie bookmark confirmation error: {str(e)}", xbmc.LOGERROR)
