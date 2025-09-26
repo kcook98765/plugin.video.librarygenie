@@ -14,7 +14,7 @@ from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
 from lib.utils.kodi_log import get_kodi_logger
-from lib.utils.error_handler import create_error_handler
+# Error handling now consolidated in DialogService
 from lib.ui.dialog_service import get_dialog_service
 
 
@@ -23,7 +23,7 @@ class FavoritesHandler:
 
     def __init__(self, context: Optional[PluginContext] = None):
         self.logger = get_kodi_logger('lib.ui.favorites_handler')
-        self.error_handler = create_error_handler('lib.ui.favorites_handler')
+        # Unified dialog service handles both UI interactions and error handling
         self.dialog_service = get_dialog_service('lib.ui.favorites_handler')
         
         # Initialize context and related components
@@ -487,21 +487,21 @@ class FavoritesHandler:
                     xbmc.executebuiltin('Container.Refresh')
 
                 if response.message:
-                    self.error_handler.log_and_notify_success(
+                    self.dialog_service.log_and_notify_success(
                         f"Favorites scan completed: {response.message}",
                         response.message,
                         5000
                     )
             elif isinstance(response, DialogResponse):
                 # Show error message
-                self.error_handler.log_and_notify_error(
+                self.dialog_service.log_and_notify_error(
                     f"Favorites scan failed: {response.message or 'Unknown error'}",
                     response.message or "Scan failed",
                     timeout_ms=5000
                 )
 
         except Exception as e:
-            self.error_handler.handle_exception(
+            self.dialog_service.handle_exception(
                 "scan favorites handler",
                 e,
                 "scanning favorites",
@@ -546,7 +546,7 @@ class FavoritesHandler:
             response = self.save_favorites_as(context)
 
             if isinstance(response, DialogResponse) and response.success:
-                self.error_handler.log_and_notify_success(
+                self.dialog_service.log_and_notify_success(
                     f"Favorites saved as new list: {response.message or 'Success'}",
                     response.message or "Favorites saved as new list",
                     5000
@@ -559,14 +559,14 @@ class FavoritesHandler:
 
             elif isinstance(response, DialogResponse):
                 if response.message:
-                    self.error_handler.log_and_notify_error(
+                    self.dialog_service.log_and_notify_error(
                         f"Failed to save favorites as new list: {response.message}",
                         response.message,
                         timeout_ms=5000
                     )
 
         except Exception as e:
-            self.error_handler.handle_exception(
+            self.dialog_service.handle_exception(
                 "save favorites as handler",
                 e,
                 "saving favorites",

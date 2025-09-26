@@ -8,7 +8,7 @@ Decorators for UI boundaries, provider actions, and script entry points
 
 import functools
 from typing import Callable, Any, List, Optional
-from .error_handler import create_error_handler
+from lib.ui.dialog_service import get_dialog_service
 from lib.ui.response_types import DialogResponse, DirectoryResponse
 
 
@@ -30,8 +30,8 @@ def ui_boundary(operation_name: str, user_friendly_action: str,
                 # For operations that shouldn't notify, just execute normally
                 return func(*args, **kwargs)
             
-            # Create error handler for this boundary
-            error_handler = create_error_handler(f"{func.__module__}.{func.__name__}")
+            # Create dialog service for this boundary
+            dialog_service = get_dialog_service(f"{func.__module__}.{func.__name__}")
             
             try:
                 result = func(*args, **kwargs)
@@ -39,7 +39,7 @@ def ui_boundary(operation_name: str, user_friendly_action: str,
                 
             except Exception as e:
                 # Handle the exception with cleanup
-                dialog_response = error_handler.handle_boundary_exception(
+                dialog_response = dialog_service.handle_boundary_exception(
                     operation_name=operation_name,
                     exception=e,
                     user_friendly_action=user_friendly_action,
@@ -72,8 +72,8 @@ def provider_action(operation_name: str, user_friendly_action: str,
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Create error handler for this boundary
-            error_handler = create_error_handler(f"{func.__module__}.{func.__name__}")
+            # Create dialog service for this boundary
+            dialog_service = get_dialog_service(f"{func.__module__}.{func.__name__}")
             
             try:
                 result = func(*args, **kwargs)
@@ -88,7 +88,7 @@ def provider_action(operation_name: str, user_friendly_action: str,
             except Exception as e:
                 # Handle the exception with cleanup and user notification (if enabled)
                 if notify:
-                    return error_handler.handle_boundary_exception(
+                    return dialog_service.handle_boundary_exception(
                         operation_name=operation_name,
                         exception=e,
                         user_friendly_action=user_friendly_action,
@@ -96,7 +96,7 @@ def provider_action(operation_name: str, user_friendly_action: str,
                     )
                 else:
                     # Log only, no notification
-                    error_handler.logger.error(f"Error in {operation_name}: {e}")
+                    dialog_service.logger.error(f"Error in {operation_name}: {e}")
                     return DialogResponse(success=False, message=f"Error in {operation_name.replace('_', ' ')}")
                 
         return wrapper
@@ -116,15 +116,15 @@ def script_action(operation_name: str, user_friendly_action: str,
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Create error handler for this boundary
-            error_handler = create_error_handler(f"{func.__module__}.{func.__name__}")
+            # Create dialog service for this boundary
+            dialog_service = get_dialog_service(f"{func.__module__}.{func.__name__}")
             
             try:
                 return func(*args, **kwargs)
                 
             except Exception as e:
                 # Handle the exception with cleanup
-                error_handler.handle_boundary_exception(
+                dialog_service.handle_boundary_exception(
                     operation_name=operation_name,
                     exception=e,
                     user_friendly_action=user_friendly_action,
@@ -149,18 +149,18 @@ def safe_operation(operation_name: str, logger_name: Optional[str] = None,
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            # Create error handler for this operation
+            # Create dialog service for this operation
             handler_logger_name = logger_name or f"{func.__module__}.{func.__name__}"
-            error_handler = create_error_handler(handler_logger_name)
+            dialog_service = get_dialog_service(handler_logger_name)
             
             try:
                 return func(*args, **kwargs)
                 
             except Exception as e:
                 if log_only:
-                    error_handler.logger.error(f"Error in {operation_name}: {e}")
+                    dialog_service.logger.error(f"Error in {operation_name}: {e}")
                 else:
-                    error_handler.logger.warning(f"Error in {operation_name}: {e}")
+                    dialog_service.logger.warning(f"Error in {operation_name}: {e}")
                 
                 # Re-raise for caller to handle appropriately
                 raise

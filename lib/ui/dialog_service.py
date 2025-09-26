@@ -180,7 +180,7 @@ class DialogService:
         """Show warning notification"""
         self.notification(message, icon="warning", title=title, time_ms=time_ms)
     
-    # Combined Error Handling Methods (integrating ErrorHandler functionality)
+    # Combined Error Handling Methods (consolidated error handling functionality)
     
     def log_and_notify_error(self, 
                            log_message: str, 
@@ -268,6 +268,72 @@ class DialogService:
             timeout_ms=timeout_ms,
             show_traceback=show_traceback
         )
+
+    def build_error_dialog_response(self, operation_name: str, exception: Exception, 
+                                   default_message: Optional[str] = None):
+        """
+        Build a DialogResponse for boundary error handling
+        
+        Args:
+            operation_name: Name of the operation that failed
+            exception: The exception that occurred
+            default_message: Default user message if exception doesn't provide one
+            
+        Returns:
+            DialogResponse indicating failure with appropriate message
+        """
+        from lib.utils.errors import LibraryGenieError, CancelledError
+        from lib.ui.response_types import DialogResponse
+        
+        if isinstance(exception, CancelledError):
+            # User cancellation - success=False but no error message to avoid notification
+            return DialogResponse(success=False)
+        elif isinstance(exception, LibraryGenieError) and exception.user_message:
+            # Use the exception's user-friendly message
+            return DialogResponse(success=False, message=exception.user_message)
+        else:
+            # Use provided default or generate generic message
+            message = default_message or f"Error in {operation_name.replace('_', ' ')}"
+            return DialogResponse(success=False, message=message)
+
+    def handle_boundary_exception(self, operation_name: str, exception: Exception,
+                                 user_friendly_action: str, 
+                                 cleanup_functions: Optional[list] = None,
+                                 timeout_ms: int = 5000):
+        """
+        Handle exception at UI/router/provider boundaries with cleanup
+        
+        Args:
+            operation_name: Name of the operation that failed
+            exception: The exception that occurred
+            user_friendly_action: User-friendly description of what was being done
+            cleanup_functions: List of functions to call for cleanup
+            timeout_ms: Notification timeout in milliseconds
+            
+        Returns:
+            DialogResponse indicating the result
+        """
+        from lib.ui.response_types import DialogResponse
+        
+        try:
+            # Run cleanup functions
+            if cleanup_functions:
+                for cleanup_func in cleanup_functions:
+                    try:
+                        cleanup_func()
+                    except Exception as cleanup_error:
+                        self.logger.warning(f"Cleanup function failed: {cleanup_error}")
+            
+            # Handle the original exception
+            self.handle_exception(operation_name, exception, user_friendly_action, timeout_ms)
+            
+            # Build appropriate response
+            return self.build_error_dialog_response(operation_name, exception, 
+                                                   f"Error {user_friendly_action}")
+        except Exception as handler_error:
+            # Error in error handler itself - log and return basic response
+            self.logger.error(f"Error in boundary exception handler: {handler_error}")
+            return DialogResponse(success=False, message=f"Error {user_friendly_action}")
 
 
 # Global instance management
