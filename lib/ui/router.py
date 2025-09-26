@@ -160,6 +160,38 @@ class Router:
             elif action == 'save_bookmark_from_context':
                 # Handle bookmark saving from context menu
                 return self._handle_bookmark_save(context)
+            elif action == 'show_bookmarks':
+                # Show main bookmarks menu
+                from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
+                factory = get_handler_factory()
+                factory.context = context
+                bookmarks_handler = factory.get_bookmarks_handler()
+                response_handler = get_response_handler()
+                response = bookmarks_handler.show_bookmarks_menu(context)
+                return response_handler.handle_directory_response(response, context)
+            elif action == 'show_bookmark_folder':
+                # Show bookmarks in a specific folder
+                folder_id = context.get_param('folder_id')
+                from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
+                factory = get_handler_factory()
+                factory.context = context
+                bookmarks_handler = factory.get_bookmarks_handler()
+                response_handler = get_response_handler()
+                response = bookmarks_handler.show_bookmark_folder(context, folder_id)
+                return response_handler.handle_directory_response(response, context)
+            elif action == 'navigate_to_bookmark':
+                # Navigate to a saved bookmark
+                bookmark_id = context.get_param('bookmark_id')
+                from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
+                factory = get_handler_factory()
+                factory.context = context
+                bookmarks_handler = factory.get_bookmarks_handler()
+                response_handler = get_response_handler()
+                response = bookmarks_handler.navigate_to_bookmark(context, bookmark_id)
+                return response_handler.handle_dialog_response(response, context)
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
