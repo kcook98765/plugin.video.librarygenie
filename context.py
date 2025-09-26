@@ -956,9 +956,9 @@ def _handle_bookmark_confirmation(addon):
                 for item in all_lists:
                     folder_path = item.get('folder_name', '')  # Use folder_name from query result
                     if folder_path:
-                        label = f"{folder_path} > {item['name']} ({item.get('item_count', 0)} items)"
+                        label = f"{folder_path} > {item['name']}"
                     else:
-                        label = f"{item['name']} ({item.get('item_count', 0)} items)"
+                        label = f"{item['name']}"
                     list_options.append(label)
                     list_ids.append(str(item['id']))
                 
