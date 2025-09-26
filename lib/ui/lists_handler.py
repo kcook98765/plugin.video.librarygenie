@@ -1183,8 +1183,13 @@ class ListsHandler:
             
             # Create stable ID for consistent deduplication across sessions
             import hashlib
-            id_source = external_data.get('file_path', external_data['title'])
+            # Use 'url' field from context menu or 'file_path' if already processed
+            id_source = external_data.get('url') or external_data.get('file_path', external_data['title'])
             stable_id = hashlib.sha1(id_source.encode('utf-8')).hexdigest()[:16]
+            
+            # Ensure file_path is set for bookmark navigation (using 'url' from context)
+            if not external_data.get('file_path') and external_data.get('url'):
+                external_data['file_path'] = external_data['url']
             
             media_item = {
                 'id': f"external_{stable_id}",
@@ -1283,7 +1288,20 @@ class ListsHandler:
                 selected_list_name = list_options[selected_index]
 
             # Add the external item to the selected list
-            result = query_manager.add_item_to_list(selected_list_id, media_item)
+            # Extract individual parameters from media_item for the query manager
+            result = query_manager.add_item_to_list(
+                list_id=selected_list_id,
+                title=media_item['title'],
+                year=media_item.get('year'),
+                imdb_id=media_item.get('imdbnumber'),
+                tmdb_id=media_item.get('tmdb_id'),
+                kodi_id=media_item.get('kodi_id'),
+                art_data=media_item.get('art_data'),
+                tvshowtitle=media_item.get('tvshowtitle'),
+                season=media_item.get('season'),
+                episode=media_item.get('episode'),
+                aired=media_item.get('aired')
+            )
             success = result is not None and result.get("success", False)
 
             if success:
