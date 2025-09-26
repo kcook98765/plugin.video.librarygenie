@@ -175,107 +175,21 @@ class ListsHandler:
             else:
                 list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
 
-    def _render_cached_directory(self, context: PluginContext, cached_data: Dict[str, Any]) -> DirectoryResponse:
-        """
-        Render directory from cached data without database initialization.
-        This provides maximum performance by skipping all database overhead.
-        """
-        try:
-            menu_items = cached_data['menu_items']
-            is_refresh = cached_data.get('is_refresh', False)
-            
-            # Build directory items from cached menu data
-            for item in menu_items:
-                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
-
-                if 'description' in item:
-                    self._set_listitem_plot(list_item, item['description'])
-
-                # Apply custom art based on item type
-                self._set_custom_art_for_item(list_item, item)
-
-                if 'context_menu' in item:
-                    list_item.addContextMenuItems(item['context_menu'])
-
-                xbmcplugin.addDirectoryItem(
-                    context.addon_handle,
-                    item['url'],
-                    list_item,
-                    item['is_folder']
-                )
-
-            return DirectoryResponse(
-                items=menu_items,
-                success=True,
-                content_type="files",
-                update_listing=is_refresh,
-                intent=None
-            )
-            
-        except Exception as e:
-            self.logger.error("Error rendering cached directory: %s", e)
-            # Fall back to fresh data if cache rendering fails
-            return DirectoryResponse(
-                items=[],
-                success=False
-            )
-
-    def _invalidate_directory_cache(self, reason: str, pattern: str = "all"):
-        """
-        Invalidate directory cache after structural changes.
-        
-        Args:
-            reason: Reason for invalidation (for logging)
-            pattern: Cache pattern to invalidate:
-                    - "all" - invalidate everything
-                    - "lists" - invalidate main lists view
-                    - "folder:{folder_id}" - invalidate specific folder
-        """
-        try:
-            from lib.ui.directory_cache import get_directory_cache_manager
-            from lib.ui.session_state import get_session_state
-            
-            cache_manager = get_directory_cache_manager()
-            session_state = get_session_state()
-            
-            # Increment refresh token to invalidate all cached data for this session
-            session_state.increment_refresh_token()
-            
-            # Also explicitly invalidate cache patterns for immediate effect
-            if pattern == "all":
-                cache_manager.invalidate_cache(reason)
-            else:
-                cache_manager.invalidate_pattern(pattern)
-                
-            self.logger.debug("Cache invalidated - reason: %s, pattern: %s", reason, pattern)
-            
-        except Exception as e:
-            self.logger.error("Error invalidating directory cache: %s", e)
-
     # =================================
     # LIST OPERATION METHODS (delegated to ListOperations)
     # =================================
 
     def create_list(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new list"""
-        result = self.list_ops.create_list(context)
-        if result.success:
-            self._invalidate_directory_cache("list_created", "all")
-        return result
+        return self.list_ops.create_list(context)
 
     def delete_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle deleting a list"""
-        result = self.list_ops.delete_list(context, list_id)
-        if result.success:
-            self._invalidate_directory_cache("list_deleted", "all")
-        return result
+        return self.list_ops.delete_list(context, list_id)
 
     def rename_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle renaming a list"""
-        result = self.list_ops.rename_list(context, list_id)
-        if result.success:
-            self._invalidate_directory_cache("list_renamed", "all")
-        return result
+        return self.list_ops.rename_list(context, list_id)
 
     def remove_from_list(self, context: PluginContext, list_id: str, item_id: str) -> DialogResponse:
         """Handle removing an item from a list"""
@@ -299,40 +213,23 @@ class ListsHandler:
 
     def create_folder(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new folder"""
-        result = self.folder_ops.create_folder(context)
-        if result.success:
-            self._invalidate_directory_cache("folder_created", "all")
-        return result
+        return self.folder_ops.create_folder(context)
 
     def delete_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle deleting a folder"""
-        result = self.folder_ops.delete_folder(context, folder_id)
-        if result.success:
-            self._invalidate_directory_cache("folder_deleted", "all")
-        return result
+        return self.folder_ops.delete_folder(context, folder_id)
 
     def rename_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle renaming a folder"""
-        result = self.folder_ops.rename_folder(context, folder_id)
-        if result.success:
-            # Invalidate the specific folder and lists view  
-            self._invalidate_directory_cache("folder_renamed", f"folder:{folder_id}")
-            self._invalidate_directory_cache("folder_renamed_lists", "lists")
-        return result
+        return self.folder_ops.rename_folder(context, folder_id)
 
     def move_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Handle moving a list to a different folder"""
-        result = self.folder_ops.move_list(context, list_id)
-        if result.success:
-            self._invalidate_directory_cache("list_moved", "all")
-        return result
+        return self.folder_ops.move_list(context, list_id)
 
     def move_folder(self, context: PluginContext, folder_id: str) -> DialogResponse:
         """Handle moving a folder to a different parent folder"""
-        result = self.folder_ops.move_folder(context, folder_id)
-        if result.success:
-            self._invalidate_directory_cache("folder_moved", "all")
-        return result
+        return self.folder_ops.move_folder(context, folder_id)
 
     # =================================
     # IMPORT/EXPORT METHODS (delegated to ImportExportHandler)
@@ -340,21 +237,15 @@ class ListsHandler:
 
     def export_single_list(self, context: PluginContext, list_id: str) -> DialogResponse:
         """Export a single list to a file"""
-        # Export operations don't change structure, so no cache invalidation needed
         return self.import_export.export_single_list(context, list_id)
 
     def export_folder_lists(self, context: PluginContext, folder_id: str, include_subfolders: bool = False) -> DialogResponse:
         """Export all lists in a folder"""
-        # Export operations don't change structure, so no cache invalidation needed
         return self.import_export.export_folder_lists(context, folder_id, include_subfolders)
 
     def import_lists(self, context: PluginContext) -> DialogResponse:
         """Import lists from a file"""
-        result = self.import_export.import_lists(context)
-        if result.success:
-            # Import operations can create new lists and potentially folders
-            self._invalidate_directory_cache("lists_imported", "all")
-        return result
+        return self.import_export.import_lists(context)
 
     def merge_lists(self, context: PluginContext, source_list_id: str, target_list_id: str) -> DialogResponse:
         """Merge items from source list into target list"""
@@ -390,30 +281,6 @@ class ListsHandler:
             show_lists_start = time.time()
             context.logger.debug("Displaying lists menu")
 
-            # CACHE-FIRST STRATEGY: Check cache before any database initialization
-            from lib.ui.directory_cache import get_directory_cache_manager
-            from lib.ui.session_state import get_session_state
-            
-            cache_manager = get_directory_cache_manager()
-            session_state = get_session_state()
-            refresh_token = session_state.get_refresh_token()
-            
-            # Try cache first (no database dependencies)
-            cached_data = cache_manager.get_cached_directory(
-                action='show_lists_menu',
-                params={},
-                refresh_token=refresh_token
-            )
-            
-            if cached_data:
-                # Cache hit - return immediately without database initialization
-                cache_time = (time.time() - show_lists_start) * 1000
-                context.logger.debug("CACHE HIT: Returned lists menu in %.2f ms (skipped DB init)", cache_time)
-                return self._render_cached_directory(context, cached_data)
-
-            # Cache miss - proceed with database initialization
-            context.logger.debug("CACHE MISS: Proceeding with database initialization")
-            
             # Initialize query manager
             query_manager = get_query_manager()
 
@@ -681,27 +548,8 @@ class ListsHandler:
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
-            # Cache the fresh data for future requests (adaptive TTL)
-            db_time_ms = locals().get('db_query_time', 0) + locals().get('folders_query_time', 0)
-            cache_manager.adapt_ttl_for_device(db_time_ms)
-            
-            # Prepare data for caching (menu items + metadata)
-            cache_data = {
-                'menu_items': menu_items,
-                'is_refresh': is_refresh,
-                'db_time_ms': db_time_ms
-            }
-            
-            # Cache for future requests
-            cache_manager.cache_directory(
-                action='show_lists_menu',
-                params={},
-                refresh_token=refresh_token,
-                data=cache_data
-            )
-            
             total_time = (time.time() - show_lists_start) * 1000
-            context.logger.debug("TIMING: Total show_lists_menu execution took %.2f ms (cached for future)", total_time)
+            context.logger.debug("TIMING: Total show_lists_menu execution took %.2f ms", total_time)
             
             return DirectoryResponse(
                 items=menu_items,
@@ -721,32 +569,7 @@ class ListsHandler:
     def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Display contents of a specific folder"""
         try:
-            show_folder_start = time.time()
             context.logger.debug("Displaying folder %s", folder_id)
-
-            # CACHE-FIRST STRATEGY: Check cache before any database initialization
-            from lib.ui.directory_cache import get_directory_cache_manager
-            from lib.ui.session_state import get_session_state
-            
-            cache_manager = get_directory_cache_manager()
-            session_state = get_session_state()
-            refresh_token = session_state.get_refresh_token()
-            
-            # Try cache first (no database dependencies)
-            cached_data = cache_manager.get_cached_directory(
-                action='show_folder',
-                params={'folder_id': folder_id},
-                refresh_token=refresh_token
-            )
-            
-            if cached_data:
-                # Cache hit - return immediately without database initialization
-                cache_time = (time.time() - show_folder_start) * 1000
-                context.logger.debug("CACHE HIT: Returned folder %s in %.2f ms (skipped DB init)", folder_id, cache_time)
-                return self._render_cached_directory(context, cached_data)
-
-            # Cache miss - proceed with database initialization
-            context.logger.debug("CACHE MISS: Proceeding with database initialization for folder %s", folder_id)
 
             # Initialize query manager
             query_manager = get_query_manager()
@@ -911,28 +734,6 @@ class ListsHandler:
             next_params = current_params  # Same params for folder view
             nav_mode = decide_mode(current_route, next_route, 'folder_view', current_params, next_params)
             update_listing = (nav_mode == 'replace')
-
-            # Cache the fresh data for future requests (adaptive TTL)
-            # Note: batch navigation query is already fast, but cache saves initialization overhead
-            cache_manager.adapt_ttl_for_device(50)  # Folder views are fast due to batch optimization
-            
-            # Prepare data for caching (menu items + metadata)
-            cache_data = {
-                'menu_items': menu_items,
-                'update_listing': update_listing,
-                'folder_id': folder_id
-            }
-            
-            # Cache for future requests
-            cache_manager.cache_directory(
-                action='show_folder',
-                params={'folder_id': folder_id},
-                refresh_token=refresh_token,
-                data=cache_data
-            )
-            
-            total_time = (time.time() - show_folder_start) * 1000
-            context.logger.debug("TIMING: Total show_folder execution took %.2f ms (cached for future)", total_time)
 
             return DirectoryResponse(
                 items=menu_items,
