@@ -761,34 +761,61 @@ def _save_bookmark_directly(item_data, addon):
             )
             return
         
-        # Get all available lists
-        all_lists = query_manager.get_all_lists_with_folders()
-        if not all_lists:
-            # Offer to create a new list
-            if xbmcgui.Dialog().yesno("LibraryGenie", "No lists found. Create a new list?"):
-                list_name = xbmcgui.Dialog().input("Enter list name:", type=xbmcgui.INPUT_ALPHANUM)
-                if list_name:
-                    # Create new list
-                    result = query_manager.create_list(list_name.strip())
-                    if result and result.get('success'):
-                        selected_list_id = result.get('list_id')
-                        selected_list_name = list_name.strip()
+        # Check if list_id is pre-selected (e.g., from confirmation dialog)
+        target_list_id = item_data.get('list_id')
+        
+        if target_list_id:
+            # Direct addition to specified list
+            try:
+                selected_list_id = int(target_list_id)
+                # Verify the list exists
+                list_info = query_manager.get_list_by_id(selected_list_id)
+                if not list_info:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Target list not found",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    return
+                selected_list_name = list_info.get('name', 'Unknown List')
+            except (ValueError, TypeError):
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Invalid list ID",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                return
+        else:
+            # Get all available lists for selection
+            all_lists = query_manager.get_all_lists_with_folders()
+            if not all_lists:
+                # Offer to create a new list
+                if xbmcgui.Dialog().yesno("LibraryGenie", "No lists found. Create a new list?"):
+                    list_name = xbmcgui.Dialog().input("Enter list name:", type=xbmcgui.INPUT_ALPHANUM)
+                    if list_name:
+                        # Create new list
+                        result = query_manager.create_list(list_name.strip())
+                        if result and result.get('success'):
+                            selected_list_id = result.get('list_id')
+                            selected_list_name = list_name.strip()
+                        else:
+                            xbmcgui.Dialog().notification(
+                                "LibraryGenie",
+                                "Failed to create list",
+                                xbmcgui.NOTIFICATION_ERROR,
+                                3000
+                            )
+                            return
                     else:
-                        xbmcgui.Dialog().notification(
-                            "LibraryGenie",
-                            "Failed to create list",
-                            xbmcgui.NOTIFICATION_ERROR,
-                            3000
-                        )
                         return
                 else:
                     return
             else:
-                return
-        else:
-            # Build list selection options
-            list_options = []
-            list_ids = []
+                # Build list selection options
+                list_options = []
+                list_ids = []
             
             for item in all_lists:
                 if item.get('type') == 'list':
@@ -1125,15 +1152,15 @@ def _handle_bookmark_confirmation(addon):
             )
             return
         
-        # URL encode the parameters  
-        bookmark_url = urllib.parse.quote(container_path)
-        encoded_name = urllib.parse.quote(bookmark_name)
+        # Save bookmark directly without plugin calls
+        bookmark_data = {
+            'title': bookmark_name,
+            'file_path': container_path,  # Don't URL encode for internal use
+            'media_type': 'movie',  # Bookmarks use movie type for database compatibility
+            'list_id': list_id  # Pre-selected list from dialog
+        }
         
-        # Execute the add external item action with list targeting
-        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_external_item&url={bookmark_url}&name={encoded_name}&list_id={list_id}&type=bookmark"
-        xbmc.executebuiltin(f"RunPlugin({plugin_url})")
-        
-        # Note: Success/failure notification is now handled by the router after actual save operation
+        _save_bookmark_directly(bookmark_data, addon)
         
     except Exception as e:
         xbmc.log(f"LibraryGenie bookmark confirmation error: {str(e)}", xbmc.LOGERROR)
