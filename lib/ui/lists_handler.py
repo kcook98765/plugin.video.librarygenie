@@ -8,6 +8,7 @@ Handles lists display and navigation (refactored)
 
 import xbmcplugin
 import xbmcgui
+import time
 
 from typing import Dict, Any
 from lib.ui.plugin_context import PluginContext
@@ -277,6 +278,7 @@ class ListsHandler:
     def show_lists_menu(self, context: PluginContext) -> DirectoryResponse:
         """Show main lists menu with folders and lists"""
         try:
+            show_lists_start = time.time()
             context.logger.debug("Displaying lists menu")
 
             # Initialize query manager
@@ -292,7 +294,10 @@ class ListsHandler:
                 )
 
             # Get all user lists and folders
+            db_query_start = time.time()
             all_lists = query_manager.get_all_lists_with_folders()
+            db_query_time = (time.time() - db_query_start) * 1000
+            context.logger.debug("TIMING: Database query for lists took %.2f ms", db_query_time)
             context.logger.debug("Found %s total lists", len(all_lists))
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
@@ -445,7 +450,10 @@ class ListsHandler:
                 })
 
             # Get all existing folders to display as navigable items
+            folders_query_start = time.time()
             all_folders = query_manager.get_all_folders()
+            folders_query_time = (time.time() - folders_query_start) * 1000
+            context.logger.debug("TIMING: Database query for folders took %.2f ms", folders_query_time)
 
             # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
@@ -505,7 +513,12 @@ class ListsHandler:
             # Breadcrumb context now integrated into Tools & Options labels
 
             # Build directory items
-            for item in menu_items:
+            gui_build_start = time.time()
+            context.logger.debug("TIMING: Starting GUI building for %d items", len(menu_items))
+            
+            for i, item in enumerate(menu_items):
+                item_start = time.time()
+                
                 list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
                 if 'description' in item:
@@ -523,10 +536,21 @@ class ListsHandler:
                     list_item,
                     item['is_folder']
                 )
+                
+                item_time = (time.time() - item_start) * 1000
+                if item_time > 5.0:  # Only log slow items to avoid spam
+                    context.logger.debug("TIMING: Item %d ('%s') took %.2f ms", i, item['label'], item_time)
+            
+            gui_build_time = (time.time() - gui_build_start) * 1000
+            context.logger.debug("TIMING: GUI building for %d items took %.2f ms (avg %.2f ms/item)", 
+                                len(menu_items), gui_build_time, gui_build_time / max(1, len(menu_items)))
 
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
+            total_time = (time.time() - show_lists_start) * 1000
+            context.logger.debug("TIMING: Total show_lists_menu execution took %.2f ms", total_time)
+            
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
