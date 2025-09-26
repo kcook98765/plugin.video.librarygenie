@@ -171,8 +171,8 @@ class Router:
                 lists_handler = factory.get_lists_handler()
                 result = lists_handler.add_external_item_to_list(context)
                 
-                # Handle context menu invocation properly
-                if not result:
+                # Handle context menu invocation properly - always end directory for external context
+                if self._is_context_action(context):
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                 
                 return result if isinstance(result, bool) else True
