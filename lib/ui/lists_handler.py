@@ -175,6 +175,51 @@ class ListsHandler:
             else:
                 list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
 
+    def _render_cached_directory(self, context: PluginContext, cached_data: Dict[str, Any]) -> DirectoryResponse:
+        """
+        Render directory from cached data without database initialization.
+        This provides maximum performance by skipping all database overhead.
+        """
+        try:
+            menu_items = cached_data['menu_items']
+            is_refresh = cached_data.get('is_refresh', False)
+            
+            # Build directory items from cached menu data
+            for item in menu_items:
+                list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
+
+                if 'description' in item:
+                    self._set_listitem_plot(list_item, item['description'])
+
+                # Apply custom art based on item type
+                self._set_custom_art_for_item(list_item, item)
+
+                if 'context_menu' in item:
+                    list_item.addContextMenuItems(item['context_menu'])
+
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    item['url'],
+                    list_item,
+                    item['is_folder']
+                )
+
+            return DirectoryResponse(
+                items=menu_items,
+                success=True,
+                content_type="files",
+                update_listing=is_refresh,
+                intent=None
+            )
+            
+        except Exception as e:
+            self.logger.error("Error rendering cached directory: %s", e)
+            # Fall back to fresh data if cache rendering fails
+            return DirectoryResponse(
+                items=[],
+                success=False
+            )
+
     # =================================
     # LIST OPERATION METHODS (delegated to ListOperations)
     # =================================
@@ -281,6 +326,30 @@ class ListsHandler:
             show_lists_start = time.time()
             context.logger.debug("Displaying lists menu")
 
+            # CACHE-FIRST STRATEGY: Check cache before any database initialization
+            from lib.ui.directory_cache import get_directory_cache_manager
+            from lib.ui.session_state import get_session_state
+            
+            cache_manager = get_directory_cache_manager()
+            session_state = get_session_state()
+            refresh_token = session_state.get_refresh_token()
+            
+            # Try cache first (no database dependencies)
+            cached_data = cache_manager.get_cached_directory(
+                action='show_lists_menu',
+                params={},
+                refresh_token=refresh_token
+            )
+            
+            if cached_data:
+                # Cache hit - return immediately without database initialization
+                cache_time = (time.time() - show_lists_start) * 1000
+                context.logger.debug("CACHE HIT: Returned lists menu in %.2f ms (skipped DB init)", cache_time)
+                return self._render_cached_directory(context, cached_data)
+
+            # Cache miss - proceed with database initialization
+            context.logger.debug("CACHE MISS: Proceeding with database initialization")
+            
             # Initialize query manager
             query_manager = get_query_manager()
 
@@ -548,8 +617,27 @@ class ListsHandler:
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
+            # Cache the fresh data for future requests (adaptive TTL)
+            db_time_ms = locals().get('db_query_time', 0) + locals().get('folders_query_time', 0)
+            cache_manager.adapt_ttl_for_device(db_time_ms)
+            
+            # Prepare data for caching (menu items + metadata)
+            cache_data = {
+                'menu_items': menu_items,
+                'is_refresh': is_refresh,
+                'db_time_ms': db_time_ms
+            }
+            
+            # Cache for future requests
+            cache_manager.cache_directory(
+                action='show_lists_menu',
+                params={},
+                refresh_token=refresh_token,
+                data=cache_data
+            )
+            
             total_time = (time.time() - show_lists_start) * 1000
-            context.logger.debug("TIMING: Total show_lists_menu execution took %.2f ms", total_time)
+            context.logger.debug("TIMING: Total show_lists_menu execution took %.2f ms (cached for future)", total_time)
             
             return DirectoryResponse(
                 items=menu_items,
