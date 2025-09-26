@@ -169,37 +169,55 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     in_list_context = 'list_id=' in container_path or item_info.get('list_id')
 
-    # 2. LG Quick Add (if enabled and configured)
-    if quick_add_enabled and default_list_id:
-        quick_add_label = L(37101)  # "LG Quick Add"
-        if not quick_add_label or quick_add_label.startswith('LocMiss_'):
-            quick_add_label = "LG Quick Add"
-        options.append(quick_add_label)
+    # Check if this is a playable media item (not a folder or navigation item)
+    # Use Kodi's definitive flags for robust detection
+    is_folder = xbmc.getCondVisibility('ListItem.IsFolder')
+    is_playable = xbmc.getCondVisibility('ListItem.IsPlayable')
+    
+    is_playable_item = (
+        # Has valid library metadata for movies/episodes (exclude dbid '0')
+        (item_info.get('dbtype') in ('movie', 'episode') and 
+         item_info.get('dbid') and item_info.get('dbid') not in ('', '0')) or
+        # Has LibraryGenie media item ID  
+        item_info.get('media_item_id') or
+        # In a media container, is playable and not a folder
+        ((item_info.get('is_movies') or item_info.get('is_episodes')) and 
+         item_info.get('title') and is_playable and not is_folder)
+    )
 
-        # Determine appropriate quick add action based on context
+    # Only show "Add to List" options for playable media items
+    if is_playable_item:
+        # 2. LG Quick Add (if enabled and configured)
+        if quick_add_enabled and default_list_id:
+            quick_add_label = L(37101)  # "LG Quick Add"
+            if not quick_add_label or quick_add_label.startswith('LocMiss_'):
+                quick_add_label = "LG Quick Add"
+            options.append(quick_add_label)
+
+            # Determine appropriate quick add action based on context
+            if item_info.get('media_item_id'):
+                actions.append(f"quick_add&media_item_id={item_info['media_item_id']}")
+            elif item_info.get('dbtype') and item_info.get('dbid'):
+                actions.append(f"quick_add_context&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
+            else:
+                actions.append("quick_add_external")
+
+        # 3. LG Add to List...
+        add_list_label = L(37102)  # "LG Add to List..."
+        if not add_list_label or add_list_label.startswith('LocMiss_'):
+            add_list_label = "LG Add to List..."
+        options.append(add_list_label)
+
+        # Determine appropriate add action based on context
         if item_info.get('media_item_id'):
-            actions.append(f"quick_add&media_item_id={item_info['media_item_id']}")
+            actions.append(f"add_to_list&media_item_id={item_info['media_item_id']}")
         elif item_info.get('dbtype') and item_info.get('dbid'):
-            actions.append(f"quick_add_context&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
+            actions.append(f"add_to_list&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
         else:
-            actions.append("quick_add_external")
+            actions.append("add_external_item")
 
-    # 3. LG Add to List...
-    add_list_label = L(37102)  # "LG Add to List..."
-    if not add_list_label or add_list_label.startswith('LocMiss_'):
-        add_list_label = "LG Add to List..."
-    options.append(add_list_label)
-
-    # Determine appropriate add action based on context
-    if item_info.get('media_item_id'):
-        actions.append(f"add_to_list&media_item_id={item_info['media_item_id']}")
-    elif item_info.get('dbtype') and item_info.get('dbid'):
-        actions.append(f"add_to_list&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
-    else:
-        actions.append("add_external_item")
-
-    # 4. LG Remove from List (if in list context)
-    if in_list_context:
+    # 4. LG Remove from List (if in list context and is playable item)
+    if in_list_context and is_playable_item:
         remove_label = L(37103)  # "LG Remove from List"
         if not remove_label or remove_label.startswith('LocMiss_'):
             remove_label = "LG Remove from List"
@@ -232,10 +250,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         
         # Use container path for bookmarking the current folder location
         if container_path:
-            bookmark_url = urllib.parse.quote(container_path)
-            container_label = xbmc.getInfoLabel('Container.Label') or 'Current Folder'
-            encoded_label = urllib.parse.quote(container_label)
-            actions.append(f"save_bookmark&url={bookmark_url}&name={encoded_label}")
+            actions.append("confirm_save_bookmark")
         else:
             actions.append("save_bookmark_generic")
 
@@ -575,6 +590,10 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Handle external item by gathering metadata
             _handle_external_item_add(addon)
 
+        elif action_with_params == "confirm_save_bookmark":
+            # Show confirmation dialog for bookmark saving
+            _handle_bookmark_confirmation(addon)
+            
         elif action_with_params.startswith("save_bookmark"):
             # Handle bookmark saving actions
             _handle_bookmark_save(action_with_params, addon)
@@ -824,6 +843,59 @@ def _handle_bookmark_save(action_with_params, addon):
         
     except Exception as e:
         xbmc.log(f"LibraryGenie bookmark save error: {str(e)}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Failed to save bookmark",
+            xbmcgui.NOTIFICATION_ERROR,
+            3000
+        )
+
+
+def _handle_bookmark_confirmation(addon):
+    """Show confirmation dialog for bookmark saving with name editing"""
+    try:
+        # Get current location information
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        container_label = xbmc.getInfoLabel('Container.Label') or 'Current Folder'
+        
+        if not container_path:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Unable to determine location to bookmark",
+                xbmcgui.NOTIFICATION_WARNING,
+                3000
+            )
+            return
+        
+        # Show dialog to edit bookmark name
+        dialog = xbmcgui.Dialog()
+        
+        # Ask user to confirm and edit bookmark name
+        bookmark_name = dialog.input(
+            "Save Bookmark",
+            container_label,
+            xbmcgui.INPUT_ALPHANUM
+        )
+        
+        if bookmark_name:  # User didn't cancel
+            # URL encode the parameters
+            bookmark_url = urllib.parse.quote(container_path)
+            encoded_name = urllib.parse.quote(bookmark_name)
+            
+            # Execute the bookmark save action
+            plugin_url = f"plugin://plugin.video.librarygenie/?action=save_bookmark&url={bookmark_url}&name={encoded_name}"
+            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+            
+            # Show confirmation
+            dialog.notification(
+                "LibraryGenie",
+                f"Bookmark '{bookmark_name}' saved",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+        
+    except Exception as e:
+        xbmc.log(f"LibraryGenie bookmark confirmation error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Failed to save bookmark",
