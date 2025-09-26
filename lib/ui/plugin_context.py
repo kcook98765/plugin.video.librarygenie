@@ -7,6 +7,7 @@ Encapsulates request data and shared resources for handlers
 """
 
 import sys
+import time
 from urllib.parse import parse_qsl
 from typing import Dict, Any, Optional
 
@@ -47,7 +48,10 @@ class PluginContext:
         self._storage_manager = None
 
         # Navigation context - generate breadcrumb automatically
+        breadcrumb_start = time.time()
         self.breadcrumb_path = self._generate_breadcrumb()
+        breadcrumb_time = (time.time() - breadcrumb_start) * 1000
+        self.logger.debug("TIMING: Breadcrumb generation took %.2f ms", breadcrumb_time)
 
         self.logger.debug("PluginContext created: handle=%s, base_url=%s, params=%s", self.addon_handle, self.base_url, self.params)
         if self.breadcrumb_path:
@@ -155,12 +159,22 @@ class PluginContext:
         try:
             action = self.params.get('action', '')
             if not action:
+                self.logger.debug("TIMING: No action parameter, skipping breadcrumb generation")
                 return None
 
             # Import here to avoid circular imports
+            import_start = time.time()
             from lib.ui.breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
-            return breadcrumb_helper.get_breadcrumb_for_action(action, self.params, self.query_manager)
+            import_time = (time.time() - import_start) * 1000
+            self.logger.debug("TIMING: Breadcrumb helper import/instantiation took %.2f ms", import_time)
+            
+            breadcrumb_exec_start = time.time()
+            result = breadcrumb_helper.get_breadcrumb_for_action(action, self.params, self.query_manager)
+            breadcrumb_exec_time = (time.time() - breadcrumb_exec_start) * 1000
+            self.logger.debug("TIMING: Breadcrumb execution for action '%s' took %.2f ms", action, breadcrumb_exec_time)
+            
+            return result
         except Exception as e:
             self.logger.error("Error generating breadcrumb: %s", e)
             return None

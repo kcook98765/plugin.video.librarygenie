@@ -6,6 +6,7 @@ LibraryGenie - Breadcrumb Helper
 Generates breadcrumb navigation paths for UI context
 """
 
+import time
 from typing import Optional
 from lib.utils.kodi_log import get_kodi_logger
 
@@ -20,28 +21,35 @@ class BreadcrumbHelper:
     def get_breadcrumb_for_action(self, action: str, context_params: dict, query_manager=None) -> Optional[str]:
         """Generate breadcrumb path based on current action and context"""
         try:
+            breadcrumb_start = time.time()
+            
             if action == "show_list":
-                return self._get_list_breadcrumb(context_params, query_manager)
+                result = self._get_list_breadcrumb(context_params, query_manager)
             elif action == "show_folder":
-                return self._get_folder_breadcrumb(context_params, query_manager)
+                result = self._get_folder_breadcrumb(context_params, query_manager)
             elif action == "favorites" or action == "kodi_favorites":
-                return "Kodi Favorites"
+                result = "Kodi Favorites"
             elif action == "search_results":
                 query = context_params.get('query', '')
-                return f"Search: \"{query}\""
+                result = f"Search: \"{query}\""
             elif action == "search_history":
-                return "Search History"
+                result = "Search History"
             elif action == "lists":
-                return "Lists"
+                result = "Lists"
             elif action == "library_browse":
-                return "Browse Movies"
+                result = "Browse Movies"
             elif action == "show_list_tools":
-                return self._get_tools_breadcrumb(context_params, query_manager)
+                result = self._get_tools_breadcrumb(context_params, query_manager)
             elif action == "show_favorites_tools":
-                return "Favorites Tools"
+                result = "Favorites Tools"
             else:
                 # Return None for main menu and unrecognized actions
-                return None
+                result = None
+            
+            breadcrumb_time = (time.time() - breadcrumb_start) * 1000
+            self.logger.debug("TIMING: Breadcrumb generation for action '%s' took %.2f ms", action, breadcrumb_time)
+            
+            return result
 
         except Exception as e:
             self.logger.error("Error generating breadcrumb for action '%s': %s", action, e)
