@@ -952,16 +952,15 @@ def _handle_bookmark_confirmation(addon):
                 list_options.append("+ Create New List")
                 list_ids.append("new")
                 
-                # Add existing lists
+                # Add existing lists (all items from get_all_lists_with_folders are lists)
                 for item in all_lists:
-                    if item.get('type') == 'list':
-                        folder_path = item.get('folder_path', '')
-                        if folder_path:
-                            label = f"{folder_path} > {item['name']} ({item.get('item_count', 0)} items)"
-                        else:
-                            label = f"{item['name']} ({item.get('item_count', 0)} items)"
-                        list_options.append(label)
-                        list_ids.append(str(item['id']))
+                    folder_path = item.get('folder_name', '')  # Use folder_name from query result
+                    if folder_path:
+                        label = f"{folder_path} > {item['name']} ({item.get('item_count', 0)} items)"
+                    else:
+                        label = f"{item['name']} ({item.get('item_count', 0)} items)"
+                    list_options.append(label)
+                    list_ids.append(str(item['id']))
                 
                 selected_list = dialog.select(
                     "Add Bookmark to List",
