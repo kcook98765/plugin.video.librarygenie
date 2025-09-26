@@ -867,14 +867,14 @@ def _save_bookmark_directly(item_data, addon):
                 )
                 
                 # If successful, update the media item to store the bookmark URL
-                if result and result.get('success') and result.get('media_item_id'):
-                    media_item_id = result['media_item_id']
+                if result and result.get('id'):
+                    media_item_id = result['id']
                     bookmark_url = item_data.get('file_path', '')
                     
-                    # Update the media item to include bookmark data
+                    # Update the media item to include bookmark data and mark as folder
                     conn.execute("""
                         UPDATE media_items 
-                        SET play = ?, file_path = ?, source = 'bookmark', plot = ?
+                        SET play = ?, file_path = ?, source = 'bookmark', plot = ?, media_type = 'folder'
                         WHERE id = ?
                     """, [bookmark_url, bookmark_url, f"Bookmark: {item_data['title']}", media_item_id])
                     
