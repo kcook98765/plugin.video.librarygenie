@@ -101,6 +101,7 @@ def _show_librarygenie_menu(addon):
             'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
             'dbid': xbmc.getInfoLabel('ListItem.DBID'),
             'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),  # Try ListItem.Path for navigation URL
             'title': xbmc.getInfoLabel('ListItem.Title'),
             'label': xbmc.getInfoLabel('ListItem.Label'),
             'media_item_id': xbmc.getInfoLabel('ListItem.Property(media_item_id)'),
@@ -641,6 +642,7 @@ def _handle_external_item_add(addon):
             'playcount': xbmc.getInfoLabel('ListItem.PlayCount'),
             'lastplayed': xbmc.getInfoLabel('ListItem.LastPlayed'),
             'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),  # Try ListItem.Path for navigation URL
             'media_type': 'movie'  # Default, will be refined below
         }
 
@@ -844,9 +846,28 @@ def _save_bookmark_directly(item_data, addon):
                 selected_list_id = int(list_ids[selected_index])
                 selected_list_name = list_options[selected_index]
         
-        # Create stable ID for bookmark
+        # Determine the best URL for bookmark navigation
+        # Use conditional logic based on item type
+        navigation_path = item_data.get('navigation_path', '')
+        file_path = item_data.get('file_path', '')
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        is_folder = xbmc.getCondVisibility('ListItem.IsFolder')
+        
+        # For folders, prefer ListItem.Path if it's different from container path
+        # For playable items, prefer ListItem.FileNameAndPath
+        if is_folder and navigation_path and navigation_path != container_path:
+            bookmark_url = navigation_path
+            xbmc.log(f"LibraryGenie: Using navigation_path for folder bookmark: {navigation_path}", xbmc.LOGINFO)
+        else:
+            bookmark_url = file_path
+            xbmc.log(f"LibraryGenie: Using file_path for bookmark: {file_path} (is_folder={is_folder})", xbmc.LOGINFO)
+        
+        # Create stable ID for bookmark with backward compatibility check
         import hashlib
-        stable_id = hashlib.sha1(item_data['file_path'].encode('utf-8')).hexdigest()[:16]
+        stable_id = hashlib.sha1(bookmark_url.encode('utf-8')).hexdigest()[:16]
+        
+        # Check for existing bookmark using old file_path hash for backward compatibility
+        old_stable_id = hashlib.sha1(file_path.encode('utf-8')).hexdigest()[:16] if file_path != bookmark_url else None
         
         # Add the bookmark to the selected list
         try:
@@ -869,7 +890,6 @@ def _save_bookmark_directly(item_data, addon):
                 # If successful, update the media item to store the bookmark URL
                 if result and result.get('id'):
                     media_item_id = result['id']
-                    bookmark_url = item_data.get('file_path', '')
                     
                     # Update the media item to include bookmark data and mark as folder
                     conn.execute("""
