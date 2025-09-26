@@ -24,6 +24,44 @@ class MenuBuilder:
     def __init__(self, string_getter: Optional[Callable[[int], str]] = None):
         self.logger = get_kodi_logger('lib.ui.menu_builder')
         self.renderer = get_listitem_renderer()
+        self.menu_items = []  # Store menu items for building
+        self.base_url = "plugin://plugin.video.librarygenie/"
+    
+    def add_menu_item(self, label: str, action: str, icon: str = None, description: str = None):
+        """Add a menu item for building"""
+        item = {
+            'label': label,
+            'action': action,
+            'icon': icon,
+            'description': description
+        }
+        self.menu_items.append(item)
+    
+    def build(self) -> List[Tuple[str, xbmcgui.ListItem, bool]]:
+        """Build the menu items into Kodi ListItems"""
+        result = []
+        
+        for item in self.menu_items:
+            # Create URL with action
+            url = f"{self.base_url}?action={item['action']}"
+            
+            # Create ListItem
+            listitem = xbmcgui.ListItem(label=item['label'])
+            
+            # Set icon if provided
+            if item['icon']:
+                listitem.setArt({'icon': item['icon'], 'thumb': item['icon']})
+            
+            # Set description if provided
+            if item['description']:
+                self._set_listitem_plot(listitem, item['description'])
+            
+            # Menu items are folders (they navigate to other views)
+            is_folder = True
+            
+            result.append((url, listitem, is_folder))
+        
+        return result
 
     def _set_listitem_plot(self, list_item: xbmcgui.ListItem, plot: str):
         """Set plot metadata in version-compatible way to avoid v21 setInfo() deprecation warnings"""

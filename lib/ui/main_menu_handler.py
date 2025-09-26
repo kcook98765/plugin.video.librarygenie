@@ -28,7 +28,7 @@ class MainMenuHandler:
             context.logger.info("MAIN MENU: Starting main menu display on Kodi v%s", kodi_major)
 
             # Build main menu items
-            menu_builder = MenuBuilder(context)
+            menu_builder = MenuBuilder()
             
             # Add Lists menu item
             menu_builder.add_menu_item(
