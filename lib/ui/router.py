@@ -160,6 +160,9 @@ class Router:
             elif action == 'save_bookmark_from_context':
                 # Handle bookmark saving from context menu
                 return self._handle_bookmark_save(context)
+            elif action == 'save_bookmark':
+                # Handle bookmark saving with category from context menu confirmation
+                return self._handle_bookmark_save_with_category(context)
             elif action == 'show_bookmarks':
                 # Show main bookmarks menu
                 from lib.ui.handler_factory import get_handler_factory
@@ -855,3 +858,95 @@ class Router:
             )
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
+
+    def _handle_bookmark_save_with_category(self, context):
+        """Handle saving bookmark with category organization from context menu"""
+        try:
+            # Get parameters from context
+            url = context.get_param('url')
+            name = context.get_param('name', 'Unnamed Bookmark')
+            category = context.get_param('category', 'General')
+            
+            if not url:
+                self.logger.error("No URL provided for bookmark save")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Unable to save bookmark - no URL provided",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # URL decode parameters
+            import urllib.parse
+            url = urllib.parse.unquote(url)
+            name = urllib.parse.unquote(name)
+            category = urllib.parse.unquote(category)
+            
+            # Determine bookmark type from URL
+            bookmark_type = self._determine_bookmark_type(url)
+            
+            # For now, save to root folder (category is stored in metadata)
+            # Future enhancement: create bookmark category folders
+            folder_id = None
+            
+            # Save bookmark using BookmarkManager
+            from lib.data.bookmark_manager import get_bookmark_manager
+            
+            bookmark_manager = get_bookmark_manager()
+            result = bookmark_manager.save_bookmark(
+                url=url,
+                display_name=name,
+                bookmark_type=bookmark_type,
+                folder_id=folder_id,
+                art_data=None,
+                additional_metadata={'category': category, 'description': f"Category: {category}"}
+            )
+            
+            if result['success']:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Bookmark saved to {category}: {name}",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                self.logger.info("Bookmark saved successfully: %s (category: %s)", name, category)
+            else:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Failed to save bookmark: {result.get('error', 'Unknown error')}",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                self.logger.error("Failed to save bookmark: %s", result.get('error', 'Unknown error'))
+            
+            # End directory properly
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return result['success']
+            
+        except Exception as e:
+            self.logger.error("Error handling bookmark save with category: %s", e)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to save bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+    def _determine_bookmark_type(self, url):
+        """Determine bookmark type from URL"""
+        if url.startswith('plugin://'):
+            return 'plugin'
+        elif url.startswith(('http://', 'https://', 'ftp://', 'ftps://')):
+            return 'network'
+        elif url.startswith(('smb://', 'nfs://', 'afp://', 'sftp://')):
+            return 'network'
+        elif url.startswith('videodb://') or url.startswith('musicdb://'):
+            return 'library'
+        elif url.startswith('special://'):
+            return 'special'
+        else:
+            return 'file'
