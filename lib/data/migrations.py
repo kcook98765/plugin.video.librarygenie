@@ -309,29 +309,6 @@ class MigrationManager:
         INSERT INTO folders (name, parent_id)
         VALUES ('Search History', NULL);
         
-        -- Bookmarks table for saving links to folders and content
-        CREATE TABLE bookmarks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT NOT NULL,
-            normalized_url TEXT NOT NULL,
-            display_name TEXT NOT NULL,
-            bookmark_type TEXT NOT NULL CHECK (bookmark_type IN ('plugin','file','network','library','special')),
-            description TEXT,
-            metadata TEXT,
-            art_data TEXT,
-            folder_id INTEGER,
-            position INTEGER,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
-        );
-        
-        CREATE UNIQUE INDEX idx_bookmarks_unique ON bookmarks (folder_id, normalized_url);
-        CREATE INDEX idx_bookmarks_type ON bookmarks (bookmark_type);
-        CREATE INDEX idx_bookmarks_folder ON bookmarks (folder_id);
-        CREATE INDEX idx_bookmarks_position ON bookmarks (folder_id, position);
-        CREATE INDEX idx_bookmarks_display_name ON bookmarks (folder_id, lower(display_name));
-        CREATE INDEX idx_bookmarks_updated ON bookmarks (updated_at);
         """
         
         # Execute the complete schema script
@@ -385,16 +362,6 @@ class MigrationManager:
     def _run_migrations(self, conn, current_version):
         """Run incremental migrations from current_version to TARGET_SCHEMA_VERSION"""
         try:
-            # Version 3 to 4: Add bookmarks table
-            if current_version < 4:
-                self.logger.info("Running migration: Add bookmarks table (v3 -> v4)")
-                self._migrate_v3_to_v4(conn)
-                
-            # Run credential scrubbing for any existing bookmarks
-            if current_version <= 4:
-                self.logger.info("Running migration: Scrub existing credential data")
-                self._scrub_existing_credentials(conn)
-                
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
             self.logger.info("Database migration completed successfully")
@@ -403,150 +370,6 @@ class MigrationManager:
             self.logger.error("Migration failed: %s", e)
             raise
             
-    def _migrate_v3_to_v4(self, conn):
-        """Add bookmarks table for v3 -> v4 migration"""
-        migration_sql = """
-        -- Bookmarks table for saving links to folders and content
-        CREATE TABLE bookmarks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT NOT NULL,
-            normalized_url TEXT NOT NULL,
-            display_name TEXT NOT NULL,
-            bookmark_type TEXT NOT NULL CHECK (bookmark_type IN ('plugin','file','network','library','special')),
-            description TEXT,
-            metadata TEXT,
-            art_data TEXT,
-            folder_id INTEGER,
-            position INTEGER,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
-        );
-        
-        CREATE UNIQUE INDEX idx_bookmarks_unique ON bookmarks (folder_id, normalized_url);
-        CREATE INDEX idx_bookmarks_type ON bookmarks (bookmark_type);
-        CREATE INDEX idx_bookmarks_folder ON bookmarks (folder_id);
-        CREATE INDEX idx_bookmarks_position ON bookmarks (folder_id, position);
-        CREATE INDEX idx_bookmarks_display_name ON bookmarks (folder_id, lower(display_name));
-        CREATE INDEX idx_bookmarks_updated ON bookmarks (updated_at);
-        """
-        
-        try:
-            conn.executescript(migration_sql)
-            self.logger.debug("Bookmarks table created successfully in migration")
-        except AttributeError:
-            # Fallback for connections that don't support executescript
-            statements = [stmt.strip() for stmt in migration_sql.split(';') if stmt.strip()]
-            for statement in statements:
-                if statement:
-                    conn.execute(statement)
-            self.logger.debug("Bookmarks table created successfully in migration (fallback method)")
-            
-    def _scrub_existing_credentials(self, conn):
-        """Remove any stored passwords from existing bookmark metadata"""
-        try:
-            # Check if bookmarks table exists
-            cursor = conn.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' AND name='bookmarks'
-            """)
-            
-            if not cursor.fetchone():
-                self.logger.debug("Bookmarks table doesn't exist, skipping credential scrub")
-                return
-                
-            # Get all bookmarks with metadata
-            cursor = conn.execute("""
-                SELECT id, metadata, url, normalized_url 
-                FROM bookmarks 
-                WHERE metadata IS NOT NULL AND metadata != ''
-            """)
-            
-            updated_count = 0
-            for row in cursor.fetchall():
-                bookmark_id, metadata_json, url, normalized_url = row
-                
-                try:
-                    metadata = json.loads(metadata_json)
-                    
-                    # Remove any credential fields that might exist
-                    removed_fields = []
-                    if 'password' in metadata:
-                        del metadata['password']
-                        removed_fields.append('password')
-                    if 'credentials' in metadata and isinstance(metadata['credentials'], dict):
-                        if 'password' in metadata['credentials']:
-                            del metadata['credentials']['password']
-                            removed_fields.append('credentials.password')
-                        # If credentials dict is now empty or only has username, simplify
-                        if not metadata['credentials'] or metadata['credentials'].keys() <= {'username'}:
-                            if metadata['credentials'].get('username'):
-                                metadata['username'] = metadata['credentials']['username']
-                                metadata['requires_credentials'] = True
-                            del metadata['credentials']
-                            removed_fields.append('credentials')
-                    
-                    # Re-normalize URLs to strip any credentials that might be embedded
-                    if url and url != normalized_url:
-                        import urllib.parse
-                        try:
-                            parsed = urllib.parse.urlparse(url)
-                            if parsed.username or parsed.password:
-                                # Store username if not already stored
-                                if parsed.username and 'username' not in metadata:
-                                    metadata['username'] = parsed.username
-                                    metadata['requires_credentials'] = True
-                                
-                                # Create clean URL without credentials
-                                hostname = parsed.hostname or ''
-                                if ':' in hostname and not hostname.startswith('['):
-                                    hostname = f'[{hostname}]'
-                                netloc = hostname
-                                if parsed.port:
-                                    netloc += f':{parsed.port}'
-                                
-                                clean_url = urllib.parse.urlunparse((
-                                    parsed.scheme, netloc, parsed.path,
-                                    parsed.params, parsed.query, ''
-                                ))
-                                
-                                # Update both url and normalized_url
-                                conn.execute("""
-                                    UPDATE bookmarks 
-                                    SET url = ?, normalized_url = ?, metadata = ? 
-                                    WHERE id = ?
-                                """, (clean_url, clean_url, json.dumps(metadata), bookmark_id))
-                                updated_count += 1
-                                self.logger.debug("Scrubbed credentials from bookmark ID %d", bookmark_id)
-                                continue
-                        except Exception:
-                            pass  # URL parsing failed, continue with metadata update only
-                    
-                    # Update metadata even if URL wasn't changed
-                    if removed_fields:
-                        conn.execute("""
-                            UPDATE bookmarks 
-                            SET metadata = ? 
-                            WHERE id = ?
-                        """, (json.dumps(metadata), bookmark_id))
-                        updated_count += 1
-                        self.logger.debug("Removed credential fields %s from bookmark ID %d", 
-                                        removed_fields, bookmark_id)
-                
-                except (json.JSONDecodeError, Exception) as e:
-                    self.logger.warning("Failed to process metadata for bookmark ID %d: %s", 
-                                      bookmark_id, e)
-                    continue
-            
-            if updated_count > 0:
-                self.logger.info("Credential scrubbing completed: updated %d bookmarks", updated_count)
-            else:
-                self.logger.debug("No credentials found to scrub")
-                
-        except Exception as e:
-            self.logger.error("Failed to scrub existing credentials: %s", e)
-            # Don't raise - this is a cleanup operation and shouldn't block migrations
-
     def run_migrations(self):
         """Run all pending migrations - framework preserved for future use"""
         # Migrations removed for pre-release - using fresh schema reset instead
