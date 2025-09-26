@@ -35,15 +35,7 @@ class MainMenuHandler:
                 label="My Lists",
                 action="show_lists_menu",
                 icon="DefaultPlaylist.png",
-                description="Manage and view your custom media lists"
-            )
-            
-            # Add Bookmarks menu item  
-            menu_builder.add_menu_item(
-                label="Bookmarks",
-                action="show_bookmarks",
-                icon="DefaultFavourites.png", 
-                description="View and navigate to saved bookmark locations"
+                description="Manage and view your custom media lists and bookmarks"
             )
             
             # Add Search menu item

@@ -899,34 +899,105 @@ def _handle_bookmark_confirmation(addon):
         if not bookmark_name:  # User cancelled
             return
             
-        # Step 2: Ask user to choose bookmark category/folder
-        category_options = [
-            "General",
-            "Movies", 
-            "TV Shows",
-            "Music",
-            "Addons",
-            "Network Sources",
-            "File Sources"
-        ]
-        
-        selected_category = dialog.select(
-            "Choose Bookmark Category",
-            category_options
-        )
-        
-        if selected_category == -1:  # User cancelled
-            return
+        # Step 2: Ask user to choose which list to add bookmark to
+        try:
+            from lib.data.query_manager import get_query_manager
+            query_manager = get_query_manager()
             
-        category = category_options[selected_category]
+            if not query_manager.initialize():
+                dialog.notification(
+                    "LibraryGenie",
+                    "Failed to load lists",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                return
+            
+            # Get all lists and folders for selection
+            all_lists = query_manager.get_all_lists_with_folders()
+            
+            if not all_lists:
+                # No lists exist - offer to create one
+                create_list = dialog.yesno(
+                    "LibraryGenie",
+                    "No lists found. Create a new list for your bookmark?"
+                )
+                if not create_list:
+                    return
+                    
+                # Ask for list name
+                new_list_name = dialog.input(
+                    "Create New List",
+                    "Bookmarks",
+                    xbmcgui.INPUT_ALPHANUM
+                )
+                if not new_list_name:
+                    return
+                    
+                # For simplicity, guide user to create list through main interface
+                dialog.notification(
+                    "LibraryGenie",
+                    "Please create a list first through My Lists menu, then try bookmarking again",
+                    xbmcgui.NOTIFICATION_INFO,
+                    5000
+                )
+                return
+            else:
+                # Show existing lists for selection
+                list_options = []
+                list_ids = []
+                
+                # Add "Create New List" option at the top
+                list_options.append("+ Create New List")
+                list_ids.append("new")
+                
+                # Add existing lists
+                for item in all_lists:
+                    if item['type'] == 'list':
+                        folder_path = item.get('folder_path', '')
+                        if folder_path:
+                            label = f"{folder_path} > {item['name']} ({item.get('item_count', 0)} items)"
+                        else:
+                            label = f"{item['name']} ({item.get('item_count', 0)} items)"
+                        list_options.append(label)
+                        list_ids.append(str(item['id']))
+                
+                selected_list = dialog.select(
+                    "Add Bookmark to List",
+                    list_options
+                )
+                
+                if selected_list == -1:  # User cancelled
+                    return
+                    
+                if selected_list == 0:  # Create new list
+                    # Guide user to create list through main interface
+                    dialog.notification(
+                        "LibraryGenie",
+                        "Please create a list first through My Lists menu, then try bookmarking again",
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+                    return
+                else:
+                    list_id = list_ids[selected_list]
+                    
+        except Exception as e:
+            xbmc.log(f"LibraryGenie: Error loading lists: {str(e)}", xbmc.LOGERROR)
+            dialog.notification(
+                "LibraryGenie",
+                "Failed to load lists",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            return
         
         # URL encode the parameters  
         bookmark_url = urllib.parse.quote(container_path)
         encoded_name = urllib.parse.quote(bookmark_name)
-        encoded_category = urllib.parse.quote(category)
         
-        # Execute the bookmark save action with category
-        plugin_url = f"plugin://plugin.video.librarygenie/?action=save_bookmark&url={bookmark_url}&name={encoded_name}&category={encoded_category}"
+        # Execute the add external item action with list targeting
+        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_external_item&url={bookmark_url}&name={encoded_name}&list_id={list_id}&type=bookmark"
         xbmc.executebuiltin(f"RunPlugin({plugin_url})")
         
         # Note: Success/failure notification is now handled by the router after actual save operation
