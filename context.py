@@ -857,16 +857,17 @@ def _handle_bookmark_confirmation(addon):
         # Get current location information
         container_path = xbmc.getInfoLabel('Container.FolderPath')
         
-        # Try multiple methods to get a good default name
+        # Try multiple methods to get a good default name - prioritize focused item
         container_label = (
+            xbmc.getInfoLabel('ListItem.Label') or
+            xbmc.getInfoLabel('ListItem.Title') or
             xbmc.getInfoLabel('Container.FolderName') or
             xbmc.getInfoLabel('Container.Label') or 
-            xbmc.getInfoLabel('ListItem.Label') or
             'Current Folder'
         )
         
         # Fallback: extract name from path if label is empty or generic
-        if not container_label or container_label in ('Container.Label', 'Container.FolderName', ''):
+        if not container_label or container_label in ('Container.Label', 'Container.FolderName', 'ListItem.Label', 'ListItem.Title', ''):
             if container_path:
                 # Extract meaningful name from URL path
                 import re
@@ -953,7 +954,7 @@ def _handle_bookmark_confirmation(addon):
                 
                 # Add existing lists
                 for item in all_lists:
-                    if item['type'] == 'list':
+                    if item.get('type') == 'list':
                         folder_path = item.get('folder_path', '')
                         if folder_path:
                             label = f"{folder_path} > {item['name']} ({item.get('item_count', 0)} items)"
