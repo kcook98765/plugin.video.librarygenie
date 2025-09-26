@@ -157,6 +157,9 @@ class Router:
                 # Search results use PUSH semantics (new page, not refinement)
                 finish_directory(context.addon_handle, succeeded=result, update=False)
                 return result
+            elif action == 'save_bookmark_from_context':
+                # Handle bookmark saving from context menu
+                return self._handle_bookmark_save(context)
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
@@ -736,3 +739,87 @@ class Router:
 
         except Exception as e:
             self.logger.error("ROUTER: Error during Kodi Favorites scan: %s", e)
+
+    def _handle_bookmark_save(self, context):
+        """Handle saving bookmark from context menu"""
+        try:
+            # Get parameters from context
+            url = context.get_param('url')
+            name = context.get_param('name', 'Unnamed Bookmark')
+            bookmark_type = context.get_param('type', 'plugin')
+            metadata_json = context.get_param('metadata')
+            art_json = context.get_param('art')
+            
+            if not url:
+                self.logger.error("No URL provided for bookmark save")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Unable to save bookmark - no URL provided",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Parse metadata and art from JSON
+            metadata = {}
+            art_data = {}
+            
+            import json
+            
+            if metadata_json:
+                try:
+                    metadata = json.loads(metadata_json)
+                except (json.JSONDecodeError, Exception) as e:
+                    self.logger.warning("Failed to parse metadata JSON: %s", e)
+                    
+            if art_json:
+                try:
+                    art_data = json.loads(art_json)
+                except (json.JSONDecodeError, Exception) as e:
+                    self.logger.warning("Failed to parse art JSON: %s", e)
+            
+            # Save bookmark using BookmarkManager
+            from lib.data.bookmark_manager import get_bookmark_manager
+            
+            bookmark_manager = get_bookmark_manager()
+            result = bookmark_manager.save_bookmark(
+                url=url,
+                display_name=name,
+                bookmark_type=bookmark_type,
+                folder_id=None,  # Save to root folder for now
+                art_data=art_data,
+                additional_metadata=metadata
+            )
+            
+            if result['success']:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Bookmark saved: {name}",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                self.logger.info("Bookmark saved successfully: %s", name)
+            else:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Failed to save bookmark: {result.get('error', 'Unknown error')}",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    5000
+                )
+                self.logger.error("Failed to save bookmark: %s", result.get('error'))
+            
+            # End directory properly for context actions
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return True
+            
+        except Exception as e:
+            self.logger.error("Error handling bookmark save: %s", e)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to save bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False

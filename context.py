@@ -7,6 +7,7 @@ Handles context menu actions for adding media to lists
 """
 
 import sys
+import time
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -219,6 +220,24 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append(f"remove_library_item_from_list&list_id={list_id}&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
         else:
             actions.append("remove_from_list_generic")
+
+    # 5. Save Link to Bookmarks (if not in LibraryGenie folder context)
+    # Only show for navigable folders/containers
+    container_path = xbmc.getInfoLabel('Container.FolderPath')
+    if not _is_folder_context(container_path, item_info.get('file_path')):
+        bookmark_label = L(37110)  # "LG Save Bookmark"
+        if not bookmark_label or bookmark_label.startswith('LocMiss_'):
+            bookmark_label = "LG Save Bookmark"
+        options.append(bookmark_label)
+        
+        # Use container path for bookmarking the current folder location
+        if container_path:
+            bookmark_url = urllib.parse.quote(container_path)
+            container_label = xbmc.getInfoLabel('Container.Label') or 'Current Folder'
+            encoded_label = urllib.parse.quote(container_label)
+            actions.append(f"save_bookmark&url={bookmark_url}&name={encoded_label}")
+        else:
+            actions.append("save_bookmark_generic")
 
 
 def _show_search_submenu(addon):
@@ -556,6 +575,10 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Handle external item by gathering metadata
             _handle_external_item_add(addon)
 
+        elif action_with_params.startswith("save_bookmark"):
+            # Handle bookmark saving actions
+            _handle_bookmark_save(action_with_params, addon)
+            
         elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
             # Handle remove actions - pure context actions, no endOfDirectory
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
@@ -700,6 +723,110 @@ def _handle_external_item_add(addon):
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Failed to process external item",
+            xbmcgui.NOTIFICATION_ERROR,
+            3000
+        )
+
+
+def _handle_bookmark_save(action_with_params, addon):
+    """Handle saving current location as a bookmark"""
+    try:
+        # Parse action parameters
+        params = {}
+        if '&' in action_with_params:
+            param_string = action_with_params.split('&', 1)[1]
+            for param in param_string.split('&'):
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    params[key] = urllib.parse.unquote(value)
+        
+        # Get URL and name from parameters
+        bookmark_url = params.get('url')
+        bookmark_name = params.get('name', 'Unnamed Bookmark')
+        
+        if not bookmark_url:
+            # Fallback to current container path
+            bookmark_url = xbmc.getInfoLabel('Container.FolderPath')
+            if not bookmark_url:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Unable to determine location to bookmark",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    3000
+                )
+                return
+        
+        # Decode URL
+        bookmark_url = urllib.parse.unquote(bookmark_url)
+        
+        # Determine bookmark type based on URL with expanded scheme detection
+        bookmark_type = 'plugin'  # Default
+        url_lower = bookmark_url.lower()
+        
+        # Network protocols
+        network_schemes = ('smb://', 'nfs://', 'ftp://', 'sftp://', 'ftps://', 'http://', 'https://', 'dav://', 'davs://', 'upnp://')
+        if any(url_lower.startswith(scheme) for scheme in network_schemes):
+            bookmark_type = 'network'
+        # File paths
+        elif url_lower.startswith('file://') or (len(url_lower) > 2 and url_lower[1:3] == ':\\'):
+            bookmark_type = 'file'
+        # Special Kodi paths
+        elif url_lower.startswith('special://'):
+            bookmark_type = 'special'
+        # Library database URLs
+        elif url_lower.startswith('videodb://') or url_lower.startswith('musicdb://'):
+            bookmark_type = 'library'
+        # Plugin URLs (includes unrecognized schemes as fallback)
+        else:
+            bookmark_type = 'plugin'
+        
+        # Gather additional metadata
+        metadata = {
+            'container_content': xbmc.getInfoLabel('Container.Content'),
+            'container_label': xbmc.getInfoLabel('Container.Label'),
+            'saved_from': 'context_menu',
+            'created_date': time.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        # Gather artwork if available
+        art_data = {}
+        fanart = xbmc.getInfoLabel('Container.Art(fanart)')
+        if fanart:
+            art_data['fanart'] = fanart
+        icon = xbmc.getInfoLabel('Container.Art(icon)')
+        if icon:
+            art_data['icon'] = icon
+        thumb = xbmc.getInfoLabel('Container.Art(thumb)')
+        if thumb:
+            art_data['thumb'] = thumb
+        
+        # Save via plugin URL (let the router handle the actual saving)
+        encoded_url = urllib.parse.quote(bookmark_url)
+        encoded_name = urllib.parse.quote(bookmark_name)
+        encoded_type = urllib.parse.quote(bookmark_type)
+        
+        plugin_url = f"plugin://plugin.video.librarygenie/?action=save_bookmark_from_context"
+        plugin_url += f"&url={encoded_url}&name={encoded_name}&type={encoded_type}"
+        
+        # Add metadata and art as JSON if present
+        if metadata:
+            import json
+            encoded_metadata = urllib.parse.quote(json.dumps(metadata))
+            plugin_url += f"&metadata={encoded_metadata}"
+        
+        if art_data:
+            import json
+            encoded_art = urllib.parse.quote(json.dumps(art_data))
+            plugin_url += f"&art={encoded_art}"
+        
+        xbmc.log(f"LibraryGenie: Saving bookmark via: {plugin_url}", xbmc.LOGINFO)
+        xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+        
+    except Exception as e:
+        xbmc.log(f"LibraryGenie bookmark save error: {str(e)}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Failed to save bookmark",
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )
