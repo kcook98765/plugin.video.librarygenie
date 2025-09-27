@@ -564,28 +564,33 @@ def _execute_action(action_with_params, addon, item_info=None):
 
         elif action_with_params == "search" or action_with_params == "search_movies":
             # Launch LibraryGenie search (default to movies) - PUSH semantics for navigation
+            from lib.utils.builtin_safe import safe_activate_window
             plugin_url = "plugin://plugin.video.librarygenie/?action=search"
-            xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+            safe_activate_window('Videos', plugin_url)
 
         elif action_with_params == "search_tv":
             # Launch LibraryGenie TV search - PUSH semantics for navigation
+            from lib.utils.builtin_safe import safe_activate_window
             plugin_url = "plugin://plugin.video.librarygenie/?action=search&content_type=episodes"
-            xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+            safe_activate_window('Videos', plugin_url)
 
         elif action_with_params == "search_ai":
             # Launch AI Movie Search - PUSH semantics for navigation
+            from lib.utils.builtin_safe import safe_activate_window
             plugin_url = "plugin://plugin.video.librarygenie/?action=ai_search"
-            xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+            safe_activate_window('Videos', plugin_url)
 
         elif action_with_params == "search_history":
             # Show search history - PUSH semantics for navigation
+            from lib.utils.builtin_safe import safe_activate_window
             plugin_url = "plugin://plugin.video.librarygenie/?action=show_search_history"
-            xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+            safe_activate_window('Videos', plugin_url)
 
         elif action_with_params == "show_favorites":
             # Show Kodi Favorites - PUSH semantics for navigation
+            from lib.utils.builtin_safe import safe_activate_window
             plugin_url = "plugin://plugin.video.librarygenie/?action=show_favorites"
-            xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+            safe_activate_window('Videos', plugin_url)
 
         elif action_with_params == "add_external_item":
             # Handle external item by gathering metadata
@@ -601,15 +606,17 @@ def _execute_action(action_with_params, addon, item_info=None):
             
         elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
             # Handle remove actions - pure context actions, no endOfDirectory
+            from lib.utils.builtin_safe import safe_run_plugin
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
             xbmc.log(f"LibraryGenie: Executing remove action: {plugin_url}", xbmc.LOGINFO)
-            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+            safe_run_plugin(plugin_url)
             xbmc.log(f"LibraryGenie: Remove action executed, waiting for result", xbmc.LOGINFO)
 
         else:
             # Handle other actions - pure context actions, no endOfDirectory
+            from lib.utils.builtin_safe import safe_run_plugin
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
-            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+            safe_run_plugin(plugin_url)
 
     except Exception as e:
         xbmc.log(f"LibraryGenie action execution error: {str(e)}", xbmc.LOGERROR)
