@@ -915,8 +915,8 @@ def _save_bookmark_directly(item_data, addon):
                 bookmark_url = file_path
                 xbmc.log(f"LibraryGenie: File system source - no actual path found, using file_path: {file_path}", xbmc.LOGINFO)
                 
-        # Handle videodb navigation using actual database IDs or labels
-        elif container_path and 'videodb://' in container_path and is_folder:
+        # Handle videodb and musicdb navigation using actual database IDs or labels
+        elif container_path and ('videodb://' in container_path or 'musicdb://' in container_path) and is_folder:
             # Primary: Try to use numeric database ID
             if dbid:
                 # Construct proper videodb URL using the numeric database ID
@@ -953,6 +953,27 @@ def _save_bookmark_directly(item_data, addon):
                 elif 'movies/titles' in container_path:
                     bookmark_url = f"videodb://movies/titles/{dbid}/"
                     xbmc.log(f"LibraryGenie: Constructed movie URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                # Music database URL patterns
+                elif 'musicdb://' in container_path:
+                    if 'artists' in container_path:
+                        bookmark_url = f"musicdb://artists/{dbid}/"
+                        xbmc.log(f"LibraryGenie: Constructed music artist URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                    elif 'albums' in container_path:
+                        bookmark_url = f"musicdb://albums/{dbid}/"
+                        xbmc.log(f"LibraryGenie: Constructed music album URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                    elif 'genres' in container_path:
+                        bookmark_url = f"musicdb://genres/{dbid}/"
+                        xbmc.log(f"LibraryGenie: Constructed music genre URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                    elif 'songs' in container_path:
+                        bookmark_url = f"musicdb://songs/{dbid}/"
+                        xbmc.log(f"LibraryGenie: Constructed music song URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                    elif 'years' in container_path:
+                        bookmark_url = f"musicdb://years/{dbid}/"
+                        xbmc.log(f"LibraryGenie: Constructed music year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                    else:
+                        # Generic musicdb URL construction with DBID
+                        bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
+                        xbmc.log(f"LibraryGenie: Constructed generic musicdb URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
                 else:
                     # Generic videodb URL construction with DBID
                     bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
@@ -983,6 +1004,27 @@ def _save_bookmark_directly(item_data, addon):
                     elif 'movies/titles' in container_path:
                         bookmark_url = f"videodb://movies/titles/{encoded_label}/"
                         xbmc.log(f"LibraryGenie: Constructed movie URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    # Music database URL patterns with labels
+                    elif 'musicdb://' in container_path:
+                        if 'artists' in container_path:
+                            bookmark_url = f"musicdb://artists/{encoded_label}/"
+                            xbmc.log(f"LibraryGenie: Constructed music artist URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                        elif 'albums' in container_path:
+                            bookmark_url = f"musicdb://albums/{encoded_label}/"
+                            xbmc.log(f"LibraryGenie: Constructed music album URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                        elif 'genres' in container_path:
+                            bookmark_url = f"musicdb://genres/{encoded_label}/"
+                            xbmc.log(f"LibraryGenie: Constructed music genre URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                        elif 'songs' in container_path:
+                            bookmark_url = f"musicdb://songs/{encoded_label}/"
+                            xbmc.log(f"LibraryGenie: Constructed music song URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                        elif 'years' in container_path:
+                            bookmark_url = f"musicdb://years/{item_label}/"
+                            xbmc.log(f"LibraryGenie: Constructed music year URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                        else:
+                            # Generic musicdb URL construction with label
+                            bookmark_url = f"{container_path.rstrip('/')}/{encoded_label}/"
+                            xbmc.log(f"LibraryGenie: Constructed generic musicdb URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
                     else:
                         # Generic videodb URL construction with label
                         bookmark_url = f"{container_path.rstrip('/')}/{encoded_label}/"
@@ -1215,10 +1257,22 @@ def _generate_smart_bookmark_name():
             item_name = os.path.basename(item_filename_path.rstrip('/'))
             xbmc.log(f"LibraryGenie: Smart naming - Using FileNameAndPath: '{item_name}'", xbmc.LOGINFO)
         
-        # Get container folder name for prefix
+        # Get container folder name for prefix - normalize music folders to friendlier names
         folder_name = ''
         if container_folder_name and container_folder_name not in ('Container.FolderName', ''):
-            folder_name = container_folder_name
+            # Map technical music folder names to user-friendly names
+            if container_folder_name == 'Artists':
+                folder_name = 'Artists'
+            elif container_folder_name == 'Albums':
+                folder_name = 'Albums'
+            elif container_folder_name == 'Genres':
+                folder_name = 'Genres'
+            elif container_folder_name == 'Songs':
+                folder_name = 'Songs'
+            elif container_folder_name == 'Years':
+                folder_name = 'Years'
+            else:
+                folder_name = container_folder_name
             xbmc.log(f"LibraryGenie: Smart naming - Using FolderName: '{folder_name}'", xbmc.LOGINFO)
         
         # Create smart bookmark name
