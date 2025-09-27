@@ -955,7 +955,12 @@ def _save_bookmark_directly(item_data, addon):
                     xbmc.log(f"LibraryGenie: Constructed movie URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
                 # Music database URL patterns
                 elif 'musicdb://' in container_path:
-                    if 'artists' in container_path:
+                    # Special containers that don't use DBID (like recently added)
+                    if 'recentlyaddedalbums' in container_path or 'recentlyaddedmusic' in container_path or 'recentlyplayedalbums' in container_path or 'recentlyplayedsongs' in container_path or 'compilations' in container_path:
+                        # Keep the original container path without appending DBID
+                        bookmark_url = container_path
+                        xbmc.log(f"LibraryGenie: Using special music container path: {bookmark_url}", xbmc.LOGINFO)
+                    elif 'artists' in container_path:
                         bookmark_url = f"musicdb://artists/{dbid}/"
                         xbmc.log(f"LibraryGenie: Constructed music artist URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
                     elif 'albums' in container_path:
@@ -982,9 +987,9 @@ def _save_bookmark_directly(item_data, addon):
                 # Fallback: Use label when no DBID is available (e.g., years, some collections)
                 item_label = xbmc.getInfoLabel('ListItem.Label') or title or label
                 if item_label:
-                    # URL encode the label for safety
+                    # URL encode the label for safety - avoid double-encoding
                     import urllib.parse
-                    encoded_label = urllib.parse.quote(item_label.replace(' ', '%20'))
+                    encoded_label = urllib.parse.quote(item_label, safe='')
                     
                     if 'movies/years' in container_path:
                         bookmark_url = f"videodb://movies/years/{item_label}/"
@@ -1015,6 +1020,9 @@ def _save_bookmark_directly(item_data, addon):
                         elif 'genres' in container_path:
                             bookmark_url = f"musicdb://genres/{encoded_label}/"
                             xbmc.log(f"LibraryGenie: Constructed music genre URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                        elif 'songs' in container_path:
+                            bookmark_url = f"musicdb://songs/{encoded_label}/"
+                            xbmc.log(f"LibraryGenie: Constructed music song URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
                         elif 'songs' in container_path:
                             bookmark_url = f"musicdb://songs/{encoded_label}/"
                             xbmc.log(f"LibraryGenie: Constructed music song URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
