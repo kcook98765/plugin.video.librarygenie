@@ -847,15 +847,28 @@ def _save_bookmark_directly(item_data, addon):
                 selected_list_name = list_options[selected_index]
         
         # Determine the best URL for bookmark navigation
-        # Use conditional logic based on item type
+        # Use conditional logic based on item type and context
         navigation_path = item_data.get('navigation_path', '')
         file_path = item_data.get('file_path', '')
         container_path = xbmc.getInfoLabel('Container.FolderPath')
         is_folder = xbmc.getCondVisibility('ListItem.IsFolder')
         
+        # Get additional context for special cases
+        title = item_data.get('title', '')
+        label = item_data.get('label', '')
+        
+        # Special handling for genre navigation
+        if container_path and 'videodb://movies/genres' in container_path and is_folder:
+            # For genres, construct the proper URL using the title/label
+            genre_name = title or label
+            if genre_name:
+                bookmark_url = f"videodb://movies/genres/{genre_name.replace(' ', '%20')}/"
+                xbmc.log(f"LibraryGenie: Constructed genre URL for '{genre_name}': {bookmark_url}", xbmc.LOGINFO)
+            else:
+                bookmark_url = file_path
+                xbmc.log(f"LibraryGenie: Failed to get genre name, using file_path: {file_path}", xbmc.LOGINFO)
         # For folders, prefer ListItem.Path if it's different from container path
-        # For playable items, prefer ListItem.FileNameAndPath
-        if is_folder and navigation_path and navigation_path != container_path:
+        elif is_folder and navigation_path and navigation_path != container_path:
             bookmark_url = navigation_path
             xbmc.log(f"LibraryGenie: Using navigation_path for folder bookmark: {navigation_path}", xbmc.LOGINFO)
         else:
