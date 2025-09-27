@@ -174,6 +174,12 @@ class Router:
             elif action == 'navigate_bookmark':
                 # Handle bookmark navigation - navigate out of plugin to stored URL
                 return self._handle_navigate_bookmark(context)
+            elif action == 'rename_bookmark':
+                # Handle bookmark renaming
+                return self._handle_rename_bookmark(context)
+            elif action == 'remove_bookmark':
+                # Handle bookmark removal
+                return self._handle_remove_bookmark(context)
             elif action == 'add_external_item':
                 # Handle adding external item (including bookmarks) to list
                 from lib.ui.handler_factory import get_handler_factory
@@ -930,6 +936,165 @@ class Router:
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
                 "Failed to navigate to bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+    
+    def _handle_rename_bookmark(self, context):
+        """Handle bookmark renaming"""
+        try:
+            import xbmcgui
+            bookmark_id = context.get_param('bookmark_id')
+            if not bookmark_id:
+                self.logger.error("No bookmark_id provided for rename")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "No bookmark ID provided",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Get current bookmark name from database
+            query_manager = context.query_manager
+            with query_manager.connection_manager.get_connection() as conn:
+                result = conn.execute("""
+                    SELECT title, id FROM media_items 
+                    WHERE id = ? AND source = 'bookmark'
+                """, [int(bookmark_id)]).fetchone()
+                
+                if not result:
+                    self.logger.error("Bookmark not found with id: %s", bookmark_id)
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Bookmark not found",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                current_name = result['title']
+                
+                # Show rename dialog
+                dialog = xbmcgui.Dialog()
+                new_name = dialog.input("Rename Bookmark", current_name)
+                
+                if not new_name or new_name.strip() == "":
+                    # User cancelled or entered empty name
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                # Update bookmark name in database
+                conn.execute("""
+                    UPDATE media_items 
+                    SET title = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ? AND source = 'bookmark'
+                """, [new_name.strip(), int(bookmark_id)])
+                
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Renamed bookmark to '{new_name.strip()}'",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                return True
+                
+        except Exception as e:
+            self.logger.error("Error renaming bookmark: %s", e)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to rename bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+    
+    def _handle_remove_bookmark(self, context):
+        """Handle bookmark removal"""
+        try:
+            import xbmcgui
+            bookmark_id = context.get_param('bookmark_id')
+            if not bookmark_id:
+                self.logger.error("No bookmark_id provided for removal")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "No bookmark ID provided",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Get bookmark info for confirmation
+            query_manager = context.query_manager
+            with query_manager.connection_manager.get_connection() as conn:
+                result = conn.execute("""
+                    SELECT title, id FROM media_items 
+                    WHERE id = ? AND source = 'bookmark'
+                """, [int(bookmark_id)]).fetchone()
+                
+                if not result:
+                    self.logger.error("Bookmark not found with id: %s", bookmark_id)
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Bookmark not found",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                bookmark_name = result['title']
+                
+                # Show confirmation dialog
+                dialog = xbmcgui.Dialog()
+                confirmed = dialog.yesno(
+                    "Remove Bookmark",
+                    f"Remove bookmark '{bookmark_name}'?",
+                    "",
+                    "This action cannot be undone."
+                )
+                
+                if not confirmed:
+                    # User cancelled
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                # Remove bookmark from database
+                # First remove from any lists
+                conn.execute("""
+                    DELETE FROM list_items 
+                    WHERE media_item_id = ?
+                """, [int(bookmark_id)])
+                
+                # Then remove the bookmark itself
+                conn.execute("""
+                    DELETE FROM media_items 
+                    WHERE id = ? AND source = 'bookmark'
+                """, [int(bookmark_id)])
+                
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    f"Removed bookmark '{bookmark_name}'",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                return True
+                
+        except Exception as e:
+            self.logger.error("Error removing bookmark: %s", e)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to remove bookmark",
                 xbmcgui.NOTIFICATION_ERROR,
                 3000
             )

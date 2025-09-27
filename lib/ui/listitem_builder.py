@@ -696,16 +696,32 @@ class ListItemBuilder:
     def _set_external_context_menu(self, list_item: xbmcgui.ListItem, item: Dict[str, Any]):
         """Context menu for external items"""
         cm = []
-        # Search the library for this title
-        cm.append((
-            "Search in Library",
-            f"RunPlugin(plugin://{self.addon_id}/?action=search_library&title={item.get('title','')})"
-        ))
-        # Add to list
-        cm.append((
-            "Add to List",
-            f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id','')})"
-        ))
+        source = item.get('source', '')
+        
+        if source == 'bookmark':
+            # Bookmark-specific context menu - only Rename and Remove
+            bookmark_id = item.get('id', '') or item.get('media_item_id', '')
+            cm.append((
+                "Rename",
+                f"RunPlugin(plugin://{self.addon_id}/?action=rename_bookmark&bookmark_id={bookmark_id})"
+            ))
+            cm.append((
+                "Remove",
+                f"RunPlugin(plugin://{self.addon_id}/?action=remove_bookmark&bookmark_id={bookmark_id})"
+            ))
+        else:
+            # Regular external items - existing functionality
+            # Search the library for this title
+            cm.append((
+                "Search in Library",
+                f"RunPlugin(plugin://{self.addon_id}/?action=search_library&title={item.get('title','')})"
+            ))
+            # Add to list
+            cm.append((
+                "Add to List",
+                f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id','')})"
+            ))
+        
         list_item.addContextMenuItems(cm)
 
     def _set_enhanced_episode_formatting(self, li: xbmcgui.ListItem, item: Dict[str, Any], display_label: str, is_episode: bool):
