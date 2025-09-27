@@ -878,9 +878,10 @@ class Router:
                     return False
                 
                 # Navigate to the bookmark URL using Kodi's built-in navigation
+                # Add 'return' parameter to maintain navigation history per Kodi documentation
                 self.logger.info("Navigating to bookmark URL: %s", bookmark_url)
                 import xbmc
-                xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url})")
+                xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
                 
                 # End the directory since we're navigating away
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
