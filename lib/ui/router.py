@@ -878,9 +878,10 @@ class Router:
                     return False
                 
                 # Navigate to the bookmark URL using Kodi's built-in navigation
-                # Add 'return' parameter to maintain navigation history per Kodi documentation
+                # Close any active busy dialogs that interfere with ActivateWindow calls
                 self.logger.info("Navigating to bookmark URL: %s", bookmark_url)
                 import xbmc
+                xbmc.executebuiltin('Dialog.Close(busydialog)')
                 xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
                 
                 # End the directory since we're navigating away
