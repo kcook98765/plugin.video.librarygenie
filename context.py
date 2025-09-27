@@ -1183,34 +1183,49 @@ def _generate_smart_bookmark_name():
         item_title = xbmc.getInfoLabel('ListItem.Title')
         item_filename_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
         
+        # Debug logging to track what we're getting
+        xbmc.log(f"LibraryGenie: Smart naming - Container.FolderName: '{container_folder_name}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Smart naming - ListItem.Label: '{item_label}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Smart naming - ListItem.Title: '{item_title}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Smart naming - ListItem.FileNameAndPath: '{item_filename_path}'", xbmc.LOGINFO)
+        
         # Determine the item name with fallback logic
         item_name = ''
         if item_label and item_label not in ('ListItem.Label', ''):
             item_name = item_label
+            xbmc.log(f"LibraryGenie: Smart naming - Using Label: '{item_name}'", xbmc.LOGINFO)
         elif item_title and item_title not in ('ListItem.Title', ''):
             item_name = item_title
+            xbmc.log(f"LibraryGenie: Smart naming - Using Title: '{item_name}'", xbmc.LOGINFO)
         elif item_filename_path and item_filename_path not in ('ListItem.FileNameAndPath', ''):
             # Extract just the filename from the full path for display
             import os
             item_name = os.path.basename(item_filename_path.rstrip('/'))
+            xbmc.log(f"LibraryGenie: Smart naming - Using FileNameAndPath: '{item_name}'", xbmc.LOGINFO)
         
         # Get container folder name for prefix
         folder_name = ''
         if container_folder_name and container_folder_name not in ('Container.FolderName', ''):
             folder_name = container_folder_name
+            xbmc.log(f"LibraryGenie: Smart naming - Using FolderName: '{folder_name}'", xbmc.LOGINFO)
         
         # Create smart bookmark name
         if folder_name and item_name:
             # Format: (Container.FolderName) Item Name
-            return f"({folder_name}) {item_name}"
+            result = f"({folder_name}) {item_name}"
+            xbmc.log(f"LibraryGenie: Smart naming - Final result: '{result}'", xbmc.LOGINFO)
+            return result
         elif item_name:
             # Just the item name if no container context
+            xbmc.log(f"LibraryGenie: Smart naming - Item only: '{item_name}'", xbmc.LOGINFO)
             return item_name
         elif folder_name:
             # Just the folder name if no item context
+            xbmc.log(f"LibraryGenie: Smart naming - Folder only: '{folder_name}'", xbmc.LOGINFO)
             return folder_name
         else:
             # Final fallback
+            xbmc.log("LibraryGenie: Smart naming - Using fallback: 'Current Location'", xbmc.LOGINFO)
             return 'Current Location'
             
     except Exception as e:
@@ -1227,7 +1242,7 @@ def _handle_bookmark_confirmation(addon):
         # Generate intelligent bookmark name
         container_label = _generate_smart_bookmark_name()
         
-        xbmc.log(f"LibraryGenie: Generated smart bookmark name: '{container_label}'", xbmc.LOGDEBUG)
+        xbmc.log(f"LibraryGenie: Generated smart bookmark name: '{container_label}'", xbmc.LOGINFO)
         
         if not container_path:
             xbmcgui.Dialog().notification(
