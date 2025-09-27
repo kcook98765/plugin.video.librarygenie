@@ -931,25 +931,55 @@ def _save_bookmark_directly(item_data, addon):
         xbmc.log("LibraryGenie: END DEBUG DUMP", xbmc.LOGINFO)
         xbmc.log("=" * 80, xbmc.LOGINFO)
         
-        # Special handling for videodb navigation using actual database IDs
-        if container_path and 'videodb://' in container_path and is_folder and dbid:
-            # Construct proper videodb URL using the numeric database ID
-            if 'movies/genres' in container_path:
-                bookmark_url = f"videodb://movies/genres/{dbid}/"
-                xbmc.log(f"LibraryGenie: Constructed genre URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
-            elif 'tvshows/genres' in container_path:
-                bookmark_url = f"videodb://tvshows/genres/{dbid}/"
-                xbmc.log(f"LibraryGenie: Constructed TV genre URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
-            elif 'movies/sets' in container_path:
-                bookmark_url = f"videodb://movies/sets/{dbid}/"
-                xbmc.log(f"LibraryGenie: Constructed movie set URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
-            elif 'movies/years' in container_path:
-                bookmark_url = f"videodb://movies/years/{dbid}/"
-                xbmc.log(f"LibraryGenie: Constructed year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+        # Special handling for videodb navigation using actual database IDs or labels
+        if container_path and 'videodb://' in container_path and is_folder:
+            # Primary: Try to use numeric database ID
+            if dbid:
+                # Construct proper videodb URL using the numeric database ID
+                if 'movies/genres' in container_path:
+                    bookmark_url = f"videodb://movies/genres/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed genre URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'tvshows/genres' in container_path:
+                    bookmark_url = f"videodb://tvshows/genres/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed TV genre URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/sets' in container_path:
+                    bookmark_url = f"videodb://movies/sets/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed movie set URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/years' in container_path:
+                    bookmark_url = f"videodb://movies/years/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                else:
+                    # Generic videodb URL construction with DBID
+                    bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed generic videodb URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
             else:
-                # Generic videodb URL construction
-                bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
-                xbmc.log(f"LibraryGenie: Constructed generic videodb URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                # Fallback: Use label when no DBID is available (e.g., years, some collections)
+                item_label = xbmc.getInfoLabel('ListItem.Label') or title or label
+                if item_label:
+                    # URL encode the label for safety
+                    import urllib.parse
+                    encoded_label = urllib.parse.quote(item_label.replace(' ', '%20'))
+                    
+                    if 'movies/years' in container_path:
+                        bookmark_url = f"videodb://movies/years/{item_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed year URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'tvshows/years' in container_path:
+                        bookmark_url = f"videodb://tvshows/years/{item_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed TV year URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'movies/genres' in container_path:
+                        bookmark_url = f"videodb://movies/genres/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed genre URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'tvshows/genres' in container_path:
+                        bookmark_url = f"videodb://tvshows/genres/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed TV genre URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    else:
+                        # Generic videodb URL construction with label
+                        bookmark_url = f"{container_path.rstrip('/')}/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed generic videodb URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                else:
+                    # Last resort: use file_path
+                    bookmark_url = file_path
+                    xbmc.log(f"LibraryGenie: No DBID or label available, using file_path: {file_path}", xbmc.LOGINFO)
         # For folders, prefer ListItem.Path if it's different from container path
         elif is_folder and navigation_path and navigation_path != container_path:
             bookmark_url = navigation_path
