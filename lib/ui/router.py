@@ -170,6 +170,10 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                 
                 return result if isinstance(result, bool) else True
+                
+            elif action == 'navigate_bookmark':
+                # Handle bookmark navigation - navigate out of plugin to stored URL
+                return self._handle_navigate_bookmark(context)
             elif action == 'add_external_item':
                 # Handle adding external item (including bookmarks) to list
                 from lib.ui.handler_factory import get_handler_factory
@@ -829,3 +833,66 @@ class Router:
             return 'special'
         else:
             return 'file'
+            
+    def _handle_navigate_bookmark(self, context):
+        """Handle bookmark navigation - navigate out of plugin to stored URL"""
+        try:
+            item_id = context.get_param('item_id')
+            if not item_id:
+                self.logger.error("No item_id provided for bookmark navigation")
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Get bookmark URL from database
+            query_manager = context.query_manager
+            with query_manager.connection_manager.get_connection() as conn:
+                result = conn.execute("""
+                    SELECT play, file_path, title
+                    FROM media_items 
+                    WHERE id = ? AND source = 'bookmark'
+                """, [int(item_id)]).fetchone()
+                
+                if not result:
+                    self.logger.error("Bookmark not found with id: %s", item_id)
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Bookmark not found",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                bookmark_url = result['play'] or result['file_path']
+                bookmark_title = result['title']
+                
+                if not bookmark_url:
+                    self.logger.error("No URL found for bookmark: %s", bookmark_title)
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"No URL found for bookmark '{bookmark_title}'",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                # Navigate to the bookmark URL using Kodi's built-in navigation
+                self.logger.info("Navigating to bookmark URL: %s", bookmark_url)
+                import xbmc
+                xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url})")
+                
+                # End the directory since we're navigating away
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                return True
+                
+        except Exception as e:
+            self.logger.error("Error navigating to bookmark: %s", e)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to navigate to bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
