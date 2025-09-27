@@ -895,11 +895,11 @@ class Router:
                 import xbmc
                 xbmc.executebuiltin('Dialog.Close(busydialog)')
                 
-                # Choose navigation method based on URL type
+                # Use ActivateWindow for ALL bookmark navigation to maintain proper back button behavior
                 if bookmark_url.startswith(('videodb://', 'musicdb://')):
-                    # Use Container.Update for database URLs
-                    xbmc.executebuiltin(f"Container.Update({bookmark_url})")
-                    self.logger.info("Used Container.Update for database URL")
+                    # Use ActivateWindow for database URLs to maintain navigation history
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for database URL")
                 elif bookmark_url.startswith(('smb://', 'nfs://', 'ftp://', 'sftp://', 'davs://', 'dav://', 'hdhomerun://', 'http://', 'https://')):
                     # Use ActivateWindow for network protocols
                     xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
@@ -917,9 +917,9 @@ class Router:
                     xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
                     self.logger.info("Used ActivateWindow for special protocol URL")
                 else:
-                    # Generic fallback - try Container.Update first
-                    xbmc.executebuiltin(f"Container.Update({bookmark_url})")
-                    self.logger.info("Used Container.Update as fallback")
+                    # Generic fallback - use ActivateWindow to maintain navigation history
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow as fallback")
                 
                 # End the directory since we're navigating away
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
