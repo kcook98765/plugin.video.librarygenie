@@ -665,14 +665,14 @@ class ListItemBuilder:
         Return direct play URL if provided; otherwise build a plugin URL
         that routes to info/play handling.
         """
-        # Special handling for bookmarks - they need to navigate out of plugin
+        # Special handling for bookmarks - use direct URLs to avoid navigation loop
         source = item.get('source', '')
         if source == 'bookmark':
             bookmark_url = item.get('play') or item.get('file_path')
             if bookmark_url and bookmark_url.strip():
-                # Route bookmark navigation through plugin action
-                media_item_id = item.get('media_item_id') or item.get('id')
-                return f"plugin://{self.addon_id}/?action=navigate_bookmark&item_id={media_item_id}"
+                # Return the direct bookmark URL instead of routing through plugin
+                # This avoids the Kodi ActivateWindow navigation bug with plugin URLs
+                return bookmark_url
         
         # Regular handling for non-bookmark items
         play = item.get('play') or item.get('file_path')
