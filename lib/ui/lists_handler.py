@@ -374,9 +374,10 @@ class ListsHandler:
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb(breadcrumb_action, breadcrumb_params, query_manager)
             if directory_title:
                 try:
-                    # Set the directory title in Kodi
-                    import xbmc
-                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    # Set the directory title in Kodi using proper window property API
+                    import xbmcgui
+                    window = xbmcgui.Window(10025)  # Video window
+                    window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
@@ -609,11 +610,11 @@ class ListsHandler:
                 parent_path = context.build_url('lists')  # Use 'lists' action for main menu
 
             context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
-            # Set parent directory using the correct xbmcplugin method
-            import xbmc
-            xbmc.executebuiltin(f'SetProperty(ParentDir,{parent_path})')
-            # Also try the container method
-            xbmc.executebuiltin(f'SetProperty(Container.ParentDir,{parent_path})')
+            # Set parent directory using proper window property API
+            import xbmcgui
+            window = xbmcgui.Window(10025)  # Video window
+            window.setProperty('ParentDir', parent_path)
+            window.setProperty('Container.ParentDir', parent_path)
 
             context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
@@ -621,9 +622,10 @@ class ListsHandler:
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, query_manager)
             if directory_title:
                 try:
-                    # Set the directory title in Kodi
-                    import xbmc
-                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    # Set the directory title in Kodi using proper window property API
+                    import xbmcgui
+                    window = xbmcgui.Window(10025)  # Video window
+                    window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
@@ -814,9 +816,10 @@ class ListsHandler:
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_list", {"list_id": list_id}, query_manager)
             if directory_title:
                 try:
-                    # Set the directory title in Kodi
-                    import xbmc
-                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    # Set the directory title in Kodi using proper window property API
+                    import xbmcgui
+                    window = xbmcgui.Window(10025)  # Video window
+                    window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
@@ -1168,17 +1171,58 @@ class ListsHandler:
                 if key not in ('action', 'external_item'):
                     external_data[key] = value
 
-            if not external_data.get('title'):
-                context.logger.error("No title found for external item")
+            # Get title from either 'title' or 'name' parameter
+            title = external_data.get('title') or external_data.get('name')
+            if not title:
+                context.logger.error("No title or name found for external item")
                 return False
+            
+            # Ensure title is set for downstream processing
+            external_data['title'] = title
 
             # Convert to format expected by add_to_list system
+            # Check if this is a bookmark and set appropriate metadata
+            is_bookmark = external_data.get('type') == 'bookmark'
+            
+            # Create stable ID for consistent deduplication across sessions
+            import hashlib
+            # Use 'url' field from context menu or 'file_path' if already processed
+            id_source = external_data.get('url') or external_data.get('file_path', external_data['title'])
+            stable_id = hashlib.sha1(id_source.encode('utf-8')).hexdigest()[:16]
+            
+            # Ensure file_path is set for bookmark navigation (using 'url' from context)
+            if not external_data.get('file_path') and external_data.get('url'):
+                external_data['file_path'] = external_data['url']
+            
+            # Determine database-compatible media type
+            if is_bookmark:
+                # Bookmarks must use 'movie' for database compatibility
+                db_media_type = 'movie'
+            else:
+                # For non-bookmarks, check if it's an episode or default to movie
+                if (external_data.get('season') is not None and 
+                    external_data.get('episode') is not None):
+                    db_media_type = 'episode'
+                else:
+                    db_media_type = external_data.get('media_type', 'movie')
+                    # Ensure only valid types reach database
+                    if db_media_type not in ('movie', 'episode'):
+                        db_media_type = 'movie'
+            
             media_item = {
-                'id': f"external_{hash(external_data.get('file_path', external_data['title']))}",
+                'id': f"external_{stable_id}",
                 'title': external_data['title'],
-                'media_type': external_data.get('media_type', 'movie'),
+                'media_type': db_media_type,
                 'source': 'external'
             }
+            
+            # Add bookmark-specific properties for proper navigation
+            if is_bookmark:
+                media_item.update({
+                    'type': 'bookmark',
+                    'mediatype': 'folder',
+                    'is_folder': True
+                })
 
             # Copy over all the gathered metadata
             for key in ['originaltitle', 'year', 'plot', 'rating', 'votes', 'genre',
@@ -1187,6 +1231,11 @@ class ListsHandler:
                        'banner', 'clearlogo', 'imdbnumber', 'file_path']:
                 if key in external_data:
                     media_item[key] = external_data[key]
+            
+            # Ensure the bookmark URL is stored in the play field for navigation
+            if is_bookmark and external_data.get('url'):
+                media_item['play'] = external_data['url']
+                media_item['file_path'] = external_data['url']
 
             # Episode-specific fields
             if external_data.get('media_type') == 'episode':
@@ -1202,50 +1251,106 @@ class ListsHandler:
                 context.logger.error("Failed to initialize query manager")
                 return False
 
-            # Get all available lists
-            all_lists = query_manager.get_all_lists_with_folders()
-            if not all_lists:
-                # Offer to create a new list
-                dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.add_external_item_to_list')
-                
-                if dialog_service.yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
-                    result = self.create_list(context)
-                    if result.success:
-                        # Refresh lists and continue
-                        all_lists = query_manager.get_all_lists_with_folders()
+            # Check if list_id is provided (for direct addition, e.g., from context menu)
+            target_list_id = context.get_param('list_id')
+            dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler.add_external_item_to_list')
+            
+            if target_list_id:
+                # Direct addition to specified list
+                try:
+                    selected_list_id = int(target_list_id)
+                    # Verify the list exists
+                    list_info = query_manager.get_list_by_id(selected_list_id)
+                    if not list_info:
+                        dialog_service.show_error("Target list not found") # Localize this string
+                        return False
+                    selected_list_name = list_info.get('name', 'Unknown List')
+                except (ValueError, TypeError):
+                    dialog_service.show_error("Invalid list ID") # Localize this string
+                    return False
+            else:
+                # No list_id provided, show selection dialog
+                # Get all available lists
+                all_lists = query_manager.get_all_lists_with_folders()
+                if not all_lists:
+                    # Offer to create a new list
+                    if dialog_service.yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
+                        result = self.create_list(context)
+                        if result.success:
+                            # Refresh lists and continue
+                            all_lists = query_manager.get_all_lists_with_folders()
+                        else:
+                            return False
                     else:
                         return False
-                else:
+
+                # Build list selection options
+                list_options = []
+                list_ids = []
+
+                for item in all_lists:
+                    if item.get('type') == 'list':
+                        list_name = item['name']
+                        list_options.append(list_name)
+                        list_ids.append(item['id'])
+
+                if not list_options:
+                    dialog_service.show_warning("No lists available") # Localize this string
                     return False
 
-            # Build list selection options
-            list_options = []
-            list_ids = []
+                # Show list selection dialog
+                selected_index = dialog_service.select(
+                    f"Add '{media_item['title']}' to list:", # Localize this string
+                    list_options
+                )
 
-            for item in all_lists:
-                if item.get('type') == 'list':
-                    list_name = item['name']
-                    list_options.append(list_name)
-                    list_ids.append(item['id'])
+                if selected_index < 0:
+                    return False  # User cancelled
 
-            if not list_options:
-                dialog_service.show_warning("No lists available") # Localize this string
-                return False
-
-            # Show list selection dialog
-            selected_index = dialog_service.select(
-                f"Add '{media_item['title']}' to list:", # Localize this string
-                list_options
-            )
-
-            if selected_index < 0:
-                return False  # User cancelled
-
-            selected_list_id = list_ids[selected_index]
-            selected_list_name = list_options[selected_index]
+                selected_list_id = int(list_ids[selected_index])  # Ensure integer
+                selected_list_name = list_options[selected_index]
 
             # Add the external item to the selected list
-            result = query_manager.add_item_to_list(selected_list_id, media_item)
+            # Use direct database insertion for external items since add_item_to_list is for library items only
+            try:
+                with query_manager.connection_manager.transaction() as conn:
+                    # Create complete media_data for external item
+                    from lib.utils.kodi_version import get_kodi_major_version
+                    import json
+                    
+                    # Use the standard add_item_to_list method and then update with bookmark data
+                    result = query_manager.add_item_to_list(
+                        list_id=selected_list_id,
+                        title=media_item['title'],
+                        year=media_item.get('year'),
+                        imdb_id=media_item.get('imdbnumber'),
+                        tmdb_id=media_item.get('tmdb_id'),
+                        kodi_id=media_item.get('kodi_id'),
+                        art_data=media_item.get('art_data', {}),
+                        tvshowtitle=media_item.get('tvshowtitle'),
+                        season=media_item.get('season'),
+                        episode=media_item.get('episode'),
+                        aired=media_item.get('aired')
+                    )
+                    
+                    # If successful, update the media item to store the bookmark URL
+                    if result and result.get('success') and result.get('media_item_id'):
+                        media_item_id = result['media_item_id']
+                        bookmark_url = external_data.get('url', '')
+                        
+                        # Update the media item to include bookmark data
+                        conn.execute("""
+                            UPDATE media_items 
+                            SET play = ?, file_path = ?, source = 'bookmark', plot = ?
+                            WHERE id = ?
+                        """, [bookmark_url, bookmark_url, f"Bookmark: {media_item['title']}", media_item_id])
+                
+            except Exception as e:
+                context.logger.error(f"Exception during bookmark save: {e}")
+                result = {'success': False}
+            
+            if not result:
+                result = {'success': False}
             success = result is not None and result.get("success", False)
 
             if success:

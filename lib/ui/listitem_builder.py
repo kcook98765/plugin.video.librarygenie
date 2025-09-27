@@ -542,18 +542,22 @@ class ListItemBuilder:
             li.setPath(url)
 
             # Keep folder/playable flags correct - IsPlayable="true" only for playable rows
-            is_playable = bool(item.get('play'))
-            is_folder = not is_playable
-
-            # Ensure list items that are meant to display list contents are marked as folders.
-            # This prevents Kodi from trying to show video info for them.
+            # Clean handling based on source type
             action = item.get("action", "")
+            source = item.get('source', '')
+            play_url = item.get('play', '')
+            
+            # Consolidated logic to avoid override issues
             if action == "show_list":
                 is_folder = True  # Lists should be navigable folders
-            elif is_playable:
-                is_folder = False # Playable items are not folders
+                is_playable = False
+            elif source == 'bookmark':
+                # Bookmarks should be navigable folders, not playable items
+                is_folder = True
+                is_playable = False
             else:
-                # Default to not a folder unless it's explicitly a "show_list" action
+                # Regular external items and media (including source='external')
+                is_playable = bool(play_url)
                 is_folder = False
 
             # For playable items, set additional properties
@@ -661,6 +665,16 @@ class ListItemBuilder:
         Return direct play URL if provided; otherwise build a plugin URL
         that routes to info/play handling.
         """
+        # Special handling for bookmarks - use direct URLs to avoid navigation loop
+        source = item.get('source', '')
+        if source == 'bookmark':
+            bookmark_url = item.get('play') or item.get('file_path')
+            if bookmark_url and bookmark_url.strip():
+                # Return the direct bookmark URL instead of routing through plugin
+                # This avoids the Kodi ActivateWindow navigation bug with plugin URLs
+                return bookmark_url
+        
+        # Regular handling for non-bookmark items
         play = item.get('play') or item.get('file_path')
         if play and play.strip():
             return play
@@ -1117,11 +1131,16 @@ class ListItemBuilder:
                 art_dict = {}
                 if hasattr(listitem, 'getArt'):
                     try:
-                        art_dict = listitem.getArt("")
+                        art_result = listitem.getArt("")
+                        # Ensure we have a dictionary, not a string
+                        if isinstance(art_result, dict):
+                            art_dict = art_result
+                        else:
+                            art_dict = {}
                     except (TypeError, AttributeError):
                         # Some Kodi versions have different getArt() signatures
                         art_dict = {}
-                if art_dict:
+                if art_dict and isinstance(art_dict, dict):
                     for art_type in art_types:
                         art_url = art_dict.get(art_type, '')
                         if art_url:

@@ -6,12 +6,13 @@ LibraryGenie - Database Schema Setup
 Creates the complete database schema on first run
 """
 
+import json
 import time
 from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 3
+TARGET_SCHEMA_VERSION = 4
 
 
 class MigrationManager:
@@ -57,7 +58,12 @@ class MigrationManager:
                     self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
                     self.logger.info("Schema version tracking added to existing database")
             else:
-                self.logger.debug("Database already at version %s", current_version)
+                # Check if we need to run migrations for version upgrades
+                if current_version < TARGET_SCHEMA_VERSION:
+                    self.logger.info("Upgrading database from version %s to %s", current_version, TARGET_SCHEMA_VERSION)
+                    self._run_migrations(conn, current_version)
+                else:
+                    self.logger.debug("Database already at version %s", current_version)
 
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
@@ -102,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 3, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 4, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -302,6 +308,7 @@ class MigrationManager:
         
         INSERT INTO folders (name, parent_id)
         VALUES ('Search History', NULL);
+        
         """
         
         # Execute the complete schema script
@@ -352,6 +359,17 @@ class MigrationManager:
             
 
 
+    def _run_migrations(self, conn, current_version):
+        """Run incremental migrations from current_version to TARGET_SCHEMA_VERSION"""
+        try:
+            # Set final version
+            self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
+            self.logger.info("Database migration completed successfully")
+            
+        except Exception as e:
+            self.logger.error("Migration failed: %s", e)
+            raise
+            
     def run_migrations(self):
         """Run all pending migrations - framework preserved for future use"""
         # Migrations removed for pre-release - using fresh schema reset instead

@@ -157,6 +157,36 @@ class Router:
                 # Search results use PUSH semantics (new page, not refinement)
                 finish_directory(context.addon_handle, succeeded=result, update=False)
                 return result
+            elif action == 'save_bookmark_from_context' or action == 'save_bookmark':
+                # Redirect old bookmark actions to the new integrated approach
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                lists_handler = factory.get_lists_handler()
+                result = lists_handler.add_external_item_to_list(context)
+                
+                # Handle context menu invocation properly - always end directory for external context
+                if context.is_from_outside_plugin():
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                
+                return result if isinstance(result, bool) else True
+                
+            elif action == 'navigate_bookmark':
+                # Handle bookmark navigation - navigate out of plugin to stored URL
+                return self._handle_navigate_bookmark(context)
+            elif action == 'add_external_item':
+                # Handle adding external item (including bookmarks) to list
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                lists_handler = factory.get_lists_handler()
+                result = lists_handler.add_external_item_to_list(context)
+                
+                # Handle context menu invocation properly - always end directory for external context
+                if context.is_from_outside_plugin():
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                
+                return result if isinstance(result, bool) else True
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
@@ -736,3 +766,172 @@ class Router:
 
         except Exception as e:
             self.logger.error("ROUTER: Error during Kodi Favorites scan: %s", e)
+
+    def _handle_bookmark_save(self, context):
+        """Handle saving bookmark from context menu"""
+        try:
+            # Get parameters from context
+            url = context.get_param('url')
+            name = context.get_param('name', 'Unnamed Bookmark')
+            bookmark_type = context.get_param('type', 'plugin')
+            metadata_json = context.get_param('metadata')
+            art_json = context.get_param('art')
+            
+            if not url:
+                self.logger.error("No URL provided for bookmark save")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Unable to save bookmark - no URL provided",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Parse metadata and art from JSON
+            metadata = {}
+            art_data = {}
+            
+            import json
+            
+            if metadata_json:
+                try:
+                    metadata = json.loads(metadata_json)
+                except (json.JSONDecodeError, Exception) as e:
+                    self.logger.warning("Failed to parse metadata JSON: %s", e)
+                    
+            if art_json:
+                try:
+                    art_data = json.loads(art_json)
+                except (json.JSONDecodeError, Exception) as e:
+                    self.logger.warning("Failed to parse art JSON: %s", e)
+            
+            
+        except Exception as e:
+            self.logger.error("Error handling bookmark save with category: %s", e)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to save bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+
+    def _determine_bookmark_type(self, url):
+        """Determine bookmark type from URL"""
+        if url.startswith('plugin://'):
+            return 'plugin'
+        elif url.startswith(('http://', 'https://', 'ftp://', 'ftps://')):
+            return 'network'
+        elif url.startswith(('smb://', 'nfs://', 'afp://', 'sftp://')):
+            return 'network'
+        elif url.startswith('videodb://') or url.startswith('musicdb://'):
+            return 'library'
+        elif url.startswith('special://'):
+            return 'special'
+        else:
+            return 'file'
+            
+    def _handle_navigate_bookmark(self, context):
+        """Handle bookmark navigation - navigate out of plugin to stored URL"""
+        try:
+            item_id = context.get_param('item_id')
+            if not item_id:
+                self.logger.error("No item_id provided for bookmark navigation")
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Get bookmark URL from database
+            query_manager = context.query_manager
+            with query_manager.connection_manager.get_connection() as conn:
+                result = conn.execute("""
+                    SELECT play, file_path, title
+                    FROM media_items 
+                    WHERE id = ? AND source = 'bookmark'
+                """, [int(item_id)]).fetchone()
+                
+                if not result:
+                    self.logger.error("Bookmark not found with id: %s", item_id)
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Bookmark not found",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                bookmark_url = result['play'] or result['file_path']
+                bookmark_title = result['title']
+                
+                if not bookmark_url or bookmark_url.strip() == "":
+                    self.logger.error("No URL found for bookmark: %s", bookmark_title)
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"No URL found for bookmark '{bookmark_title}'",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                    
+                # Additional validation for bookmark URL
+                if len(bookmark_url) > 2000:
+                    self.logger.warning("Very long bookmark URL (%d chars) for: %s", len(bookmark_url), bookmark_title)
+                    
+                # Enhanced scheme validation with more complete coverage
+                known_schemes = ['videodb://', 'musicdb://', 'smb://', 'nfs://', 'ftp://', 'sftp://', 'davs://', 'dav://', 
+                               'hdhomerun://', 'plugin://', 'special://', 'http://', 'https://', 'stack://', 'zip://', 'rar://', 'multipath://']
+                is_windows_path = len(bookmark_url) >= 3 and bookmark_url[1:3] == ':\\'
+                is_unix_path = bookmark_url.startswith('/')
+                
+                if not (any(bookmark_url.startswith(scheme) for scheme in known_schemes) or is_windows_path or is_unix_path):
+                    self.logger.warning("Unknown URL scheme for bookmark: %s", bookmark_url[:100])
+                
+                # Navigate to the bookmark URL using appropriate method based on URL type
+                self.logger.info("Navigating to bookmark URL: %s", bookmark_url)
+                import xbmc
+                xbmc.executebuiltin('Dialog.Close(busydialog)')
+                
+                # Use ActivateWindow for ALL bookmark navigation to maintain proper back button behavior
+                if bookmark_url.startswith(('videodb://', 'musicdb://')):
+                    # Use ActivateWindow for database URLs to maintain navigation history
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for database URL")
+                elif bookmark_url.startswith(('smb://', 'nfs://', 'ftp://', 'sftp://', 'davs://', 'dav://', 'hdhomerun://', 'http://', 'https://')):
+                    # Use ActivateWindow for network protocols
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for network protocol")
+                elif bookmark_url.startswith('/') or (len(bookmark_url) >= 3 and bookmark_url[1:3] == ':\\'):
+                    # Use ActivateWindow for local file system paths (Unix-style or Windows drive letters)
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for file system path")
+                elif bookmark_url.startswith('plugin://'):
+                    # Use ActivateWindow for plugin URLs
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for plugin URL")
+                elif bookmark_url.startswith('special://'):
+                    # Use ActivateWindow for special protocol URLs
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for special protocol URL")
+                else:
+                    # Generic fallback - use ActivateWindow to maintain navigation history
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow as fallback")
+                
+                # End the directory since we're navigating away
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                return True
+                
+        except Exception as e:
+            self.logger.error("Error navigating to bookmark: %s", e)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to navigate to bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False

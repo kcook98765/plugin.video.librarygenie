@@ -64,6 +64,7 @@ class HandlerFactory:
             self.logger.debug("Created ToolsHandler instance")
         return self._handler_cache['tools']
 
+
     def clear_cache(self):
         """Clear handler cache (useful for testing)"""
         self._handler_cache.clear()

@@ -22,20 +22,46 @@ class MainMenuHandler:
         pass
 
     def show_main_menu(self, context: PluginContext) -> bool:
-        """Show main menu - redirect to Lists as primary interface"""
+        """Show main menu with Lists and Bookmarks options"""
         try:
             kodi_major = get_kodi_major_version()
-            context.logger.info("MAIN MENU: Starting main menu display on Kodi v%s - redirecting to Lists", kodi_major)
+            context.logger.info("MAIN MENU: Starting main menu display on Kodi v%s", kodi_major)
 
-            # Redirect main menu directly to Lists interface
-            from lib.ui.handler_factory import get_handler_factory
-            factory = get_handler_factory()
-            factory.context = context
-            lists_handler = factory.get_lists_handler()
+            # Build main menu items
+            menu_builder = MenuBuilder()
             
-            # Show Lists menu as the main interface
-            response = lists_handler.show_lists_menu(context)
-            return response.success if hasattr(response, 'success') else True
+            # Add Lists menu item
+            menu_builder.add_menu_item(
+                label="My Lists",
+                action="show_lists_menu",
+                icon="DefaultPlaylist.png",
+                description="Manage and view your custom media lists and bookmarks"
+            )
+            
+            # Add Search menu item
+            menu_builder.add_menu_item(
+                label="Search",
+                action="prompt_and_search",
+                icon="DefaultAddonsSearch.png",
+                description="Search your media library"
+            )
+            
+            # Build and display menu
+            list_items = menu_builder.build()
+            
+            # Add items to directory
+            for url, listitem, is_folder in list_items:
+                xbmcplugin.addDirectoryItem(
+                    handle=context.addon_handle,
+                    url=url,
+                    listitem=listitem,
+                    isFolder=is_folder
+                )
+            
+            # Set content type and finish directory
+            xbmcplugin.setContent(context.addon_handle, 'files')
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True, cacheToDisc=False)
+            return True
 
         except Exception as e:
             context.logger.error("MAIN MENU: Error showing main menu: %s", e)

@@ -7,6 +7,7 @@ Handles context menu actions for adding media to lists
 """
 
 import sys
+import time
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -100,6 +101,7 @@ def _show_librarygenie_menu(addon):
             'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
             'dbid': xbmc.getInfoLabel('ListItem.DBID'),
             'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),  # Try ListItem.Path for navigation URL
             'title': xbmc.getInfoLabel('ListItem.Title'),
             'label': xbmc.getInfoLabel('ListItem.Label'),
             'media_item_id': xbmc.getInfoLabel('ListItem.Property(media_item_id)'),
@@ -168,37 +170,55 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     in_list_context = 'list_id=' in container_path or item_info.get('list_id')
 
-    # 2. LG Quick Add (if enabled and configured)
-    if quick_add_enabled and default_list_id:
-        quick_add_label = L(37101)  # "LG Quick Add"
-        if not quick_add_label or quick_add_label.startswith('LocMiss_'):
-            quick_add_label = "LG Quick Add"
-        options.append(quick_add_label)
+    # Check if this is a playable media item (not a folder or navigation item)
+    # Use Kodi's definitive flags for robust detection
+    is_folder = xbmc.getCondVisibility('ListItem.IsFolder')
+    is_playable = xbmc.getCondVisibility('ListItem.IsPlayable')
+    
+    is_playable_item = (
+        # Has valid library metadata for movies/episodes (exclude dbid '0')
+        (item_info.get('dbtype') in ('movie', 'episode') and 
+         item_info.get('dbid') and item_info.get('dbid') not in ('', '0')) or
+        # Has LibraryGenie media item ID  
+        item_info.get('media_item_id') or
+        # In a media container, is playable and not a folder
+        ((item_info.get('is_movies') or item_info.get('is_episodes')) and 
+         item_info.get('title') and is_playable and not is_folder)
+    )
 
-        # Determine appropriate quick add action based on context
+    # Only show "Add to List" options for playable media items
+    if is_playable_item:
+        # 2. LG Quick Add (if enabled and configured)
+        if quick_add_enabled and default_list_id:
+            quick_add_label = L(37101)  # "LG Quick Add"
+            if not quick_add_label or quick_add_label.startswith('LocMiss_'):
+                quick_add_label = "LG Quick Add"
+            options.append(quick_add_label)
+
+            # Determine appropriate quick add action based on context
+            if item_info.get('media_item_id'):
+                actions.append(f"quick_add&media_item_id={item_info['media_item_id']}")
+            elif item_info.get('dbtype') and item_info.get('dbid'):
+                actions.append(f"quick_add_context&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
+            else:
+                actions.append("quick_add_external")
+
+        # 3. LG Add to List...
+        add_list_label = L(37102)  # "LG Add to List..."
+        if not add_list_label or add_list_label.startswith('LocMiss_'):
+            add_list_label = "LG Add to List..."
+        options.append(add_list_label)
+
+        # Determine appropriate add action based on context
         if item_info.get('media_item_id'):
-            actions.append(f"quick_add&media_item_id={item_info['media_item_id']}")
+            actions.append(f"add_to_list&media_item_id={item_info['media_item_id']}")
         elif item_info.get('dbtype') and item_info.get('dbid'):
-            actions.append(f"quick_add_context&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
+            actions.append(f"add_to_list&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
         else:
-            actions.append("quick_add_external")
+            actions.append("add_external_item")
 
-    # 3. LG Add to List...
-    add_list_label = L(37102)  # "LG Add to List..."
-    if not add_list_label or add_list_label.startswith('LocMiss_'):
-        add_list_label = "LG Add to List..."
-    options.append(add_list_label)
-
-    # Determine appropriate add action based on context
-    if item_info.get('media_item_id'):
-        actions.append(f"add_to_list&media_item_id={item_info['media_item_id']}")
-    elif item_info.get('dbtype') and item_info.get('dbid'):
-        actions.append(f"add_to_list&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
-    else:
-        actions.append("add_external_item")
-
-    # 4. LG Remove from List (if in list context)
-    if in_list_context:
+    # 4. LG Remove from List (if in list context and is playable item)
+    if in_list_context and is_playable_item:
         remove_label = L(37103)  # "LG Remove from List"
         if not remove_label or remove_label.startswith('LocMiss_'):
             remove_label = "LG Remove from List"
@@ -219,6 +239,21 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append(f"remove_library_item_from_list&list_id={list_id}&dbtype={item_info['dbtype']}&dbid={item_info['dbid']}&title={item_info.get('title', '')}")
         else:
             actions.append("remove_from_list_generic")
+
+    # 5. Save Link to Bookmarks (if not in LibraryGenie folder context)
+    # Only show for navigable folders/containers
+    container_path = xbmc.getInfoLabel('Container.FolderPath')
+    if not _is_folder_context(container_path, item_info.get('file_path')):
+        bookmark_label = L(37110)  # "LG Save Bookmark"
+        if not bookmark_label or bookmark_label.startswith('LocMiss_'):
+            bookmark_label = "LG Save Bookmark"
+        options.append(bookmark_label)
+        
+        # Use container path for bookmarking the current folder location
+        if container_path:
+            actions.append("confirm_save_bookmark")
+        else:
+            actions.append("save_bookmark_generic")
 
 
 def _show_search_submenu(addon):
@@ -556,6 +591,14 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Handle external item by gathering metadata
             _handle_external_item_add(addon)
 
+        elif action_with_params == "confirm_save_bookmark":
+            # Show confirmation dialog for bookmark saving
+            _handle_bookmark_confirmation(addon)
+            
+        elif action_with_params.startswith("save_bookmark"):
+            # Handle bookmark saving actions
+            _handle_bookmark_save(action_with_params, addon)
+            
         elif action_with_params.startswith("remove_from_list") or action_with_params.startswith("remove_library_item_from_list"):
             # Handle remove actions - pure context actions, no endOfDirectory
             plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
@@ -599,6 +642,7 @@ def _handle_external_item_add(addon):
             'playcount': xbmc.getInfoLabel('ListItem.PlayCount'),
             'lastplayed': xbmc.getInfoLabel('ListItem.LastPlayed'),
             'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),  # Try ListItem.Path for navigation URL
             'media_type': 'movie'  # Default, will be refined below
         }
 
@@ -691,15 +735,644 @@ def _handle_external_item_add(addon):
 
         external_data = "&".join(url_params)
 
-        # Launch add to list for external item
-        plugin_url = f"plugin://plugin.video.librarygenie/?action=add_to_list&external_item=true&{external_data}"
-        xbmc.executebuiltin(f"RunPlugin({plugin_url})")
+        # Handle bookmark save directly without plugin calls
+        _save_bookmark_directly(cleaned_data, addon)
 
     except Exception as e:
         xbmc.log(f"LibraryGenie external item add error: {str(e)}", xbmc.LOGERROR)
         xbmcgui.Dialog().notification(
             "LibraryGenie",
             "Failed to process external item",
+            xbmcgui.NOTIFICATION_ERROR,
+            3000
+        )
+
+
+def _save_bookmark_directly(item_data, addon):
+    """Save bookmark directly to database without plugin calls"""
+    try:
+        # Initialize database connection directly
+        from lib.data.query_manager import get_query_manager
+        query_manager = get_query_manager()
+        if not query_manager.initialize():
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Database initialization failed",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            return
+        
+        # Check if list_id is pre-selected (e.g., from confirmation dialog)
+        target_list_id = item_data.get('list_id')
+        
+        if target_list_id:
+            # Direct addition to specified list
+            try:
+                selected_list_id = int(target_list_id)
+                # Verify the list exists
+                list_info = query_manager.get_list_by_id(selected_list_id)
+                if not list_info:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Target list not found",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    return
+                selected_list_name = list_info.get('name', 'Unknown List')
+            except (ValueError, TypeError):
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Invalid list ID",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                return
+        else:
+            # Get all available lists for selection
+            all_lists = query_manager.get_all_lists_with_folders()
+            if not all_lists:
+                # Offer to create a new list
+                if xbmcgui.Dialog().yesno("LibraryGenie", "No lists found. Create a new list?"):
+                    list_name = xbmcgui.Dialog().input("Enter list name:", type=xbmcgui.INPUT_ALPHANUM)
+                    if list_name:
+                        # Create new list
+                        result = query_manager.create_list(list_name.strip())
+                        if result and result.get('success'):
+                            selected_list_id = result.get('list_id')
+                            selected_list_name = list_name.strip()
+                        else:
+                            xbmcgui.Dialog().notification(
+                                "LibraryGenie",
+                                "Failed to create list",
+                                xbmcgui.NOTIFICATION_ERROR,
+                                3000
+                            )
+                            return
+                    else:
+                        return
+                else:
+                    return
+            else:
+                # Build list selection options
+                list_options = []
+                list_ids = []
+                
+                for item in all_lists:
+                    if item.get('type') == 'list':
+                        list_name = item['name']
+                        list_options.append(list_name)
+                        list_ids.append(item['id'])
+                
+                if not list_options:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "No lists available",
+                        xbmcgui.NOTIFICATION_WARNING,
+                        3000
+                    )
+                    return
+                
+                # Show list selection dialog
+                selected_index = xbmcgui.Dialog().select(
+                    f"Add '{item_data['title']}' to list:",
+                    list_options
+                )
+                
+                if selected_index < 0:
+                    return  # User cancelled
+                
+                selected_list_id = int(list_ids[selected_index])
+                selected_list_name = list_options[selected_index]
+        
+        # Determine the best URL for bookmark navigation
+        # Use conditional logic based on item type and context
+        navigation_path = item_data.get('navigation_path', '')
+        file_path = item_data.get('file_path', '')
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        is_folder = xbmc.getCondVisibility('ListItem.IsFolder')
+        
+        # Get additional context for special cases including database ID
+        title = item_data.get('title', '')
+        label = item_data.get('label', '')
+        
+        # Get the numeric database ID for videodb items - this is the key!
+        dbid = xbmc.getInfoLabel('ListItem.DBID')
+        
+        # Debug logging for bookmark URL detection (can be removed after testing)
+        xbmc.log(f"LibraryGenie: Bookmark context - Container: {container_path}, DBID: {dbid}, Label: {xbmc.getInfoLabel('ListItem.Label')}", xbmc.LOGDEBUG)
+        
+        # Special handling for different container types
+        
+        # Handle plugin content (addons)
+        if container_path and container_path.startswith('plugin://') and is_folder:
+            # For plugin content, use the actual plugin path not the container path
+            plugin_path = xbmc.getInfoLabel('ListItem.FileNameAndPath') or xbmc.getInfoLabel('ListItem.Path')
+            if plugin_path and plugin_path.startswith('plugin://'):
+                bookmark_url = plugin_path
+                xbmc.log(f"LibraryGenie: Plugin content bookmark - using plugin path: {plugin_path}", xbmc.LOGINFO)
+            else:
+                bookmark_url = file_path
+                xbmc.log(f"LibraryGenie: Plugin content - no plugin path found, using file_path: {file_path}", xbmc.LOGINFO)
+                
+        # Handle music database content (musicdb://)
+        elif container_path and 'musicdb://' in container_path and is_folder:
+            # Handle musicdb URLs similar to videodb
+            if dbid:
+                bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
+                xbmc.log(f"LibraryGenie: Constructed musicdb URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+            else:
+                item_label = xbmc.getInfoLabel('ListItem.Label') or title or label
+                if item_label:
+                    import urllib.parse
+                    encoded_label = urllib.parse.quote(item_label.replace(' ', '%20'))
+                    bookmark_url = f"{container_path.rstrip('/')}/{encoded_label}/"
+                    xbmc.log(f"LibraryGenie: Constructed musicdb URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                else:
+                    bookmark_url = file_path
+                    xbmc.log(f"LibraryGenie: Musicdb - no DBID or label, using file_path: {file_path}", xbmc.LOGINFO)
+                    
+        # Handle special protocol URLs (special://)
+        elif container_path and container_path.startswith('special://') and is_folder:
+            # For special paths, use the actual path
+            special_path = xbmc.getInfoLabel('ListItem.FileNameAndPath') or xbmc.getInfoLabel('ListItem.Path')
+            if special_path:
+                bookmark_url = special_path
+                xbmc.log(f"LibraryGenie: Special protocol bookmark - using path: {special_path}", xbmc.LOGINFO)
+            else:
+                bookmark_url = file_path
+                xbmc.log(f"LibraryGenie: Special protocol - no path found, using file_path: {file_path}", xbmc.LOGINFO)
+        
+        # Handle file system sources (SMB, NFS, local paths, etc.)
+        elif container_path and container_path.startswith('sources://') and is_folder:
+            # For file system sources, use the actual file path not the container path
+            actual_path = xbmc.getInfoLabel('ListItem.FileNameAndPath') or xbmc.getInfoLabel('ListItem.Path')
+            if actual_path:
+                bookmark_url = actual_path
+                xbmc.log(f"LibraryGenie: File system source bookmark - using actual path: {actual_path}", xbmc.LOGINFO)
+            else:
+                bookmark_url = file_path
+                xbmc.log(f"LibraryGenie: File system source - no actual path found, using file_path: {file_path}", xbmc.LOGINFO)
+                
+        # Handle videodb navigation using actual database IDs or labels
+        elif container_path and 'videodb://' in container_path and is_folder:
+            # Primary: Try to use numeric database ID
+            if dbid:
+                # Construct proper videodb URL using the numeric database ID
+                if 'movies/genres' in container_path:
+                    bookmark_url = f"videodb://movies/genres/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed genre URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'tvshows/genres' in container_path:
+                    bookmark_url = f"videodb://tvshows/genres/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed TV genre URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/sets' in container_path:
+                    bookmark_url = f"videodb://movies/sets/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed movie set URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/years' in container_path:
+                    bookmark_url = f"videodb://movies/years/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/actors' in container_path:
+                    bookmark_url = f"videodb://movies/actors/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed actor URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/directors' in container_path:
+                    bookmark_url = f"videodb://movies/directors/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed director URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/studios' in container_path:
+                    bookmark_url = f"videodb://movies/studios/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed studio URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'tvshows/actors' in container_path:
+                    bookmark_url = f"videodb://tvshows/actors/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed TV actor URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'tvshows/years' in container_path:
+                    bookmark_url = f"videodb://tvshows/years/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed TV year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                else:
+                    # Generic videodb URL construction with DBID
+                    bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed generic videodb URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+            else:
+                # Fallback: Use label when no DBID is available (e.g., years, some collections)
+                item_label = xbmc.getInfoLabel('ListItem.Label') or title or label
+                if item_label:
+                    # URL encode the label for safety
+                    import urllib.parse
+                    encoded_label = urllib.parse.quote(item_label.replace(' ', '%20'))
+                    
+                    if 'movies/years' in container_path:
+                        bookmark_url = f"videodb://movies/years/{item_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed year URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'tvshows/years' in container_path:
+                        bookmark_url = f"videodb://tvshows/years/{item_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed TV year URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'movies/genres' in container_path:
+                        bookmark_url = f"videodb://movies/genres/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed genre URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'tvshows/genres' in container_path:
+                        bookmark_url = f"videodb://tvshows/genres/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed TV genre URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    else:
+                        # Generic videodb URL construction with label
+                        bookmark_url = f"{container_path.rstrip('/')}/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed generic videodb URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                else:
+                    # Last resort: use file_path
+                    bookmark_url = file_path
+                    xbmc.log(f"LibraryGenie: No DBID or label available, using file_path: {file_path}", xbmc.LOGINFO)
+        # For folders, prefer ListItem.Path if it's different from container path
+        elif is_folder and navigation_path and navigation_path != container_path:
+            bookmark_url = navigation_path
+            xbmc.log(f"LibraryGenie: Using navigation_path for folder bookmark: {navigation_path}", xbmc.LOGINFO)
+        else:
+            bookmark_url = file_path
+            xbmc.log(f"LibraryGenie: Using file_path for bookmark: {file_path} (is_folder={is_folder})", xbmc.LOGINFO)
+        
+        # Edge case validation - ensure we have a valid bookmark URL
+        if not bookmark_url or bookmark_url.strip() == "":
+            xbmc.log(f"LibraryGenie: ERROR - Empty bookmark URL generated for '{item_data['title']}'", xbmc.LOGERROR)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                f"Unable to create bookmark for '{item_data['title']}' - no valid URL found",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            return
+            
+        # Validate URL format - basic sanity check
+        if len(bookmark_url) > 2000:  # URLs shouldn't be extremely long
+            xbmc.log(f"LibraryGenie: WARNING - Very long bookmark URL ({len(bookmark_url)} chars): {bookmark_url[:100]}...", xbmc.LOGWARNING)
+        
+        # Create stable ID for bookmark with backward compatibility check
+        import hashlib
+        stable_id = hashlib.sha1(bookmark_url.encode('utf-8')).hexdigest()[:16]
+        
+        # Check for existing bookmark using old file_path hash for backward compatibility
+        old_stable_id = hashlib.sha1(file_path.encode('utf-8')).hexdigest()[:16] if file_path != bookmark_url else None
+        
+        # Add the bookmark to the selected list
+        try:
+            with query_manager.connection_manager.transaction() as conn:
+                # Use the standard add_item_to_list method
+                result = query_manager.add_item_to_list(
+                    list_id=selected_list_id,
+                    title=item_data['title'],
+                    year=item_data.get('year'),
+                    imdb_id=item_data.get('imdbnumber'),
+                    tmdb_id=item_data.get('tmdb_id'),
+                    kodi_id=item_data.get('kodi_id'),
+                    art_data={},  # Art will be handled separately
+                    tvshowtitle=item_data.get('tvshowtitle'),
+                    season=item_data.get('season'),
+                    episode=item_data.get('episode'),
+                    aired=item_data.get('aired')
+                )
+                
+                # If successful, update the media item to store the bookmark URL
+                if result and result.get('id'):
+                    media_item_id = result['id']
+                    
+                    # Update the media item to include bookmark data and mark as folder
+                    conn.execute("""
+                        UPDATE media_items 
+                        SET play = ?, file_path = ?, source = 'bookmark', plot = ?, media_type = 'folder'
+                        WHERE id = ?
+                    """, [bookmark_url, bookmark_url, f"Bookmark: {item_data['title']}", media_item_id])
+                    
+                    # Success notification
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"Added '{item_data['title']}' to '{selected_list_name}'",
+                        xbmcgui.NOTIFICATION_INFO,
+                        3000
+                    )
+                    
+                    # Refresh container to show changes if we're in the plugin
+                    container_path = xbmc.getInfoLabel('Container.FolderPath')
+                    if 'plugin.video.librarygenie' in container_path:
+                        xbmc.executebuiltin('Container.Refresh')
+                    
+                else:
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        "Failed to add bookmark to list",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                    
+        except Exception as e:
+            xbmc.log(f"LibraryGenie bookmark save error: {e}", xbmc.LOGERROR)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to save bookmark",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+    
+    except Exception as e:
+        xbmc.log(f"LibraryGenie bookmark save error: {e}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Bookmark save failed",
+            xbmcgui.NOTIFICATION_ERROR,
+            3000
+        )
+
+
+def _handle_bookmark_save(action_with_params, addon):
+    """Handle saving current location as a bookmark"""
+    try:
+        # Parse action parameters
+        params = {}
+        if '&' in action_with_params:
+            param_string = action_with_params.split('&', 1)[1]
+            for param in param_string.split('&'):
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    params[key] = urllib.parse.unquote(value)
+        
+        # Get URL and name from parameters
+        bookmark_url = params.get('url')
+        bookmark_name = params.get('name', 'Unnamed Bookmark')
+        
+        if not bookmark_url:
+            # Fallback to current container path
+            bookmark_url = xbmc.getInfoLabel('Container.FolderPath')
+            if not bookmark_url:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Unable to determine location to bookmark",
+                    xbmcgui.NOTIFICATION_WARNING,
+                    3000
+                )
+                return
+        
+        # Decode URL
+        bookmark_url = urllib.parse.unquote(bookmark_url)
+        
+        # Determine bookmark type based on URL with expanded scheme detection
+        bookmark_type = 'plugin'  # Default
+        url_lower = bookmark_url.lower()
+        
+        # Network protocols
+        network_schemes = ('smb://', 'nfs://', 'ftp://', 'sftp://', 'ftps://', 'http://', 'https://', 'dav://', 'davs://', 'upnp://')
+        if any(url_lower.startswith(scheme) for scheme in network_schemes):
+            bookmark_type = 'network'
+        # File paths
+        elif url_lower.startswith('file://') or (len(url_lower) > 2 and url_lower[1:3] == ':\\'):
+            bookmark_type = 'file'
+        # Special Kodi paths
+        elif url_lower.startswith('special://'):
+            bookmark_type = 'special'
+        # Library database URLs
+        elif url_lower.startswith('videodb://') or url_lower.startswith('musicdb://'):
+            bookmark_type = 'library'
+        # Plugin URLs (includes unrecognized schemes as fallback)
+        else:
+            bookmark_type = 'plugin'
+        
+        # Gather additional metadata
+        metadata = {
+            'container_content': xbmc.getInfoLabel('Container.Content'),
+            'container_label': xbmc.getInfoLabel('Container.Label'),
+            'saved_from': 'context_menu',
+            'created_date': time.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        # Gather artwork if available
+        art_data = {}
+        fanart = xbmc.getInfoLabel('Container.Art(fanart)')
+        if fanart:
+            art_data['fanart'] = fanart
+        icon = xbmc.getInfoLabel('Container.Art(icon)')
+        if icon:
+            art_data['icon'] = icon
+        thumb = xbmc.getInfoLabel('Container.Art(thumb)')
+        if thumb:
+            art_data['thumb'] = thumb
+        
+        # Save bookmark directly without plugin calls
+        bookmark_data = {
+            'title': bookmark_name,
+            'file_path': bookmark_url,
+            'media_type': 'movie',  # Bookmarks use movie type for database compatibility
+            'metadata': metadata,
+            'art_data': art_data
+        }
+        
+        _save_bookmark_directly(bookmark_data, addon)
+        
+    except Exception as e:
+        xbmc.log(f"LibraryGenie bookmark save error: {str(e)}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Failed to save bookmark",
+            xbmcgui.NOTIFICATION_ERROR,
+            3000
+        )
+
+
+def _generate_smart_bookmark_name():
+    """Generate intelligent bookmark name based on Container.FolderName and item context"""
+    try:
+        # Get container and item information
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        container_folder_name = xbmc.getInfoLabel('Container.FolderName')
+        
+        # Get item name using fallback logic: Label → Title → FileNameAndPath
+        item_label = xbmc.getInfoLabel('ListItem.Label')
+        item_title = xbmc.getInfoLabel('ListItem.Title')
+        item_filename_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+        
+        # Debug logging to track what we're getting
+        xbmc.log(f"LibraryGenie: Smart naming - Container.FolderName: '{container_folder_name}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Smart naming - ListItem.Label: '{item_label}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Smart naming - ListItem.Title: '{item_title}'", xbmc.LOGINFO)
+        xbmc.log(f"LibraryGenie: Smart naming - ListItem.FileNameAndPath: '{item_filename_path}'", xbmc.LOGINFO)
+        
+        # Determine the item name with fallback logic
+        item_name = ''
+        if item_label and item_label not in ('ListItem.Label', ''):
+            item_name = item_label
+            xbmc.log(f"LibraryGenie: Smart naming - Using Label: '{item_name}'", xbmc.LOGINFO)
+        elif item_title and item_title not in ('ListItem.Title', ''):
+            item_name = item_title
+            xbmc.log(f"LibraryGenie: Smart naming - Using Title: '{item_name}'", xbmc.LOGINFO)
+        elif item_filename_path and item_filename_path not in ('ListItem.FileNameAndPath', ''):
+            # Extract just the filename from the full path for display
+            import os
+            item_name = os.path.basename(item_filename_path.rstrip('/'))
+            xbmc.log(f"LibraryGenie: Smart naming - Using FileNameAndPath: '{item_name}'", xbmc.LOGINFO)
+        
+        # Get container folder name for prefix
+        folder_name = ''
+        if container_folder_name and container_folder_name not in ('Container.FolderName', ''):
+            folder_name = container_folder_name
+            xbmc.log(f"LibraryGenie: Smart naming - Using FolderName: '{folder_name}'", xbmc.LOGINFO)
+        
+        # Create smart bookmark name
+        if folder_name and item_name:
+            # Format: (Container.FolderName) Item Name
+            result = f"({folder_name}) {item_name}"
+            xbmc.log(f"LibraryGenie: Smart naming - Final result: '{result}'", xbmc.LOGINFO)
+            return result
+        elif item_name:
+            # Just the item name if no container context
+            xbmc.log(f"LibraryGenie: Smart naming - Item only: '{item_name}'", xbmc.LOGINFO)
+            return item_name
+        elif folder_name:
+            # Just the folder name if no item context
+            xbmc.log(f"LibraryGenie: Smart naming - Folder only: '{folder_name}'", xbmc.LOGINFO)
+            return folder_name
+        else:
+            # Final fallback
+            xbmc.log("LibraryGenie: Smart naming - Using fallback: 'Current Location'", xbmc.LOGINFO)
+            return 'Current Location'
+            
+    except Exception as e:
+        xbmc.log(f"LibraryGenie: Error generating smart bookmark name: {e}", xbmc.LOGWARNING)
+        return 'Current Location'
+
+
+def _handle_bookmark_confirmation(addon):
+    """Show confirmation dialog for bookmark saving with name editing and folder selection"""
+    try:
+        # Get current location information
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        
+        # Generate intelligent bookmark name
+        container_label = _generate_smart_bookmark_name()
+        
+        xbmc.log(f"LibraryGenie: Generated smart bookmark name: '{container_label}'", xbmc.LOGINFO)
+        
+        if not container_path:
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Unable to determine location to bookmark",
+                xbmcgui.NOTIFICATION_WARNING,
+                3000
+            )
+            return
+        
+        # Show dialog to edit bookmark name
+        dialog = xbmcgui.Dialog()
+        
+        # Step 1: Ask user to confirm and edit bookmark name
+        bookmark_name = dialog.input(
+            "Bookmark Name",
+            container_label,
+            xbmcgui.INPUT_ALPHANUM
+        )
+        
+        if not bookmark_name:  # User cancelled
+            return
+            
+        # Step 2: Ask user to choose which list to add bookmark to
+        try:
+            from lib.data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            
+            if not query_manager.initialize():
+                dialog.notification(
+                    "LibraryGenie",
+                    "Failed to load lists",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    3000
+                )
+                return
+            
+            # Get all lists and folders for selection
+            all_lists = query_manager.get_all_lists_with_folders()
+            
+            if not all_lists:
+                # No lists exist - offer to create one
+                create_list = dialog.yesno(
+                    "LibraryGenie",
+                    "No lists found. Create a new list for your bookmark?"
+                )
+                if not create_list:
+                    return
+                    
+                # Ask for list name
+                new_list_name = dialog.input(
+                    "Create New List",
+                    "Bookmarks",
+                    xbmcgui.INPUT_ALPHANUM
+                )
+                if not new_list_name:
+                    return
+                    
+                # For simplicity, guide user to create list through main interface
+                dialog.notification(
+                    "LibraryGenie",
+                    "Please create a list first through My Lists menu, then try bookmarking again",
+                    xbmcgui.NOTIFICATION_INFO,
+                    5000
+                )
+                return
+            else:
+                # Show existing lists for selection
+                list_options = []
+                list_ids = []
+                
+                # Add "Create New List" option at the top
+                list_options.append("+ Create New List")
+                list_ids.append("new")
+                
+                # Add existing lists (all items from get_all_lists_with_folders are lists)
+                for item in all_lists:
+                    folder_path = item.get('folder_name', '')  # Use folder_name from query result
+                    if folder_path:
+                        label = f"{folder_path} > {item['name']}"
+                    else:
+                        label = f"{item['name']}"
+                    list_options.append(label)
+                    list_ids.append(str(item['id']))
+                
+                selected_list = dialog.select(
+                    "Add Bookmark to List",
+                    list_options
+                )
+                
+                if selected_list == -1:  # User cancelled
+                    return
+                    
+                if selected_list == 0:  # Create new list
+                    # Guide user to create list through main interface
+                    dialog.notification(
+                        "LibraryGenie",
+                        "Please create a list first through My Lists menu, then try bookmarking again",
+                        xbmcgui.NOTIFICATION_INFO,
+                        5000
+                    )
+                    return
+                else:
+                    list_id = list_ids[selected_list]
+                    
+        except Exception as e:
+            xbmc.log(f"LibraryGenie: Error loading lists: {str(e)}", xbmc.LOGERROR)
+            dialog.notification(
+                "LibraryGenie",
+                "Failed to load lists",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            return
+        
+        # Save bookmark directly without plugin calls
+        bookmark_data = {
+            'title': bookmark_name,
+            'file_path': container_path,  # Don't URL encode for internal use
+            'media_type': 'movie',  # Bookmarks use movie type for database compatibility
+            'list_id': list_id  # Pre-selected list from dialog
+        }
+        
+        _save_bookmark_directly(bookmark_data, addon)
+        
+    except Exception as e:
+        xbmc.log(f"LibraryGenie bookmark confirmation error: {str(e)}", xbmc.LOGERROR)
+        xbmcgui.Dialog().notification(
+            "LibraryGenie",
+            "Failed to save bookmark",
             xbmcgui.NOTIFICATION_ERROR,
             3000
         )
