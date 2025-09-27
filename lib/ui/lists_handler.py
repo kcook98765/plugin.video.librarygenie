@@ -376,7 +376,8 @@ class ListsHandler:
                 try:
                     # Set the directory title in Kodi
                     import xbmc
-                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    from lib.utils.builtin_safe import safe_set_property
+                    safe_set_property('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
@@ -611,9 +612,10 @@ class ListsHandler:
             context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
             # Set parent directory using the correct xbmcplugin method
             import xbmc
-            xbmc.executebuiltin(f'SetProperty(ParentDir,{parent_path})')
+            from lib.utils.builtin_safe import safe_set_property
+            safe_set_property('ParentDir', parent_path)
             # Also try the container method
-            xbmc.executebuiltin(f'SetProperty(Container.ParentDir,{parent_path})')
+            safe_set_property('Container.ParentDir', parent_path)
 
             context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
@@ -623,7 +625,8 @@ class ListsHandler:
                 try:
                     # Set the directory title in Kodi
                     import xbmc
-                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    from lib.utils.builtin_safe import safe_set_property
+                    safe_set_property('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
@@ -816,7 +819,8 @@ class ListsHandler:
                 try:
                     # Set the directory title in Kodi
                     import xbmc
-                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    from lib.utils.builtin_safe import safe_set_property
+                    safe_set_property('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)

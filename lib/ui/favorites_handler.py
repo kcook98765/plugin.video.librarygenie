@@ -128,7 +128,8 @@ class FavoritesHandler:
                 try:
                     # Set the directory title in Kodi
                     import xbmc
-                    xbmc.executebuiltin(f'SetProperty(FolderName,{directory_title})')
+                    from lib.utils.builtin_safe import safe_set_property
+                    safe_set_property('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
