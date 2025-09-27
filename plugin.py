@@ -94,7 +94,8 @@ def handle_on_select(params: dict, addon_handle: int):
 
         # Always play the media directly
         log_info(f"Playing media: {vdb}")
-        xbmc.executebuiltin(f'PlayMedia("{vdb}")')
+        from lib.utils.builtin_safe import safe_play_media
+        safe_play_media(vdb)
 
         # Don’t render a directory for this action
         try:

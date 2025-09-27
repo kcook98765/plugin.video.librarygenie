@@ -895,43 +895,37 @@ class Router:
                 import xbmc
                 xbmc.executebuiltin('Dialog.Close(busydialog)')
                 
-                # Choose navigation method based on URL type with proper URL escaping
-                def safe_builtin_call(command_template, url):
-                    """Safely execute builtin command with proper URL quoting"""
-                    # Escape quotes and special characters in URL for builtin command safety
-                    escaped_url = url.replace('"', '\\"').replace("'", "\\'")
-                    command = command_template.format(escaped_url)
-                    self.logger.debug("Executing safe builtin command: %s", command)
-                    xbmc.executebuiltin(command)
+                # Choose navigation method based on URL type with centralized safe execution
+                from lib.utils.builtin_safe import safe_container_update, safe_activate_window
                 
                 if bookmark_url.startswith(('videodb://', 'musicdb://')):
                     # Use Container.Update for database URLs
-                    safe_builtin_call('Container.Update("{}")', bookmark_url)
+                    safe_container_update(bookmark_url)
                     self.logger.info("Used Container.Update for database URL")
                 elif bookmark_url.startswith(('smb://', 'nfs://', 'ftp://', 'sftp://', 'davs://', 'dav://', 'hdhomerun://', 'http://', 'https://')):
                     # Use ActivateWindow for network protocols
-                    safe_builtin_call('ActivateWindow(Videos,"{}",return)', bookmark_url)
+                    safe_activate_window('Videos', bookmark_url, return_focus=True)
                     self.logger.info("Used ActivateWindow for network protocol")
                 elif bookmark_url.startswith('/') or (len(bookmark_url) >= 3 and bookmark_url[1:3] == ':\\'):
                     # Use ActivateWindow for local file system paths (Unix-style or Windows drive letters)
-                    safe_builtin_call('ActivateWindow(Videos,"{}",return)', bookmark_url)
+                    safe_activate_window('Videos', bookmark_url, return_focus=True)
                     self.logger.info("Used ActivateWindow for file system path")
                 elif bookmark_url.startswith('plugin://'):
                     # Use ActivateWindow for plugin URLs
-                    safe_builtin_call('ActivateWindow(Videos,"{}",return)', bookmark_url)
+                    safe_activate_window('Videos', bookmark_url, return_focus=True)
                     self.logger.info("Used ActivateWindow for plugin URL")
                 elif bookmark_url.startswith('special://'):
                     # Use ActivateWindow for special protocol URLs
-                    safe_builtin_call('ActivateWindow(Videos,"{}",return)', bookmark_url)
+                    safe_activate_window('Videos', bookmark_url, return_focus=True)
                     self.logger.info("Used ActivateWindow for special protocol URL")
                 else:
                     # Improved fallback - try Container.Update first, then ActivateWindow if it fails
                     try:
-                        safe_builtin_call('Container.Update("{}")', bookmark_url)
+                        safe_container_update(bookmark_url)
                         self.logger.info("Used Container.Update as fallback")
                     except Exception as e:
                         self.logger.warning("Container.Update failed, trying ActivateWindow: %s", e)
-                        safe_builtin_call('ActivateWindow(Videos,"{}",return)', bookmark_url)
+                        safe_activate_window('Videos', bookmark_url, return_focus=True)
                         self.logger.info("Used ActivateWindow as secondary fallback")
                 
                 # End the directory since we're navigating away
