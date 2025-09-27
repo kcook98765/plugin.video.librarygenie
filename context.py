@@ -1235,12 +1235,34 @@ def _handle_bookmark_save(action_with_params, addon):
         )
 
 
+def _detect_media_type(container_path):
+    """Detect media type from container path and return appropriate prefix"""
+    if not container_path:
+        return 'OTH'
+    
+    # Convert to lowercase for case-insensitive matching
+    path_lower = container_path.lower()
+    
+    if 'musicdb://' in path_lower:
+        return 'MUS'
+    elif 'videodb://tvshows/' in path_lower:
+        return 'TV'
+    elif 'videodb://movies/' in path_lower:
+        return 'MOV'
+    else:
+        return 'OTH'
+
+
 def _generate_smart_bookmark_name():
     """Generate intelligent bookmark name based on Container.FolderName and item context"""
     try:
         # Get container and item information
         container_path = xbmc.getInfoLabel('Container.FolderPath')
         container_folder_name = xbmc.getInfoLabel('Container.FolderName')
+        
+        # Detect media type for prefix
+        media_prefix = _detect_media_type(container_path)
+        xbmc.log(f"LibraryGenie: Smart naming - Detected media type: '{media_prefix}' from path: '{container_path}'", xbmc.LOGINFO)
         
         # Get item name using fallback logic: Label → Title → FileNameAndPath
         item_label = xbmc.getInfoLabel('ListItem.Label')
@@ -1289,24 +1311,27 @@ def _generate_smart_bookmark_name():
                 folder_name = container_folder_name
             xbmc.log(f"LibraryGenie: Smart naming - Using FolderName: '{folder_name}'", xbmc.LOGINFO)
         
-        # Create smart bookmark name
+        # Create smart bookmark name with media type prefix
         if folder_name and item_name:
-            # Format: (Container.FolderName) Item Name
-            result = f"({folder_name}) {item_name}"
+            # Format: MUS: (Container.FolderName) Item Name
+            result = f"{media_prefix}: ({folder_name}) {item_name}"
             xbmc.log(f"LibraryGenie: Smart naming - Final result: '{result}'", xbmc.LOGINFO)
             return result
         elif item_name:
-            # Just the item name if no container context
-            xbmc.log(f"LibraryGenie: Smart naming - Item only: '{item_name}'", xbmc.LOGINFO)
-            return item_name
+            # Just the item name with media prefix if no container context
+            result = f"{media_prefix}: {item_name}"
+            xbmc.log(f"LibraryGenie: Smart naming - Item only: '{result}'", xbmc.LOGINFO)
+            return result
         elif folder_name:
-            # Just the folder name if no item context
-            xbmc.log(f"LibraryGenie: Smart naming - Folder only: '{folder_name}'", xbmc.LOGINFO)
-            return folder_name
+            # Just the folder name with media prefix if no item context
+            result = f"{media_prefix}: {folder_name}"
+            xbmc.log(f"LibraryGenie: Smart naming - Folder only: '{result}'", xbmc.LOGINFO)
+            return result
         else:
-            # Final fallback
-            xbmc.log("LibraryGenie: Smart naming - Using fallback: 'Current Location'", xbmc.LOGINFO)
-            return 'Current Location'
+            # Final fallback with media prefix
+            result = f"{media_prefix}: Current Location"
+            xbmc.log(f"LibraryGenie: Smart naming - Using fallback: '{result}'", xbmc.LOGINFO)
+            return result
             
     except Exception as e:
         xbmc.log(f"LibraryGenie: Error generating smart bookmark name: {e}", xbmc.LOGWARNING)
