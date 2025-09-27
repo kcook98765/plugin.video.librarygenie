@@ -931,8 +931,21 @@ def _save_bookmark_directly(item_data, addon):
         xbmc.log("LibraryGenie: END DEBUG DUMP", xbmc.LOGINFO)
         xbmc.log("=" * 80, xbmc.LOGINFO)
         
-        # Special handling for videodb navigation using actual database IDs or labels
-        if container_path and 'videodb://' in container_path and is_folder:
+        # Special handling for different container types
+        
+        # Handle file system sources (SMB, NFS, local paths, etc.)
+        if container_path and container_path.startswith('sources://') and is_folder:
+            # For file system sources, use the actual file path not the container path
+            actual_path = xbmc.getInfoLabel('ListItem.FileNameAndPath') or xbmc.getInfoLabel('ListItem.Path')
+            if actual_path:
+                bookmark_url = actual_path
+                xbmc.log(f"LibraryGenie: File system source bookmark - using actual path: {actual_path}", xbmc.LOGINFO)
+            else:
+                bookmark_url = file_path
+                xbmc.log(f"LibraryGenie: File system source - no actual path found, using file_path: {file_path}", xbmc.LOGINFO)
+                
+        # Handle videodb navigation using actual database IDs or labels
+        elif container_path and 'videodb://' in container_path and is_folder:
             # Primary: Try to use numeric database ID
             if dbid:
                 # Construct proper videodb URL using the numeric database ID

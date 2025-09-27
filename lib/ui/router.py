@@ -877,13 +877,28 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
                 
-                # Navigate to the bookmark URL using Kodi's built-in navigation
-                # Use Container.Update for more reliable plugin-to-videodb navigation
+                # Navigate to the bookmark URL using appropriate method based on URL type
                 self.logger.info("Navigating to bookmark URL: %s", bookmark_url)
                 import xbmc
                 xbmc.executebuiltin('Dialog.Close(busydialog)')
-                # Use Container.Update which is more reliable for videodb URLs from plugins
-                xbmc.executebuiltin(f"Container.Update({bookmark_url})")
+                
+                # Choose navigation method based on URL type
+                if bookmark_url.startswith('videodb://'):
+                    # Use Container.Update for videodb URLs
+                    xbmc.executebuiltin(f"Container.Update({bookmark_url})")
+                    self.logger.info("Used Container.Update for videodb URL")
+                elif bookmark_url.startswith(('smb://', 'nfs://', 'ftp://', 'sftp://', '/', 'C:\\')):
+                    # Use ActivateWindow for file system paths (SMB, local, etc.)
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for file system path")
+                elif bookmark_url.startswith('plugin://'):
+                    # Use ActivateWindow for plugin URLs
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
+                    self.logger.info("Used ActivateWindow for plugin URL")
+                else:
+                    # Generic fallback - try Container.Update first
+                    xbmc.executebuiltin(f"Container.Update({bookmark_url})")
+                    self.logger.info("Used Container.Update as fallback")
                 
                 # End the directory since we're navigating away
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
