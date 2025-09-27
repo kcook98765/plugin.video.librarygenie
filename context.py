@@ -1178,32 +1178,63 @@ def _handle_bookmark_save(action_with_params, addon):
         )
 
 
+def _generate_smart_bookmark_name():
+    """Generate intelligent bookmark name based on Container.FolderName and item context"""
+    try:
+        # Get container and item information
+        container_path = xbmc.getInfoLabel('Container.FolderPath')
+        container_folder_name = xbmc.getInfoLabel('Container.FolderName')
+        
+        # Get item name using fallback logic: Label → Title → FileNameAndPath
+        item_label = xbmc.getInfoLabel('ListItem.Label')
+        item_title = xbmc.getInfoLabel('ListItem.Title')
+        item_filename_path = xbmc.getInfoLabel('ListItem.FileNameAndPath')
+        
+        # Determine the item name with fallback logic
+        item_name = ''
+        if item_label and item_label not in ('ListItem.Label', ''):
+            item_name = item_label
+        elif item_title and item_title not in ('ListItem.Title', ''):
+            item_name = item_title
+        elif item_filename_path and item_filename_path not in ('ListItem.FileNameAndPath', ''):
+            # Extract just the filename from the full path for display
+            import os
+            item_name = os.path.basename(item_filename_path.rstrip('/'))
+        
+        # Get container folder name for prefix
+        folder_name = ''
+        if container_folder_name and container_folder_name not in ('Container.FolderName', ''):
+            folder_name = container_folder_name
+        
+        # Create smart bookmark name
+        if folder_name and item_name:
+            # Format: (Container.FolderName) Item Name
+            return f"({folder_name}) {item_name}"
+        elif item_name:
+            # Just the item name if no container context
+            return item_name
+        elif folder_name:
+            # Just the folder name if no item context
+            return folder_name
+        else:
+            # Final fallback
+            return 'Current Location'
+            
+    except Exception as e:
+        xbmc.log(f"LibraryGenie: Error generating smart bookmark name: {e}", xbmc.LOGWARNING)
+        return 'Current Location'
+
+
 def _handle_bookmark_confirmation(addon):
     """Show confirmation dialog for bookmark saving with name editing and folder selection"""
     try:
         # Get current location information
         container_path = xbmc.getInfoLabel('Container.FolderPath')
         
-        # Try multiple methods to get a good default name - prioritize focused item
-        container_label = (
-            xbmc.getInfoLabel('ListItem.Label') or
-            xbmc.getInfoLabel('ListItem.Title') or
-            xbmc.getInfoLabel('Container.FolderName') or
-            xbmc.getInfoLabel('Container.Label') or 
-            'Current Folder'
-        )
+        # Generate intelligent bookmark name
+        container_label = _generate_smart_bookmark_name()
         
-        # Fallback: extract name from path if label is empty or generic
-        if not container_label or container_label in ('Container.Label', 'Container.FolderName', 'ListItem.Label', 'ListItem.Title', ''):
-            if container_path:
-                # Extract meaningful name from URL path
-                import re
-                # Try to extract addon name or path segment
-                path_match = re.search(r'plugin://([^/]+)', container_path)
-                if path_match:
-                    container_label = path_match.group(1).replace('plugin.', '').replace('.', ' ').title()
-                else:
-                    container_label = 'Current Folder'
+        xbmc.log(f"LibraryGenie: Generated smart bookmark name: '{container_label}'", xbmc.LOGDEBUG)
         
         if not container_path:
             xbmcgui.Dialog().notification(
