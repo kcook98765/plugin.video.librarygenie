@@ -50,21 +50,18 @@ def show_program_menu():
             
         elif selected == 1:  # Search History
             # Navigate to search history
-            from lib.utils.builtin_safe import safe_activate_window
-            plugin_url = f'plugin://{addon.getAddonInfo("id")}/?action=show_search_history'
-            safe_activate_window('10025', plugin_url, return_focus=True)
+            import xbmc
+            xbmc.executebuiltin(f'ActivateWindow(10025,"plugin://{addon.getAddonInfo("id")}/?action=show_search_history",return)')
             
         elif selected == 2:  # Kodi Favorites
             # Navigate to favorites
-            from lib.utils.builtin_safe import safe_activate_window
-            plugin_url = f'plugin://{addon.getAddonInfo("id")}/?action=kodi_favorites'
-            safe_activate_window('10025', plugin_url, return_focus=True)
+            import xbmc
+            xbmc.executebuiltin(f'ActivateWindow(10025,"plugin://{addon.getAddonInfo("id")}/?action=kodi_favorites",return)')
             
         elif selected == 3:  # Import/Export Tools
             # Navigate to tools
-            from lib.utils.builtin_safe import safe_activate_window
-            plugin_url = f'plugin://{addon.getAddonInfo("id")}/?action=show_list_tools&list_type=global'
-            safe_activate_window('10025', plugin_url, return_focus=True)
+            import xbmc
+            xbmc.executebuiltin(f'ActivateWindow(10025,"plugin://{addon.getAddonInfo("id")}/?action=show_list_tools&list_type=global",return)')
             
         elif selected == 4:  # Settings
             addon.openSettings()

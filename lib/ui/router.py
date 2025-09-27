@@ -895,38 +895,31 @@ class Router:
                 import xbmc
                 xbmc.executebuiltin('Dialog.Close(busydialog)')
                 
-                # Choose navigation method based on URL type with centralized safe execution
-                from lib.utils.builtin_safe import safe_container_update, safe_activate_window
-                
+                # Choose navigation method based on URL type
                 if bookmark_url.startswith(('videodb://', 'musicdb://')):
                     # Use Container.Update for database URLs
-                    safe_container_update(bookmark_url)
+                    xbmc.executebuiltin(f"Container.Update({bookmark_url})")
                     self.logger.info("Used Container.Update for database URL")
                 elif bookmark_url.startswith(('smb://', 'nfs://', 'ftp://', 'sftp://', 'davs://', 'dav://', 'hdhomerun://', 'http://', 'https://')):
                     # Use ActivateWindow for network protocols
-                    safe_activate_window('Videos', bookmark_url, return_focus=True)
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
                     self.logger.info("Used ActivateWindow for network protocol")
                 elif bookmark_url.startswith('/') or (len(bookmark_url) >= 3 and bookmark_url[1:3] == ':\\'):
                     # Use ActivateWindow for local file system paths (Unix-style or Windows drive letters)
-                    safe_activate_window('Videos', bookmark_url, return_focus=True)
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
                     self.logger.info("Used ActivateWindow for file system path")
                 elif bookmark_url.startswith('plugin://'):
                     # Use ActivateWindow for plugin URLs
-                    safe_activate_window('Videos', bookmark_url, return_focus=True)
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
                     self.logger.info("Used ActivateWindow for plugin URL")
                 elif bookmark_url.startswith('special://'):
                     # Use ActivateWindow for special protocol URLs
-                    safe_activate_window('Videos', bookmark_url, return_focus=True)
+                    xbmc.executebuiltin(f"ActivateWindow(Videos,{bookmark_url},return)")
                     self.logger.info("Used ActivateWindow for special protocol URL")
                 else:
-                    # Improved fallback - try Container.Update first, then ActivateWindow if it fails
-                    try:
-                        safe_container_update(bookmark_url)
-                        self.logger.info("Used Container.Update as fallback")
-                    except Exception as e:
-                        self.logger.warning("Container.Update failed, trying ActivateWindow: %s", e)
-                        safe_activate_window('Videos', bookmark_url, return_focus=True)
-                        self.logger.info("Used ActivateWindow as secondary fallback")
+                    # Generic fallback - try Container.Update first
+                    xbmc.executebuiltin(f"Container.Update({bookmark_url})")
+                    self.logger.info("Used Container.Update as fallback")
                 
                 # End the directory since we're navigating away
                 xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)

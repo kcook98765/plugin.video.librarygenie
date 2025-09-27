@@ -21,14 +21,12 @@ class Navigator:
     def push(self, url: str) -> None:
         """Navigate to URL by pushing to navigation stack"""
         self.logger.debug("NAVIGATOR: Push to %s", url)
-        from lib.utils.builtin_safe import safe_container_update
-        safe_container_update(url)
+        xbmc.executebuiltin(f'Container.Update("{url}")')
 
     def replace(self, url: str) -> None:
         """Navigate to URL by replacing current location"""
         self.logger.debug("NAVIGATOR: Replace with %s", url)
-        from lib.utils.builtin_safe import safe_container_update
-        safe_container_update(url, replace=True)
+        xbmc.executebuiltin(f'Container.Update("{url}", replace)')
 
     def refresh(self) -> None:
         """Refresh current container"""

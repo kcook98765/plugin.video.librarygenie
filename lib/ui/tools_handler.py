@@ -1465,8 +1465,7 @@ class ToolsHandler:
         try:
             import xbmc
             ai_search_url = context.build_url('ai_search_prompt')
-            from lib.utils.builtin_safe import safe_container_update
-            safe_container_update(ai_search_url, replace=True)
+            xbmc.executebuiltin(f'Container.Update("{ai_search_url}",replace)')
             return DialogResponse(success=True, message="Opening AI search...")
         except Exception as e:
             context.logger.error("Error navigating to AI search: %s", e)
@@ -1578,9 +1577,7 @@ class ToolsHandler:
         """Handle opening addon settings"""
         try:
             import xbmc
-            from lib.utils.builtin_safe import safe_executebuiltin
-            addon_id = context.addon.getAddonInfo("id")
-            safe_executebuiltin('Addon.OpenSettings({})', addon_id)
+            xbmc.executebuiltin(f'Addon.OpenSettings({context.addon.getAddonInfo("id")})')
 
             # Return success=False with special flag to prevent endOfDirectory call
             # Settings opening is asynchronous - prevent empty directory display

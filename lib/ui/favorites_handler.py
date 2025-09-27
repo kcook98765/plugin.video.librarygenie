@@ -126,10 +126,10 @@ class FavoritesHandler:
             directory_title = breadcrumb_helper.get_directory_title_breadcrumb("kodi_favorites", {}, None)
             if directory_title:
                 try:
-                    # Set the directory title in Kodi
-                    import xbmc
-                    from lib.utils.builtin_safe import safe_set_property
-                    safe_set_property('FolderName', directory_title)
+                    # Set the directory title in Kodi using proper window property API
+                    import xbmcgui
+                    window = xbmcgui.Window(10025)  # Video window
+                    window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)

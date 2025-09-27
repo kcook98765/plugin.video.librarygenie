@@ -374,10 +374,10 @@ class ListsHandler:
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb(breadcrumb_action, breadcrumb_params, query_manager)
             if directory_title:
                 try:
-                    # Set the directory title in Kodi
-                    import xbmc
-                    from lib.utils.builtin_safe import safe_set_property
-                    safe_set_property('FolderName', directory_title)
+                    # Set the directory title in Kodi using proper window property API
+                    import xbmcgui
+                    window = xbmcgui.Window(10025)  # Video window
+                    window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
@@ -610,12 +610,11 @@ class ListsHandler:
                 parent_path = context.build_url('lists')  # Use 'lists' action for main menu
 
             context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
-            # Set parent directory using the correct xbmcplugin method
-            import xbmc
-            from lib.utils.builtin_safe import safe_set_property
-            safe_set_property('ParentDir', parent_path)
-            # Also try the container method
-            safe_set_property('Container.ParentDir', parent_path)
+            # Set parent directory using proper window property API
+            import xbmcgui
+            window = xbmcgui.Window(10025)  # Video window
+            window.setProperty('ParentDir', parent_path)
+            window.setProperty('Container.ParentDir', parent_path)
 
             context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
@@ -623,10 +622,10 @@ class ListsHandler:
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, query_manager)
             if directory_title:
                 try:
-                    # Set the directory title in Kodi
-                    import xbmc
-                    from lib.utils.builtin_safe import safe_set_property
-                    safe_set_property('FolderName', directory_title)
+                    # Set the directory title in Kodi using proper window property API
+                    import xbmcgui
+                    window = xbmcgui.Window(10025)  # Video window
+                    window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
@@ -817,10 +816,10 @@ class ListsHandler:
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_list", {"list_id": list_id}, query_manager)
             if directory_title:
                 try:
-                    # Set the directory title in Kodi
-                    import xbmc
-                    from lib.utils.builtin_safe import safe_set_property
-                    safe_set_property('FolderName', directory_title)
+                    # Set the directory title in Kodi using proper window property API
+                    import xbmcgui
+                    window = xbmcgui.Window(10025)  # Video window
+                    window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
