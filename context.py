@@ -947,6 +947,12 @@ def _save_bookmark_directly(item_data, addon):
                 elif 'tvshows/years' in container_path:
                     bookmark_url = f"videodb://tvshows/years/{dbid}/"
                     xbmc.log(f"LibraryGenie: Constructed TV year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'tvshows/titles' in container_path:
+                    bookmark_url = f"videodb://tvshows/titles/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed TV show URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/titles' in container_path:
+                    bookmark_url = f"videodb://movies/titles/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed movie URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
                 else:
                     # Generic videodb URL construction with DBID
                     bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
@@ -971,6 +977,12 @@ def _save_bookmark_directly(item_data, addon):
                     elif 'tvshows/genres' in container_path:
                         bookmark_url = f"videodb://tvshows/genres/{encoded_label}/"
                         xbmc.log(f"LibraryGenie: Constructed TV genre URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'tvshows/titles' in container_path:
+                        bookmark_url = f"videodb://tvshows/titles/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed TV show URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                    elif 'movies/titles' in container_path:
+                        bookmark_url = f"videodb://movies/titles/{encoded_label}/"
+                        xbmc.log(f"LibraryGenie: Constructed movie URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
                     else:
                         # Generic videodb URL construction with label
                         bookmark_url = f"{container_path.rstrip('/')}/{encoded_label}/"
