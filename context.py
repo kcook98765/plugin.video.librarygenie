@@ -860,6 +860,77 @@ def _save_bookmark_directly(item_data, addon):
         # Get the numeric database ID for videodb items - this is the key!
         dbid = xbmc.getInfoLabel('ListItem.DBID')
         
+        # === COMPREHENSIVE DEBUGGING - DUMP ALL AVAILABLE LISTITEM DATA ===
+        xbmc.log("=" * 80, xbmc.LOGINFO)
+        xbmc.log("LibraryGenie: FOCUSED ITEM DEBUG DUMP", xbmc.LOGINFO)
+        xbmc.log("=" * 80, xbmc.LOGINFO)
+        
+        # Basic InfoLabels
+        debug_info = {
+            'ListItem.Label': xbmc.getInfoLabel('ListItem.Label'),
+            'ListItem.Label2': xbmc.getInfoLabel('ListItem.Label2'),
+            'ListItem.Title': xbmc.getInfoLabel('ListItem.Title'),
+            'ListItem.OriginalTitle': xbmc.getInfoLabel('ListItem.OriginalTitle'),
+            'ListItem.Path': xbmc.getInfoLabel('ListItem.Path'),
+            'ListItem.FileNameAndPath': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
+            'ListItem.FileName': xbmc.getInfoLabel('ListItem.FileName'),
+            'ListItem.DBID': xbmc.getInfoLabel('ListItem.DBID'),
+            'ListItem.DBTYPE': xbmc.getInfoLabel('ListItem.DBTYPE'),
+            'ListItem.Property(folder)': xbmc.getInfoLabel('ListItem.Property(folder)'),
+            'ListItem.Property(path)': xbmc.getInfoLabel('ListItem.Property(path)'),
+            'ListItem.Property(special_type)': xbmc.getInfoLabel('ListItem.Property(special_type)'),
+        }
+        
+        # Container InfoLabels
+        container_info = {
+            'Container.FolderPath': xbmc.getInfoLabel('Container.FolderPath'),
+            'Container.FolderName': xbmc.getInfoLabel('Container.FolderName'),
+            'Container.Label': xbmc.getInfoLabel('Container.Label'),
+            'Container.Content': xbmc.getInfoLabel('Container.Content'),
+            'Container.Property(folder)': xbmc.getInfoLabel('Container.Property(folder)'),
+        }
+        
+        # Boolean conditions
+        boolean_info = {
+            'ListItem.IsFolder': xbmc.getCondVisibility('ListItem.IsFolder'),
+            'ListItem.IsParentFolder': xbmc.getCondVisibility('ListItem.IsParentFolder'),
+            'ListItem.IsPlayable': xbmc.getCondVisibility('ListItem.IsPlayable'),
+            'System.HasAddon(videodb)': xbmc.getCondVisibility('System.HasAddon(videodb)'),
+            'Container.HasFiles': xbmc.getCondVisibility('Container.HasFiles'),
+        }
+        
+        # Window InfoLabels
+        window_info = {
+            'System.CurrentWindow': xbmc.getInfoLabel('System.CurrentWindow'),
+            'System.CurrentControl': xbmc.getInfoLabel('System.CurrentControl'),
+            'Window.Property(xmlfile)': xbmc.getInfoLabel('Window.Property(xmlfile)'),
+        }
+        
+        # Log all debug info
+        xbmc.log("=== BASIC LISTITEM INFO ===", xbmc.LOGINFO)
+        for key, value in debug_info.items():
+            xbmc.log(f"  {key}: '{value}'", xbmc.LOGINFO)
+            
+        xbmc.log("=== CONTAINER INFO ===", xbmc.LOGINFO)
+        for key, value in container_info.items():
+            xbmc.log(f"  {key}: '{value}'", xbmc.LOGINFO)
+            
+        xbmc.log("=== BOOLEAN CONDITIONS ===", xbmc.LOGINFO)
+        for key, value in boolean_info.items():
+            xbmc.log(f"  {key}: {value}", xbmc.LOGINFO)
+            
+        xbmc.log("=== WINDOW INFO ===", xbmc.LOGINFO)
+        for key, value in window_info.items():
+            xbmc.log(f"  {key}: '{value}'", xbmc.LOGINFO)
+            
+        xbmc.log("=== EXTRACTED ITEM DATA ===", xbmc.LOGINFO)
+        for key, value in item_data.items():
+            xbmc.log(f"  item_data['{key}']: '{value}'", xbmc.LOGINFO)
+            
+        xbmc.log("=" * 80, xbmc.LOGINFO)
+        xbmc.log("LibraryGenie: END DEBUG DUMP", xbmc.LOGINFO)
+        xbmc.log("=" * 80, xbmc.LOGINFO)
+        
         # Special handling for videodb navigation using actual database IDs
         if container_path and 'videodb://' in container_path and is_folder and dbid:
             # Construct proper videodb URL using the numeric database ID
