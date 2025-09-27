@@ -860,81 +860,52 @@ def _save_bookmark_directly(item_data, addon):
         # Get the numeric database ID for videodb items - this is the key!
         dbid = xbmc.getInfoLabel('ListItem.DBID')
         
-        # === COMPREHENSIVE DEBUGGING - DUMP ALL AVAILABLE LISTITEM DATA ===
-        xbmc.log("=" * 80, xbmc.LOGINFO)
-        xbmc.log("LibraryGenie: FOCUSED ITEM DEBUG DUMP", xbmc.LOGINFO)
-        xbmc.log("=" * 80, xbmc.LOGINFO)
-        
-        # Basic InfoLabels
-        debug_info = {
-            'ListItem.Label': xbmc.getInfoLabel('ListItem.Label'),
-            'ListItem.Label2': xbmc.getInfoLabel('ListItem.Label2'),
-            'ListItem.Title': xbmc.getInfoLabel('ListItem.Title'),
-            'ListItem.OriginalTitle': xbmc.getInfoLabel('ListItem.OriginalTitle'),
-            'ListItem.Path': xbmc.getInfoLabel('ListItem.Path'),
-            'ListItem.FileNameAndPath': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
-            'ListItem.FileName': xbmc.getInfoLabel('ListItem.FileName'),
-            'ListItem.DBID': xbmc.getInfoLabel('ListItem.DBID'),
-            'ListItem.DBTYPE': xbmc.getInfoLabel('ListItem.DBTYPE'),
-            'ListItem.Property(folder)': xbmc.getInfoLabel('ListItem.Property(folder)'),
-            'ListItem.Property(path)': xbmc.getInfoLabel('ListItem.Property(path)'),
-            'ListItem.Property(special_type)': xbmc.getInfoLabel('ListItem.Property(special_type)'),
-        }
-        
-        # Container InfoLabels
-        container_info = {
-            'Container.FolderPath': xbmc.getInfoLabel('Container.FolderPath'),
-            'Container.FolderName': xbmc.getInfoLabel('Container.FolderName'),
-            'Container.Label': xbmc.getInfoLabel('Container.Label'),
-            'Container.Content': xbmc.getInfoLabel('Container.Content'),
-            'Container.Property(folder)': xbmc.getInfoLabel('Container.Property(folder)'),
-        }
-        
-        # Boolean conditions
-        boolean_info = {
-            'ListItem.IsFolder': xbmc.getCondVisibility('ListItem.IsFolder'),
-            'ListItem.IsParentFolder': xbmc.getCondVisibility('ListItem.IsParentFolder'),
-            'ListItem.IsPlayable': xbmc.getCondVisibility('ListItem.IsPlayable'),
-            'System.HasAddon(videodb)': xbmc.getCondVisibility('System.HasAddon(videodb)'),
-            'Container.HasFiles': xbmc.getCondVisibility('Container.HasFiles'),
-        }
-        
-        # Window InfoLabels
-        window_info = {
-            'System.CurrentWindow': xbmc.getInfoLabel('System.CurrentWindow'),
-            'System.CurrentControl': xbmc.getInfoLabel('System.CurrentControl'),
-            'Window.Property(xmlfile)': xbmc.getInfoLabel('Window.Property(xmlfile)'),
-        }
-        
-        # Log all debug info
-        xbmc.log("=== BASIC LISTITEM INFO ===", xbmc.LOGINFO)
-        for key, value in debug_info.items():
-            xbmc.log(f"  {key}: '{value}'", xbmc.LOGINFO)
-            
-        xbmc.log("=== CONTAINER INFO ===", xbmc.LOGINFO)
-        for key, value in container_info.items():
-            xbmc.log(f"  {key}: '{value}'", xbmc.LOGINFO)
-            
-        xbmc.log("=== BOOLEAN CONDITIONS ===", xbmc.LOGINFO)
-        for key, value in boolean_info.items():
-            xbmc.log(f"  {key}: {value}", xbmc.LOGINFO)
-            
-        xbmc.log("=== WINDOW INFO ===", xbmc.LOGINFO)
-        for key, value in window_info.items():
-            xbmc.log(f"  {key}: '{value}'", xbmc.LOGINFO)
-            
-        xbmc.log("=== EXTRACTED ITEM DATA ===", xbmc.LOGINFO)
-        for key, value in item_data.items():
-            xbmc.log(f"  item_data['{key}']: '{value}'", xbmc.LOGINFO)
-            
-        xbmc.log("=" * 80, xbmc.LOGINFO)
-        xbmc.log("LibraryGenie: END DEBUG DUMP", xbmc.LOGINFO)
-        xbmc.log("=" * 80, xbmc.LOGINFO)
+        # Debug logging for bookmark URL detection (can be removed after testing)
+        xbmc.log(f"LibraryGenie: Bookmark context - Container: {container_path}, DBID: {dbid}, Label: {xbmc.getInfoLabel('ListItem.Label')}", xbmc.LOGDEBUG)
         
         # Special handling for different container types
         
+        # Handle plugin content (addons)
+        if container_path and container_path.startswith('plugin://') and is_folder:
+            # For plugin content, use the actual plugin path not the container path
+            plugin_path = xbmc.getInfoLabel('ListItem.FileNameAndPath') or xbmc.getInfoLabel('ListItem.Path')
+            if plugin_path and plugin_path.startswith('plugin://'):
+                bookmark_url = plugin_path
+                xbmc.log(f"LibraryGenie: Plugin content bookmark - using plugin path: {plugin_path}", xbmc.LOGINFO)
+            else:
+                bookmark_url = file_path
+                xbmc.log(f"LibraryGenie: Plugin content - no plugin path found, using file_path: {file_path}", xbmc.LOGINFO)
+                
+        # Handle music database content (musicdb://)
+        elif container_path and 'musicdb://' in container_path and is_folder:
+            # Handle musicdb URLs similar to videodb
+            if dbid:
+                bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
+                xbmc.log(f"LibraryGenie: Constructed musicdb URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+            else:
+                item_label = xbmc.getInfoLabel('ListItem.Label') or title or label
+                if item_label:
+                    import urllib.parse
+                    encoded_label = urllib.parse.quote(item_label.replace(' ', '%20'))
+                    bookmark_url = f"{container_path.rstrip('/')}/{encoded_label}/"
+                    xbmc.log(f"LibraryGenie: Constructed musicdb URL with label '{item_label}': {bookmark_url}", xbmc.LOGINFO)
+                else:
+                    bookmark_url = file_path
+                    xbmc.log(f"LibraryGenie: Musicdb - no DBID or label, using file_path: {file_path}", xbmc.LOGINFO)
+                    
+        # Handle special protocol URLs (special://)
+        elif container_path and container_path.startswith('special://') and is_folder:
+            # For special paths, use the actual path
+            special_path = xbmc.getInfoLabel('ListItem.FileNameAndPath') or xbmc.getInfoLabel('ListItem.Path')
+            if special_path:
+                bookmark_url = special_path
+                xbmc.log(f"LibraryGenie: Special protocol bookmark - using path: {special_path}", xbmc.LOGINFO)
+            else:
+                bookmark_url = file_path
+                xbmc.log(f"LibraryGenie: Special protocol - no path found, using file_path: {file_path}", xbmc.LOGINFO)
+        
         # Handle file system sources (SMB, NFS, local paths, etc.)
-        if container_path and container_path.startswith('sources://') and is_folder:
+        elif container_path and container_path.startswith('sources://') and is_folder:
             # For file system sources, use the actual file path not the container path
             actual_path = xbmc.getInfoLabel('ListItem.FileNameAndPath') or xbmc.getInfoLabel('ListItem.Path')
             if actual_path:
@@ -961,6 +932,21 @@ def _save_bookmark_directly(item_data, addon):
                 elif 'movies/years' in container_path:
                     bookmark_url = f"videodb://movies/years/{dbid}/"
                     xbmc.log(f"LibraryGenie: Constructed year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/actors' in container_path:
+                    bookmark_url = f"videodb://movies/actors/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed actor URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/directors' in container_path:
+                    bookmark_url = f"videodb://movies/directors/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed director URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'movies/studios' in container_path:
+                    bookmark_url = f"videodb://movies/studios/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed studio URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'tvshows/actors' in container_path:
+                    bookmark_url = f"videodb://tvshows/actors/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed TV actor URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
+                elif 'tvshows/years' in container_path:
+                    bookmark_url = f"videodb://tvshows/years/{dbid}/"
+                    xbmc.log(f"LibraryGenie: Constructed TV year URL with DBID {dbid}: {bookmark_url}", xbmc.LOGINFO)
                 else:
                     # Generic videodb URL construction with DBID
                     bookmark_url = f"{container_path.rstrip('/')}/{dbid}/"
@@ -1000,6 +986,21 @@ def _save_bookmark_directly(item_data, addon):
         else:
             bookmark_url = file_path
             xbmc.log(f"LibraryGenie: Using file_path for bookmark: {file_path} (is_folder={is_folder})", xbmc.LOGINFO)
+        
+        # Edge case validation - ensure we have a valid bookmark URL
+        if not bookmark_url or bookmark_url.strip() == "":
+            xbmc.log(f"LibraryGenie: ERROR - Empty bookmark URL generated for '{item_data['title']}'", xbmc.LOGERROR)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                f"Unable to create bookmark for '{item_data['title']}' - no valid URL found",
+                xbmcgui.NOTIFICATION_ERROR,
+                3000
+            )
+            return
+            
+        # Validate URL format - basic sanity check
+        if len(bookmark_url) > 2000:  # URLs shouldn't be extremely long
+            xbmc.log(f"LibraryGenie: WARNING - Very long bookmark URL ({len(bookmark_url)} chars): {bookmark_url[:100]}...", xbmc.LOGWARNING)
         
         # Create stable ID for bookmark with backward compatibility check
         import hashlib
