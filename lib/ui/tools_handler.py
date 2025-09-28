@@ -330,17 +330,6 @@ class ToolsHandler:
                 return DialogResponse(success=False, message=message)
             else:
                 self.logger.info("TOOLS DEBUG: Successfully created list '%s' in folder_id: %s", new_name, folder_id)
-                
-                # Invalidate parent folder cache since we added a new list
-                try:
-                    from lib.ui.folder_cache import get_folder_cache
-                    folder_cache = get_folder_cache()
-                    if folder_cache:
-                        folder_cache.invalidate_folder(folder_id)
-                        self.logger.debug("TOOLS DEBUG: Invalidated cache for folder %s after list creation", folder_id)
-                except Exception as cache_error:
-                    self.logger.warning("TOOLS DEBUG: Failed to invalidate folder cache: %s", cache_error)
-                
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {new_name}",
@@ -1159,16 +1148,6 @@ class ToolsHandler:
                     deleted_count += 1
 
             if deleted_count > 0:
-                # Invalidate search history folder cache after clearing
-                try:
-                    from lib.ui.folder_cache import get_folder_cache
-                    folder_cache = get_folder_cache()
-                    if folder_cache:
-                        folder_cache.invalidate_folder(folder_id)
-                        self.logger.debug("Invalidated cache for search history folder %s after clearing", folder_id)
-                except Exception as cache_error:
-                    self.logger.warning("Failed to invalidate folder cache after clearing search history: %s", cache_error)
-                
                 return DialogResponse(
                     success=True,
                     message=f"Cleared {deleted_count} search history lists",
