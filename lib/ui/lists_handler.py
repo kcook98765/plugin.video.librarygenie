@@ -294,12 +294,13 @@ class ListsHandler:
             query_manager = None
             
             if cached_data:
-                # CACHE HIT: Use cached data (ZERO database overhead)
+                # CACHE HIT: Use cached data including breadcrumbs (ZERO database overhead)
                 cache_used = True
                 all_lists = cached_data.get('items', [])
                 all_folders = cached_data.get('folders', [])
+                cached_breadcrumbs = cached_data.get('breadcrumbs', {})
                 build_time = cached_data.get('_build_time_ms', 0)
-                self.logger.debug("CACHE HIT: Root folder cached with %d items, %d folders (built in %d ms) - ZERO DB OVERHEAD", 
+                self.logger.debug("CACHE HIT: Root folder cached with %d items, %d folders, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
                                    len(all_lists), len(all_folders), build_time)
             else:
                 # CACHE MISS: Initialize DB and query, then cache the result
@@ -323,13 +324,21 @@ class ListsHandler:
                 db_query_time = (time.time() - db_query_start) * 1000
                 self.logger.debug("TIMING: Database query for lists and folders took %.2f ms", db_query_time)
                 
-                # Cache both lists and folders for complete navigation metadata
+                # Cache lists, folders, and breadcrumb data for complete navigation metadata
+                breadcrumb_data = {
+                    'directory_title': 'Lists',
+                    'tools_label': 'Lists', 
+                    'tools_description': 'Search, Favorites, Import/Export & Settings'
+                }
+                cached_breadcrumbs = breadcrumb_data
+                
                 cache_payload = {
                     'items': all_lists,
-                    'folders': all_folders
+                    'folders': all_folders,
+                    'breadcrumbs': breadcrumb_data
                 }
                 folder_cache.set(folder_id, cache_payload, int(db_query_time))
-                self.logger.debug("CACHE UPDATE: Stored root folder with %d items, %d folders", len(all_lists), len(all_folders))
+                self.logger.debug("CACHE UPDATE: Stored root folder with %d items, %d folders, breadcrumbs", len(all_lists), len(all_folders))
 
             self.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
 
@@ -404,29 +413,40 @@ class ListsHandler:
                 breadcrumb_action = 'lists'
                 tools_url = context.build_url('show_list_tools', list_type='lists_main')
 
-            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb(breadcrumb_action, breadcrumb_params, query_manager)
+            # Use cached breadcrumb data when available (ZERO DB overhead)
+            if cache_used and cached_breadcrumbs:
+                directory_title = cached_breadcrumbs.get('directory_title', 'Lists')
+            else:
+                directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb(breadcrumb_action, breadcrumb_params, query_manager)
+            
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
                     import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
-                    self.logger.debug("Set directory title: '%s'", directory_title)
+                    self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
                 except Exception as e:
                     self.logger.debug("Could not set directory title: %s", e)
 
             # Build menu items for lists and folders
             menu_items = []
 
-            # Add "Tools & Options" with unified breadcrumb approach
-            breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
+            # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
+            if cache_used and cached_breadcrumbs:
+                tools_label = cached_breadcrumbs.get('tools_label', 'Lists')
+                tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
+            else:
+                breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
+                tools_label = breadcrumb_text or 'Lists'
+                tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
 
             menu_items.append({
-                'label': f"Tools & Options {breadcrumb_text}",
+                'label': f"Tools & Options • {tools_label}",
                 'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': f"{description_prefix}Search, Favorites, Import/Export & Settings"
+                'description': tools_description
             })
 
             # Search and other tools are now accessible via Tools & Options menu
@@ -617,13 +637,14 @@ class ListsHandler:
             query_manager = None
             
             if cached_data:
-                # CACHE HIT: Use cached navigation data (ZERO database overhead)
+                # CACHE HIT: Use cached navigation data including breadcrumbs (ZERO database overhead)
                 cache_used = True
                 folder_info = cached_data.get('folder_info')
                 subfolders = cached_data.get('subfolders', [])
                 lists_in_folder = cached_data.get('lists', [])
+                cached_breadcrumbs = cached_data.get('breadcrumbs', {})
                 build_time = cached_data.get('_build_time_ms', 0)
-                self.logger.debug("CACHE HIT: Folder %s cached with %d subfolders, %d lists (built in %d ms) - ZERO DB OVERHEAD", 
+                self.logger.debug("CACHE HIT: Folder %s cached with %d subfolders, %d lists, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
                                    folder_id, len(subfolders), len(lists_in_folder), build_time)
             else:
                 # CACHE MISS: Initialize DB and query, then cache the result
@@ -651,14 +672,23 @@ class ListsHandler:
                 subfolders = navigation_data['subfolders']
                 lists_in_folder = navigation_data['lists']
                 
-                # Cache the result for future navigation
+                # Pre-compute breadcrumb components for subfolder
+                folder_name = folder_info.get('name', 'Unknown Folder') if folder_info else 'Unknown Folder'
+                cached_breadcrumbs = {
+                    'directory_title': folder_name,
+                    'tools_label': f"for '{folder_name}'",
+                    'tools_description': f"Tools and options for this folder"
+                }
+                
+                # Cache the result including breadcrumbs for future navigation
                 cache_payload = {
                     'folder_info': folder_info,
                     'subfolders': subfolders,
-                    'lists': lists_in_folder
+                    'lists': lists_in_folder,
+                    'breadcrumbs': cached_breadcrumbs
                 }
                 folder_cache.set(folder_id, cache_payload, int(db_query_time))
-                self.logger.debug("CACHE UPDATE: Stored folder %s with %d subfolders, %d lists", 
+                self.logger.debug("CACHE UPDATE: Stored folder %s with %d subfolders, %d lists, breadcrumbs", 
                                    folder_id, len(subfolders), len(lists_in_folder))
 
             if not folder_info:
@@ -686,16 +716,21 @@ class ListsHandler:
 
             self.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
-            # Set directory title with breadcrumb context (breadcrumb helper handles None gracefully)
-            breadcrumb_query_manager = query_manager if query_manager is not None else None
-            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, breadcrumb_query_manager)
+            # Use cached breadcrumb data for directory title (ZERO DB overhead)
+            if cache_used and cached_breadcrumbs:
+                directory_title = cached_breadcrumbs.get('directory_title', 'Unknown Folder')
+                self.logger.debug("Using cached directory title: '%s'", directory_title)
+            else:
+                breadcrumb_query_manager = query_manager if query_manager is not None else None
+                directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, breadcrumb_query_manager)
+            
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
                     import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
-                    self.logger.debug("Set directory title: '%s'", directory_title)
+                    self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
                 except Exception as e:
                     self.logger.debug("Could not set directory title: %s", e)
 
@@ -746,17 +781,21 @@ class ListsHandler:
 
             # Add Tools & Options for folders that support it
             if self._folder_has_tools(folder_info):
-                # Generate breadcrumb for Tools & Options
-                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
-                    'show_folder', 
-                    {'folder_id': folder_id}, 
-                    breadcrumb_query_manager
-                )
-                description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description(
-                    'show_folder', 
-                    {'folder_id': folder_id}, 
-                    breadcrumb_query_manager
-                )
+                # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
+                if cache_used and cached_breadcrumbs:
+                    breadcrumb_text = cached_breadcrumbs.get('tools_label', 'for folder')
+                    description_text = cached_breadcrumbs.get('tools_description', 'Tools and options for this folder')
+                else:
+                    breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
+                        'show_folder', 
+                        {'folder_id': folder_id}, 
+                        breadcrumb_query_manager
+                    )
+                    description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description(
+                        'show_folder', 
+                        {'folder_id': folder_id}, 
+                        breadcrumb_query_manager
+                    )
                 
                 tools_menu_item = {
                     'label': f"⚙️ Tools & Options {breadcrumb_text}",
