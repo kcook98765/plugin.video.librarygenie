@@ -72,6 +72,16 @@ class FolderOperations:
                 )
             else:
                 context.logger.info("Successfully created folder: %s", folder_name)
+                
+                # Invalidate folder cache after successful creation
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    folder_id = str(result.get('folder_id', ''))
+                    folder_cache.invalidate_after_folder_operation('create', folder_id)
+                except Exception as cache_error:
+                    context.logger.warning("Failed to invalidate cache after folder creation: %s", cache_error)
+                
                 from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,
@@ -107,6 +117,7 @@ class FolderOperations:
                     message=L(37020)  # "Folder not found" (red color)
                 )
             folder_name = folder_info.get('name', 'Unnamed Folder')
+            parent_folder_id = folder_info.get('parent_id')  # Capture parent before deletion
 
             # Check if folder has lists or subfolders
             lists_in_folder = self.query_manager.get_lists_in_folder(folder_id) or []
@@ -149,6 +160,17 @@ class FolderOperations:
                 )
             else:
                 context.logger.info("Successfully deleted folder: %s", folder_name)
+                
+                # Invalidate folder cache after successful deletion
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    # Pass parent info captured before deletion
+                    folder_cache.invalidate_after_folder_operation('delete', folder_id, 
+                                                                  parent_id=parent_folder_id)
+                except Exception as cache_error:
+                    context.logger.warning("Failed to invalidate cache after folder deletion: %s", cache_error)
+                
                 from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,
@@ -210,6 +232,15 @@ class FolderOperations:
                 )
             else:
                 context.logger.info("Successfully renamed folder to: %s", new_name)
+                
+                # Invalidate folder cache after successful rename
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    folder_cache.invalidate_after_folder_operation('rename', folder_id)
+                except Exception as cache_error:
+                    context.logger.warning("Failed to invalidate cache after folder rename: %s", cache_error)
+                
                 from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,
@@ -291,6 +322,26 @@ class FolderOperations:
             else:
                 target_name = folder_options[selected_index].replace("[CURRENT] ", "")
                 context.logger.info("Successfully moved list %s to folder: %s", list_name, target_name)
+                
+                # Invalidate folder cache after successful list move (affects folder contents)
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    
+                    # Invalidate both source and target folders
+                    if current_folder_id:
+                        folder_cache.invalidate_folder(str(current_folder_id))
+                    else:
+                        folder_cache.invalidate_folder("")  # Root folder
+                    
+                    if target_folder_id:
+                        folder_cache.invalidate_folder(str(target_folder_id))
+                    else:
+                        folder_cache.invalidate_folder("")  # Root folder
+                        
+                except Exception as cache_error:
+                    context.logger.warning("Failed to invalidate cache after list move: %s", cache_error)
+                
                 from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,
@@ -376,6 +427,17 @@ class FolderOperations:
             else:
                 target_name = folder_options[selected_index].replace("[CURRENT] ", "")
                 context.logger.info("Successfully moved folder %s to: %s", folder_name, target_name)
+                
+                # Invalidate folder cache after successful folder move
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    folder_cache.invalidate_after_folder_operation('move', folder_id, 
+                                                                  source_parent_id=current_parent_id,
+                                                                  target_parent_id=target_parent_id)
+                except Exception as cache_error:
+                    context.logger.warning("Failed to invalidate cache after folder move: %s", cache_error)
+                
                 from lib.ui.response_types import NavigationIntent
                 return DialogResponse(
                     success=True,

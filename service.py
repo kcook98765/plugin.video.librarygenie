@@ -129,6 +129,29 @@ class LibraryGenieService:
                 xbmcgui.NOTIFICATION_ERROR
             )
 
+    def _initialize_folder_cache_service(self):
+        """Initialize folder cache service with pre-warming"""
+        try:
+            log_info("Service: Initializing folder cache service...")
+            
+            # Check if cache pre-warming is enabled (default: enabled)
+            enable_pre_warming = True  # Could be configurable in future
+            
+            from lib.ui.folder_cache import get_folder_cache
+            folder_cache = get_folder_cache()
+            
+            # Initialize cache service with optional pre-warming
+            success = folder_cache.initialize_cache_service(enable_pre_warming=enable_pre_warming)
+            
+            if success:
+                log_info("Service: Folder cache service initialized successfully")
+            else:
+                log_warning("Service: Folder cache service initialization failed")
+                
+        except Exception as e:
+            log_error(f"Service: Error initializing folder cache service: {e}")
+            # Don't fail overall service startup for cache issues
+
     def _ensure_favorites_list(self):
         """Ensure Kodi Favorites list exists if favorites integration is enabled"""
         try:
@@ -281,6 +304,9 @@ class LibraryGenieService:
             
             # Initialize database if needed
             self._initialize_database()
+
+            # Initialize folder cache service with pre-warming
+            self._initialize_folder_cache_service()
 
             # Check if library needs initial scan
             self._check_and_perform_initial_scan()

@@ -2174,6 +2174,35 @@ msgctxt "#37302"
 msgid "[External]"
 msgstr ""
 
+# Cache & Performance Settings
+msgctxt "#30610"
+msgid "Performance & Cache"
+msgstr ""
+
+msgctxt "#30611"
+msgid "Enable folder view caching"
+msgstr ""
+
+msgctxt "#30612"
+msgid "Cache freshness (hours)"
+msgstr ""
+
+msgctxt "#30613"
+msgid "Cache expiry (days)"
+msgstr ""
+
+msgctxt "#30614"
+msgid "Enable cache pre-warming"
+msgstr ""
+
+msgctxt "#30615"
+msgid "Pre-warm folder count"
+msgstr ""
+
+msgctxt "#30616"
+msgid "Enable cache debug logging"
+msgstr ""
+
 msgctxt "#37303"
 msgid "[In List: %s]"
 msgstr ""
@@ -2198,5 +2227,30 @@ msgstr ""
 # Help Text for Library Sync Interval
 msgctxt "#35560"
 msgid "How often to automatically check for new movies in your Kodi library. Sync will not run during video playback."
+msgstr ""
+
+# Help Text for Cache Settings
+msgctxt "#35610"
+msgid "Improves navigation performance by caching folder views. Disable if experiencing memory issues or for troubleshooting."
+msgstr ""
+
+msgctxt "#35611"
+msgid "How long cached folder data stays fresh before being refreshed. Lower values ensure newer data, higher values improve performance."
+msgstr ""
+
+msgctxt "#35612"
+msgid "Maximum time cached data is kept before being completely removed. Affects disk space usage."
+msgstr ""
+
+msgctxt "#35613"
+msgid "Pre-loads commonly accessed folders on startup to reduce initial load times. May slightly increase startup time."
+msgstr ""
+
+msgctxt "#35614"
+msgid "Number of folders to pre-load during startup. Higher values provide better performance but longer startup times."
+msgstr ""
+
+msgctxt "#35615"
+msgid "Enables detailed logging of cache operations for debugging performance issues. Only enable when troubleshooting."
 msgstr ""
 

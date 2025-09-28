@@ -23,6 +23,7 @@ from lib.ui.dialog_service import get_dialog_service
 # Import the specialized operation modules
 from lib.ui.list_operations import ListOperations
 from lib.ui.folder_operations import FolderOperations
+from lib.ui.folder_cache import get_folder_cache
 
 
 class ListsHandler:
@@ -279,39 +280,80 @@ class ListsHandler:
         """Show main lists menu with folders and lists"""
         try:
             show_lists_start = time.time()
-            context.logger.debug("Displaying lists menu")
+            self.logger.debug("Displaying lists menu")
 
-            # Initialize query manager
-            query_manager = get_query_manager()
+            # CACHE-FIRST: Check cache before ANY database operations (zero-DB overhead on HIT)
+            folder_cache = get_folder_cache()
+            folder_id = None  # Root folder
+            cached_data = folder_cache.get(folder_id)
+            
+            all_lists = None
+            all_folders = None
+            db_query_time = 0
+            cache_used = False
+            query_manager = None
+            
+            if cached_data:
+                # CACHE HIT: Use cached data including breadcrumbs (ZERO database overhead)
+                cache_used = True
+                all_lists = cached_data.get('items', [])
+                all_folders = cached_data.get('folders', [])
+                cached_breadcrumbs = cached_data.get('breadcrumbs', {})
+                build_time = cached_data.get('_build_time_ms', 0)
+                self.logger.debug("CACHE HIT: Root folder cached with %d items, %d folders, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
+                                   len(all_lists), len(all_folders), build_time)
+            else:
+                # CACHE MISS: Initialize DB and query, then cache the result
+                self.logger.debug("CACHE MISS: Root folder not cached, querying database")
+                
+                # Only initialize query manager on cache miss
+                query_manager = self.query_manager
+                init_result = query_manager.initialize()
 
-            init_result = query_manager.initialize()
+                if not init_result:
+                    self.logger.error("Failed to initialize query manager")
+                    return DirectoryResponse(
+                        items=[],
+                        success=False
+                    )
 
-            if not init_result:
-                context.logger.error("Failed to initialize query manager")
-                return DirectoryResponse(
-                    items=[],
-                    success=False
-                )
+                # Get all user lists and folders from database (BATCH for cache building)
+                db_query_start = time.time()
+                all_lists = query_manager.get_all_lists_with_folders()
+                all_folders = query_manager.get_all_folders()
+                db_query_time = (time.time() - db_query_start) * 1000
+                self.logger.debug("TIMING: Database query for lists and folders took %.2f ms", db_query_time)
+                
+                # Cache lists, folders, and breadcrumb data for complete navigation metadata
+                breadcrumb_data = {
+                    'directory_title': 'Lists',
+                    'tools_label': 'Lists', 
+                    'tools_description': 'Search, Favorites, Import/Export & Settings'
+                }
+                cached_breadcrumbs = breadcrumb_data
+                
+                cache_payload = {
+                    'items': all_lists,
+                    'folders': all_folders,
+                    'breadcrumbs': breadcrumb_data
+                }
+                folder_cache.set(folder_id, cache_payload, int(db_query_time))
+                self.logger.debug("CACHE UPDATE: Stored root folder with %d items, %d folders, breadcrumbs", len(all_lists), len(all_folders))
 
-            # Get all user lists and folders
-            db_query_start = time.time()
-            all_lists = query_manager.get_all_lists_with_folders()
-            db_query_time = (time.time() - db_query_start) * 1000
-            context.logger.debug("TIMING: Database query for lists took %.2f ms", db_query_time)
-            context.logger.debug("Found %s total lists", len(all_lists))
+            self.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
             user_lists = all_lists
-            context.logger.debug("Found %s user lists (including Kodi Favorites)", len(user_lists))
+            self.logger.debug("Found %s user lists (including Kodi Favorites)", len(user_lists))
 
             if not user_lists:
                 # No lists exist - show empty state instead of dialog
                 # This prevents confusing dialogs when navigating back from deletions
                 menu_items = []
 
-                # Add "Tools & Options" with breadcrumb context
-                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, query_manager)
-                description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, query_manager)
+                # Add "Tools & Options" with breadcrumb context (breadcrumb helper handles None gracefully for 'lists' action)
+                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, None)
+                description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, None)
 
                 menu_items.append({
                     'label': f"{L(36000)} {breadcrumb_text}",
@@ -371,29 +413,40 @@ class ListsHandler:
                 breadcrumb_action = 'lists'
                 tools_url = context.build_url('show_list_tools', list_type='lists_main')
 
-            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb(breadcrumb_action, breadcrumb_params, query_manager)
+            # Use cached breadcrumb data when available (ZERO DB overhead)
+            if cache_used and cached_breadcrumbs:
+                directory_title = cached_breadcrumbs.get('directory_title', 'Lists')
+            else:
+                directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb(breadcrumb_action, breadcrumb_params, query_manager)
+            
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
                     import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
-                    context.logger.debug("Set directory title: '%s'", directory_title)
+                    self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
                 except Exception as e:
-                    context.logger.debug("Could not set directory title: %s", e)
+                    self.logger.debug("Could not set directory title: %s", e)
 
             # Build menu items for lists and folders
             menu_items = []
 
-            # Add "Tools & Options" with unified breadcrumb approach
-            breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
+            # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
+            if cache_used and cached_breadcrumbs:
+                tools_label = cached_breadcrumbs.get('tools_label', 'Lists')
+                tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
+            else:
+                breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
+                tools_label = breadcrumb_text or 'Lists'
+                tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
 
             menu_items.append({
-                'label': f"Tools & Options {breadcrumb_text}",
+                'label': f"Tools & Options • {tools_label}",
                 'url': tools_url,
                 'is_folder': True,
                 'icon': "DefaultAddonProgram.png",
-                'description': f"{description_prefix}Search, Favorites, Import/Export & Settings"
+                'description': tools_description
             })
 
             # Search and other tools are now accessible via Tools & Options menu
@@ -412,7 +465,7 @@ class ListsHandler:
 
             if favorites_enabled and not kodi_favorites_item:
                 # Create "Kodi Favorites" list if it doesn't exist but setting is enabled
-                context.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating it")
+                self.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating it")
                 try:
                     from lib.config.favorites_helper import on_favorites_integration_enabled
                     on_favorites_integration_enabled()  # This will create the list if it doesn't exist
@@ -427,9 +480,9 @@ class ListsHandler:
                             kodi_favorites_item = item
                             break
 
-                    context.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
+                    self.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
                 except Exception as e:
-                    context.logger.error("LISTS HANDLER: Error ensuring Kodi Favorites list exists: %s", e)
+                    self.logger.error("LISTS HANDLER: Error ensuring Kodi Favorites list exists: %s", e)
 
             # ADD KODI FAVORITES FIRST (before any folders or other lists)
             if favorites_enabled and kodi_favorites_item:
@@ -450,11 +503,9 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Get all existing folders to display as navigable items
-            folders_query_start = time.time()
-            all_folders = query_manager.get_all_folders()
-            folders_query_time = (time.time() - folders_query_start) * 1000
-            context.logger.debug("TIMING: Database query for folders took %.2f ms", folders_query_time)
+            # Use cached or fetched folder data
+            self.logger.debug("CACHE: Using folder data (%d folders) %s", len(all_folders), 
+                               "- ZERO DB OVERHEAD" if cache_used else "from database")
 
             # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
@@ -515,7 +566,7 @@ class ListsHandler:
 
             # Build directory items
             gui_build_start = time.time()
-            context.logger.debug("TIMING: Starting GUI building for %d items", len(menu_items))
+            self.logger.debug("TIMING: Starting GUI building for %d items", len(menu_items))
             
             for i, item in enumerate(menu_items):
                 item_start = time.time()
@@ -540,17 +591,18 @@ class ListsHandler:
                 
                 item_time = (time.time() - item_start) * 1000
                 if item_time > 5.0:  # Only log slow items to avoid spam
-                    context.logger.debug("TIMING: Item %d ('%s') took %.2f ms", i, item['label'], item_time)
+                    self.logger.debug("TIMING: Item %d ('%s') took %.2f ms", i, item['label'], item_time)
             
             gui_build_time = (time.time() - gui_build_start) * 1000
-            context.logger.debug("TIMING: GUI building for %d items took %.2f ms (avg %.2f ms/item)", 
+            self.logger.debug("TIMING: GUI building for %d items took %.2f ms (avg %.2f ms/item)", 
                                 len(menu_items), gui_build_time, gui_build_time / max(1, len(menu_items)))
 
             # Determine if this is a refresh or initial load
             is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
 
             total_time = (time.time() - show_lists_start) * 1000
-            context.logger.debug("TIMING: Total show_lists_menu execution took %.2f ms", total_time)
+            cache_status = "HIT" if cache_used else "MISS"
+            self.logger.debug("TIMING: Total show_lists_menu execution took %.2f ms (cache %s)", total_time, cache_status)
             
             return DirectoryResponse(
                 items=menu_items,
@@ -561,7 +613,7 @@ class ListsHandler:
             )
 
         except Exception as e:
-            context.logger.error("Error in show_lists_menu: %s", e)
+            self.logger.error("Error in show_lists_menu: %s", e)
             return DirectoryResponse(
                 items=[],
                 success=False
@@ -570,31 +622,77 @@ class ListsHandler:
     def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Display contents of a specific folder"""
         try:
-            context.logger.debug("Displaying folder %s", folder_id)
+            folder_start = time.time()
+            self.logger.debug("Displaying folder %s", folder_id)
 
-            # Initialize query manager
-            query_manager = get_query_manager()
+            # CACHE-FIRST: Check cache before ANY database operations (zero-DB overhead on HIT)
+            folder_cache = get_folder_cache()
+            cached_data = folder_cache.get(folder_id)
+            
+            folder_info = None
+            subfolders = []
+            lists_in_folder = []
+            db_query_time = 0
+            cache_used = False
+            query_manager = None
+            
+            if cached_data:
+                # CACHE HIT: Use cached navigation data including breadcrumbs (ZERO database overhead)
+                cache_used = True
+                folder_info = cached_data.get('folder_info')
+                subfolders = cached_data.get('subfolders', [])
+                lists_in_folder = cached_data.get('lists', [])
+                cached_breadcrumbs = cached_data.get('breadcrumbs', {})
+                build_time = cached_data.get('_build_time_ms', 0)
+                self.logger.debug("CACHE HIT: Folder %s cached with %d subfolders, %d lists, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
+                                   folder_id, len(subfolders), len(lists_in_folder), build_time)
+            else:
+                # CACHE MISS: Initialize DB and query, then cache the result
+                self.logger.debug("CACHE MISS: Folder %s not cached, querying database", folder_id)
+                
+                # Only initialize query manager on cache miss
+                query_manager = self.query_manager
+                init_result = query_manager.initialize()
 
-            init_result = query_manager.initialize()
+                if not init_result:
+                    self.logger.error("Failed to initialize query manager")
+                    return DirectoryResponse(
+                        items=[],
+                        success=False
+                    )
 
-            if not init_result:
-                context.logger.error("Failed to initialize query manager")
-                return DirectoryResponse(
-                    items=[],
-                    success=False
-                )
+                # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
+                db_query_start = time.time()
+                navigation_data = query_manager.get_folder_navigation_batch(folder_id)
+                db_query_time = (time.time() - db_query_start) * 1000
+                self.logger.debug("TIMING: Database batch query for folder %s took %.2f ms", folder_id, db_query_time)
 
-            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
-            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
-            navigation_data = query_manager.get_folder_navigation_batch(folder_id)
-
-            # Extract data from batch result
-            folder_info = navigation_data['folder_info']
-            subfolders = navigation_data['subfolders']
-            lists_in_folder = navigation_data['lists']
+                # Extract data from batch result
+                folder_info = navigation_data['folder_info']
+                subfolders = navigation_data['subfolders']
+                lists_in_folder = navigation_data['lists']
+                
+                # Pre-compute breadcrumb components for subfolder
+                folder_name = folder_info.get('name', 'Unknown Folder') if folder_info else 'Unknown Folder'
+                cached_breadcrumbs = {
+                    'directory_title': folder_name,
+                    'tools_label': f"for '{folder_name}'",
+                    'tools_description': f"Tools and options for this folder"
+                }
+                
+                # Cache the result including breadcrumbs for future navigation
+                cache_payload = {
+                    'folder_info': folder_info,
+                    'subfolders': subfolders,
+                    'lists': lists_in_folder,
+                    'breadcrumbs': cached_breadcrumbs
+                }
+                folder_cache.set(folder_id, cache_payload, int(db_query_time))
+                self.logger.debug("CACHE UPDATE: Stored folder %s with %d subfolders, %d lists, breadcrumbs", 
+                                   folder_id, len(subfolders), len(lists_in_folder))
 
             if not folder_info:
-                context.logger.error("Folder %s not found", folder_id)
+                self.logger.error("Folder %s not found", folder_id)
                 return DirectoryResponse(
                     items=[],
                     success=False
@@ -609,26 +707,32 @@ class ListsHandler:
                 # Navigate to root plugin directory (main lists menu)
                 parent_path = context.build_url('lists')  # Use 'lists' action for main menu
 
-            context.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
+            self.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
             # Set parent directory using proper window property API
             import xbmcgui
             window = xbmcgui.Window(10025)  # Video window
             window.setProperty('ParentDir', parent_path)
             window.setProperty('Container.ParentDir', parent_path)
 
-            context.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
+            self.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
-            # Set directory title with breadcrumb context
-            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, query_manager)
+            # Use cached breadcrumb data for directory title (ZERO DB overhead)
+            if cache_used and cached_breadcrumbs:
+                directory_title = cached_breadcrumbs.get('directory_title', 'Unknown Folder')
+                self.logger.debug("Using cached directory title: '%s'", directory_title)
+            else:
+                breadcrumb_query_manager = query_manager if query_manager is not None else None
+                directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, breadcrumb_query_manager)
+            
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
                     import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
-                    context.logger.debug("Set directory title: '%s'", directory_title)
+                    self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
                 except Exception as e:
-                    context.logger.debug("Could not set directory title: %s", e)
+                    self.logger.debug("Could not set directory title: %s", e)
 
             menu_items = []
 
@@ -677,17 +781,21 @@ class ListsHandler:
 
             # Add Tools & Options for folders that support it
             if self._folder_has_tools(folder_info):
-                # Generate breadcrumb for Tools & Options
-                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
-                    'show_folder', 
-                    {'folder_id': folder_id}, 
-                    context.query_manager
-                )
-                description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description(
-                    'show_folder', 
-                    {'folder_id': folder_id}, 
-                    context.query_manager
-                )
+                # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
+                if cache_used and cached_breadcrumbs:
+                    breadcrumb_text = cached_breadcrumbs.get('tools_label', 'for folder')
+                    description_text = cached_breadcrumbs.get('tools_description', 'Tools and options for this folder')
+                else:
+                    breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
+                        'show_folder', 
+                        {'folder_id': folder_id}, 
+                        breadcrumb_query_manager
+                    )
+                    description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description(
+                        'show_folder', 
+                        {'folder_id': folder_id}, 
+                        breadcrumb_query_manager
+                    )
                 
                 tools_menu_item = {
                     'label': f"⚙️ Tools & Options {breadcrumb_text}",
@@ -737,6 +845,10 @@ class ListsHandler:
             nav_mode = decide_mode(current_route, next_route, 'folder_view', current_params, next_params)
             update_listing = (nav_mode == 'replace')
 
+            total_folder_time = (time.time() - folder_start) * 1000
+            cache_status = "HIT" if cache_used else "MISS" 
+            self.logger.debug("TIMING: Total show_folder execution took %.2f ms (cache %s)", total_folder_time, cache_status)
+
             return DirectoryResponse(
                 items=menu_items,
                 success=True,
@@ -746,7 +858,7 @@ class ListsHandler:
             )
 
         except Exception as e:
-            context.logger.error("Error showing folder: %s", e)
+            self.logger.error("Error showing folder: %s", e)
             return DirectoryResponse(
                 items=[],
                 success=False
@@ -820,9 +932,9 @@ class ListsHandler:
                     import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
-                    context.logger.debug("Set directory title: '%s'", directory_title)
+                    self.logger.debug("Set directory title: '%s'", directory_title)
                 except Exception as e:
-                    context.logger.debug("Could not set directory title: %s", e)
+                    self.logger.debug("Could not set directory title: %s", e)
 
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
