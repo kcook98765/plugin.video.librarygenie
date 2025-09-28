@@ -86,6 +86,14 @@ class ConfigManager:
             "backup_include_settings": True,
             "backup_include_non_library": False,
             
+            # Folder cache settings
+            "folder_cache_enabled": True,  # Master switch for folder caching
+            "folder_cache_fresh_ttl": 12,  # Hours - cache is considered fresh
+            "folder_cache_hard_expiry": 30,  # Days - cache expires completely
+            "folder_cache_prewarm_enabled": True,  # Enable cache pre-warming
+            "folder_cache_prewarm_max_folders": 10,  # Max folders to pre-warm
+            "folder_cache_debug_logging": False,  # Enable detailed cache logging
+            
             # ShortList integration settings
             "import_from_shortlist": False,
             "clear_before_import": False,
@@ -393,6 +401,10 @@ class ConfigManager:
             "backup_include_settings",
             "backup_include_non_library",
             "backup_include_folders",
+            # Folder cache boolean settings
+            "folder_cache_enabled",
+            "folder_cache_prewarm_enabled",
+            "folder_cache_debug_logging",
             # ShortList integration settings
             "import_from_shortlist",
             "clear_before_import",
@@ -420,6 +432,8 @@ class ConfigManager:
             "backup_interval", "backup_retention_count", "backup_storage_type",
             # Pagination settings
             "list_pagination_mode", "list_manual_page_size",
+            # Folder cache integer settings
+            "folder_cache_fresh_ttl", "folder_cache_hard_expiry", "folder_cache_prewarm_max_folders",
         ]
         float_settings = []
 

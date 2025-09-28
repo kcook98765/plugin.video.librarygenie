@@ -406,6 +406,89 @@ class SettingsManager:
             'cache_duration': config.get_int('remote_cache_duration', 300)
         }
 
+    # Folder Cache Settings
+    def get_folder_cache_enabled(self) -> bool:
+        """Get folder cache enabled setting"""
+        config = get_config()
+        return config.get_bool('folder_cache_enabled', True)
+
+    def set_folder_cache_enabled(self, enabled: bool) -> None:
+        """Set folder cache enabled setting"""
+        config = get_config()
+        config.set('folder_cache_enabled', enabled)
+
+    def get_folder_cache_fresh_ttl(self) -> int:
+        """Get folder cache fresh TTL in hours"""
+        config = get_config()
+        return config.get_int('folder_cache_fresh_ttl', 12)
+
+    def set_folder_cache_fresh_ttl(self, hours: int) -> None:
+        """Set folder cache fresh TTL in hours"""
+        config = get_config()
+        config.set('folder_cache_fresh_ttl', max(1, hours))  # Minimum 1 hour
+
+    def get_folder_cache_hard_expiry(self) -> int:
+        """Get folder cache hard expiry in days"""
+        config = get_config()
+        return config.get_int('folder_cache_hard_expiry', 30)
+
+    def set_folder_cache_hard_expiry(self, days: int) -> None:
+        """Set folder cache hard expiry in days"""
+        config = get_config()
+        config.set('folder_cache_hard_expiry', max(1, days))  # Minimum 1 day
+
+    def get_folder_cache_prewarm_enabled(self) -> bool:
+        """Get folder cache pre-warming enabled setting"""
+        config = get_config()
+        return config.get_bool('folder_cache_prewarm_enabled', True)
+
+    def set_folder_cache_prewarm_enabled(self, enabled: bool) -> None:
+        """Set folder cache pre-warming enabled setting"""
+        config = get_config()
+        config.set('folder_cache_prewarm_enabled', enabled)
+
+    def get_folder_cache_prewarm_max_folders(self) -> int:
+        """Get maximum folders to pre-warm"""
+        config = get_config()
+        return config.get_int('folder_cache_prewarm_max_folders', 10)
+
+    def set_folder_cache_prewarm_max_folders(self, max_folders: int) -> None:
+        """Set maximum folders to pre-warm"""
+        config = get_config()
+        config.set('folder_cache_prewarm_max_folders', max(1, max_folders))  # Minimum 1 folder
+
+    def get_folder_cache_debug_logging(self) -> bool:
+        """Get folder cache debug logging enabled setting"""
+        config = get_config()
+        return config.get_bool('folder_cache_debug_logging', False)
+
+    def set_folder_cache_debug_logging(self, enabled: bool) -> None:
+        """Set folder cache debug logging enabled setting"""
+        config = get_config()
+        config.set('folder_cache_debug_logging', enabled)
+
+    def get_folder_cache_preferences(self) -> Dict[str, Any]:
+        """Get folder cache-related preferences with defaults"""
+        try:
+            return {
+                'enabled': self.get_folder_cache_enabled(),
+                'fresh_ttl_hours': self.get_folder_cache_fresh_ttl(),
+                'hard_expiry_days': self.get_folder_cache_hard_expiry(),
+                'prewarm_enabled': self.get_folder_cache_prewarm_enabled(),
+                'prewarm_max_folders': self.get_folder_cache_prewarm_max_folders(),
+                'debug_logging': self.get_folder_cache_debug_logging()
+            }
+        except Exception as e:
+            self.logger.warning("Error reading folder cache preferences: %s", e)
+            return {
+                'enabled': True,
+                'fresh_ttl_hours': 12,
+                'hard_expiry_days': 30,
+                'prewarm_enabled': True,
+                'prewarm_max_folders': 10,
+                'debug_logging': False
+            }
+
 
 # Module-level convenience functions
 def get_phase12_remote_settings() -> Dict[str, Any]:
