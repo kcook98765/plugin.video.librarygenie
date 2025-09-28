@@ -97,7 +97,8 @@ class Router:
         if action != "show_list_tools":
             from lib.ui.breadcrumb_helper import get_breadcrumb_helper
             breadcrumb_helper = get_breadcrumb_helper()
-            breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, context.query_manager)
+            # Don't auto-initialize DB for breadcrumbs - pass None to let breadcrumb helper decide
+            breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, None)
             # Add breadcrumb to context for handlers
             context.breadcrumb_path = breadcrumb_path
         else:
