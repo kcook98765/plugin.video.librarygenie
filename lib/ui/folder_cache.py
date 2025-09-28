@@ -270,34 +270,44 @@ class FolderCache:
             
         try:
             with self._singleton_lock(folder_id):
-                # Augment payload with cache metadata
-                cache_payload = {
-                    **payload,
-                    '_built_at': datetime.now().isoformat(),
-                    '_folder_id': folder_id,
-                    '_schema': self.schema_version
-                }
-                
-                if build_time_ms is not None:
-                    cache_payload['_build_time_ms'] = build_time_ms
-                
-                file_path = self._get_cache_file_path(folder_id)
-                
-                # Write atomically using temp file
-                temp_path = file_path + '.tmp'
-                with open(temp_path, 'w', encoding='utf-8') as f:
-                    json.dump(cache_payload, f, ensure_ascii=False, indent=None, separators=(',', ':'))
-                
-                # Atomic move
-                os.replace(temp_path, file_path)
-                
-                with self._stats_lock:
-                    self._stats['writes'] += 1
-                
-                item_count = len(payload.get('items', []))
-                self.logger.debug("Cached folder %s - %d items, %d ms build time", 
-                                folder_id, item_count, build_time_ms or 0)
-                return True
+                return self._set_without_lock(folder_id, payload, build_time_ms)
+        except Exception as e:
+            with self._stats_lock:
+                self._stats['errors'] += 1
+            self.logger.error("Error acquiring lock for caching folder %s: %s", folder_id, e)
+            return False
+    
+    def _set_without_lock(self, folder_id: str, payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
+        """Internal set method that doesn't acquire locks (for use within existing locks)"""
+        try:
+            # Augment payload with cache metadata
+            cache_payload = {
+                **payload,
+                '_built_at': datetime.now().isoformat(),
+                '_folder_id': folder_id,
+                '_schema': self.schema_version
+            }
+            
+            if build_time_ms is not None:
+                cache_payload['_build_time_ms'] = build_time_ms
+            
+            file_path = self._get_cache_file_path(folder_id)
+            
+            # Write atomically using temp file
+            temp_path = file_path + '.tmp'
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(cache_payload, f, ensure_ascii=False, indent=None, separators=(',', ':'))
+            
+            # Atomic move
+            os.replace(temp_path, file_path)
+            
+            with self._stats_lock:
+                self._stats['writes'] += 1
+            
+            item_count = len(payload.get('items', []))
+            self.logger.debug("Cached folder %s - %d items, %d ms build time", 
+                            folder_id, item_count, build_time_ms or 0)
+            return True
             
         except Exception as e:
             with self._stats_lock:
@@ -592,8 +602,8 @@ class FolderCache:
                         'content_type': 'files'
                     }
                     
-                    # Cache the payload
-                    self.set(folder_id, cacheable_payload, int(warm_time_ms))
+                    # Cache the payload (without additional locking since we're already in a lock)
+                    self._set_without_lock(folder_id, cacheable_payload, int(warm_time_ms))
                     
                     self.logger.debug("Pre-warm: folder %s completed in %.2f ms", folder_id, warm_time_ms)
                     return True
