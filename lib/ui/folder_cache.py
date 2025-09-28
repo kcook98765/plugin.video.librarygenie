@@ -432,6 +432,219 @@ class FolderCache:
                 'cache_dir': self.cache_dir
             }
         }
+    
+    def pre_warm_folder(self, folder_id: str) -> bool:
+        """Pre-warm cache for a single folder (background operation, no UI)"""
+        try:
+            # Check if already cached and fresh
+            if self.is_fresh(folder_id):
+                self.logger.debug("Pre-warm: folder %s already fresh, skipping", folder_id)
+                return True
+            
+            self.logger.debug("Pre-warming cache for folder %s", folder_id)
+            warm_start = time.time()
+            
+            # Use stampede protection
+            with self.with_build_lock(folder_id):
+                # Double-check after acquiring lock
+                if self.is_fresh(folder_id):
+                    self.logger.debug("Pre-warm: folder %s became fresh while waiting for lock", folder_id)
+                    return True
+                
+                # Get data layer for folder information (no UI operations)
+                from lib.data.query_manager import get_query_manager
+                query_manager = get_query_manager()
+                
+                if not query_manager.initialize():
+                    self.logger.error("Pre-warm: failed to initialize query manager for folder %s", folder_id)
+                    return False
+                
+                # Get folder navigation data
+                navigation_data = query_manager.get_folder_navigation_batch(folder_id)
+                
+                if not navigation_data or not navigation_data.get('folder_info'):
+                    self.logger.warning("Pre-warm: no data found for folder %s", folder_id)
+                    return False
+                
+                folder_info = navigation_data['folder_info']
+                subfolders = navigation_data['subfolders']
+                lists_in_folder = navigation_data['lists']
+                
+                # Build cacheable payload (data-only, no UI operations)
+                menu_items = []
+                
+                # Add subfolders
+                for subfolder in subfolders:
+                    subfolder_id = subfolder.get('id')
+                    subfolder_name = subfolder.get('name', 'Unnamed Folder')
+                    
+                    url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder_id}"
+                    context_menu = [
+                        (f"Rename '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={subfolder_id})"),
+                        (f"Move '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={subfolder_id})"),
+                        (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})")
+                    ]
+                    
+                    menu_items.append({
+                        'label': f"📁 {subfolder_name}",
+                        'url': url,
+                        'is_folder': True,
+                        'description': "Subfolder",
+                        'context_menu': context_menu,
+                        'icon': "DefaultFolder.png"
+                    })
+                
+                # Add lists
+                for list_item in lists_in_folder:
+                    list_id = list_item.get('id')
+                    name = list_item.get('name', 'Unnamed List')
+                    description = list_item.get('description', '')
+                    
+                    url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+                    context_menu = [
+                        (f"Rename '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
+                        (f"Move '{name}' to Folder", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={list_id})"),
+                        (f"Export '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={list_id})"),
+                        (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
+                    ]
+                    
+                    menu_items.append({
+                        'label': name,
+                        'url': url,
+                        'is_folder': True,
+                        'description': description,
+                        'icon': "DefaultPlaylist.png",
+                        'context_menu': context_menu
+                    })
+                
+                warm_time_ms = (time.time() - warm_start) * 1000
+                
+                # Create cacheable payload
+                cacheable_payload = {
+                    'items': menu_items,
+                    'update_listing': False,
+                    'content_type': 'files'
+                }
+                
+                # Cache the payload
+                self.set(folder_id, cacheable_payload, int(warm_time_ms))
+                
+                self.logger.debug("Pre-warm: folder %s completed in %.2f ms", folder_id, warm_time_ms)
+                return True
+                
+        except Exception as e:
+            self.logger.error("Error pre-warming folder %s: %s", folder_id, e)
+            return False
+    
+    def pre_warm_common_folders(self, max_folders: int = 5) -> Dict[str, Any]:
+        """Pre-warm cache for commonly accessed folders"""
+        try:
+            self.logger.info("Starting cache pre-warming for common folders (max: %d)", max_folders)
+            pre_warm_start = time.time()
+            
+            # Get data layer for folder analysis
+            from lib.data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            
+            if not query_manager.initialize():
+                self.logger.error("Pre-warm: failed to initialize query manager")
+                return {"success": False, "error": "Failed to initialize query manager"}
+            
+            # Get root folder and immediate subfolders to prioritize
+            common_folders = []
+            
+            # Always include root folder (empty string or None)
+            common_folders.append("")
+            
+            # Get root-level subfolders (most commonly accessed)
+            try:
+                with query_manager.connection_manager.transaction() as conn:
+                    root_subfolders = conn.execute("""
+                        SELECT id, name
+                        FROM folders 
+                        WHERE parent_folder_id IS NULL OR parent_folder_id = ''
+                        ORDER BY name
+                        LIMIT ?
+                    """, [max_folders - 1]).fetchall()  # -1 for root folder
+                    
+                    for subfolder in root_subfolders:
+                        common_folders.append(str(subfolder['id']))
+                        
+            except Exception as e:
+                self.logger.warning("Pre-warm: failed to get root subfolders: %s", e)
+                # Continue with just root folder
+            
+            # Pre-warm folders
+            results = {
+                "success": True,
+                "folders_attempted": len(common_folders),
+                "folders_success": 0,
+                "folders_failed": 0,
+                "errors": []
+            }
+            
+            for folder_id in common_folders:
+                try:
+                    if self.pre_warm_folder(folder_id):
+                        results["folders_success"] += 1
+                    else:
+                        results["folders_failed"] += 1
+                        results["errors"].append(f"Failed to warm folder {folder_id}")
+                except Exception as e:
+                    results["folders_failed"] += 1
+                    results["errors"].append(f"Error warming folder {folder_id}: {str(e)}")
+            
+            pre_warm_time = (time.time() - pre_warm_start) * 1000
+            results["total_time_ms"] = int(pre_warm_time)
+            
+            self.logger.info("Pre-warming completed: %d/%d folders warmed in %.2f ms", 
+                           results["folders_success"], results["folders_attempted"], pre_warm_time)
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error("Error during cache pre-warming: %s", e)
+            return {"success": False, "error": str(e)}
+    
+    def initialize_cache_service(self, enable_pre_warming: bool = True) -> bool:
+        """Initialize cache service with optional pre-warming"""
+        try:
+            self.logger.info("Initializing folder cache service...")
+            
+            # Ensure cache directory exists
+            os.makedirs(self.cache_dir, exist_ok=True)
+            
+            # Clean up expired files
+            cleaned_count = self.cleanup_expired()
+            if cleaned_count > 0:
+                self.logger.info("Cache service: cleaned up %d expired files", cleaned_count)
+            
+            # Pre-warm common folders if enabled
+            if enable_pre_warming:
+                # Run pre-warming in background thread to avoid blocking startup
+                import threading
+                def background_pre_warm():
+                    try:
+                        self.logger.debug("Starting background cache pre-warming")
+                        results = self.pre_warm_common_folders()
+                        if results["success"]:
+                            self.logger.info("Background pre-warming completed: %d folders warmed", 
+                                           results["folders_success"])
+                        else:
+                            self.logger.warning("Background pre-warming failed: %s", results.get("error"))
+                    except Exception as e:
+                        self.logger.error("Error in background pre-warming: %s", e)
+                
+                pre_warm_thread = threading.Thread(target=background_pre_warm, daemon=True)
+                pre_warm_thread.start()
+                self.logger.debug("Cache service: background pre-warming thread started")
+            
+            self.logger.info("Folder cache service initialized successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error("Failed to initialize cache service: %s", e)
+            return False
 
 
 # Global instance
