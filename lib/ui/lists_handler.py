@@ -288,6 +288,7 @@ class ListsHandler:
             cached_data = folder_cache.get(folder_id)
             
             all_lists = None
+            all_folders = None
             db_query_time = 0
             cache_used = False
             query_manager = None
@@ -296,9 +297,35 @@ class ListsHandler:
                 # CACHE HIT: Use cached data (ZERO database overhead)
                 cache_used = True
                 all_lists = cached_data.get('items', [])
+                all_folders = cached_data.get('folders')  # Don't default to empty list, check for None
                 build_time = cached_data.get('_build_time_ms', 0)
-                self.logger.debug("CACHE HIT: Root folder cached with %d items (built in %d ms) - ZERO DB OVERHEAD", 
-                                   len(all_lists), build_time)
+                
+                # SELF-HEAL: If cache is missing folder data (older cache format), fetch and update
+                if all_folders is None:
+                    self.logger.debug("CACHE PARTIAL HIT: Root cache missing folders, self-healing...")
+                    # Initialize query manager for self-healing
+                    query_manager = self.query_manager
+                    init_result = query_manager.initialize()
+                    
+                    if init_result:
+                        # Fetch missing folder data
+                        folders_query_start = time.time()
+                        all_folders = query_manager.get_all_folders()
+                        folders_query_time = (time.time() - folders_query_start) * 1000
+                        
+                        # Update cache with complete data for future zero-DB hits
+                        complete_payload = {
+                            'items': all_lists,
+                            'folders': all_folders
+                        }
+                        folder_cache.set(folder_id, complete_payload, int(folders_query_time))
+                        self.logger.debug("CACHE SELF-HEAL: Updated root cache with %d folders (%.2f ms) - Future hits will be ZERO DB", 
+                                           len(all_folders), folders_query_time)
+                    else:
+                        all_folders = []  # Fallback to empty
+                else:
+                    self.logger.debug("CACHE HIT: Root folder cached with %d items, %d folders (built in %d ms) - ZERO DB OVERHEAD", 
+                                       len(all_lists), len(all_folders), build_time)
             else:
                 # CACHE MISS: Initialize DB and query, then cache the result
                 self.logger.debug("CACHE MISS: Root folder not cached, querying database")
@@ -314,16 +341,20 @@ class ListsHandler:
                         success=False
                     )
 
-                # Get all user lists and folders from database
+                # Get all user lists and folders from database (BATCH for cache building)
                 db_query_start = time.time()
                 all_lists = query_manager.get_all_lists_with_folders()
+                all_folders = query_manager.get_all_folders()
                 db_query_time = (time.time() - db_query_start) * 1000
-                self.logger.debug("TIMING: Database query for lists took %.2f ms", db_query_time)
+                self.logger.debug("TIMING: Database query for lists and folders took %.2f ms", db_query_time)
                 
-                # Cache the result for future navigation
-                cache_payload = {'items': all_lists}
+                # Cache both lists and folders for complete navigation metadata
+                cache_payload = {
+                    'items': all_lists,
+                    'folders': all_folders
+                }
                 folder_cache.set(folder_id, cache_payload, int(db_query_time))
-                self.logger.debug("CACHE UPDATE: Stored root folder with %d items", len(all_lists))
+                self.logger.debug("CACHE UPDATE: Stored root folder with %d items, %d folders", len(all_lists), len(all_folders))
 
             self.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
 
@@ -477,16 +508,14 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Get all existing folders to display as navigable items
-            # Initialize query_manager if needed for folder lookup (cache hit needs this)
-            if query_manager is None:
-                query_manager = self.query_manager
-                query_manager.initialize()
-            
-            folders_query_start = time.time()
-            all_folders = query_manager.get_all_folders()
-            folders_query_time = (time.time() - folders_query_start) * 1000
-            self.logger.debug("TIMING: Database query for folders took %.2f ms", folders_query_time)
+            # Folder data should be available from cache hit or self-heal
+            if all_folders is None:
+                # Ultimate safety fallback (should not happen with self-heal)
+                self.logger.warning("Folder data still missing after cache processing, using empty list")
+                all_folders = []
+            else:
+                self.logger.debug("CACHE: Using folder data (%d folders) %s", len(all_folders), 
+                                   "- ZERO DB OVERHEAD" if cache_used else "from database")
 
             # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
