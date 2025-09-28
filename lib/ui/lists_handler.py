@@ -598,20 +598,10 @@ class ListsHandler:
     def show_folder(self, context: PluginContext, folder_id: str) -> DirectoryResponse:
         """Display contents of a specific folder"""
         try:
+            folder_start = time.time()
             self.logger.debug("Displaying folder %s", folder_id)
 
-            # Initialize query manager (needed for breadcrumbs)
-            query_manager = self.query_manager
-            init_result = query_manager.initialize()
-
-            if not init_result:
-                self.logger.error("Failed to initialize query manager")
-                return DirectoryResponse(
-                    items=[],
-                    success=False
-                )
-
-            # CACHE-FIRST: Check cache before database queries
+            # CACHE-FIRST: Check cache before ANY database operations (zero-DB overhead on HIT)
             folder_cache = get_folder_cache()
             cached_data = folder_cache.get(folder_id)
             
@@ -620,6 +610,7 @@ class ListsHandler:
             lists_in_folder = []
             db_query_time = 0
             cache_used = False
+            query_manager = None
             
             if cached_data:
                 # CACHE HIT: Use cached navigation data (ZERO database overhead)
@@ -631,8 +622,19 @@ class ListsHandler:
                 self.logger.debug("CACHE HIT: Folder %s cached with %d subfolders, %d lists (built in %d ms) - ZERO DB OVERHEAD", 
                                    folder_id, len(subfolders), len(lists_in_folder), build_time)
             else:
-                # CACHE MISS: Query database and cache the result
+                # CACHE MISS: Initialize DB and query, then cache the result
                 self.logger.debug("CACHE MISS: Folder %s not cached, querying database", folder_id)
+                
+                # Only initialize query manager on cache miss
+                query_manager = self.query_manager
+                init_result = query_manager.initialize()
+
+                if not init_result:
+                    self.logger.error("Failed to initialize query manager")
+                    return DirectoryResponse(
+                        items=[],
+                        success=False
+                    )
 
                 # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
                 db_query_start = time.time()
@@ -680,8 +682,9 @@ class ListsHandler:
 
             self.logger.debug("Folder '%s' (id=%s) has %s subfolders and %s lists", folder_info['name'], folder_id, len(subfolders), len(lists_in_folder))
 
-            # Set directory title with breadcrumb context
-            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, query_manager)
+            # Set directory title with breadcrumb context (breadcrumb helper handles None gracefully)
+            breadcrumb_query_manager = query_manager if query_manager is not None else None
+            directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_folder", {"folder_id": folder_id}, breadcrumb_query_manager)
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
@@ -743,12 +746,12 @@ class ListsHandler:
                 breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
                     'show_folder', 
                     {'folder_id': folder_id}, 
-                    context.query_manager
+                    breadcrumb_query_manager
                 )
                 description_text = self.breadcrumb_helper.get_breadcrumb_for_tools_description(
                     'show_folder', 
                     {'folder_id': folder_id}, 
-                    context.query_manager
+                    breadcrumb_query_manager
                 )
                 
                 tools_menu_item = {
@@ -798,6 +801,10 @@ class ListsHandler:
             next_params = current_params  # Same params for folder view
             nav_mode = decide_mode(current_route, next_route, 'folder_view', current_params, next_params)
             update_listing = (nav_mode == 'replace')
+
+            total_folder_time = (time.time() - folder_start) * 1000
+            cache_status = "HIT" if cache_used else "MISS" 
+            self.logger.debug("TIMING: Total show_folder execution took %.2f ms (cache %s)", total_folder_time, cache_status)
 
             return DirectoryResponse(
                 items=menu_items,
