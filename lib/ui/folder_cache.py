@@ -562,7 +562,7 @@ class FolderCache:
                     root_subfolders = conn.execute("""
                         SELECT id, name
                         FROM folders 
-                        WHERE parent_folder_id IS NULL OR parent_folder_id = ''
+                        WHERE parent_id IS NULL OR parent_id = ''
                         ORDER BY name
                         LIMIT ?
                     """, [max_folders - 1]).fetchall()  # -1 for root folder
@@ -644,6 +644,180 @@ class FolderCache:
             
         except Exception as e:
             self.logger.error("Failed to initialize cache service: %s", e)
+            return False
+    
+    def invalidate_folder(self, folder_id: str) -> bool:
+        """Invalidate cache for a specific folder"""
+        try:
+            file_path = self._get_cache_file_path(folder_id)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                self.logger.debug("Invalidated cache for folder %s", folder_id)
+                return True
+            else:
+                self.logger.debug("No cache file to invalidate for folder %s", folder_id)
+                return False
+        except Exception as e:
+            self.logger.error("Error invalidating cache for folder %s: %s", folder_id, e)
+            return False
+    
+    def invalidate_parent_folder(self, folder_id: str) -> bool:
+        """Invalidate cache for the parent folder of a given folder"""
+        try:
+            # Get parent folder information
+            from lib.data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            
+            if not query_manager.initialize():
+                self.logger.error("Failed to initialize query manager for parent invalidation")
+                return False
+            
+            # Get folder info to find parent
+            with query_manager.connection_manager.transaction() as conn:
+                folder_info = conn.execute("""
+                    SELECT parent_id FROM folders WHERE id = ?
+                """, [folder_id]).fetchone()
+                
+                if folder_info and folder_info['parent_id']:
+                    parent_folder_id = str(folder_info['parent_id'])
+                    return self.invalidate_folder(parent_folder_id)
+                else:
+                    # This folder is at root level, invalidate root folder (empty string)
+                    return self.invalidate_folder("")
+                    
+        except Exception as e:
+            self.logger.error("Error invalidating parent folder for %s: %s", folder_id, e)
+            return False
+    
+    def invalidate_folder_hierarchy(self, folder_id: str) -> Dict[str, bool]:
+        """Invalidate cache for a folder and all its subfolders"""
+        try:
+            self.logger.debug("Invalidating folder hierarchy for %s", folder_id)
+            results = {}
+            
+            # Get query manager for folder hierarchy queries
+            from lib.data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            
+            if not query_manager.initialize():
+                self.logger.error("Failed to initialize query manager for hierarchy invalidation")
+                return {"error": True}
+            
+            # Get all subfolders recursively
+            affected_folders = [folder_id]  # Start with the folder itself
+            
+            with query_manager.connection_manager.transaction() as conn:
+                # Recursive query to find all subfolders
+                folders_to_check = [folder_id]
+                while folders_to_check:
+                    current_folder = folders_to_check.pop(0)
+                    
+                    # Find direct subfolders
+                    subfolders = conn.execute("""
+                        SELECT id FROM folders WHERE parent_id = ?
+                    """, [current_folder]).fetchall()
+                    
+                    for subfolder in subfolders:
+                        subfolder_id = str(subfolder['id'])
+                        affected_folders.append(subfolder_id)
+                        folders_to_check.append(subfolder_id)
+            
+            # Invalidate all affected folders
+            for affected_folder_id in affected_folders:
+                results[affected_folder_id] = self.invalidate_folder(affected_folder_id)
+            
+            invalidated_count = sum(1 for success in results.values() if success)
+            self.logger.info("Invalidated %d/%d folders in hierarchy for %s", 
+                           invalidated_count, len(results), folder_id)
+            
+            return results
+            
+        except Exception as e:
+            self.logger.error("Error invalidating folder hierarchy for %s: %s", folder_id, e)
+            return {"error": True}
+    
+    def invalidate_after_folder_operation(self, operation: str, folder_id: str, **kwargs) -> bool:
+        """
+        Invalidate relevant caches after folder operations
+        
+        Args:
+            operation: Type of operation ('create', 'delete', 'rename', 'move')
+            folder_id: The folder ID involved in the operation
+            **kwargs: Additional operation-specific parameters
+                - target_parent_id: For move operations, the new parent folder
+                - source_parent_id: For move operations, the old parent folder
+        """
+        try:
+            self.logger.debug("Processing cache invalidation for %s operation on folder %s", operation, folder_id)
+            
+            if operation == 'create':
+                # When creating a folder, invalidate the parent folder
+                return self.invalidate_parent_folder(folder_id)
+            
+            elif operation == 'delete':
+                # When deleting a folder, invalidate:
+                # 1. The folder itself and all subfolders
+                # 2. The parent folder (to remove the deleted folder from listings)
+                hierarchy_results = self.invalidate_folder_hierarchy(folder_id)
+                
+                # Use passed parent_id if available, otherwise try to query (may fail if already deleted)
+                if 'parent_id' in kwargs:
+                    parent_id = kwargs['parent_id']
+                    if parent_id:
+                        parent_result = self.invalidate_folder(str(parent_id))
+                    else:
+                        parent_result = self.invalidate_folder("")  # Root folder
+                else:
+                    # Fallback to querying parent (may fail if folder already deleted)
+                    parent_result = self.invalidate_parent_folder(folder_id)
+                
+                # Return True if at least one invalidation succeeded
+                hierarchy_success = any(result for result in hierarchy_results.values() if isinstance(result, bool))
+                return hierarchy_success or parent_result
+            
+            elif operation == 'rename':
+                # When renaming a folder, invalidate:
+                # 1. The folder itself (new name needs to be cached)
+                # 2. The parent folder (to show updated name in listings)
+                folder_result = self.invalidate_folder(folder_id)
+                parent_result = self.invalidate_parent_folder(folder_id)
+                return folder_result or parent_result
+            
+            elif operation == 'move':
+                # When moving a folder, invalidate:
+                # 1. The folder itself and subfolders (new parent context)
+                # 2. The old parent folder (folder no longer there)
+                # 3. The new parent folder (folder now there)
+                hierarchy_results = self.invalidate_folder_hierarchy(folder_id)
+                
+                # Invalidate source parent if provided
+                source_parent_result = True
+                if 'source_parent_id' in kwargs:
+                    source_parent_id = kwargs['source_parent_id']
+                    if source_parent_id:
+                        source_parent_result = self.invalidate_folder(str(source_parent_id))
+                    else:
+                        source_parent_result = self.invalidate_folder("")  # Root folder
+                
+                # Invalidate target parent if provided
+                target_parent_result = True
+                if 'target_parent_id' in kwargs:
+                    target_parent_id = kwargs['target_parent_id']
+                    if target_parent_id:
+                        target_parent_result = self.invalidate_folder(str(target_parent_id))
+                    else:
+                        target_parent_result = self.invalidate_folder("")  # Root folder
+                
+                # Return True if at least one invalidation succeeded
+                hierarchy_success = any(result for result in hierarchy_results.values() if isinstance(result, bool))
+                return hierarchy_success or source_parent_result or target_parent_result
+            
+            else:
+                self.logger.warning("Unknown folder operation for cache invalidation: %s", operation)
+                return False
+                
+        except Exception as e:
+            self.logger.error("Error in cache invalidation for %s operation on folder %s: %s", operation, folder_id, e)
             return False
 
 
