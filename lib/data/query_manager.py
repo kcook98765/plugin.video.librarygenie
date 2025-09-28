@@ -699,6 +699,17 @@ class QueryManager:
                 list_id = cursor.lastrowid
 
                 self.logger.debug("Created search history list '%s' with ID: %s", list_name, list_id)
+                
+                # Invalidate search history folder cache since we added a new list
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    if folder_cache:
+                        folder_cache.invalidate_folder(folder_id)
+                        self.logger.debug("Invalidated cache for search history folder %s after creating search list", folder_id)
+                except Exception as cache_error:
+                    self.logger.warning("Failed to invalidate folder cache after creating search history: %s", cache_error)
+                
                 return list_id
 
         except Exception as e:
