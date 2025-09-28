@@ -546,61 +546,23 @@ class FolderCache:
                         self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
                         lists_in_folder = []
                     
-                    # Build cacheable payload (data-only, no UI operations)
-                    menu_items = []
-                    
-                    # Add subfolders
-                    for subfolder in subfolders:
-                        subfolder_id = subfolder.get('id')
-                        subfolder_name = subfolder.get('name', 'Unnamed Folder')
-                        
-                        url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder_id}"
-                        context_menu = [
-                            (f"Rename '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={subfolder_id})"),
-                            (f"Move '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={subfolder_id})"),
-                            (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})")
-                        ]
-                        
-                        menu_items.append({
-                            'label': f"📁 {subfolder_name}",
-                            'url': url,
-                            'is_folder': True,
-                            'description': "Subfolder",
-                            'context_menu': context_menu,
-                            'icon': "DefaultFolder.png"
-                        })
-                    
-                    # Add lists
-                    for list_item in lists_in_folder:
-                        list_id = list_item.get('id')
-                        name = list_item.get('name', 'Unnamed List')
-                        description = list_item.get('description', '')
-                        
-                        url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
-                        context_menu = [
-                            (f"Rename '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
-                            (f"Move '{name}' to Folder", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={list_id})"),
-                            (f"Export '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={list_id})"),
-                            (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
-                        ]
-                        
-                        menu_items.append({
-                            'label': name,
-                            'url': url,
-                            'is_folder': True,
-                            'description': description,
-                            'icon': "DefaultPlaylist.png",
-                            'context_menu': context_menu
-                        })
-                    
                     warm_time_ms = (time.time() - warm_start) * 1000
                     
-                    # Create cacheable payload
-                    cacheable_payload = {
-                        'items': menu_items,
-                        'update_listing': False,
-                        'content_type': 'files'
-                    }
+                    # Cache raw database data (not UI items) for zero-DB overhead
+                    if folder_id is None:
+                        # Root folder: cache lists and folders separately for lists_handler.py
+                        all_folders = query_manager.get_all_folders()
+                        cacheable_payload = {
+                            'items': lists_in_folder,  # Raw list data from DB
+                            'folders': all_folders     # Raw folder data from DB  
+                        }
+                    else:
+                        # Subfolder: cache navigation data for show_folder method
+                        cacheable_payload = {
+                            'folder_info': folder_info,
+                            'subfolders': subfolders,
+                            'lists': lists_in_folder
+                        }
                     
                     # Cache the payload (without additional locking since we're already in a lock)
                     self._set_without_lock(folder_id, cacheable_payload, int(warm_time_ms))
