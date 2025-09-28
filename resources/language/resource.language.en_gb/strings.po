@@ -2203,6 +2203,10 @@ msgctxt "#30616"
 msgid "Enable cache debug logging"
 msgstr ""
 
+msgctxt "#30617"
+msgid "Clear Folder Cache"
+msgstr ""
+
 msgctxt "#37303"
 msgid "[In List: %s]"
 msgstr ""
@@ -2252,5 +2256,9 @@ msgstr ""
 
 msgctxt "#35615"
 msgid "Enables detailed logging of cache operations for debugging performance issues. Only enable when troubleshooting."
+msgstr ""
+
+msgctxt "#35616"
+msgid "Clear all cached folder data to force fresh rebuilding of folder navigation. Use this if you experience cache-related issues."
 msgstr ""
 
