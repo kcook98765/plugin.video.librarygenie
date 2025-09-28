@@ -2098,6 +2098,33 @@ class QueryManager:
                     items_added += 1
 
             self.logger.debug("Successfully merged %s items from list %s to list %s", items_added, source_list_id, target_list_id)
+            
+            # Invalidate folder cache for both source and target list folders
+            try:
+                # Get folder information for both lists to invalidate their caches
+                source_folder = self.connection_manager.execute_single("""
+                    SELECT folder_id FROM lists WHERE id = ?
+                """, [int(source_list_id)])
+                
+                target_folder = self.connection_manager.execute_single("""
+                    SELECT folder_id FROM lists WHERE id = ?
+                """, [int(target_list_id)])
+                
+                from lib.ui.folder_cache import get_folder_cache
+                folder_cache = get_folder_cache()
+                if folder_cache:
+                    # Invalidate source folder cache
+                    if source_folder:
+                        folder_cache.invalidate_folder(source_folder['folder_id'])
+                        self.logger.debug("Invalidated cache for source folder %s after merge", source_folder['folder_id'])
+                    
+                    # Invalidate target folder cache if different from source
+                    if target_folder and (not source_folder or target_folder['folder_id'] != source_folder['folder_id']):
+                        folder_cache.invalidate_folder(target_folder['folder_id'])
+                        self.logger.debug("Invalidated cache for target folder %s after merge", target_folder['folder_id'])
+            except Exception as cache_error:
+                self.logger.warning("Failed to invalidate folder cache after merge: %s", cache_error)
+            
             return {"success": True, "items_added": items_added}
 
         except Exception as e:

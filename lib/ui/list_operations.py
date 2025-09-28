@@ -65,6 +65,17 @@ class ListOperations:
                 )
             else:
                 context.logger.info("Successfully created list: %s", list_name)
+                
+                # Invalidate root folder cache since we added a new list at root level
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    if folder_cache:
+                        folder_cache.invalidate_folder(None)  # None = root folder
+                        context.logger.debug("Invalidated cache for root folder after list creation")
+                except Exception as cache_error:
+                    context.logger.warning("Failed to invalidate folder cache: %s", cache_error)
+                
                 from lib.ui.response_types import NavigationIntent
                 response = DialogResponse(
                     success=True,
