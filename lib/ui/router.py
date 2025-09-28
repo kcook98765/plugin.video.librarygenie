@@ -1185,15 +1185,8 @@ class Router:
                 if response.success:
                     build_time_ms = (time.time() - build_start) * 1000
                     
-                    # Create cacheable payload from response
-                    cacheable_payload = {
-                        'items': response.items,
-                        'update_listing': response.update_listing,
-                        'content_type': response.content_type
-                    }
-                    
-                    # Cache the payload
-                    folder_cache.set(folder_id, cacheable_payload, int(build_time_ms))
+                    # Note: Caching now handled in lists_handler.py with raw database data
+                    # Don't cache UI items here as it interferes with proper data caching
                     
                     self.logger.debug("CACHE SET: folder %s built and cached in %.2f ms", 
                                     folder_id, build_time_ms)
@@ -1288,14 +1281,8 @@ class Router:
                         
                         refresh_time_ms = (time.time() - refresh_start) * 1000
                         
-                        # Create cacheable payload
-                        cacheable_payload = {
-                            'items': menu_items,
-                            'update_listing': False,
-                            'content_type': 'files'
-                        }
-                        
-                        folder_cache.set(folder_id, cacheable_payload, int(refresh_time_ms))
+                        # Note: Background refresh not needed - caching handled in lists_handler.py with raw data
+                        # Don't cache UI items here as it interferes with proper data caching
                         
                         self.logger.debug("Background refresh completed for folder %s in %.2f ms", 
                                         folder_id, refresh_time_ms)
