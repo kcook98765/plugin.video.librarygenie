@@ -494,102 +494,113 @@ class FolderCache:
             
             # Use stampede protection - handle None folder_id for locking
             lock_key = str(folder_id) if folder_id is not None else "root"
-            with self.with_build_lock(lock_key):
-                # Double-check after acquiring lock
-                if self.is_fresh(folder_id):
-                    self.logger.debug("Pre-warm: folder %s became fresh while waiting for lock", folder_id)
-                    return True
-                
-                # Get data layer for folder information (no UI operations)
-                from lib.data.query_manager import get_query_manager
-                query_manager = get_query_manager()
-                
-                if not query_manager.initialize():
-                    self.logger.error("Pre-warm: failed to initialize query manager for folder %s", folder_id)
-                    return False
-                
-                # Get folder navigation data
-                navigation_data = query_manager.get_folder_navigation_batch(folder_id)
-                
-                if not navigation_data:
-                    self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
-                    return False
-                
-                # Extract data with safe defaults
-                folder_info = navigation_data.get('folder_info')
-                subfolders = navigation_data.get('subfolders') or []
-                lists_in_folder = navigation_data.get('lists') or []
-                
-                # Validate that we have valid data structures
-                if not isinstance(subfolders, (list, tuple)):
-                    self.logger.warning("Pre-warm: subfolders is not iterable for folder %s: %s", folder_id, type(subfolders))
-                    subfolders = []
-                
-                if not isinstance(lists_in_folder, (list, tuple)):
-                    self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
-                    lists_in_folder = []
-                
-                # Build cacheable payload (data-only, no UI operations)
-                menu_items = []
-                
-                # Add subfolders
-                for subfolder in subfolders:
-                    subfolder_id = subfolder.get('id')
-                    subfolder_name = subfolder.get('name', 'Unnamed Folder')
-                    
-                    url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder_id}"
-                    context_menu = [
-                        (f"Rename '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={subfolder_id})"),
-                        (f"Move '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={subfolder_id})"),
-                        (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})")
-                    ]
-                    
-                    menu_items.append({
-                        'label': f"📁 {subfolder_name}",
-                        'url': url,
-                        'is_folder': True,
-                        'description': "Subfolder",
-                        'context_menu': context_menu,
-                        'icon': "DefaultFolder.png"
-                    })
-                
-                # Add lists
-                for list_item in lists_in_folder:
-                    list_id = list_item.get('id')
-                    name = list_item.get('name', 'Unnamed List')
-                    description = list_item.get('description', '')
-                    
-                    url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
-                    context_menu = [
-                        (f"Rename '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
-                        (f"Move '{name}' to Folder", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={list_id})"),
-                        (f"Export '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={list_id})"),
-                        (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
-                    ]
-                    
-                    menu_items.append({
-                        'label': name,
-                        'url': url,
-                        'is_folder': True,
-                        'description': description,
-                        'icon': "DefaultPlaylist.png",
-                        'context_menu': context_menu
-                    })
-                
-                warm_time_ms = (time.time() - warm_start) * 1000
-                
-                # Create cacheable payload
-                cacheable_payload = {
-                    'items': menu_items,
-                    'update_listing': False,
-                    'content_type': 'files'
-                }
-                
-                # Cache the payload
-                self.set(folder_id, cacheable_payload, int(warm_time_ms))
-                
-                self.logger.debug("Pre-warm: folder %s completed in %.2f ms", folder_id, warm_time_ms)
+            
+            # Check if we already have this folder cached before attempting lock
+            if self.get(folder_id):
+                self.logger.debug("Pre-warm: folder %s already cached, skipping lock", folder_id)
                 return True
+                
+            try:
+                with self.with_build_lock(lock_key):
+                    # Double-check after acquiring lock
+                    if self.is_fresh(folder_id):
+                        self.logger.debug("Pre-warm: folder %s became fresh while waiting for lock", folder_id)
+                        return True
+                    
+                    # Get data layer for folder information (no UI operations)
+                    from lib.data.query_manager import get_query_manager
+                    query_manager = get_query_manager()
+                    
+                    if not query_manager.initialize():
+                        self.logger.error("Pre-warm: failed to initialize query manager for folder %s", folder_id)
+                        return False
+                    
+                    # Get folder navigation data
+                    navigation_data = query_manager.get_folder_navigation_batch(folder_id)
+                    
+                    if not navigation_data:
+                        self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
+                        return False
+                    
+                    # Extract data with safe defaults
+                    folder_info = navigation_data.get('folder_info')
+                    subfolders = navigation_data.get('subfolders') or []
+                    lists_in_folder = navigation_data.get('lists') or []
+                    
+                    # Validate that we have valid data structures
+                    if not isinstance(subfolders, (list, tuple)):
+                        self.logger.warning("Pre-warm: subfolders is not iterable for folder %s: %s", folder_id, type(subfolders))
+                        subfolders = []
+                    
+                    if not isinstance(lists_in_folder, (list, tuple)):
+                        self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
+                        lists_in_folder = []
+                    
+                    # Build cacheable payload (data-only, no UI operations)
+                    menu_items = []
+                    
+                    # Add subfolders
+                    for subfolder in subfolders:
+                        subfolder_id = subfolder.get('id')
+                        subfolder_name = subfolder.get('name', 'Unnamed Folder')
+                        
+                        url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder_id}"
+                        context_menu = [
+                            (f"Rename '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={subfolder_id})"),
+                            (f"Move '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={subfolder_id})"),
+                            (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})")
+                        ]
+                        
+                        menu_items.append({
+                            'label': f"📁 {subfolder_name}",
+                            'url': url,
+                            'is_folder': True,
+                            'description': "Subfolder",
+                            'context_menu': context_menu,
+                            'icon': "DefaultFolder.png"
+                        })
+                    
+                    # Add lists
+                    for list_item in lists_in_folder:
+                        list_id = list_item.get('id')
+                        name = list_item.get('name', 'Unnamed List')
+                        description = list_item.get('description', '')
+                        
+                        url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+                        context_menu = [
+                            (f"Rename '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
+                            (f"Move '{name}' to Folder", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={list_id})"),
+                            (f"Export '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={list_id})"),
+                            (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
+                        ]
+                        
+                        menu_items.append({
+                            'label': name,
+                            'url': url,
+                            'is_folder': True,
+                            'description': description,
+                            'icon': "DefaultPlaylist.png",
+                            'context_menu': context_menu
+                        })
+                    
+                    warm_time_ms = (time.time() - warm_start) * 1000
+                    
+                    # Create cacheable payload
+                    cacheable_payload = {
+                        'items': menu_items,
+                        'update_listing': False,
+                        'content_type': 'files'
+                    }
+                    
+                    # Cache the payload
+                    self.set(folder_id, cacheable_payload, int(warm_time_ms))
+                    
+                    self.logger.debug("Pre-warm: folder %s completed in %.2f ms", folder_id, warm_time_ms)
+                    return True
+                    
+            except TimeoutError as te:
+                self.logger.error("Lock timeout pre-warming folder %s: %s", folder_id, te)
+                return False
                 
         except Exception as e:
             self.logger.error("Error pre-warming folder %s: %s", folder_id, e)
