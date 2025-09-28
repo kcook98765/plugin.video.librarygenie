@@ -525,34 +525,50 @@ class FolderCache:
                         self.logger.error("Pre-warm: failed to initialize query manager for folder %s", folder_id)
                         return False
                     
-                    # Get folder navigation data
-                    navigation_data = query_manager.get_folder_navigation_batch(folder_id)
-                    
-                    if not navigation_data:
-                        self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
-                        return False
-                    
-                    # Extract data with safe defaults
-                    folder_info = navigation_data.get('folder_info')
-                    subfolders = navigation_data.get('subfolders') or []
-                    lists_in_folder = navigation_data.get('lists') or []
+                    # Use same data sources as lists handler for consistency
+                    if folder_id is None:
+                        # Root folder: use get_all_lists_with_folders() to match lists handler
+                        lists_in_folder = query_manager.get_all_lists_with_folders()
+                        all_folders = query_manager.get_all_folders()
+                        folder_info = None  # Root has no folder info
+                        subfolders = []     # Root uses all_folders instead
+                    else:
+                        # Subfolder: use batch navigation query  
+                        navigation_data = query_manager.get_folder_navigation_batch(folder_id)
+                        
+                        if not navigation_data:
+                            self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
+                            return False
+                        
+                        # Extract data with safe defaults
+                        folder_info = navigation_data.get('folder_info')
+                        subfolders = navigation_data.get('subfolders') or []
+                        lists_in_folder = navigation_data.get('lists') or []
+                        all_folders = []  # Not needed for subfolders
                     
                     # Validate that we have valid data structures
-                    if not isinstance(subfolders, (list, tuple)):
-                        self.logger.warning("Pre-warm: subfolders is not iterable for folder %s: %s", folder_id, type(subfolders))
-                        subfolders = []
-                    
-                    if not isinstance(lists_in_folder, (list, tuple)):
-                        self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
-                        lists_in_folder = []
+                    if folder_id is None:
+                        # Root folder validation
+                        if not isinstance(lists_in_folder, (list, tuple)):
+                            self.logger.warning("Pre-warm: root lists is not iterable: %s", type(lists_in_folder))
+                            lists_in_folder = []
+                        if not isinstance(all_folders, (list, tuple)):
+                            self.logger.warning("Pre-warm: all_folders is not iterable: %s", type(all_folders))
+                            all_folders = []
+                    else:
+                        # Subfolder validation
+                        if not isinstance(subfolders, (list, tuple)):
+                            self.logger.warning("Pre-warm: subfolders is not iterable for folder %s: %s", folder_id, type(subfolders))
+                            subfolders = []
+                        if not isinstance(lists_in_folder, (list, tuple)):
+                            self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
+                            lists_in_folder = []
                     
                     warm_time_ms = (time.time() - warm_start) * 1000
                     
                     # Cache raw database data + breadcrumb components for zero-DB overhead
                     if folder_id is None:
-                        # Root folder: cache lists and folders + breadcrumb data
-                        all_folders = query_manager.get_all_folders()
-                        
+                        # Root folder: cache ALL lists and folders + breadcrumb data (matches lists handler)
                         # Pre-compute breadcrumb components for root
                         breadcrumb_data = {
                             'directory_title': 'Lists',
@@ -561,8 +577,8 @@ class FolderCache:
                         }
                         
                         cacheable_payload = {
-                            'items': lists_in_folder,  # Raw list data from DB
-                            'folders': all_folders,   # Raw folder data from DB  
+                            'items': lists_in_folder,  # ALL lists with folder context (from get_all_lists_with_folders)
+                            'folders': all_folders,   # All folders (from get_all_folders)  
                             'breadcrumbs': breadcrumb_data  # Pre-computed breadcrumb components
                         }
                     else:
