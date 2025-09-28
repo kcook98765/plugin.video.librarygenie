@@ -548,20 +548,39 @@ class FolderCache:
                     
                     warm_time_ms = (time.time() - warm_start) * 1000
                     
-                    # Cache raw database data (not UI items) for zero-DB overhead
+                    # Cache raw database data + breadcrumb components for zero-DB overhead
                     if folder_id is None:
-                        # Root folder: cache lists and folders separately for lists_handler.py
+                        # Root folder: cache lists and folders + breadcrumb data
                         all_folders = query_manager.get_all_folders()
+                        
+                        # Pre-compute breadcrumb components for root
+                        breadcrumb_data = {
+                            'directory_title': 'Lists',
+                            'tools_label': 'Lists',
+                            'tools_description': 'Search, Favorites, Import/Export & Settings'
+                        }
+                        
                         cacheable_payload = {
                             'items': lists_in_folder,  # Raw list data from DB
-                            'folders': all_folders     # Raw folder data from DB  
+                            'folders': all_folders,   # Raw folder data from DB  
+                            'breadcrumbs': breadcrumb_data  # Pre-computed breadcrumb components
                         }
                     else:
-                        # Subfolder: cache navigation data for show_folder method
+                        # Subfolder: cache navigation data + breadcrumb components
+                        folder_name = folder_info.get('name', 'Unknown Folder') if folder_info else 'Unknown Folder'
+                        
+                        # Pre-compute breadcrumb components for subfolder
+                        breadcrumb_data = {
+                            'directory_title': folder_name,
+                            'tools_label': f"for '{folder_name}'",
+                            'tools_description': f"Tools and options for this folder"
+                        }
+                        
                         cacheable_payload = {
                             'folder_info': folder_info,
                             'subfolders': subfolders,
-                            'lists': lists_in_folder
+                            'lists': lists_in_folder,
+                            'breadcrumbs': breadcrumb_data  # Pre-computed breadcrumb components
                         }
                     
                     # Cache the payload (without additional locking since we're already in a lock)
