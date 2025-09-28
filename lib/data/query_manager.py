@@ -242,11 +242,10 @@ class QueryManager:
                 # Invalidate search history folder
                 folders_to_invalidate.add(kwargs.get('search_history_folder_id'))
             
-            # Perform invalidation for all affected folders
+            # Perform invalidation for all affected folders (including root when folder_id is None)
             for folder_id in folders_to_invalidate:
-                if folder_id is not None or operation_type in ["create_list", "delete_list", "rename_list"]:
-                    folder_cache.invalidate_folder(folder_id)
-                    self.logger.debug("Cache invalidated for folder %s after %s", folder_id, operation_type)
+                folder_cache.invalidate_folder(folder_id)
+                self.logger.debug("Cache invalidated for folder %s after %s", folder_id, operation_type)
                     
         except Exception as e:
             self.logger.warning("Failed to invalidate cache after %s: %s", operation_type, e)
