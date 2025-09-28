@@ -23,6 +23,7 @@ from lib.ui.dialog_service import get_dialog_service
 # Import the specialized operation modules
 from lib.ui.list_operations import ListOperations
 from lib.ui.folder_operations import FolderOperations
+from lib.ui.folder_cache import get_folder_cache
 
 
 class ListsHandler:
@@ -281,24 +282,49 @@ class ListsHandler:
             show_lists_start = time.time()
             context.logger.debug("Displaying lists menu")
 
-            # Initialize query manager
-            query_manager = get_query_manager()
+            # CACHE-FIRST: Check cache before database queries
+            folder_cache = get_folder_cache()
+            folder_id = None  # Root folder
+            cached_data = folder_cache.get(folder_id)
+            
+            all_lists = None
+            db_query_time = 0
+            cache_used = False
+            
+            if cached_data:
+                # CACHE HIT: Use cached data
+                cache_used = True
+                all_lists = cached_data.get('items', [])
+                build_time = cached_data.get('_build_time_ms', 0)
+                context.logger.debug("CACHE HIT: Root folder cached with %d items (built in %d ms)", 
+                                   len(all_lists), build_time)
+            else:
+                # CACHE MISS: Query database and cache the result
+                context.logger.debug("CACHE MISS: Root folder not cached, querying database")
+                
+                # Initialize query manager
+                query_manager = get_query_manager()
+                init_result = query_manager.initialize()
 
-            init_result = query_manager.initialize()
+                if not init_result:
+                    context.logger.error("Failed to initialize query manager")
+                    return DirectoryResponse(
+                        items=[],
+                        success=False
+                    )
 
-            if not init_result:
-                context.logger.error("Failed to initialize query manager")
-                return DirectoryResponse(
-                    items=[],
-                    success=False
-                )
+                # Get all user lists and folders from database
+                db_query_start = time.time()
+                all_lists = query_manager.get_all_lists_with_folders()
+                db_query_time = (time.time() - db_query_start) * 1000
+                context.logger.debug("TIMING: Database query for lists took %.2f ms", db_query_time)
+                
+                # Cache the result for future navigation
+                cache_payload = {'items': all_lists}
+                folder_cache.set(folder_id, cache_payload, int(db_query_time))
+                context.logger.debug("CACHE UPDATE: Stored root folder with %d items", len(all_lists))
 
-            # Get all user lists and folders
-            db_query_start = time.time()
-            all_lists = query_manager.get_all_lists_with_folders()
-            db_query_time = (time.time() - db_query_start) * 1000
-            context.logger.debug("TIMING: Database query for lists took %.2f ms", db_query_time)
-            context.logger.debug("Found %s total lists", len(all_lists))
+            context.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
 
             # Include all lists including "Kodi Favorites" in the main Lists menu
             user_lists = all_lists
@@ -572,26 +598,60 @@ class ListsHandler:
         try:
             context.logger.debug("Displaying folder %s", folder_id)
 
-            # Initialize query manager
-            query_manager = get_query_manager()
+            # CACHE-FIRST: Check cache before database queries
+            folder_cache = get_folder_cache()
+            cached_data = folder_cache.get(folder_id)
+            
+            folder_info = None
+            subfolders = []
+            lists_in_folder = []
+            db_query_time = 0
+            cache_used = False
+            
+            if cached_data:
+                # CACHE HIT: Use cached navigation data
+                cache_used = True
+                folder_info = cached_data.get('folder_info')
+                subfolders = cached_data.get('subfolders', [])
+                lists_in_folder = cached_data.get('lists', [])
+                build_time = cached_data.get('_build_time_ms', 0)
+                context.logger.debug("CACHE HIT: Folder %s cached with %d subfolders, %d lists (built in %d ms)", 
+                                   folder_id, len(subfolders), len(lists_in_folder), build_time)
+            else:
+                # CACHE MISS: Query database and cache the result
+                context.logger.debug("CACHE MISS: Folder %s not cached, querying database", folder_id)
+                
+                # Initialize query manager
+                query_manager = get_query_manager()
+                init_result = query_manager.initialize()
 
-            init_result = query_manager.initialize()
+                if not init_result:
+                    context.logger.error("Failed to initialize query manager")
+                    return DirectoryResponse(
+                        items=[],
+                        success=False
+                    )
 
-            if not init_result:
-                context.logger.error("Failed to initialize query manager")
-                return DirectoryResponse(
-                    items=[],
-                    success=False
-                )
+                # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
+                db_query_start = time.time()
+                navigation_data = query_manager.get_folder_navigation_batch(folder_id)
+                db_query_time = (time.time() - db_query_start) * 1000
+                context.logger.debug("TIMING: Database batch query for folder %s took %.2f ms", folder_id, db_query_time)
 
-            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
-            # BATCH OPTIMIZATION: Get folder info, subfolders, and lists in single database call
-            navigation_data = query_manager.get_folder_navigation_batch(folder_id)
-
-            # Extract data from batch result
-            folder_info = navigation_data['folder_info']
-            subfolders = navigation_data['subfolders']
-            lists_in_folder = navigation_data['lists']
+                # Extract data from batch result
+                folder_info = navigation_data['folder_info']
+                subfolders = navigation_data['subfolders']
+                lists_in_folder = navigation_data['lists']
+                
+                # Cache the result for future navigation
+                cache_payload = {
+                    'folder_info': folder_info,
+                    'subfolders': subfolders,
+                    'lists': lists_in_folder
+                }
+                folder_cache.set(folder_id, cache_payload, int(db_query_time))
+                context.logger.debug("CACHE UPDATE: Stored folder %s with %d subfolders, %d lists", 
+                                   folder_id, len(subfolders), len(lists_in_folder))
 
             if not folder_info:
                 context.logger.error("Folder %s not found", folder_id)
