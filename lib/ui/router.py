@@ -10,6 +10,8 @@ from typing import Dict, Callable, Any
 from lib.ui.plugin_context import PluginContext
 import xbmcgui
 import xbmcplugin
+import time
+import threading
 from lib.utils.kodi_log import get_kodi_logger
 from lib.ui.dialog_service import get_dialog_service
 # Router uses manual error handling due to boolean return type
@@ -263,15 +265,8 @@ class Router:
                 folder_id = params.get('folder_id')
 
                 if folder_id:
-                    # Use the handler factory
-                    from lib.ui.handler_factory import get_handler_factory
-                    factory = get_handler_factory()
-                    factory.context = context
-                    lists_handler = factory.get_lists_handler()
-                    from lib.ui.response_handler import get_response_handler
-                    response_handler = get_response_handler()
-                    response = lists_handler.show_folder(context, str(folder_id))
-                    return response_handler.handle_directory_response(response, context)
+                    # Cache-first folder view implementation
+                    return self._handle_show_folder_cached(context, str(folder_id))
                 else:
                     self.logger.error("Missing folder_id parameter")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
@@ -1098,5 +1093,237 @@ class Router:
                 xbmcgui.NOTIFICATION_ERROR,
                 3000
             )
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+    
+    def _handle_show_folder_cached(self, context, folder_id: str) -> bool:
+        """Handle show_folder with cache-first approach and background refresh"""
+        try:
+            start_time = time.time()
+            
+            # Get folder cache instance
+            from lib.ui.folder_cache import get_folder_cache
+            folder_cache = get_folder_cache()
+            
+            # Check cache first
+            cached_payload = folder_cache.get(folder_id, allow_stale=True)
+            
+            if cached_payload:
+                # We have cached data - serve it immediately
+                is_fresh = folder_cache.is_fresh(folder_id)
+                
+                self.logger.debug("CACHE HIT for folder %s (%s) - serving cached payload", 
+                                folder_id, "fresh" if is_fresh else "stale")
+                
+                # Convert cached payload back to DirectoryResponse and use ResponseHandler
+                from lib.ui.response_types import DirectoryResponse
+                cached_response = DirectoryResponse(
+                    items=cached_payload.get('items', []),
+                    success=True,
+                    content_type=cached_payload.get('content_type', 'files'),
+                    update_listing=cached_payload.get('update_listing', False),
+                    intent=None
+                )
+                
+                # Use ResponseHandler to maintain consistent UI behavior
+                from lib.ui.response_handler import get_response_handler
+                response_handler = get_response_handler()
+                success = response_handler.handle_directory_response(cached_response, context)
+                
+                # If cache is stale, trigger background refresh
+                if not is_fresh and folder_cache.is_stale_but_usable(folder_id):
+                    self.logger.debug("Triggering background refresh for stale folder %s", folder_id)
+                    self._trigger_background_folder_refresh(folder_cache, folder_id)
+                
+                cache_serve_time = (time.time() - start_time) * 1000
+                self.logger.debug("CACHE SERVE: folder %s served in %.2f ms", folder_id, cache_serve_time)
+                
+                return success
+            else:
+                # Cache miss - build folder synchronously
+                self.logger.debug("CACHE MISS for folder %s - building fresh", folder_id)
+                return self._build_and_cache_folder(folder_cache, context, folder_id)
+                
+        except Exception as e:
+            self.logger.error("Error in cached folder handling for %s: %s", folder_id, e)
+            # Fall back to normal folder handling
+            return self._fallback_to_normal_folder_handling(context, folder_id)
+    
+    def _build_and_cache_folder(self, folder_cache, context, folder_id: str) -> bool:
+        """Build folder payload and cache it"""
+        try:
+            build_start = time.time()
+            
+            # Use stampede protection when building
+            with folder_cache.with_build_lock(folder_id):
+                # Check cache again in case another thread built it while we waited
+                cached_payload = folder_cache.get(folder_id)
+                if cached_payload:
+                    self.logger.debug("Found fresh cache after lock for folder %s", folder_id)
+                    # Convert to DirectoryResponse and use ResponseHandler
+                    from lib.ui.response_types import DirectoryResponse
+                    cached_response = DirectoryResponse(
+                        items=cached_payload.get('items', []),
+                        success=True,
+                        content_type=cached_payload.get('content_type', 'files'),
+                        update_listing=cached_payload.get('update_listing', False),
+                        intent=None
+                    )
+                    from lib.ui.response_handler import get_response_handler
+                    response_handler = get_response_handler()
+                    return response_handler.handle_directory_response(cached_response, context)
+                
+                # Build folder using original handler
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                lists_handler = factory.get_lists_handler()
+                
+                # Get the directory response
+                response = lists_handler.show_folder(context, folder_id)
+                
+                if response.success:
+                    build_time_ms = (time.time() - build_start) * 1000
+                    
+                    # Create cacheable payload from response
+                    cacheable_payload = {
+                        'items': response.items,
+                        'update_listing': response.update_listing,
+                        'content_type': response.content_type
+                    }
+                    
+                    # Cache the payload
+                    folder_cache.set(folder_id, cacheable_payload, int(build_time_ms))
+                    
+                    self.logger.debug("CACHE SET: folder %s built and cached in %.2f ms", 
+                                    folder_id, build_time_ms)
+                    
+                    # Use response handler to serve the response
+                    from lib.ui.response_handler import get_response_handler
+                    response_handler = get_response_handler()
+                    return response_handler.handle_directory_response(response, context)
+                else:
+                    self.logger.error("Failed to build folder %s", folder_id)
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                    
+        except Exception as e:
+            self.logger.error("Error building and caching folder %s: %s", folder_id, e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+    
+    def _trigger_background_folder_refresh(self, folder_cache, folder_id: str):
+        """Trigger background refresh for stale folder (non-blocking)"""
+        def background_refresh():
+            try:
+                self.logger.debug("Background refresh started for folder %s", folder_id)
+                
+                # Build fresh payload (no UI operations in background thread)
+                with folder_cache.with_build_lock(folder_id):
+                    refresh_start = time.time()
+                    
+                    # Create minimal context for data operations only
+                    from lib.data.query_manager import get_query_manager
+                    query_manager = get_query_manager()
+                    
+                    if not query_manager.initialize():
+                        self.logger.error("Failed to initialize query manager for background refresh")
+                        return
+                    
+                    # Get folder navigation data directly
+                    navigation_data = query_manager.get_folder_navigation_batch(folder_id)
+                    
+                    if navigation_data and navigation_data.get('folder_info'):
+                        folder_info = navigation_data['folder_info']
+                        subfolders = navigation_data['subfolders']
+                        lists_in_folder = navigation_data['lists']
+                        
+                        # Build menu items (data only, no Kodi UI calls)
+                        menu_items = []
+                        
+                        # Add subfolders
+                        for subfolder in subfolders:
+                            subfolder_id = subfolder.get('id')
+                            subfolder_name = subfolder.get('name', 'Unnamed Folder')
+                            
+                            # Build URL and context menu data
+                            url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder_id}"
+                            context_menu = [
+                                (f"Rename '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={subfolder_id})"),
+                                (f"Move '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={subfolder_id})"),
+                                (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})")
+                            ]
+                            
+                            menu_items.append({
+                                'label': f"📁 {subfolder_name}",
+                                'url': url,
+                                'is_folder': True,
+                                'description': "Subfolder",
+                                'context_menu': context_menu,
+                                'icon': "DefaultFolder.png"
+                            })
+                        
+                        # Add lists
+                        for list_item in lists_in_folder:
+                            list_id = list_item.get('id')
+                            name = list_item.get('name', 'Unnamed List')
+                            description = list_item.get('description', '')
+                            
+                            url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+                            context_menu = [
+                                (f"Rename '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
+                                (f"Move '{name}' to Folder", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={list_id})"),
+                                (f"Export '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={list_id})"),
+                                (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
+                            ]
+                            
+                            menu_items.append({
+                                'label': name,
+                                'url': url,
+                                'is_folder': True,
+                                'description': description,
+                                'icon': "DefaultPlaylist.png",
+                                'context_menu': context_menu
+                            })
+                        
+                        refresh_time_ms = (time.time() - refresh_start) * 1000
+                        
+                        # Create cacheable payload
+                        cacheable_payload = {
+                            'items': menu_items,
+                            'update_listing': False,
+                            'content_type': 'files'
+                        }
+                        
+                        folder_cache.set(folder_id, cacheable_payload, int(refresh_time_ms))
+                        
+                        self.logger.debug("Background refresh completed for folder %s in %.2f ms", 
+                                        folder_id, refresh_time_ms)
+                    else:
+                        self.logger.warning("Background refresh failed for folder %s - no data", folder_id)
+                        
+            except Exception as e:
+                self.logger.error("Error in background refresh for folder %s: %s", folder_id, e)
+        
+        # Start background thread
+        refresh_thread = threading.Thread(target=background_refresh, daemon=True)
+        refresh_thread.start()
+    
+    def _fallback_to_normal_folder_handling(self, context, folder_id: str) -> bool:
+        """Fallback to normal folder handling when caching fails"""
+        try:
+            self.logger.debug("Falling back to normal folder handling for %s", folder_id)
+            
+            from lib.ui.handler_factory import get_handler_factory
+            factory = get_handler_factory()
+            factory.context = context
+            lists_handler = factory.get_lists_handler()
+            from lib.ui.response_handler import get_response_handler
+            response_handler = get_response_handler()
+            response = lists_handler.show_folder(context, folder_id)
+            return response_handler.handle_directory_response(response, context)
+            
+        except Exception as e:
+            self.logger.error("Error in fallback folder handling: %s", e)
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
