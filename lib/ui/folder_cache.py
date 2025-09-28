@@ -10,7 +10,6 @@ import os
 import json
 import time
 import threading
-import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
@@ -65,10 +64,10 @@ class FolderCache:
             self.logger.error("Failed to create cache directory %s: %s", self.cache_dir, e)
     
     def _get_cache_file_path(self, folder_id: str) -> str:
-        """Generate safe cache file path for folder ID using hash"""
-        # Hash folder_id for filename safety (prevents path traversal)
-        folder_hash = hashlib.sha1(folder_id.encode('utf-8')).hexdigest()[:16]
-        filename = f"folder_{folder_hash}_anon_v{self.schema_version}.json"
+        """Generate cache file path for folder ID"""
+        # Sanitize folder_id for filename use
+        safe_folder_id = "".join(c for c in folder_id if c.isalnum() or c in '-_').strip()
+        filename = f"folder_{safe_folder_id}_anon_v{self.schema_version}.json"
         return os.path.join(self.cache_dir, filename)
     
     def _is_file_fresh(self, file_path: str) -> bool:
@@ -142,6 +141,12 @@ class FolderCache:
             with self._locks_mutex:
                 if folder_id in self._locks and not self._locks[folder_id].locked():
                     del self._locks[folder_id]
+    
+    @contextmanager
+    def with_build_lock(self, folder_id: str):
+        """Public context manager for build operations with stampede protection"""
+        with self._singleton_lock(folder_id):
+            yield
     
     def get(self, folder_id: str, allow_stale: bool = False) -> Optional[Dict[str, Any]]:
         """
@@ -373,6 +378,22 @@ class FolderCache:
             self.logger.error("Error during schema cleanup: %s", e)
         
         return cleaned_count
+    
+    def cleanup(self) -> int:
+        """
+        Full cache cleanup - removes expired files and old schema versions
+        
+        Returns:
+            int: Total number of files cleaned up
+        """
+        expired_count = self.cleanup_expired()
+        schema_count = self.cleanup_old_schemas()
+        
+        total = expired_count + schema_count
+        if total > 0:
+            self.logger.info("Full cache cleanup completed - %d total files removed", total)
+        
+        return total
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get cache performance statistics"""
