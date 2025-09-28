@@ -609,8 +609,8 @@ class FolderCache:
             # Get root folder and immediate subfolders to prioritize
             common_folders = []
             
-            # Always include root folder (empty string or None)
-            common_folders.append("")
+            # Always include root folder (use None for root level)
+            common_folders.append(None)
             
             # Get root-level subfolders (most commonly accessed)
             try:
