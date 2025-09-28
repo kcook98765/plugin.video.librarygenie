@@ -1840,28 +1840,46 @@ class QueryManager:
         try:
             self.logger.debug("Getting folder navigation data for folder %s in batch", folder_id)
             
-            # Single batch query to get folder info, subfolders, and lists
-            results = self.connection_manager.execute_query("""
-                -- Get folder info
-                SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id
-                FROM folders f 
-                WHERE f.id = ?
-                
-                UNION ALL
-                
-                -- Get subfolders in this folder
-                SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
-                FROM folders f 
-                WHERE f.parent_id = ?
-                
-                UNION ALL
-                
-                -- Get lists in this folder
-                SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
-                FROM lists l 
-                WHERE l.folder_id = ?
-                ORDER BY data_type, name
-            """, [int(folder_id), int(folder_id), int(folder_id)])
+            # Handle root folder case (folder_id is None)
+            if folder_id is None:
+                # For root level: get top-level folders and lists
+                results = self.connection_manager.execute_query("""
+                    -- Get top-level subfolders (root level has no folder info)
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    FROM folders f 
+                    WHERE f.parent_id IS NULL
+                    
+                    UNION ALL
+                    
+                    -- Get top-level lists
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                    FROM lists l 
+                    WHERE l.folder_id IS NULL
+                    ORDER BY data_type, name
+                """, [])
+            else:
+                # Single batch query to get folder info, subfolders, and lists
+                results = self.connection_manager.execute_query("""
+                    -- Get folder info
+                    SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    FROM folders f 
+                    WHERE f.id = ?
+                    
+                    UNION ALL
+                    
+                    -- Get subfolders in this folder
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    FROM folders f 
+                    WHERE f.parent_id = ?
+                    
+                    UNION ALL
+                    
+                    -- Get lists in this folder
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                    FROM lists l 
+                    WHERE l.folder_id = ?
+                    ORDER BY data_type, name
+                """, [int(folder_id), int(folder_id), int(folder_id)])
             
             # Parse results into structured data
             folder_info = None
@@ -1885,6 +1903,14 @@ class QueryManager:
                     })
                 elif data_type == 'list':
                     lists.append(dict(row))
+            
+            # For root level, create a synthetic folder_info
+            if folder_id is None:
+                folder_info = {
+                    "id": "",  # Root level has no ID
+                    "name": "LibraryGenie",  # Root level display name
+                    "created": ""  # Root level has no creation date
+                }
             
             self.logger.debug("Batch query results: folder_info=%s, subfolders=%d, lists=%d", 
                             'found' if folder_info else 'None', len(subfolders), len(lists))
