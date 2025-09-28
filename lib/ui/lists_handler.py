@@ -478,6 +478,11 @@ class ListsHandler:
                 })
 
             # Get all existing folders to display as navigable items
+            # Initialize query_manager if needed for folder lookup (cache hit needs this)
+            if query_manager is None:
+                query_manager = self.query_manager
+                query_manager.initialize()
+            
             folders_query_start = time.time()
             all_folders = query_manager.get_all_folders()
             folders_query_time = (time.time() - folders_query_start) * 1000
