@@ -297,35 +297,10 @@ class ListsHandler:
                 # CACHE HIT: Use cached data (ZERO database overhead)
                 cache_used = True
                 all_lists = cached_data.get('items', [])
-                all_folders = cached_data.get('folders')  # Don't default to empty list, check for None
+                all_folders = cached_data.get('folders', [])
                 build_time = cached_data.get('_build_time_ms', 0)
-                
-                # SELF-HEAL: If cache is missing folder data (older cache format), fetch and update
-                if all_folders is None:
-                    self.logger.debug("CACHE PARTIAL HIT: Root cache missing folders, self-healing...")
-                    # Initialize query manager for self-healing
-                    query_manager = self.query_manager
-                    init_result = query_manager.initialize()
-                    
-                    if init_result:
-                        # Fetch missing folder data
-                        folders_query_start = time.time()
-                        all_folders = query_manager.get_all_folders()
-                        folders_query_time = (time.time() - folders_query_start) * 1000
-                        
-                        # Update cache with complete data for future zero-DB hits
-                        complete_payload = {
-                            'items': all_lists,
-                            'folders': all_folders
-                        }
-                        folder_cache.set(folder_id, complete_payload, int(folders_query_time))
-                        self.logger.debug("CACHE SELF-HEAL: Updated root cache with %d folders (%.2f ms) - Future hits will be ZERO DB", 
-                                           len(all_folders), folders_query_time)
-                    else:
-                        all_folders = []  # Fallback to empty
-                else:
-                    self.logger.debug("CACHE HIT: Root folder cached with %d items, %d folders (built in %d ms) - ZERO DB OVERHEAD", 
-                                       len(all_lists), len(all_folders), build_time)
+                self.logger.debug("CACHE HIT: Root folder cached with %d items, %d folders (built in %d ms) - ZERO DB OVERHEAD", 
+                                   len(all_lists), len(all_folders), build_time)
             else:
                 # CACHE MISS: Initialize DB and query, then cache the result
                 self.logger.debug("CACHE MISS: Root folder not cached, querying database")
@@ -508,14 +483,9 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Folder data should be available from cache hit or self-heal
-            if all_folders is None:
-                # Ultimate safety fallback (should not happen with self-heal)
-                self.logger.warning("Folder data still missing after cache processing, using empty list")
-                all_folders = []
-            else:
-                self.logger.debug("CACHE: Using folder data (%d folders) %s", len(all_folders), 
-                                   "- ZERO DB OVERHEAD" if cache_used else "from database")
+            # Use cached or fetched folder data
+            self.logger.debug("CACHE: Using folder data (%d folders) %s", len(all_folders), 
+                               "- ZERO DB OVERHEAD" if cache_used else "from database")
 
             # Add folders as navigable items (excluding Search History which is now at root level)
             for folder_info in all_folders:
