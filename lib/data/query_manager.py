@@ -1923,12 +1923,31 @@ class QueryManager:
             
         except Exception as e:
             self.logger.error("Error getting folder navigation batch for %s: %s", folder_id, e)
-            # Fallback to individual queries
-            return {
-                'folder_info': self.get_folder_by_id(folder_id),
-                'subfolders': self.get_all_folders(parent_id=folder_id),
-                'lists': self.get_lists_in_folder(folder_id)
+            # Fallback to individual queries with safe defaults
+            fallback_data = {
+                'folder_info': None,
+                'subfolders': [],
+                'lists': []
             }
+            
+            try:
+                if folder_id is None:
+                    # Handle root level fallback
+                    fallback_data['folder_info'] = {
+                        "id": "",
+                        "name": "LibraryGenie", 
+                        "created": ""
+                    }
+                    fallback_data['subfolders'] = self.get_all_folders(parent_id=None) or []
+                    fallback_data['lists'] = self.get_lists_in_folder(None) or []
+                else:
+                    fallback_data['folder_info'] = self.get_folder_by_id(folder_id)
+                    fallback_data['subfolders'] = self.get_all_folders(parent_id=folder_id) or []
+                    fallback_data['lists'] = self.get_lists_in_folder(folder_id) or []
+            except Exception as fallback_error:
+                self.logger.error("Fallback query also failed for folder %s: %s", folder_id, fallback_error)
+            
+            return fallback_data
 
     def close(self):
         """Close database connections"""

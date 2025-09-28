@@ -509,8 +509,8 @@ class FolderCache:
                     return False
                 
                 folder_info = navigation_data['folder_info']
-                subfolders = navigation_data['subfolders']
-                lists_in_folder = navigation_data['lists']
+                subfolders = navigation_data.get('subfolders') or []
+                lists_in_folder = navigation_data.get('lists') or []
                 
                 # Build cacheable payload (data-only, no UI operations)
                 menu_items = []
