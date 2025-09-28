@@ -619,6 +619,9 @@ class QueryManager:
                     SET name = ?
                     WHERE id = ?
                 """, [new_name, int(list_id)])
+                
+                # Invalidate cache after successful list rename
+                self._invalidate_after_change("rename_list", folder_id=existing['folder_id'])
 
             return {"success": True, "name": new_name}
 
@@ -637,9 +640,9 @@ class QueryManager:
             self.logger.debug("Deleting list %s", list_id)
 
             with self.connection_manager.transaction() as conn:
-                # Check if list exists
+                # Check if list exists and get folder info for cache invalidation
                 existing = conn.execute(
-                    "SELECT name FROM lists WHERE id = ?", [int(list_id)]
+                    "SELECT name, folder_id FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
@@ -647,6 +650,9 @@ class QueryManager:
 
                 # Delete list (items cascade automatically via foreign key)
                 conn.execute("DELETE FROM lists WHERE id = ?", [int(list_id)])
+                
+                # Invalidate cache after successful list deletion
+                self._invalidate_after_change("delete_list", folder_id=existing['folder_id'])
 
             return {"success": True}
 
@@ -1685,6 +1691,10 @@ class QueryManager:
                 folder_id = cursor.lastrowid
 
             self.logger.debug("Created folder '%s' with ID: %s", name, folder_id)
+            
+            # Invalidate cache after successful folder creation
+            self._invalidate_after_change("create_folder", parent_folder_id=parent_id)
+            
             return {"success": True, "folder_id": folder_id}
 
         except Exception as e:
@@ -1731,6 +1741,10 @@ class QueryManager:
                 """, [new_name, folder_id])
 
             self.logger.debug("Renamed folder %s from '%s' to '%s'", folder_id, folder['name'], new_name)
+            
+            # Invalidate cache after successful folder rename
+            self._invalidate_after_change("rename_folder", folder_id=folder_id, parent_folder_id=folder['parent_id'])
+            
             return {"success": True}
 
         except Exception as e:
@@ -1798,6 +1812,10 @@ class QueryManager:
                 conn.execute("DELETE FROM folders WHERE id = ?", [folder_id])
 
             self.logger.debug("Deleted folder '%s' (ID: %s)", folder['name'], folder_id)
+            
+            # Invalidate cache after successful folder deletion
+            self._invalidate_after_change("delete_folder", folder_id=folder_id, parent_folder_id=folder['parent_id'])
+            
             return {"success": True}
 
         except Exception as e:
@@ -2099,14 +2117,16 @@ class QueryManager:
             self.logger.debug("Moving list %s to folder %s", list_id, target_folder_id)
 
             with self.connection_manager.transaction() as conn:
-                # Verify the list exists
+                # Verify the list exists and get current folder for cache invalidation
                 list_exists = conn.execute("""
-                    SELECT id, name FROM lists WHERE id = ?
+                    SELECT id, name, folder_id FROM lists WHERE id = ?
                 """, [int(list_id)]).fetchone()
 
                 if not list_exists:
                     self.logger.error("List %s not found", list_id)
                     return {"error": "list_not_found"}
+                    
+                source_folder_id = list_exists['folder_id']
 
                 # Verify the target folder exists if not None
                 if target_folder_id is not None:
@@ -2134,6 +2154,11 @@ class QueryManager:
                     return {"error": "update_failed"}
 
                 self.logger.info("Successfully moved list %s to folder %s", list_id, target_folder_id)
+                
+                # Invalidate cache for both source and target folders
+                self._invalidate_after_change("move_list", 
+                                            source_folder_id=source_folder_id,
+                                            target_folder_id=target_folder_id)
 
             return {"success": True}
 
@@ -2210,9 +2235,9 @@ class QueryManager:
         try:
             self.logger.debug("Moving folder %s to destination %s", folder_id, target_folder_id)
 
-            # Check if folder exists
+            # Check if folder exists and get current parent for cache invalidation
             existing_folder = self.connection_manager.execute_single("""
-                SELECT id, name FROM folders WHERE id = ?
+                SELECT id, name, parent_id FROM folders WHERE id = ?
             """, [int(folder_id)])
 
             if not existing_folder:
@@ -2248,6 +2273,13 @@ class QueryManager:
                 """, [int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
 
             self.logger.debug("Successfully moved folder %s to destination %s", folder_id, target_folder_id)
+            
+            # Invalidate cache for source parent, target parent, and the folder itself
+            self._invalidate_after_change("move_folder",
+                                        folder_id=folder_id,
+                                        source_parent_id=existing_folder['parent_id'],
+                                        target_parent_id=target_folder_id)
+            
             return {"success": True}
 
         except Exception as e:
