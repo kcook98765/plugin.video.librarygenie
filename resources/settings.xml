@@ -366,6 +366,76 @@
           <control type="toggle"/>
         </setting>
       </group>
+      
+      <group id="20" label="30610">
+        <setting id="folder_cache_enabled" type="boolean" label="30611" help="35610">
+          <level>1</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
+        <setting id="folder_cache_fresh_ttl" type="integer" label="30612" help="35611">
+          <level>2</level>
+          <default>12</default>
+          <constraints>
+            <minimum>1</minimum>
+            <step>1</step>
+            <maximum>72</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="folder_cache_enabled" operator="is">true</dependency>
+          </dependencies>
+          <control type="slider" format="integer">
+            <popup>false</popup>
+          </control>
+        </setting>
+        <setting id="folder_cache_hard_expiry" type="integer" label="30613" help="35612">
+          <level>2</level>
+          <default>30</default>
+          <constraints>
+            <minimum>1</minimum>
+            <step>1</step>
+            <maximum>90</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="folder_cache_enabled" operator="is">true</dependency>
+          </dependencies>
+          <control type="slider" format="integer">
+            <popup>false</popup>
+          </control>
+        </setting>
+        <setting id="folder_cache_prewarm_enabled" type="boolean" label="30614" help="35613">
+          <level>2</level>
+          <default>true</default>
+          <dependencies>
+            <dependency type="enable" setting="folder_cache_enabled" operator="is">true</dependency>
+          </dependencies>
+          <control type="toggle"/>
+        </setting>
+        <setting id="folder_cache_prewarm_max_folders" type="integer" label="30615" help="35614">
+          <level>2</level>
+          <default>10</default>
+          <constraints>
+            <minimum>1</minimum>
+            <step>1</step>
+            <maximum>50</maximum>
+          </constraints>
+          <dependencies>
+            <dependency type="enable" setting="folder_cache_enabled" operator="is">true</dependency>
+            <dependency type="enable" setting="folder_cache_prewarm_enabled" operator="is">true</dependency>
+          </dependencies>
+          <control type="slider" format="integer">
+            <popup>false</popup>
+          </control>
+        </setting>
+        <setting id="folder_cache_debug_logging" type="boolean" label="30616" help="35615">
+          <level>3</level>
+          <default>false</default>
+          <dependencies>
+            <dependency type="enable" setting="folder_cache_enabled" operator="is">true</dependency>
+          </dependencies>
+          <control type="toggle"/>
+        </setting>
+      </group>
     </category>
 
     <!-- REMOTE SERVICES SETTINGS (Level 3) - Expert/Debug features -->
