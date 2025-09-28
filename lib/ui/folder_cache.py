@@ -95,8 +95,12 @@ class FolderCache:
     
     def _get_cache_file_path(self, folder_id: str) -> str:
         """Generate cache file path for folder ID"""
-        # Sanitize folder_id for filename use
-        safe_folder_id = "".join(c for c in folder_id if c.isalnum() or c in '-_').strip()
+        # Handle None folder_id (root level)
+        if folder_id is None:
+            safe_folder_id = "root"
+        else:
+            # Sanitize folder_id for filename use
+            safe_folder_id = "".join(c for c in str(folder_id) if c.isalnum() or c in '-_').strip()
         filename = f"folder_{safe_folder_id}_anon_v{self.schema_version}.json"
         return os.path.join(self.cache_dir, filename)
     
@@ -154,10 +158,13 @@ class FolderCache:
     @contextmanager
     def _singleton_lock(self, folder_id: str):
         """Singleton lock for preventing duplicate folder builds"""
+        # Handle None folder_id (root level)
+        lock_key = str(folder_id) if folder_id is not None else "root"
+        
         with self._locks_mutex:
-            if folder_id not in self._locks:
-                self._locks[folder_id] = threading.Lock()
-            lock = self._locks[folder_id]
+            if lock_key not in self._locks:
+                self._locks[lock_key] = threading.Lock()
+            lock = self._locks[lock_key]
         
         acquired = lock.acquire(blocking=True, timeout=10.0)  # 10 second timeout
         if not acquired:
@@ -169,8 +176,8 @@ class FolderCache:
             lock.release()
             # Clean up lock if no longer needed
             with self._locks_mutex:
-                if folder_id in self._locks and not self._locks[folder_id].locked():
-                    del self._locks[folder_id]
+                if lock_key in self._locks and not self._locks[lock_key].locked():
+                    del self._locks[lock_key]
     
     @contextmanager
     def with_build_lock(self, folder_id: str):
@@ -483,11 +490,11 @@ class FolderCache:
                 self.logger.debug("Pre-warm: folder %s already fresh, skipping", folder_id)
                 return True
             
-            self.logger.debug("Pre-warming cache for folder %s", folder_id)
             warm_start = time.time()
             
-            # Use stampede protection
-            with self.with_build_lock(folder_id):
+            # Use stampede protection - handle None folder_id for locking
+            lock_key = str(folder_id) if folder_id is not None else "root"
+            with self.with_build_lock(lock_key):
                 # Double-check after acquiring lock
                 if self.is_fresh(folder_id):
                     self.logger.debug("Pre-warm: folder %s became fresh while waiting for lock", folder_id)
@@ -504,13 +511,23 @@ class FolderCache:
                 # Get folder navigation data
                 navigation_data = query_manager.get_folder_navigation_batch(folder_id)
                 
-                if not navigation_data or not navigation_data.get('folder_info'):
-                    self.logger.warning("Pre-warm: no data found for folder %s", folder_id)
+                if not navigation_data:
+                    self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
                     return False
                 
-                folder_info = navigation_data['folder_info']
+                # Extract data with safe defaults
+                folder_info = navigation_data.get('folder_info')
                 subfolders = navigation_data.get('subfolders') or []
                 lists_in_folder = navigation_data.get('lists') or []
+                
+                # Validate that we have valid data structures
+                if not isinstance(subfolders, (list, tuple)):
+                    self.logger.warning("Pre-warm: subfolders is not iterable for folder %s: %s", folder_id, type(subfolders))
+                    subfolders = []
+                
+                if not isinstance(lists_in_folder, (list, tuple)):
+                    self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
+                    lists_in_folder = []
                 
                 # Build cacheable payload (data-only, no UI operations)
                 menu_items = []
@@ -641,12 +658,14 @@ class FolderCache:
             
             for folder_id in common_folders:
                 try:
+                    self.logger.debug("Pre-warming cache for folder %s", folder_id)
                     if self.pre_warm_folder(folder_id):
                         results["folders_success"] += 1
                     else:
                         results["folders_failed"] += 1
                         results["errors"].append(f"Failed to warm folder {folder_id}")
                 except Exception as e:
+                    self.logger.error("Error pre-warming folder %s: %s", folder_id, str(e))
                     results["folders_failed"] += 1
                     results["errors"].append(f"Error warming folder {folder_id}: {str(e)}")
             
