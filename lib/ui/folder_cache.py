@@ -26,8 +26,9 @@ class FolderCache:
     def __init__(self, cache_dir: Optional[str] = None, schema_version: int = 1):
         self.logger = get_kodi_logger('lib.ui.folder_cache')
         self.schema_version = schema_version
-        self.fresh_ttl_hours = 12  # Fresh TTL: 12 hours
-        self.hard_expiry_hours = 24 * 30  # Hard expiry: 30 days
+        
+        # Load cache configuration from settings
+        self._load_configuration()
         
         # Default cache directory in Kodi's profile directory
         if cache_dir is None:
@@ -52,8 +53,37 @@ class FolderCache:
         }
         self._stats_lock = threading.Lock()
         
-        self.logger.debug("FolderCache initialized - dir: %s, schema: v%d", cache_dir, schema_version)
+        self.logger.debug("FolderCache initialized - dir: %s, schema: v%d, cache_enabled: %s", 
+                          cache_dir, schema_version, self.cache_enabled)
     
+    def _load_configuration(self):
+        """Load cache configuration from settings"""
+        try:
+            from lib.config.settings import SettingsManager
+            settings = SettingsManager()
+            
+            # Load cache settings
+            self.cache_enabled = settings.get_folder_cache_enabled()
+            self.fresh_ttl_hours = settings.get_folder_cache_fresh_ttl()
+            self.hard_expiry_hours = settings.get_folder_cache_hard_expiry() * 24  # Convert days to hours
+            self.prewarm_enabled = settings.get_folder_cache_prewarm_enabled()
+            self.prewarm_max_folders = settings.get_folder_cache_prewarm_max_folders()
+            self.debug_logging = settings.get_folder_cache_debug_logging()
+            
+            if self.debug_logging:
+                self.logger.debug("Cache config - enabled: %s, fresh_ttl: %dh, hard_expiry: %dh, "
+                                 "prewarm: %s (%d folders)", self.cache_enabled, self.fresh_ttl_hours,
+                                 self.hard_expiry_hours, self.prewarm_enabled, self.prewarm_max_folders)
+        except Exception as e:
+            self.logger.warning("Failed to load cache configuration, using defaults: %s", e)
+            # Fallback to hardcoded defaults
+            self.cache_enabled = True
+            self.fresh_ttl_hours = 12
+            self.hard_expiry_hours = 24 * 30  # 30 days
+            self.prewarm_enabled = True
+            self.prewarm_max_folders = 10
+            self.debug_logging = False
+
     def _ensure_cache_dir(self):
         """Ensure cache directory exists"""
         try:
@@ -159,6 +189,12 @@ class FolderCache:
         Returns:
             Dict with folder payload or None if cache miss
         """
+        # Check if caching is enabled
+        if not self.cache_enabled:
+            if self.debug_logging:
+                self.logger.debug("Cache disabled, skipping get for folder: %s", folder_id)
+            return None
+            
         try:
             file_path = self._get_cache_file_path(folder_id)
             
@@ -219,6 +255,12 @@ class FolderCache:
         Returns:
             bool: True if successful
         """
+        # Check if caching is enabled
+        if not self.cache_enabled:
+            if self.debug_logging:
+                self.logger.debug("Cache disabled, skipping set for folder: %s", folder_id)
+            return False
+            
         try:
             with self._singleton_lock(folder_id):
                 # Augment payload with cache metadata
@@ -536,9 +578,23 @@ class FolderCache:
             self.logger.error("Error pre-warming folder %s: %s", folder_id, e)
             return False
     
-    def pre_warm_common_folders(self, max_folders: int = 5) -> Dict[str, Any]:
+    def pre_warm_common_folders(self, max_folders: Optional[int] = None) -> Dict[str, Any]:
         """Pre-warm cache for commonly accessed folders"""
         try:
+            # Check if pre-warming is enabled
+            if not self.cache_enabled or not self.prewarm_enabled:
+                self.logger.debug("Pre-warming disabled via configuration")
+                return {
+                    "success": False,
+                    "error": "Pre-warming disabled in settings",
+                    "folders_attempted": 0,
+                    "folders_success": 0
+                }
+            
+            # Use configuration value if not specified
+            if max_folders is None:
+                max_folders = self.prewarm_max_folders
+                
             self.logger.info("Starting cache pre-warming for common folders (max: %d)", max_folders)
             pre_warm_start = time.time()
             
@@ -606,10 +662,15 @@ class FolderCache:
             self.logger.error("Error during cache pre-warming: %s", e)
             return {"success": False, "error": str(e)}
     
-    def initialize_cache_service(self, enable_pre_warming: bool = True) -> bool:
+    def initialize_cache_service(self, enable_pre_warming: Optional[bool] = None) -> bool:
         """Initialize cache service with optional pre-warming"""
         try:
-            self.logger.info("Initializing folder cache service...")
+            self.logger.info("Initializing folder cache service... (cache_enabled: %s)", self.cache_enabled)
+            
+            # Skip initialization if caching is disabled
+            if not self.cache_enabled:
+                self.logger.debug("Cache disabled via configuration, skipping service initialization")
+                return True  # Return True since this is expected behavior
             
             # Ensure cache directory exists
             os.makedirs(self.cache_dir, exist_ok=True)
@@ -618,6 +679,10 @@ class FolderCache:
             cleaned_count = self.cleanup_expired()
             if cleaned_count > 0:
                 self.logger.info("Cache service: cleaned up %d expired files", cleaned_count)
+            
+            # Use configuration setting if not explicitly specified
+            if enable_pre_warming is None:
+                enable_pre_warming = self.prewarm_enabled
             
             # Pre-warm common folders if enabled
             if enable_pre_warming:
