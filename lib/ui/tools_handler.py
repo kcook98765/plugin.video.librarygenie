@@ -162,17 +162,9 @@ class ToolsHandler:
                     message=L(36033) % folder_name,  # "Moved list to %s"
                 )
 
-                # Navigate to appropriate location after move
-                if target_folder_id is None:
-                    response.navigate_to_lists = True
-                else:
-                    response.navigate_to_folder = target_folder_id
-                    # Ensure no other navigation flags are set that could override folder navigation
-                    response.navigate_to_lists = False
-                    response.navigate_to_main = False
-                    response.refresh_needed = False
-
-                self.logger.debug("Set navigation to folder %s", target_folder_id)
+                # Don't auto-navigate - just show success message and let user navigate manually
+                # This prevents race conditions and timing issues on slower devices
+                self.logger.debug("List moved successfully to folder %s - no auto-navigation", target_folder_id)
                 return response
             else:
                 error_msg = result.get("error", "unknown")
