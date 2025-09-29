@@ -112,9 +112,11 @@ class AddonController:
             self.logger.debug("SearchHandler instance created")
 
             # Show search dialog and handle results
-            self.logger.info("Calling search_handler.prompt_and_show()")
-            search_handler.prompt_and_show()
-            self.logger.info("Search handler completed")
+            self.logger.info("Calling search_handler.prompt_and_search()")
+            from lib.ui.plugin_context import PluginContext
+            context = PluginContext()
+            success = search_handler.prompt_and_search(context)
+            self.logger.info("Search handler completed with success: %s", success)
 
         except Exception as e:
             import traceback
