@@ -239,9 +239,15 @@ class FolderCache:
             
             # Validate folder ID matches to prevent serving wrong cache due to filename collisions
             cached_folder_id = payload.get('_folder_id')
-            # Handle None comparison (root folder)
-            expected_folder_id = folder_id if folder_id is not None else None
-            actual_folder_id = cached_folder_id if cached_folder_id != "root" else None
+            
+            # Normalize both IDs for comparison (handle root folder special case)
+            def normalize_folder_id(fid):
+                if fid is None or fid == "root":
+                    return None
+                return str(fid)
+            
+            expected_folder_id = normalize_folder_id(folder_id)
+            actual_folder_id = normalize_folder_id(cached_folder_id)
             
             if actual_folder_id != expected_folder_id:
                 self.logger.warning("Folder ID mismatch in cache for %s - expected %s, got %s (filename collision)", 
