@@ -29,7 +29,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     """Custom search panel dialog for LibraryGenie"""
     
     XML_FILENAME = 'DialogLibraryGenieSearch.xml'
-    XML_PATH = 'resources/skins/Default/1080i'
+    XML_PATH = 'Default'  # Skin folder name (Kodi looks in resources/skins/Default/1080i automatically)
 
     def __init__(self, *args, **kwargs):
         super(SearchPanel, self).__init__()
