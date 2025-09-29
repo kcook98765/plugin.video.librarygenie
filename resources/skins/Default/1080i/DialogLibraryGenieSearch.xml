@@ -12,8 +12,8 @@
             <control type="image">
                 <width>1620</width>
                 <height>840</height>
-                <colordiffuse>DD000000</colordiffuse>
-                <texture>white.png</texture>
+                <texture colordiffuse="E6000000">colors/white.png</texture>
+                <aspectratio>stretch</aspectratio>
             </control>
             <!-- Border -->
             <control type="image">
