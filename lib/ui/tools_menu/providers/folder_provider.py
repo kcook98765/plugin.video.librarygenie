@@ -152,6 +152,7 @@ class FolderToolsProvider(BaseToolsProvider):
             # This prevents race conditions and timing issues on slower devices
             if result.success:
                 result.refresh_needed = True
+                result.skip_tools_navigation = True  # Prevent tools modal from reappearing
             return result
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
