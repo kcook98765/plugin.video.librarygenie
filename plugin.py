@@ -144,20 +144,22 @@ def _load_cache_direct(cache_file):
 
 def _can_serve_from_cache_only(action, params=None):
     """Check if request can be served entirely from cache"""
-    # Only handle simple navigation actions that can be cached
-    cache_servable_actions = ['', 'main_menu', 'show_lists_menu', 'show_folder']
+    # HOTFIX: Disable root cache serving until we store processed view
+    # Root actions need business logic (hide Search History, add Tools & Options)
+    if action in ['', 'main_menu', 'show_lists_menu']:
+        return False  # Use full pipeline for correct root display
     
-    if action not in cache_servable_actions:
-        return False
-        
-    # Determine folder ID
-    folder_id = None
+    # Only handle folder navigation that can be cached safely
     if action == 'show_folder':
         folder_id = params.get('folder_id') if params else None
+        # Prevent root bypass - always use full pipeline for root folder
+        if folder_id in [None, '', 'root']:
+            return False
+        if folder_id:
+            cache_file = _get_cache_file_direct(folder_id)
+            return cache_file and _is_cache_fresh_direct(cache_file)
     
-    # Check if cache exists and is fresh
-    cache_file = _get_cache_file_direct(folder_id)
-    return cache_file and _is_cache_fresh_direct(cache_file)
+    return False
 
 def _serve_from_cache_ultra_fast(action, params=None):
     """Serve request from cache without PluginContext, Router, or managers"""
