@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
-CACHE_SCHEMA_VERSION = 3
+CACHE_SCHEMA_VERSION = 4
 
 
 class FolderCache:

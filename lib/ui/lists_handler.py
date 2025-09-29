@@ -10,7 +10,7 @@ import xbmcplugin
 import xbmcgui
 import time
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
@@ -295,14 +295,26 @@ class ListsHandler:
             query_manager = None
             
             if cached_data:
-                # CACHE HIT: Use cached data including breadcrumbs (ZERO database overhead)
+                # CACHE HIT: Use cached data (ZERO database overhead)
                 cache_used = True
-                all_lists = cached_data.get('items', [])
-                all_folders = cached_data.get('folders', [])
                 cached_breadcrumbs = cached_data.get('breadcrumbs', {})
                 build_time = cached_data.get('_build_time_ms', 0)
-                self.logger.debug("CACHE HIT: Root folder cached with %d items, %d folders, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
-                                   len(all_lists), len(all_folders), build_time)
+                
+                # Handle schema v4 (processed items) vs v3 (raw data)
+                if 'processed_items' in cached_data:
+                    # Schema v4: Use pre-processed menu items
+                    processed_menu_items = cached_data.get('processed_items', [])
+                    all_lists = []  # Not needed for v4
+                    all_folders = []  # Not needed for v4
+                    self.logger.debug("CACHE HIT: Schema v4 - %d processed items (built in %d ms) - ZERO DB OVERHEAD", 
+                                       len(processed_menu_items), build_time)
+                else:
+                    # Schema v3: Convert raw data (for backward compatibility)
+                    all_lists = cached_data.get('items', [])
+                    all_folders = cached_data.get('folders', [])
+                    processed_menu_items = None  # Will build later
+                    self.logger.debug("CACHE HIT: Schema v3 - %d items, %d folders (built in %d ms) - ZERO DB OVERHEAD", 
+                                       len(all_lists), len(all_folders), build_time)
             else:
                 # CACHE MISS: Initialize DB and query, then cache the result
                 self.logger.debug("CACHE MISS: Root folder not cached, querying database")
@@ -325,7 +337,12 @@ class ListsHandler:
                 db_query_time = (time.time() - db_query_start) * 1000
                 self.logger.debug("TIMING: Database query for lists and folders took %.2f ms", db_query_time)
                 
-                # Cache lists, folders, and breadcrumb data for complete navigation metadata
+                # Build processed menu items with business logic applied (for schema v4 cache)
+                processed_menu_items = self._build_processed_menu_items(
+                    context, all_lists, all_folders, query_manager
+                )
+                
+                # Cache the final processed view instead of raw data (schema v4)
                 breadcrumb_data = {
                     'directory_title': 'Lists',
                     'tools_label': 'Lists', 
@@ -334,73 +351,85 @@ class ListsHandler:
                 cached_breadcrumbs = breadcrumb_data
                 
                 cache_payload = {
-                    'items': all_lists,
-                    'folders': all_folders,
-                    'breadcrumbs': breadcrumb_data
+                    'processed_items': processed_menu_items,
+                    'breadcrumbs': breadcrumb_data,
+                    'content_type': 'files'
                 }
                 cache_key = "root" if folder_id is None else folder_id
                 folder_cache.set(cache_key, cache_payload, int(db_query_time))
-                self.logger.debug("CACHE UPDATE: Stored root folder with %d items, %d folders, breadcrumbs", len(all_lists), len(all_folders))
+                self.logger.debug("CACHE UPDATE: Stored root folder with %d processed items, breadcrumbs", len(processed_menu_items))
 
-            self.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
+            # Handle cached processed items vs building from raw data
+            if cache_used and processed_menu_items is not None:
+                # Schema v4: Use pre-processed items directly
+                menu_items = processed_menu_items
+                self.logger.debug("Using %d pre-processed menu items from cache", len(menu_items))
+            else:
+                # Schema v3 or cache miss: Build menu items from raw data
+                if not cache_used:
+                    self.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
+                
+                menu_items = self._build_processed_menu_items(context, all_lists, all_folders, query_manager)
+                self.logger.debug("Built %d menu items from raw data", len(menu_items))
 
-            # Include all lists including "Kodi Favorites" in the main Lists menu
-            user_lists = all_lists
-            self.logger.debug("Found %s user lists (including Kodi Favorites)", len(user_lists))
+            # Check for empty state only when not using processed cache
+            if not cache_used or processed_menu_items is None:
+                user_lists = all_lists if all_lists else []
+                self.logger.debug("Found %s user lists (including Kodi Favorites)", len(user_lists))
 
-            if not user_lists:
-                # No lists exist - show empty state instead of dialog
-                # This prevents confusing dialogs when navigating back from deletions
-                menu_items = []
+                if not user_lists:
+                    # No lists exist - show empty state instead of dialog
+                    # This prevents confusing dialogs when navigating back from deletions
+                    menu_items = []
 
-                # Add "Tools & Options" with breadcrumb context (breadcrumb helper handles None gracefully for 'lists' action)
-                breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, None)
-                description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, None)
+                    # Add "Tools & Options" with breadcrumb context (breadcrumb helper handles None gracefully for 'lists' action)
+                    breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, None)
+                    description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, None)
 
-                menu_items.append({
-                    'label': f"{L(36000)} {breadcrumb_text}",
-                    'url': context.build_url('show_list_tools', list_type='lists_main'),
-                    'is_folder': True,
-                    'icon': "DefaultAddonProgram.png",
-                    'description': f"{description_prefix}{L(36018)}"  # Breadcrumb + "Access lists tools and options"
-                })
+                    menu_items.append({
+                        'label': f"{L(36000)} {breadcrumb_text}",
+                        'url': context.build_url('show_list_tools', list_type='lists_main'),
+                        'is_folder': True,
+                        'icon': "DefaultAddonProgram.png",
+                        'description': f"{description_prefix}{L(36018)}"  # Breadcrumb + "Access lists tools and options"
+                    })
 
-                # Add "Create First List" option
-                menu_items.append({
-                    'label': f"+ {L(37018)}",
-                    'url': context.build_url('create_list_execute'),
-                    'is_folder': True,
-                    'icon': "DefaultAddSource.png",
-                    'description': "Create your first list to get started"
-                })
+                    # Add "Create First List" option
+                    menu_items.append({
+                        'label': f"+ {L(37018)}",
+                        'url': context.build_url('create_list_execute'),
+                        'is_folder': True,
+                        'icon': "DefaultAddSource.png",
+                        'description': "Create your first list to get started"
+                    })
 
-                # Build directory items
-                for item in menu_items:
-                    list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
+                    # Build directory items
+                    for item in menu_items:
+                        list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
 
-                    if 'description' in item:
-                        self._set_listitem_plot(list_item, item['description'])
+                        if 'description' in item:
+                            self._set_listitem_plot(list_item, item['description'])
 
-                    if 'icon' in item:
-                        list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
+                        if 'icon' in item:
+                            list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
 
-                    xbmcplugin.addDirectoryItem(
-                        context.addon_handle,
-                        item['url'],
-                        list_item,
-                        item['is_folder']
+                        xbmcplugin.addDirectoryItem(
+                            context.addon_handle,
+                            item['url'],
+                            list_item,
+                            item['is_folder']
+                        )
+
+                    # Determine if this is a refresh or initial load
+                    is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
+
+                    return DirectoryResponse(
+                        items=menu_items,
+                        success=True,
+                        content_type="files",
+                        update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
+                        intent=None  # Pure rendering, no navigation intent
                     )
-
-                # Determine if this is a refresh or initial load
-                is_refresh = context.get_param('rt') is not None  # Refresh token indicates mutation/refresh
-
-                return DirectoryResponse(
-                    items=menu_items,
-                    success=True,
-                    content_type="files",
-                    update_listing=is_refresh,  # REPLACE semantics for refresh, PUSH for initial
-                    intent=None  # Pure rendering, no navigation intent
-                )
 
             # Set directory title with breadcrumb context
             current_folder_id = context.get_param('folder_id')
@@ -1533,3 +1562,110 @@ class ListsHandler:
         except Exception as e:
             self.logger.warning("Error checking folder tools availability: %s", e)
             return False
+    
+    def _build_processed_menu_items(self, context: 'PluginContext', all_lists: List[Dict], all_folders: List[Dict], query_manager=None) -> List[Dict[str, Any]]:
+        """Build processed menu items with business logic applied - for schema v4 cache"""
+        menu_items = []
+        
+        # Determine breadcrumb context
+        current_folder_id = context.get_param('folder_id')
+        if current_folder_id:
+            breadcrumb_params = {'folder_id': current_folder_id}
+            breadcrumb_action = 'show_folder'
+            tools_url = context.build_url('show_list_tools', list_type='lists_main', folder_id=current_folder_id)
+        else:
+            breadcrumb_params = {}
+            breadcrumb_action = 'lists'
+            tools_url = context.build_url('show_list_tools', list_type='lists_main')
+
+        # Add Tools & Options first
+        breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
+        tools_label = breadcrumb_text or 'Lists'
+        tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
+
+        menu_items.append({
+            'label': f"Tools & Options • {tools_label}",
+            'url': tools_url,
+            'is_folder': True,
+            'icon': "DefaultAddonProgram.png",
+            'description': tools_description
+        })
+
+        # Handle Kodi Favorites integration
+        from lib.config.config_manager import get_config
+        config = get_config()
+        favorites_enabled = config.get_bool('favorites_integration_enabled', False)
+        kodi_favorites_item = None
+
+        for item in all_lists:
+            if item.get('name') == 'Kodi Favorites':
+                kodi_favorites_item = item
+                break
+
+        # Add Kodi Favorites first (if enabled and exists)
+        if favorites_enabled and kodi_favorites_item:
+            list_id = kodi_favorites_item.get('id')
+            name = kodi_favorites_item.get('name', 'Kodi Favorites')
+            description = kodi_favorites_item.get('description', '')
+
+            context_menu = [
+                (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})")
+            ]
+
+            menu_items.append({
+                'label': name,
+                'url': context.build_url('show_list', list_id=list_id),
+                'is_folder': True,
+                'description': description,
+                'icon': "DefaultPlaylist.png",
+                'context_menu': context_menu
+            })
+
+        # Add folders (excluding Search History)
+        for folder_info in all_folders:
+            folder_id = folder_info['id']
+            folder_name = folder_info['name']
+
+            # Skip the reserved "Search History" folder
+            if folder_name == 'Search History':
+                continue
+
+            context_menu = [
+                (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
+                (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
+                (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
+            ]
+
+            menu_items.append({
+                'label': folder_name,
+                'url': context.build_url('show_folder', folder_id=folder_id),
+                'is_folder': True,
+                'description': f"Folder",
+                'context_menu': context_menu
+            })
+
+        # Add standalone lists (excluding Kodi Favorites as it's already added)
+        standalone_lists = [item for item in all_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
+
+        for list_item in standalone_lists:
+            list_id = list_item.get('id')
+            name = list_item.get('name', 'Unnamed List')
+            description = list_item.get('description', '')
+
+            context_menu = [
+                (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
+                (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
+                (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
+                (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
+            ]
+
+            menu_items.append({
+                'label': name,
+                'url': context.build_url('show_list', list_id=list_id),
+                'is_folder': True,
+                'description': description,
+                'icon': "DefaultPlaylist.png",
+                'context_menu': context_menu
+            })
+
+        return menu_items

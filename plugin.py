@@ -144,10 +144,20 @@ def _load_cache_direct(cache_file):
 
 def _can_serve_from_cache_only(action, params=None):
     """Check if request can be served entirely from cache"""
-    # HOTFIX: Disable root cache serving until we store processed view
-    # Root actions need business logic (hide Search History, add Tools & Options)
+    # Root actions can use cache if schema v4 processed view is available
     if action in ['', 'main_menu', 'show_lists_menu']:
-        return False  # Use full pipeline for correct root display
+        cache_file = _get_cache_file_direct(None)  # Root folder
+        if cache_file and _is_cache_fresh_direct(cache_file):
+            # Check if it's schema v4 with processed items
+            try:
+                import json
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cached_data = json.load(f)
+                # Only serve from cache if it has processed items (schema v4)
+                return 'processed_items' in cached_data
+            except Exception:
+                return False
+        return False
     
     # Only handle folder navigation that can be cached safely
     if action == 'show_folder':
@@ -200,64 +210,97 @@ def _serve_from_cache_ultra_fast(action, params=None):
 def _render_cached_items_direct(cached_data, addon_handle):
     """Render cached items directly to Kodi without full plugin infrastructure"""
     try:
-        import urllib.parse
-        
-        # Get base URL for building item URLs
-        base_url = sys.argv[0] if len(sys.argv) > 0 else ""
-        
         total_items = 0
         
-        # Render folders first
-        folders = cached_data.get('folders', [])
-        for folder_data in folders:
-            listitem = xbmcgui.ListItem(label=folder_data.get('name', 'Unknown Folder'))
+        # Handle schema v4 (processed items) vs v3 (raw data)
+        if 'processed_items' in cached_data:
+            # Schema v4: Use pre-processed menu items
+            processed_items = cached_data.get('processed_items', [])
             
-            # Build URL for folder
-            params = urllib.parse.urlencode({'action': 'show_folder', 'folder_id': folder_data.get('id', '')})
-            url = f"{base_url}?{params}"
-            
-            # Set folder properties
-            listitem.setInfo('video', {'title': folder_data.get('name', 'Unknown Folder')})
-            listitem.setProperty('IsPlayable', 'false')
-            
-            xbmcplugin.addDirectoryItem(
-                handle=addon_handle,
-                url=url,
-                listitem=listitem,
-                isFolder=True
-            )
-            total_items += 1
-            
-        # Render lists/items
-        items = cached_data.get('items', [])
-        for item_data in items:
-            listitem = xbmcgui.ListItem(label=item_data.get('name', 'Unknown List'))
-            
-            # Build URL for list
-            params = urllib.parse.urlencode({'action': 'show_list', 'list_id': item_data.get('id', '')})
-            url = f"{base_url}?{params}"
-            
-            # Set list properties
-            listitem.setInfo('video', {'title': item_data.get('name', 'Unknown List')})
-            listitem.setProperty('IsPlayable', 'false')
-            
-            # Add description if available
-            if item_data.get('description'):
-                listitem.setInfo('video', {'plot': item_data['description']})
+            for item_data in processed_items:
+                listitem = xbmcgui.ListItem(label=item_data.get('label', 'Unknown Item'))
                 
-            xbmcplugin.addDirectoryItem(
-                handle=addon_handle,
-                url=url,
-                listitem=listitem,
-                isFolder=True
-            )
-            total_items += 1
+                # Set description/plot if available
+                if item_data.get('description'):
+                    listitem.setInfo('video', {'plot': item_data['description']})
+                
+                # Set art/icon if available
+                if item_data.get('icon'):
+                    listitem.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
+                
+                # Add context menu if available
+                if item_data.get('context_menu'):
+                    listitem.addContextMenuItems(item_data['context_menu'])
+                
+                # Set properties
+                listitem.setProperty('IsPlayable', 'false')
+                
+                xbmcplugin.addDirectoryItem(
+                    handle=addon_handle,
+                    url=item_data.get('url', ''),
+                    listitem=listitem,
+                    isFolder=item_data.get('is_folder', True)
+                )
+                total_items += 1
+                
+        else:
+            # Schema v3: Handle old raw format (backward compatibility)
+            import urllib.parse
+            base_url = sys.argv[0] if len(sys.argv) > 0 else ""
+            
+            # Render folders first
+            folders = cached_data.get('folders', [])
+            for folder_data in folders:
+                listitem = xbmcgui.ListItem(label=folder_data.get('name', 'Unknown Folder'))
+                
+                # Build URL for folder
+                params = urllib.parse.urlencode({'action': 'show_folder', 'folder_id': folder_data.get('id', '')})
+                url = f"{base_url}?{params}"
+                
+                # Set folder properties
+                listitem.setInfo('video', {'title': folder_data.get('name', 'Unknown Folder')})
+                listitem.setProperty('IsPlayable', 'false')
+                
+                xbmcplugin.addDirectoryItem(
+                    handle=addon_handle,
+                    url=url,
+                    listitem=listitem,
+                    isFolder=True
+                )
+                total_items += 1
+                
+            # Render lists/items
+            items = cached_data.get('items', [])
+            for item_data in items:
+                listitem = xbmcgui.ListItem(label=item_data.get('name', 'Unknown List'))
+                
+                # Build URL for list
+                params = urllib.parse.urlencode({'action': 'show_list', 'list_id': item_data.get('id', '')})
+                url = f"{base_url}?{params}"
+                
+                # Set list properties
+                listitem.setInfo('video', {'title': item_data.get('name', 'Unknown List')})
+                listitem.setProperty('IsPlayable', 'false')
+                
+                # Add description if available
+                if item_data.get('description'):
+                    listitem.setInfo('video', {'plot': item_data['description']})
+                    
+                xbmcplugin.addDirectoryItem(
+                    handle=addon_handle,
+                    url=url,
+                    listitem=listitem,
+                    isFolder=True
+                )
+                total_items += 1
             
         # Set content type and finish
-        xbmcplugin.setContent(addon_handle, 'files')
+        content_type = cached_data.get('content_type', 'files')
+        xbmcplugin.setContent(addon_handle, content_type)
         xbmcplugin.endOfDirectory(addon_handle, succeeded=True, cacheToDisc=False)
         
-        log(f"Ultra-fast rendering complete: {total_items} items ({len(folders)} folders, {len(items)} lists)")
+        schema_version = cached_data.get('_schema', 'unknown')
+        log(f"Ultra-fast rendering complete: {total_items} items (schema v{schema_version})")
         
     except Exception as e:
         log_error(f"Direct rendering failed: {e}")
