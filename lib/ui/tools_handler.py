@@ -1404,7 +1404,7 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Failed to activate AI search")
 
     def _handle_local_search(self, context: PluginContext) -> DialogResponse:
-        """Execute local search directly"""
+        """Execute local search directly (legacy - kept for backwards compatibility)"""
         try:
             from lib.ui.handler_factory import get_handler_factory
 
@@ -1431,6 +1431,93 @@ class ToolsHandler:
                 )
         except Exception as e:
             context.logger.error("Error executing search: %s", e)
+            return DialogResponse(success=False, message="Failed to execute search")
+
+    def _handle_unified_local_search(self, context: PluginContext) -> DialogResponse:
+        """Execute unified local search with custom panel"""
+        try:
+            from lib.search.search_router import start_search_flow
+            from lib.ui.handler_factory import get_handler_factory
+
+            # Start search flow (shows custom panel or keyboard)
+            search_params = start_search_flow()
+            
+            if not search_params or not search_params.get('q'):
+                return DialogResponse(
+                    success=True,
+                    message="Search cancelled",
+                    refresh_needed=False
+                )
+
+            # Get search handler
+            factory = get_handler_factory()
+            factory.context = context
+            search_handler = factory.get_search_handler()
+            
+            # Determine media types from search params (must be a list)
+            media_types = ["movie"]  # default
+            if search_params['type'] == 'episode':
+                media_types = ["episode"]
+            elif search_params['type'] == 'all':
+                media_types = ["movie", "episode"]
+            
+            # Build search options for the search engine
+            search_options = {
+                "search_scope": "both" if len(search_params['scope']) > 1 else search_params['scope'][0] if search_params['scope'] else "both",
+                "match_logic": search_params['match'],
+                "media_types": media_types
+            }
+            
+            # Execute search with the provided query and options
+            results = search_handler._execute_simple_search(
+                search_params['q'],
+                search_options,
+                context
+            )
+
+            # Save results and handle
+            if results.total_count > 0:
+                list_id = search_handler._save_search_history(
+                    search_params['q'],
+                    search_options,
+                    results
+                )
+                
+                if list_id:
+                    from lib.ui.session_state import get_session_state
+                    session_state = get_session_state()
+                    session_state.clear_tools_return_location()
+                    
+                    success = search_handler._render_saved_search_list_directly(str(list_id), context)
+                    if success:
+                        return DialogResponse(
+                            success=True,
+                            message="Search completed",
+                            refresh_needed=False,
+                            navigate_to_main=False
+                        )
+                    else:
+                        return DialogResponse(
+                            success=True,
+                            message="Search completed (fallback)",
+                            refresh_needed=False,
+                            navigate_to_main=False
+                        )
+            else:
+                context.dialog.notification(
+                    "No results found",
+                    "info",
+                    3000,
+                    "LibraryGenie Search"
+                )
+                return DialogResponse(
+                    success=True,
+                    message="No results found",
+                    refresh_needed=False
+                )
+
+        except Exception as e:
+            context.logger.error("Error in unified local search: %s", e)
             return DialogResponse(success=False, message="Failed to execute search")
 
     def _handle_local_episodes_search(self, context: PluginContext) -> DialogResponse:
