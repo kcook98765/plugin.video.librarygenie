@@ -21,9 +21,9 @@ from lib.utils.kodi_log import log, log_info, log_error, log_warning
 # Type annotations only - no runtime imports
 if TYPE_CHECKING:
     from lib.ui.router import Router
+    from lib.ui.plugin_context import PluginContext
 
-# PluginContext needed at runtime for _handle_manual_backup function
-from lib.ui.plugin_context import PluginContext
+# PluginContext import moved to function scope to avoid heavy startup imports
 
 # Using direct Kodi logging via lib.utils.kodi_log
 
@@ -42,6 +42,227 @@ def _get_factory():
     """Get handler factory instance with lazy import for maximum performance"""
     from lib.ui.handler_factory import get_handler_factory
     return get_handler_factory()
+
+
+# ============================================================================
+# ULTRA-FAST CACHE-ONLY SERVING FUNCTIONS
+# These functions bypass the entire plugin architecture for maximum speed
+# ============================================================================
+
+def _parse_action_minimal():
+    """Parse action from sys.argv without any imports"""
+    try:
+        if len(sys.argv) > 2:
+            query_string = sys.argv[2][1:] if len(sys.argv[2]) > 1 else ""
+            from urllib.parse import parse_qsl
+            params = dict(parse_qsl(query_string))
+            return params.get('action', ''), params
+        return '', {}
+    except Exception:
+        return '', {}
+
+def _get_cache_dir_direct():
+    """Get cache directory path with minimal imports"""
+    try:
+        import xbmcvfs
+        import os
+        profile_dir = xbmcvfs.translatePath('special://profile/')
+        return os.path.join(profile_dir, 'addon_data', 'plugin.video.librarygenie', 'cache', 'folders')
+    except Exception:
+        return None
+
+def _get_cache_file_direct(folder_id):
+    """Get cache file path directly without FolderCache class"""
+    try:
+        import os
+        import hashlib
+        import glob
+        
+        cache_dir = _get_cache_dir_direct()
+        if not cache_dir or not os.path.exists(cache_dir):
+            return None
+            
+        # Handle root directory
+        if folder_id in [None, '', 'root']:
+            # Look for root cache files (both anon and user-scoped)
+            patterns = [
+                os.path.join(cache_dir, "folder_root_*_anon_v*.json"),
+                os.path.join(cache_dir, "folder_root_*_v*.json")
+            ]
+            all_files = []
+            for pattern in patterns:
+                all_files.extend(glob.glob(pattern))
+            
+            if not all_files:
+                return None
+                
+            # Select newest file by modification time
+            return max(all_files, key=lambda f: os.path.getmtime(f))
+        else:
+            # Handle specific folder ID
+            safe_folder_id = "".join(c for c in str(folder_id) if c.isalnum() or c in '-_').strip()
+            folder_hash = hashlib.sha1(str(folder_id).encode('utf-8')).hexdigest()[:8]
+            patterns = [
+                os.path.join(cache_dir, f"folder_{safe_folder_id}_{folder_hash}_anon_v*.json"),
+                os.path.join(cache_dir, f"folder_{safe_folder_id}_{folder_hash}_v*.json")
+            ]
+            all_files = []
+            for pattern in patterns:
+                all_files.extend(glob.glob(pattern))
+                
+            if not all_files:
+                return None
+                
+            # Select newest file by modification time
+            return max(all_files, key=lambda f: os.path.getmtime(f))
+    except Exception:
+        return None
+
+def _is_cache_fresh_direct(cache_file, ttl_hours=12):
+    """Check if cache file is fresh without loading settings"""
+    try:
+        import os
+        from datetime import datetime, timedelta
+        
+        if not cache_file or not os.path.exists(cache_file):
+            return False
+            
+        file_time = datetime.fromtimestamp(os.path.getmtime(cache_file))
+        cutoff_time = datetime.now() - timedelta(hours=ttl_hours)
+        return file_time > cutoff_time
+    except Exception:
+        return False
+
+def _load_cache_direct(cache_file):
+    """Load cache file directly without FolderCache class"""
+    try:
+        import json
+        with open(cache_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+def _can_serve_from_cache_only(action, params=None):
+    """Check if request can be served entirely from cache"""
+    # Only handle simple navigation actions that can be cached
+    cache_servable_actions = ['', 'main_menu', 'show_lists_menu', 'show_folder']
+    
+    if action not in cache_servable_actions:
+        return False
+        
+    # Determine folder ID
+    folder_id = None
+    if action == 'show_folder':
+        folder_id = params.get('folder_id') if params else None
+    
+    # Check if cache exists and is fresh
+    cache_file = _get_cache_file_direct(folder_id)
+    return cache_file and _is_cache_fresh_direct(cache_file)
+
+def _serve_from_cache_ultra_fast(action, params=None):
+    """Serve request from cache without PluginContext, Router, or managers"""
+    try:
+        log("=== ULTRA-FAST CACHE SERVING ===")
+        
+        # Get addon handle
+        addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else -1
+        if addon_handle < 0:
+            return False
+            
+        # Determine folder ID
+        folder_id = None
+        if action == 'show_folder':
+            folder_id = params.get('folder_id') if params else None
+            
+        # Load cached data
+        cache_file = _get_cache_file_direct(folder_id)
+        if not cache_file:
+            log("No cache file found")
+            return False
+            
+        cached_data = _load_cache_direct(cache_file)
+        if not cached_data:
+            log("Failed to load cache data")
+            return False
+            
+        log(f"Serving from cache: {cache_file}")
+        
+        # Render cached items directly
+        _render_cached_items_direct(cached_data, addon_handle)
+        return True
+        
+    except Exception as e:
+        log_error(f"Ultra-fast cache serving failed: {e}")
+        return False
+
+def _render_cached_items_direct(cached_data, addon_handle):
+    """Render cached items directly to Kodi without full plugin infrastructure"""
+    try:
+        import urllib.parse
+        
+        # Get base URL for building item URLs
+        base_url = sys.argv[0] if len(sys.argv) > 0 else ""
+        
+        total_items = 0
+        
+        # Render folders first
+        folders = cached_data.get('folders', [])
+        for folder_data in folders:
+            listitem = xbmcgui.ListItem(label=folder_data.get('name', 'Unknown Folder'))
+            
+            # Build URL for folder
+            params = urllib.parse.urlencode({'action': 'show_folder', 'folder_id': folder_data.get('id', '')})
+            url = f"{base_url}?{params}"
+            
+            # Set folder properties
+            listitem.setInfo('video', {'title': folder_data.get('name', 'Unknown Folder')})
+            listitem.setProperty('IsPlayable', 'false')
+            
+            xbmcplugin.addDirectoryItem(
+                handle=addon_handle,
+                url=url,
+                listitem=listitem,
+                isFolder=True
+            )
+            total_items += 1
+            
+        # Render lists/items
+        items = cached_data.get('items', [])
+        for item_data in items:
+            listitem = xbmcgui.ListItem(label=item_data.get('name', 'Unknown List'))
+            
+            # Build URL for list
+            params = urllib.parse.urlencode({'action': 'show_list', 'list_id': item_data.get('id', '')})
+            url = f"{base_url}?{params}"
+            
+            # Set list properties
+            listitem.setInfo('video', {'title': item_data.get('name', 'Unknown List')})
+            listitem.setProperty('IsPlayable', 'false')
+            
+            # Add description if available
+            if item_data.get('description'):
+                listitem.setInfo('video', {'plot': item_data['description']})
+                
+            xbmcplugin.addDirectoryItem(
+                handle=addon_handle,
+                url=url,
+                listitem=listitem,
+                isFolder=True
+            )
+            total_items += 1
+            
+        # Set content type and finish
+        xbmcplugin.setContent(addon_handle, 'files')
+        xbmcplugin.endOfDirectory(addon_handle, succeeded=True, cacheToDisc=False)
+        
+        log(f"Ultra-fast rendering complete: {total_items} items ({len(folders)} folders, {len(items)} lists)")
+        
+    except Exception as e:
+        log_error(f"Direct rendering failed: {e}")
+        import traceback
+        log_error(f"Direct rendering traceback: {traceback.format_exc()}")
+        # Fallback - end directory safely
+        xbmcplugin.endOfDirectory(addon_handle, succeeded=False)
 
 
 def handle_authorize():
@@ -146,7 +367,7 @@ def handle_settings():
 
 
 
-def _handle_manual_backup(context):
+def _handle_manual_backup(context: 'PluginContext'):
     """Handle manual backup from settings"""
     try:
         log_info("Running manual backup from settings")
@@ -473,21 +694,39 @@ def _standard_startup_initialization(context: 'PluginContext'):
 
 
 def main():
-    """Main plugin entry point using new modular architecture"""
-    # Lazy load heavy components only when needed
-    from lib.ui.plugin_context import PluginContext
-    from lib.ui.router import Router
-
-    log("=== PLUGIN INVOCATION (REFACTORED) ===")
+    """Main plugin entry point with ultra-fast cache optimization"""
+    
+    log("=== PLUGIN INVOCATION (CACHE-OPTIMIZED) ===")
     log(f"Full sys.argv: {sys.argv}")
-    log("Using modular handler architecture")
-
+    
     try:
+        # STEP 1: Parse action with minimal imports (ultra-fast)
+        action, params = _parse_action_minimal()
+        log(f"Parsed action: '{action}' with minimal imports")
+        
+        # STEP 2: Early cache check - try to serve from cache without any heavy imports
+        if _can_serve_from_cache_only(action, params):
+            log("Cache hit - serving ultra-fast without plugin architecture")
+            if _serve_from_cache_ultra_fast(action, params):
+                log("Ultra-fast cache serving successful")
+                return  # SUCCESS - Exit without heavy imports!
+            else:
+                log("Ultra-fast cache serving failed - falling back to normal flow")
+        else:
+            log("Cache miss or uncacheable action - loading full plugin architecture")
+        
+        # STEP 3: Cache miss or failure - load full plugin architecture
+        log("Loading heavy components for full plugin flow")
+        from lib.ui.plugin_context import PluginContext
+        from lib.ui.router import Router
+
         context = PluginContext()
 
         # Log window state for debugging
         _log_window_state(context)
 
+        # STEP 4: Always run initialization for fallback path
+        log("Cache miss or failure - running full initialization for safety")
         _ensure_startup_initialization(context)
         
         # Check for fresh install and show setup modal if needed
