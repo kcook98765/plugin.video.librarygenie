@@ -112,6 +112,9 @@ class ResponseHandler:
                     
                     session_state = get_session_state()
                     
+                    # Check if this operation should skip tools navigation (e.g., move operations)
+                    skip_tools_nav = getattr(response, 'skip_tools_navigation', False)
+                    
                     # Check if we're in tools context and need to return to previous location
                     tools_return_location = session_state.get_tools_return_location()
                     import xbmc
@@ -119,7 +122,7 @@ class ResponseHandler:
                     
                     context.logger.debug("RESPONSE HANDLER: Refreshing current path: %s", current_path)
                     
-                    if tools_return_location and 'show_list_tools' in current_path:
+                    if tools_return_location and 'show_list_tools' in current_path and not skip_tools_nav:
                         # Return to stored location and force refresh
                         context.logger.debug("RESPONSE HANDLER: Returning to tools origin and refreshing")
                         self.navigator.replace(tools_return_location)
