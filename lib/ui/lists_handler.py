@@ -666,14 +666,30 @@ class ListsHandler:
                 
                 # Convert processed items directly to ListItems for ultra-fast rendering
                 gui_build_start = time.time()
-                menu_items = []
+                
                 for item in processed_items:
-                    list_item = self.list_item_factory.create_from_dict(item)
-                    menu_items.append(list_item)
+                    list_item = xbmcgui.ListItem(label=item['label'], offscreen=True)
+                    
+                    if 'description' in item and item['description']:
+                        self._set_listitem_plot(list_item, item['description'])
+                    
+                    if 'icon' in item:
+                        list_item.setArt({'icon': item['icon'], 'thumb': item['icon']})
+                    
+                    # Add context menu if present
+                    if 'context_menu' in item and item['context_menu']:
+                        list_item.addContextMenuItems(item['context_menu'])
+                    
+                    xbmcplugin.addDirectoryItem(
+                        context.addon_handle,
+                        item['url'],
+                        list_item,
+                        item.get('is_folder', True)
+                    )
                 
                 gui_build_time = (time.time() - gui_build_start) * 1000
                 self.logger.debug("V4 CACHE: Rendered %d items in %.2f ms (avg %.2f ms/item)", 
-                                   len(menu_items), gui_build_time, gui_build_time / max(1, len(menu_items)))
+                                   len(processed_items), gui_build_time, gui_build_time / max(1, len(processed_items)))
                 
                 # Set directory title from cached breadcrumbs
                 directory_title = cached_breadcrumbs.get('directory_title', 'Unknown Folder')
@@ -699,7 +715,7 @@ class ListsHandler:
                 self.logger.debug("TIMING: V4 cached folder %s rendered in %.2f ms total", folder_id, total_time)
                 
                 return DirectoryResponse(
-                    items=menu_items,
+                    items=processed_items,  # Return processed items for response tracking
                     success=True,
                     content_type="files"
                 )
