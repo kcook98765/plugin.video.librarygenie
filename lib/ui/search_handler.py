@@ -82,7 +82,7 @@ class SearchHandler:
                     session_state.clear_tools_return_location()
                     
                     # IMPROVED: Use direct rendering with enhanced error handling
-                    success = self._render_saved_search_list_directly(list_id, context)
+                    success = self._render_saved_search_list_directly(str(list_id), context)
                     if success:
                         self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
                         return True
@@ -91,7 +91,8 @@ class SearchHandler:
                         self._warn(f"Direct rendering failed for list {list_id}, trying redirect fallback")
                         
                         # Restore session state for fallback attempt
-                        session_state.set_tools_return_location(original_return_location)
+                        if original_return_location is not None:
+                            session_state.set_tools_return_location(original_return_location)
                         
                         if self._try_redirect_to_saved_search_list():
                             self._debug(f"Redirect fallback succeeded for list {list_id}")
@@ -121,7 +122,8 @@ class SearchHandler:
                 return True
         except Exception as e:
             # Restore session state on any error
-            session_state.set_tools_return_location(original_return_location)
+            if original_return_location is not None:
+                session_state.set_tools_return_location(original_return_location)
             self._error(f"Search process failed: {e}")
             # Show user-friendly error and prevent router fallback
             self.dialog_service.show_error("Search failed. Please try again.", time_ms=4000)
