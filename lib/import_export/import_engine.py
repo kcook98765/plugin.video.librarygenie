@@ -622,7 +622,7 @@ class ImportEngine:
         except Exception:
             return False
 
-    def _import_lists(self, lists_data: List[Dict], replace_mode: bool = False, target_folder_id: str = None) -> Tuple[int, int, List[str], Dict[str, str]]:
+    def _import_lists(self, lists_data: List[Dict], replace_mode: bool = False, target_folder_id: Optional[str] = None) -> Tuple[int, int, List[str], Dict[str, str]]:
         """Import lists, return (created_count, updated_count, errors, list_id_mapping)"""
         created = 0
         updated = 0
@@ -686,8 +686,11 @@ class ImportEngine:
 
         return created, updated, errors, list_id_mapping
 
-    def _import_list_items(self, items_data: List[Dict], replace_mode: bool = False, list_id_mapping: Dict[str, str] = None) -> Tuple[int, int, int, List[Dict], List[str]]:
+    def _import_list_items(self, items_data: List[Dict], replace_mode: bool = False, list_id_mapping: Optional[Dict[str, str]] = None) -> Tuple[int, int, int, List[Dict], List[str]]:
         """Import list items, return (added, skipped, unmatched, unmatched_data, errors)"""
+        # Normalize list_id_mapping to empty dict if None
+        list_id_mapping = list_id_mapping or {}
+        
         added = 0
         skipped = 0
         unmatched = 0
@@ -703,7 +706,7 @@ class ImportEngine:
 
                 # Map old list ID to new list ID
                 old_list_id = str(old_list_id)  # Ensure string format
-                list_id = list_id_mapping.get(old_list_id) if list_id_mapping else old_list_id
+                list_id = list_id_mapping.get(old_list_id, old_list_id)
                 
                 if not list_id:
                     errors.append(f"Cannot find mapped list for old ID {old_list_id}, skipped item: {item_data.get('title', 'unknown')}")
@@ -736,7 +739,14 @@ class ImportEngine:
                         errors.append(f"Failed to add item to list: {item_data.get('title', 'unknown')} (DB Error: {db_error})")
                 else:
                     # In append mode, check if already in list to avoid duplicates
-                    if self._is_item_in_list(media_item_id, list_id):
+                    # Safe-cast list_id to int
+                    try:
+                        list_id_int = int(list_id)
+                    except (ValueError, TypeError):
+                        errors.append(f"Invalid list_id '{list_id}' for item {item_data.get('title', 'unknown')} - must be numeric")
+                        continue
+                    
+                    if self._is_item_in_list(media_item_id, list_id_int):
                         skipped += 1
                         continue
 
@@ -804,7 +814,7 @@ class ImportEngine:
 
             # Import lists first
             if "lists" in payload:
-                created, updated, list_errors = self._import_lists(payload["lists"], replace_mode)
+                created, updated, list_errors, id_mapping = self._import_lists(payload["lists"], replace_mode)
                 lists_created += created
                 lists_updated += updated
                 errors.extend(list_errors)
