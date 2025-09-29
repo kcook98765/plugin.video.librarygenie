@@ -262,8 +262,10 @@ class FolderCache:
                 self._stats['hits'] += 1
             
             # Count items correctly based on payload structure
-            if 'items' in payload:
-                item_count = len(payload.get('items', []))  # Root folder format
+            if 'processed_items' in payload:
+                item_count = len(payload.get('processed_items', []))  # V4 processed format
+            elif 'items' in payload:
+                item_count = len(payload.get('items', []))  # Legacy root folder format
             elif 'lists' in payload:
                 item_count = len(payload.get('lists', []))  # Subfolder format
             else:
@@ -341,8 +343,10 @@ class FolderCache:
                 self._stats['writes'] += 1
             
             # Count items correctly based on payload structure
-            if 'items' in payload:
-                item_count = len(payload.get('items', []))  # Root folder format
+            if 'processed_items' in payload:
+                item_count = len(payload.get('processed_items', []))  # V4 processed format
+            elif 'items' in payload:
+                item_count = len(payload.get('items', []))  # Legacy root folder format
             elif 'lists' in payload:
                 item_count = len(payload.get('lists', []))  # Subfolder format
             else:
