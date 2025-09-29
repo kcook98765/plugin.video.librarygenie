@@ -6,7 +6,7 @@ LibraryGenie - Plugin Router
 Handles action routing and dispatch for plugin requests
 """
 
-from typing import Dict, Callable, Any
+from typing import Dict, Callable, Any, Optional
 from lib.ui.plugin_context import PluginContext
 import xbmcgui
 import xbmcplugin
@@ -58,7 +58,7 @@ class Router:
         """Register multiple handlers at once"""
         self._handlers.update(handlers)
 
-    def _navigate_smart(self, next_route: str, reason: str = "navigation", next_params: Dict[str, Any] = None):
+    def _navigate_smart(self, next_route: str, reason: str = "navigation", next_params: Optional[Dict[str, Any]] = None):
         """Navigate using navigation policy to determine push vs replace"""
         try:
             from lib.ui.nav_policy import decide_mode
@@ -100,10 +100,11 @@ class Router:
             # Don't auto-initialize DB for breadcrumbs - pass None to let breadcrumb helper decide
             breadcrumb_path = breadcrumb_helper.get_breadcrumb_for_action(action, params, None)
             # Add breadcrumb to context for handlers
-            context.breadcrumb_path = breadcrumb_path
+            # Set as attribute dynamically since it's not part of the PluginContext type definition
+            setattr(context, 'breadcrumb_path', breadcrumb_path)
         else:
             # Tools & Options don't need breadcrumbs - skip for performance
-            context.breadcrumb_path = None
+            setattr(context, 'breadcrumb_path', None)
 
         # Handle special router-managed actions
         try:
@@ -493,7 +494,7 @@ class Router:
                 if action == 'add_to_list':
                     media_item_id = context.get_param('media_item_id')
                     if media_item_id:
-                        result = lists_handler.add_to_list_menu(context)
+                        result = lists_handler.add_to_list_menu(context, media_item_id)
                     else:
                         # Handle library item parameters
                         result = lists_handler.add_library_item_to_list_context(context)
@@ -505,17 +506,23 @@ class Router:
                 # Handle context actions differently
                 if is_context:
                     # Pure context actions - no endOfDirectory, use NavigationIntent
-                    if result and hasattr(result, 'intent') and result.intent:
-                        execute_intent(result.intent)
+                    intent = getattr(result, 'intent', None) if result else None
+                    if intent:
+                        execute_intent(intent)
                     elif result:
                         refresh()  # Fallback to refresh if no intent
                     return bool(result)
                 else:
                     # For plugin directory actions, handle the response properly
-                    if hasattr(result, 'success'):
+                    if result and hasattr(result, 'success'):
                         # It's a DialogResponse - handle with response handler
-                        response_handler.handle_dialog_response(result, context)
-                        return result.success
+                        from lib.ui.response_types import DialogResponse
+                        if isinstance(result, DialogResponse):
+                            response_handler.handle_dialog_response(result, context)
+                            return result.success
+                        else:
+                            # It's some other object with success attribute
+                            return bool(getattr(result, 'success', False))
                     else:
                         # It's a boolean or similar result
                         xbmcplugin.endOfDirectory(context.addon_handle, succeeded=bool(result))
@@ -1003,6 +1010,7 @@ class Router:
                 
         except Exception as e:
             self.logger.error("Error renaming bookmark: %s", e)
+            import xbmcgui
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
                 "Failed to rename bookmark",
@@ -1088,6 +1096,7 @@ class Router:
                 
         except Exception as e:
             self.logger.error("Error removing bookmark: %s", e)
+            import xbmcgui
             xbmcgui.Dialog().notification(
                 "LibraryGenie",
                 "Failed to remove bookmark",
