@@ -20,8 +20,10 @@ from lib.utils.kodi_log import log, log_info, log_error, log_warning
 # Heavy imports now lazy loaded in their respective functions for better startup performance
 # Type annotations only - no runtime imports
 if TYPE_CHECKING:
-    from lib.ui.plugin_context import PluginContext
     from lib.ui.router import Router
+
+# PluginContext needed at runtime for _handle_manual_backup function
+from lib.ui.plugin_context import PluginContext
 
 # Using direct Kodi logging via lib.utils.kodi_log
 
