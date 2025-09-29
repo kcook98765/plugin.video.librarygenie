@@ -25,17 +25,19 @@ def start_search_flow(initial_query=''):
             return None
         return build_query_from_result(result)
     else:
-        # Legacy: straight keyboard
+        # Legacy: straight keyboard - return unified structure
         kb = xbmc.Keyboard(initial_query, L(36200))
         kb.doModal()
         if not kb.isConfirmed():
             return None
-        return {
+        # Build legacy result in unified format
+        legacy_result = {
             'content_type': CONTENT_ALL,
             'fields': FIELDS_BOTH,
             'match_mode': MATCH_ANY,
             'query': kb.getText()
         }
+        return build_query_from_result(legacy_result)
 
 
 def build_query_from_result(result):

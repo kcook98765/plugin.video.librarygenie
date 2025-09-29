@@ -157,21 +157,40 @@ class SimpleSearchEngine:
         tvshowtitle_conditions = []
         plot_conditions = []
 
-        for keyword in query.keywords:
-            normalized_keyword = self.normalizer.normalize(keyword)
+        # Handle exact phrase matching
+        if query.match_logic == "phrase":
+            # Combine all keywords into a single phrase
+            phrase = " ".join(query.keywords)
+            normalized_phrase = self.normalizer.normalize(phrase)
 
             if query.search_scope in ["title", "both"]:
                 title_conditions.append("LOWER(mi.title) LIKE ?")
-                params.append(f"%{normalized_keyword}%")
+                params.append(f"%{normalized_phrase}%")
                 
-                # Also search tvshowtitle for episodes
                 if "episode" in query.media_types:
                     tvshowtitle_conditions.append("LOWER(mi.tvshowtitle) LIKE ?")
-                    params.append(f"%{normalized_keyword}%")
+                    params.append(f"%{normalized_phrase}%")
 
             if query.search_scope in ["plot", "both"]:
                 plot_conditions.append("LOWER(mi.plot) LIKE ?")
-                params.append(f"%{normalized_keyword}%")
+                params.append(f"%{normalized_phrase}%")
+        else:
+            # Keyword-based matching (any/all)
+            for keyword in query.keywords:
+                normalized_keyword = self.normalizer.normalize(keyword)
+
+                if query.search_scope in ["title", "both"]:
+                    title_conditions.append("LOWER(mi.title) LIKE ?")
+                    params.append(f"%{normalized_keyword}%")
+                    
+                    # Also search tvshowtitle for episodes
+                    if "episode" in query.media_types:
+                        tvshowtitle_conditions.append("LOWER(mi.tvshowtitle) LIKE ?")
+                        params.append(f"%{normalized_keyword}%")
+
+                if query.search_scope in ["plot", "both"]:
+                    plot_conditions.append("LOWER(mi.plot) LIKE ?")
+                    params.append(f"%{normalized_keyword}%")
 
         # Combine conditions based on match logic
         field_conditions = []

@@ -39,15 +39,19 @@ class SimpleQueryInterpreter:
             # Set media types to search (defaults to movies for backward compatibility)
             query.media_types = kwargs.get("media_types", ["movie"])
             
-            # Always search both title and plot with all keywords
-            query.search_scope = "both"
-            query.match_logic = "all"
+            # Set search scope and match logic (defaults for backward compatibility)
+            query.search_scope = kwargs.get("search_scope", "both")
+            query.match_logic = kwargs.get("match_logic", "all")
 
             # Extract and normalize keywords
             if user_input and user_input.strip():
                 original_input = user_input.strip()
-                # Use normalizer to get clean tokens
-                query.keywords = self.normalizer.normalize_tokens(original_input)
+                # For phrase matching, keep the original phrase intact
+                if query.match_logic == "phrase":
+                    query.keywords = [original_input]
+                else:
+                    # Use normalizer to get clean tokens for keyword matching
+                    query.keywords = self.normalizer.normalize_tokens(original_input)
                 self.logger.debug("DEBUG: Query parsing - original input: '%s', normalized keywords: %s", original_input, query.keywords)
 
             self.logger.debug("Parsed simple query: %s", query.to_dict())
