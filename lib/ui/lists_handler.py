@@ -708,7 +708,6 @@ class ListsHandler:
 
             self.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
             # Set parent directory using proper window property API
-            import xbmcgui
             window = xbmcgui.Window(10025)  # Video window
             window.setProperty('ParentDir', parent_path)
             window.setProperty('Container.ParentDir', parent_path)
