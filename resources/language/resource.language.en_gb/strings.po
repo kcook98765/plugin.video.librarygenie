@@ -620,6 +620,10 @@ msgctxt "#32100"
 msgid "Enter search keywords"
 msgstr ""
 
+msgctxt "#32101"
+msgid "No results found for '{0}'"
+msgstr ""
+
 msgctxt "#32102"
 msgid "Search saved: %d items"
 msgstr ""
