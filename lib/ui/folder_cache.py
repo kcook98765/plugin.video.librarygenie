@@ -23,7 +23,7 @@ class FolderCache:
     Eliminates database overhead by using JSON files with filesystem timestamps for TTL.
     """
     
-    def __init__(self, cache_dir: Optional[str] = None, schema_version: int = 1):
+    def __init__(self, cache_dir: Optional[str] = None, schema_version: int = 2):
         self.logger = get_kodi_logger('lib.ui.folder_cache')
         self.schema_version = schema_version
         
@@ -928,7 +928,7 @@ _folder_cache_instance = None
 _instance_lock = threading.Lock()
 
 
-def get_folder_cache(schema_version: int = 1) -> FolderCache:
+def get_folder_cache(schema_version: int = 2) -> FolderCache:
     """Get global folder cache instance"""
     global _folder_cache_instance
     
