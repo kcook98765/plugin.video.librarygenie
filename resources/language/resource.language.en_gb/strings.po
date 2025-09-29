@@ -2266,145 +2266,144 @@ msgctxt "#35616"
 msgid "Clear all cached folder data to force fresh rebuilding of folder navigation. Use this if you experience cache-related issues."
 msgstr ""
 
-# Search Panel Labels (IDs 36200-36299)
-msgctxt "#32200"
+
+# Search Panel Labels (IDs 32500-32599)
+msgctxt "#32500"
 msgid "LibraryGenie – Search"
 msgstr ""
 
-msgctxt "#32201"
+msgctxt "#32501"
 msgid "Content type"
 msgstr ""
 
-msgctxt "#32202"
+msgctxt "#32502"
 msgid "Movies"
 msgstr ""
 
-msgctxt "#32203"
+msgctxt "#32503"
 msgid "Series"
 msgstr ""
 
-msgctxt "#32204"
+msgctxt "#32504"
 msgid "All"
 msgstr ""
 
-msgctxt "#32205"
+msgctxt "#32505"
 msgid "Fields"
 msgstr ""
 
-msgctxt "#32206"
+msgctxt "#32506"
 msgid "Title"
 msgstr ""
 
-msgctxt "#32207"
+msgctxt "#32507"
 msgid "Plot"
 msgstr ""
 
-msgctxt "#32208"
+msgctxt "#32508"
 msgid "Match mode"
 msgstr ""
 
-msgctxt "#32209"
+msgctxt "#32509"
 msgid "Any word"
 msgstr ""
 
-msgctxt "#32210"
+msgctxt "#32510"
 msgid "All words"
 msgstr ""
 
-msgctxt "#32211"
+msgctxt "#32511"
 msgid "Exact phrase"
 msgstr ""
 
-msgctxt "#32212"
+msgctxt "#32512"
 msgid "Query"
 msgstr ""
 
-msgctxt "#32213"
+msgctxt "#32513"
 msgid "Keyboard…"
 msgstr ""
 
-msgctxt "#32214"
+msgctxt "#32514"
 msgid "Presets"
 msgstr ""
 
-msgctxt "#32215"
+msgctxt "#32515"
 msgid "Save as preset"
 msgstr ""
 
-msgctxt "#32216"
+msgctxt "#32516"
 msgid "Set as default"
 msgstr ""
 
-msgctxt "#32217"
+msgctxt "#32517"
 msgid "Cancel"
 msgstr ""
 
-msgctxt "#32218"
+msgctxt "#32518"
 msgid "Search"
 msgstr ""
 
-msgctxt "#32219"
+msgctxt "#32519"
 msgid "Enter search text"
 msgstr ""
 
-msgctxt "#32220"
-msgid "Use custom search panel"
+msgctxt "#32520"
+msgid "Load Preset"
 msgstr ""
 
-msgctxt "#32221"
-msgid "Default content type"
+msgctxt "#32521"
+msgid "Select a preset to load"
 msgstr ""
 
-msgctxt "#32222"
-msgid "Default fields"
+msgctxt "#32522"
+msgid "Delete Preset"
 msgstr ""
 
-msgctxt "#32223"
-msgid "Default match mode"
+msgctxt "#32523"
+msgid "Select a preset to delete"
 msgstr ""
 
-msgctxt "#32224"
-msgid "Remember last used values"
+msgctxt "#32524"
+msgid "No presets available"
 msgstr ""
 
-msgctxt "#32225"
-msgid "Title + Plot"
+msgctxt "#32525"
+msgid "Are you sure you want to delete this preset?"
 msgstr ""
 
-msgctxt "#32226"
+msgctxt "#32526"
 msgid "Preset name"
 msgstr ""
 
-msgctxt "#32227"
-msgid "Default search options updated"
+msgctxt "#32527"
+msgid "Preset saved"
 msgstr ""
 
-msgctxt "#32228"
-msgid "Movies – Title – Any"
+msgctxt "#32528"
+msgid "Preset loaded"
 msgstr ""
 
-msgctxt "#32229"
-msgid "Search & Remember"
+msgctxt "#32529"
+msgid "Preset deleted"
 msgstr ""
 
-# Search Panel Help Strings
-msgctxt "#32240"
-msgid "Choose whether to use the custom search dialog instead of opening the keyboard immediately."
+msgctxt "#32540"
+msgid "Default values set"
 msgstr ""
 
-msgctxt "#32241"
-msgid "Initial content scope when the search panel opens (Movies, Series, or All)."
+msgctxt "#32541"
+msgid "Are you sure you want to set these values as default?"
 msgstr ""
 
-msgctxt "#32242"
-msgid "Default fields to search in (Title, Plot, or both)."
+msgctxt "#32542"
+msgid "No query entered"
 msgstr ""
 
-msgctxt "#32243"
-msgid "Default matching mode: Any word (OR), All words (AND), or Exact phrase."
+msgctxt "#32543"
+msgid "Please enter a search query"
 msgstr ""
 
-msgctxt "#32244"
-msgid "If enabled, the last used search options are restored next time."
+msgctxt "#32544"
+msgid "Failed to execute search"
 msgstr ""
-
