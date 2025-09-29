@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<window>
+<window type="dialog">
+    <backgroundcolor>0xff000000</backgroundcolor>
     <defaultcontrol>200</defaultcontrol>
     <allowoverlay>yes</allowoverlay>
     <controls>
