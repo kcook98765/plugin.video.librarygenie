@@ -10,6 +10,7 @@ import os
 import json
 import time
 import threading
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from contextlib import contextmanager
@@ -39,7 +40,7 @@ class FolderCache:
         self.cache_dir = cache_dir
         self._ensure_cache_dir()
         
-        # Singleton lock for stampede protection
+        # Singleton lock for stampede protection (use RLock for re-entrant access)
         self._locks = {}
         self._locks_mutex = threading.Lock()
         
@@ -98,10 +99,13 @@ class FolderCache:
         # Handle None folder_id (root level)
         if folder_id is None:
             safe_folder_id = "root"
+            folder_hash = hashlib.sha1("root".encode('utf-8')).hexdigest()[:8]
         else:
             # Sanitize folder_id for filename use
             safe_folder_id = "".join(c for c in str(folder_id) if c.isalnum() or c in '-_').strip()
-        filename = f"folder_{safe_folder_id}_anon_v{self.schema_version}.json"
+            # Add hash of original folder_id to prevent collisions
+            folder_hash = hashlib.sha1(str(folder_id).encode('utf-8')).hexdigest()[:8]
+        filename = f"folder_{safe_folder_id}_{folder_hash}_anon_v{self.schema_version}.json"
         return os.path.join(self.cache_dir, filename)
     
     def _is_file_fresh(self, file_path: str) -> bool:
@@ -163,10 +167,10 @@ class FolderCache:
         
         with self._locks_mutex:
             if lock_key not in self._locks:
-                self._locks[lock_key] = threading.Lock()
+                self._locks[lock_key] = threading.RLock()  # Use RLock for re-entrant access
             lock = self._locks[lock_key]
         
-        acquired = lock.acquire(blocking=True, timeout=10.0)  # 10 second timeout
+        acquired = lock.acquire(blocking=True, timeout=60.0)  # 60 second timeout (was 10s)
         if not acquired:
             raise TimeoutError(f"Could not acquire lock for folder {folder_id}")
         
@@ -174,10 +178,7 @@ class FolderCache:
             yield
         finally:
             lock.release()
-            # Clean up lock if no longer needed
-            with self._locks_mutex:
-                if lock_key in self._locks and not self._locks[lock_key].locked():
-                    del self._locks[lock_key]
+            # Note: RLock doesn't have locked() method, skip cleanup to avoid AttributeError
     
     @contextmanager
     def with_build_lock(self, folder_id: Optional[str]):
@@ -236,6 +237,18 @@ class FolderCache:
                 self.delete(folder_id)
                 return None
             
+            # Validate folder ID matches to prevent serving wrong cache due to filename collisions
+            cached_folder_id = payload.get('_folder_id')
+            # Handle None comparison (root folder)
+            expected_folder_id = folder_id if folder_id is not None else None
+            actual_folder_id = cached_folder_id if cached_folder_id != "root" else None
+            
+            if actual_folder_id != expected_folder_id:
+                self.logger.warning("Folder ID mismatch in cache for %s - expected %s, got %s (filename collision)", 
+                                  folder_id, expected_folder_id, actual_folder_id)
+                self.delete(folder_id)
+                return None
+            
             with self._stats_lock:
                 self._stats['hits'] += 1
             
@@ -271,6 +284,12 @@ class FolderCache:
         try:
             with self._singleton_lock(folder_id):
                 return self._set_without_lock(folder_id, payload, build_time_ms)
+        except TimeoutError as e:
+            # Downgrade timeout errors to warning to reduce noise
+            with self._stats_lock:
+                self._stats['errors'] += 1
+            self.logger.warning("Lock timeout for caching folder %s: %s", folder_id, e)
+            return False
         except Exception as e:
             with self._stats_lock:
                 self._stats['errors'] += 1
@@ -417,7 +436,7 @@ class FolderCache:
                 
                 # Extract schema version from filename
                 try:
-                    # Format: folder_{id}_anon_v{schema}.json
+                    # Format: folder_{id}_{hash}_anon_v{schema}.json (new) or folder_{id}_anon_v{schema}.json (old)
                     parts = filename.replace('.json', '').split('_v')
                     if len(parts) >= 2:
                         file_schema = int(parts[-1])
@@ -437,6 +456,26 @@ class FolderCache:
             self.logger.error("Error during schema cleanup: %s", e)
         
         return cleaned_count
+    
+    def get_resilient(self, folder_id: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        Get cached folder data with fallback to stale cache during high contention
+        
+        This method first tries to get fresh cache. If unavailable, it checks if there's
+        stale but usable cache and serves that to avoid blocking users during high contention.
+        """
+        # First try to get fresh cache
+        cached_data = self.get(folder_id, allow_stale=False)
+        if cached_data:
+            return cached_data
+        
+        # If no fresh cache and we have stale but usable cache, serve it
+        if self.is_stale_but_usable(folder_id):
+            self.logger.debug("Serving stale cache for folder %s due to fresh cache miss", folder_id)
+            return self.get(folder_id, allow_stale=True)
+            
+        # No cache available at all
+        return None
     
     def cleanup(self) -> int:
         """
