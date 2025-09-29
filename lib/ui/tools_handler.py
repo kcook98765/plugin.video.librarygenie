@@ -1295,11 +1295,12 @@ class ToolsHandler:
                 search_folder_id = query_manager.get_or_create_search_history_folder()
                 remaining_lists = query_manager.get_lists_in_folder(str(search_folder_id))
 
-                # Don't auto-navigate - just show success message and refresh current view
+                # Navigate back to lists main instead of refreshing tools view
+                # This prevents the tools modal from reappearing for the converted list
                 return DialogResponse(
                     success=True,
                     message=f"Moved '{new_name.strip()}' to {destination_name}",
-                    refresh_needed=True
+                    navigate_to_lists=True
                 )
 
             except Exception as db_error:
