@@ -422,7 +422,6 @@ class ListsHandler:
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
-                    import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
                     self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
@@ -727,7 +726,6 @@ class ListsHandler:
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
-                    import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
                     self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
@@ -929,7 +927,6 @@ class ListsHandler:
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
-                    import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
                     self.logger.debug("Set directory title: '%s'", directory_title)
