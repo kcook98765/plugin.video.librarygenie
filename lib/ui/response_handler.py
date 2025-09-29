@@ -44,14 +44,15 @@ class ResponseHandler:
                     # This eliminates the Container.Update issue that prevents folder navigation
                     # from working in Kodi V22
                     folder_id = response.navigate_to_folder
-                    success = self._render_folder_directly(context, folder_id)
-                    if success:
-                        context.logger.debug("RESPONSE HANDLER: Successfully displayed folder %s using direct rendering", folder_id)
-                        return
-                    else:
-                        context.logger.warning("RESPONSE HANDLER: Failed direct folder rendering for %s, falling back to refresh", folder_id)
-                        self.navigator.refresh()
-                        return
+                    if folder_id is not None:
+                        success = self._render_folder_directly(context, str(folder_id))
+                        if success:
+                            context.logger.debug("RESPONSE HANDLER: Successfully displayed folder %s using direct rendering", folder_id)
+                            return
+                        else:
+                            context.logger.warning("RESPONSE HANDLER: Failed direct folder rendering for %s, falling back to refresh", folder_id)
+                            self.navigator.refresh()
+                            return
 
                 elif getattr(response, 'navigate_to_lists', None):
                     # Navigate to lists menu
@@ -289,7 +290,7 @@ class ResponseHandler:
                 # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
                 folder_id = response.navigate_to_folder
                 self.logger.debug("RESPONSE HANDLER: Directly rendering folder: %s", folder_id)
-                success = self._render_folder_directly(context, folder_id)
+                success = self._render_folder_directly(context, str(folder_id))
                 if success:
                     self.logger.debug("RESPONSE HANDLER: Successfully displayed folder %s using direct rendering", folder_id)
                     return
