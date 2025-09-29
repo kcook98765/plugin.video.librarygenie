@@ -162,8 +162,9 @@ class ToolsHandler:
                     message=L(36033) % folder_name,  # "Moved list to %s"
                 )
 
-                # Don't auto-navigate - just show success message and let user navigate manually
+                # Don't auto-navigate - just show success message and refresh current view
                 # This prevents race conditions and timing issues on slower devices
+                response.refresh_needed = True
                 self.logger.debug("List moved successfully to folder %s - no auto-navigation", target_folder_id)
                 return response
             else:
@@ -215,6 +216,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=L(36025) % result.get('items_added', 0),  # "Merged %d new items"
+                    refresh_needed=True
                 )
             else:
                 return DialogResponse(success=False, message=L(36026))  # "Failed to merge lists"
@@ -253,11 +255,12 @@ class ToolsHandler:
             if result.get("success"):
                 destination_name = "root level" if target_folder_id is None else folder_options[selected_index]
 
-                # Don't auto-navigate - just show success message
+                # Don't auto-navigate - just show success message and refresh current view
                 # This prevents race conditions and timing issues on slower devices
                 return DialogResponse(
                     success=True,
                     message=f"Moved folder to {destination_name}",
+                    refresh_needed=True
                 )
             else:
                 # Handle specific error types with helpful messages
@@ -315,6 +318,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {new_name}",
+                    refresh_needed=True
                 )
 
         except Exception as e:
@@ -356,10 +360,11 @@ class ToolsHandler:
             else:
                 self.logger.info("TOOLS DEBUG: Successfully created subfolder '%s' in parent_folder_id: %s", folder_name, parent_folder_id)
 
-                # Don't auto-navigate - just show success message
+                # Don't auto-navigate - just show success message and refresh current view
                 return DialogResponse(
                     success=True,
                     message=f"Created subfolder: {folder_name}",
+                    refresh_needed=True
                 )
 
         except Exception as e:
@@ -1120,6 +1125,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Cleared {deleted_count} search history lists",
+                    refresh_needed=True
                 )
             else:
                 return DialogResponse(
@@ -1278,10 +1284,11 @@ class ToolsHandler:
                 search_folder_id = query_manager.get_or_create_search_history_folder()
                 remaining_lists = query_manager.get_lists_in_folder(str(search_folder_id))
 
-                # Don't auto-navigate - just show success message
+                # Don't auto-navigate - just show success message and refresh current view
                 return DialogResponse(
                     success=True,
                     message=f"Moved '{new_name.strip()}' to {destination_name}",
+                    refresh_needed=True
                 )
 
             except Exception as db_error:
@@ -1507,10 +1514,11 @@ class ToolsHandler:
             else:
                 self.logger.info("TOOLS DEBUG: Successfully created top-level folder '%s'", folder_name)
 
-                # Don't auto-navigate - just show success message
+                # Don't auto-navigate - just show success message and refresh current view
                 return DialogResponse(
                     success=True,
                     message=f"Created folder: {folder_name}",
+                    refresh_needed=True
                 )
 
         except Exception as e:
@@ -1524,7 +1532,9 @@ class ToolsHandler:
             lists_handler = ListsHandler(context)
             result = lists_handler.create_list(context)
 
-            # Don't auto-navigate - just show success message
+            # Don't auto-navigate - just show success message and refresh current view
+            if result.success:
+                result.refresh_needed = True
             return result
         except Exception as e:
             self.logger.error("Error creating list: %s", e)
