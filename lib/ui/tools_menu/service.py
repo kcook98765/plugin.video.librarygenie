@@ -100,15 +100,21 @@ class ToolsMenuService:
             # Check for stored return location and navigate back to it
             from lib.ui.session_state import get_session_state
             session_state = get_session_state()
-            if session_state and session_state.get_tools_return_location():
-                self.logger.debug("Returning to stored location: %s", session_state.get_tools_return_location())
+            return_location = session_state.get_tools_return_location() if session_state else None
+            
+            if return_location:
+                self.logger.debug("Returning to stored location: %s", return_location)
                 return DialogResponse(
                     success=False, 
                     navigate_on_failure='return_to_tools_location'
                 )
             else:
-                self.logger.debug("No stored return location, staying in current view")
-                return DialogResponse(success=False)
+                # No safe return location stored - just close modal without navigation
+                # This prevents navigation loops when no safe location was available
+                self.logger.debug("No stored return location, closing modal without navigation")
+                return DialogResponse(
+                    success=False  # Silent cancel - just close the modal
+                )
         except Exception as e:
             self.logger.error("Error handling cancel: %s", e)
             return DialogResponse(success=False)
