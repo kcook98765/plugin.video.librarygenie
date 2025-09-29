@@ -2266,3 +2266,145 @@ msgctxt "#35616"
 msgid "Clear all cached folder data to force fresh rebuilding of folder navigation. Use this if you experience cache-related issues."
 msgstr ""
 
+# Search Panel Labels (IDs 36200-36299)
+msgctxt "#36200"
+msgid "LibraryGenie – Search"
+msgstr ""
+
+msgctxt "#36201"
+msgid "Content type"
+msgstr ""
+
+msgctxt "#36202"
+msgid "Movies"
+msgstr ""
+
+msgctxt "#36203"
+msgid "Series"
+msgstr ""
+
+msgctxt "#36204"
+msgid "All"
+msgstr ""
+
+msgctxt "#36205"
+msgid "Fields"
+msgstr ""
+
+msgctxt "#36206"
+msgid "Title"
+msgstr ""
+
+msgctxt "#36207"
+msgid "Plot"
+msgstr ""
+
+msgctxt "#36208"
+msgid "Match mode"
+msgstr ""
+
+msgctxt "#36209"
+msgid "Any word"
+msgstr ""
+
+msgctxt "#36210"
+msgid "All words"
+msgstr ""
+
+msgctxt "#36211"
+msgid "Exact phrase"
+msgstr ""
+
+msgctxt "#36212"
+msgid "Query"
+msgstr ""
+
+msgctxt "#36213"
+msgid "Keyboard…"
+msgstr ""
+
+msgctxt "#36214"
+msgid "Presets"
+msgstr ""
+
+msgctxt "#36215"
+msgid "Save as preset"
+msgstr ""
+
+msgctxt "#36216"
+msgid "Set as default"
+msgstr ""
+
+msgctxt "#36217"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "#36218"
+msgid "Search"
+msgstr ""
+
+msgctxt "#36219"
+msgid "Enter search text"
+msgstr ""
+
+msgctxt "#36220"
+msgid "Use custom search panel"
+msgstr ""
+
+msgctxt "#36221"
+msgid "Default content type"
+msgstr ""
+
+msgctxt "#36222"
+msgid "Default fields"
+msgstr ""
+
+msgctxt "#36223"
+msgid "Default match mode"
+msgstr ""
+
+msgctxt "#36224"
+msgid "Remember last used values"
+msgstr ""
+
+msgctxt "#36225"
+msgid "Title + Plot"
+msgstr ""
+
+msgctxt "#36226"
+msgid "Preset name"
+msgstr ""
+
+msgctxt "#36227"
+msgid "Default search options updated"
+msgstr ""
+
+msgctxt "#36228"
+msgid "Movies – Title – Any"
+msgstr ""
+
+msgctxt "#36229"
+msgid "Search & Remember"
+msgstr ""
+
+# Search Panel Help Strings
+msgctxt "#36240"
+msgid "Choose whether to use the custom search dialog instead of opening the keyboard immediately."
+msgstr ""
+
+msgctxt "#36241"
+msgid "Initial content scope when the search panel opens (Movies, Series, or All)."
+msgstr ""
+
+msgctxt "#36242"
+msgid "Default fields to search in (Title, Plot, or both)."
+msgstr ""
+
+msgctxt "#36243"
+msgid "Default matching mode: Any word (OR), All words (AND), or Exact phrase."
+msgstr ""
+
+msgctxt "#36244"
+msgid "If enabled, the last used search options are restored next time."
+msgstr ""
+
