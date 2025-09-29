@@ -146,7 +146,7 @@ def handle_settings():
 
 
 
-def _handle_manual_backup(context: 'PluginContext'):
+def _handle_manual_backup(context):
     """Handle manual backup from settings"""
     try:
         log_info("Running manual backup from settings")
