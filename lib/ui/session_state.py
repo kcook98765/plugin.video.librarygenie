@@ -67,8 +67,13 @@ class SessionState:
     
     def set_tools_return_location(self, location: str):
         """Set location to return to after tools operations"""
-        self.tools_return_location = location
-        self.logger.debug("Tools return location set to: %s", location)
+        # Validate that this location won't create navigation loops
+        if self._is_safe_return_location(location):
+            self.tools_return_location = location
+            self.logger.debug("Tools return location set to: %s", location)
+        else:
+            self.logger.warning("Unsafe return location rejected: %s", location)
+            self.tools_return_location = None
     
     def get_tools_return_location(self) -> Optional[str]:
         """Get location to return to after tools operations"""
@@ -77,6 +82,35 @@ class SessionState:
     def clear_tools_return_location(self):
         """Clear tools return location"""
         self.tools_return_location = None
+
+    def _is_safe_return_location(self, location: str) -> bool:
+        """Check if a location is safe to use as return location (won't create loops)"""
+        try:
+            if not location or not isinstance(location, str):
+                return False
+            
+            # Skip URLs that contain problematic actions that could create loops
+            problematic_actions = ['show_list_tools', 'noop']
+            
+            if 'action=' in location:
+                import urllib.parse
+                parsed = urllib.parse.urlparse(location)
+                params = urllib.parse.parse_qs(parsed.query)
+                
+                # Check if this URL contains any problematic actions
+                action = params.get('action', [''])[0]
+                if action in problematic_actions:
+                    return False
+            
+            # Additional safety check - avoid storing URLs with specific problematic actions
+            if 'show_list_tools' in location:
+                return False
+            
+            return True
+            
+        except Exception as e:
+            self.logger.warning("Error validating return location '%s': %s", location, e)
+            return False
 
 
 # Global session state instance

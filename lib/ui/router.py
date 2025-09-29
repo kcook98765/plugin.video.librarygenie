@@ -50,6 +50,38 @@ class Router:
             self.logger.warning("ROUTER: Error getting current route info: %s", e)
             return None, {}
 
+    def _get_safe_return_location(self, current_path: str) -> Optional[str]:
+        """Get a safe return location that won't create navigation loops"""
+        try:
+            if not current_path or not isinstance(current_path, str):
+                return None
+            
+            # Skip URLs that contain problematic actions that could create loops
+            problematic_actions = ['show_list_tools', 'noop']
+            
+            if 'action=' in current_path:
+                import urllib.parse
+                parsed = urllib.parse.urlparse(current_path)
+                params = urllib.parse.parse_qs(parsed.query)
+                
+                # Check if this URL contains any problematic actions
+                action = params.get('action', [''])[0]
+                if action in problematic_actions:
+                    self.logger.debug("ROUTER: Skipping problematic action URL: %s", current_path)
+                    return None
+            
+            # Additional safety check - avoid storing URLs with specific problematic actions
+            if 'show_list_tools' in current_path:
+                self.logger.debug("ROUTER: Avoiding problematic action URL: %s", current_path)
+                return None
+            
+            # If we get here, the path should be safe to use as return location
+            return current_path
+            
+        except Exception as e:
+            self.logger.warning("ROUTER: Error filtering return location '%s': %s", current_path, e)
+            return None
+
     def register_handler(self, action: str, handler: Callable):
         """Register a handler function for an action"""
         self._handlers[action] = handler
@@ -117,7 +149,14 @@ class Router:
                 import xbmc
                 current_path = xbmc.getInfoLabel('Container.FolderPath')
                 session_state = get_session_state()
-                session_state.set_tools_return_location(current_path)
+                
+                # Filter out problematic URLs that would create navigation loops
+                safe_return_path = self._get_safe_return_location(current_path)
+                if safe_return_path:
+                    session_state.set_tools_return_location(safe_return_path)
+                    self.logger.debug("ROUTER: Set safe tools return location: %s", safe_return_path)
+                else:
+                    self.logger.debug("ROUTER: No safe return location found, will not set tools return location")
 
                 factory = get_handler_factory()
                 factory.context = context # Set context before using factory
