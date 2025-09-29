@@ -166,7 +166,7 @@ class ToolsHandler:
                 # This prevents race conditions and timing issues on slower devices
                 response.refresh_needed = True
                 response.skip_tools_navigation = True  # Prevent tools modal from reappearing
-                self.logger.debug("List moved successfully to folder %s - no auto-navigation", target_folder_id)
+                self.logger.debug("List moved successfully to folder %s - no auto-navigation, skip_tools_navigation=%s", target_folder_id, response.skip_tools_navigation)
                 return response
             else:
                 error_msg = result.get("error", "unknown")

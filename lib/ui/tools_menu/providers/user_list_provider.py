@@ -180,7 +180,14 @@ class UserListToolsProvider(BaseToolsProvider):
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._move_list_to_folder(plugin_context, payload["list_id"])
+            result = tools_handler._move_list_to_folder(plugin_context, payload["list_id"])
+            
+            # Debug logging to verify the flag is set
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.ui.tools_menu.user_list_provider')
+            logger.debug("MOVE LIST: result.skip_tools_navigation=%s", getattr(result, 'skip_tools_navigation', 'NOT_SET'))
+            
+            return result
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.user_list_provider')
