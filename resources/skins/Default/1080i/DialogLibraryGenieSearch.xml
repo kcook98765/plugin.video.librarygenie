@@ -8,6 +8,14 @@
             <top>120</top>
             <width>1620</width>
             <height>840</height>
+            <!-- Solid background -->
+            <control type="image">
+                <width>1620</width>
+                <height>840</height>
+                <colordiffuse>DD000000</colordiffuse>
+                <texture>white.png</texture>
+            </control>
+            <!-- Border -->
             <control type="image">
                 <width>1620</width>
                 <height>840</height>
@@ -104,7 +112,7 @@
             <!-- Query input -->
             <control type="group">
                 <left>60</left>
-                <top>390</top>
+                <top>420</top>
                 <width>1500</width>
                 <height>120</height>
                 <control type="label">
@@ -133,7 +141,7 @@
             <!-- Presets row -->
             <control type="group">
                 <left>60</left>
-                <top>540</top>
+                <top>590</top>
                 <width>1500</width>
                 <height>160</height>
                 <control type="label">
@@ -162,7 +170,7 @@
             <!-- Actions -->
             <control type="group">
                 <left>60</left>
-                <top>720</top>
+                <top>760</top>
                 <width>1500</width>
                 <height>80</height>
                 <control type="button" id="251">
