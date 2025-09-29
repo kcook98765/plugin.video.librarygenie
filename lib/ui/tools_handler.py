@@ -162,14 +162,10 @@ class ToolsHandler:
                     message=L(36033) % folder_name,  # "Moved list to %s"
                 )
 
-                # Clear session state to prevent tools modal from reappearing
-                from lib.ui.session_state import get_session_state
-                session_state = get_session_state()
-                session_state.clear_tools_return_location()
-                
                 # Don't auto-navigate - just show success message and refresh current view
                 # This prevents race conditions and timing issues on slower devices
                 response.refresh_needed = True
+                response.skip_tools_navigation = True  # Prevent tools modal from reappearing
                 self.logger.debug("List moved successfully to folder %s - no auto-navigation", target_folder_id)
                 return response
             else:
@@ -1289,16 +1285,12 @@ class ToolsHandler:
                 search_folder_id = query_manager.get_or_create_search_history_folder()
                 remaining_lists = query_manager.get_lists_in_folder(str(search_folder_id))
 
-                # Clear session state to prevent tools modal from reappearing
-                from lib.ui.session_state import get_session_state
-                session_state = get_session_state()
-                session_state.clear_tools_return_location()
-                
                 # Don't auto-navigate - just show success message and refresh current view
                 return DialogResponse(
                     success=True,
                     message=f"Moved '{new_name.strip()}' to {destination_name}",
-                    refresh_needed=True
+                    refresh_needed=True,
+                    skip_tools_navigation=True  # Prevent tools modal from reappearing
                 )
 
             except Exception as db_error:
