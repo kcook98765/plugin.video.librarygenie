@@ -838,7 +838,7 @@ class FolderCache:
             self.logger.error("Error invalidating folder hierarchy for %s: %s", folder_id, e)
             return {"error": True}
     
-    def invalidate_after_folder_operation(self, operation: str, folder_id: str, **kwargs) -> bool:
+    def invalidate_after_folder_operation(self, operation: str, folder_id: Optional[str], **kwargs) -> bool:
         """
         Invalidate relevant caches after folder operations
         
@@ -868,7 +868,7 @@ class FolderCache:
                     if parent_id:
                         parent_result = self.invalidate_folder(str(parent_id))
                     else:
-                        parent_result = self.invalidate_folder("")  # Root folder
+                        parent_result = self.invalidate_folder(None)  # Root folder
                 else:
                     # Fallback to querying parent (may fail if folder already deleted)
                     parent_result = self.invalidate_parent_folder(folder_id)
@@ -899,7 +899,7 @@ class FolderCache:
                     if source_parent_id:
                         source_parent_result = self.invalidate_folder(str(source_parent_id))
                     else:
-                        source_parent_result = self.invalidate_folder("")  # Root folder
+                        source_parent_result = self.invalidate_folder(None)  # Root folder
                 
                 # Invalidate target parent if provided
                 target_parent_result = True
@@ -908,7 +908,7 @@ class FolderCache:
                     if target_parent_id:
                         target_parent_result = self.invalidate_folder(str(target_parent_id))
                     else:
-                        target_parent_result = self.invalidate_folder("")  # Root folder
+                        target_parent_result = self.invalidate_folder(None)  # Root folder
                 
                 # Return True if at least one invalidation succeeded
                 hierarchy_success = any(result for result in hierarchy_results.values() if isinstance(result, bool))
