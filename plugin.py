@@ -7,26 +7,28 @@ Handles plugin URL routing using new modular architecture
 """
 
 import sys
+from typing import TYPE_CHECKING
 
 import xbmcaddon
 import xbmcgui
 import xbmc
 import xbmcplugin
 
-# Import new modular components
-from lib.ui.plugin_context import PluginContext
-from lib.ui.router import Router
-from lib.ui.handler_factory import get_handler_factory
+# Import shared utilities
 from lib.utils.kodi_log import log, log_info, log_error, log_warning
 
-# Import required functions
-from lib.auth.auth_helper import get_auth_helper
+# Heavy imports now lazy loaded in their respective functions for better startup performance
+# Type annotations only - no runtime imports
+if TYPE_CHECKING:
+    from lib.ui.plugin_context import PluginContext
+    from lib.ui.router import Router
 
 # Using direct Kodi logging via lib.utils.kodi_log
 
 
 def handle_authorize():
     """Handle device authorization"""
+    from lib.auth.auth_helper import get_auth_helper
     auth_helper = get_auth_helper()
     auth_helper.start_device_authorization()
 
@@ -126,7 +128,7 @@ def handle_settings():
 
 
 
-def _handle_manual_backup(context: PluginContext):
+def _handle_manual_backup(context: 'PluginContext'):
     """Handle manual backup from settings"""
     try:
         log_info("Running manual backup from settings")
@@ -162,7 +164,7 @@ def _handle_manual_backup(context: PluginContext):
         pass
 
 
-def _handle_restore_backup(context: PluginContext):
+def _handle_restore_backup(context: 'PluginContext'):
     """Handle restore backup from settings - delegated to tools handler"""
     try:
         from lib.ui.tools_handler import ToolsHandler
@@ -372,7 +374,7 @@ def handle_noop():
         pass
 
 
-def _ensure_startup_initialization(context: PluginContext):
+def _ensure_startup_initialization(context: 'PluginContext'):
     """Optimized startup initialization - leverage service initialization"""
     try:
         log("=== OPTIMIZED STARTUP INITIALIZATION ===")
@@ -411,7 +413,7 @@ def _fast_startup_check(context):
     
     # Skip database verification - trust service initialization
 
-def _standard_startup_initialization(context: PluginContext):
+def _standard_startup_initialization(context: 'PluginContext'):
     """Standard startup when service optimization not available"""
     log("=== STANDARD STARTUP INITIALIZATION ===")
     
@@ -456,7 +458,10 @@ def _standard_startup_initialization(context: PluginContext):
 
 def main():
     """Main plugin entry point using new modular architecture"""
-    
+    # Lazy load heavy components only when needed
+    from lib.ui.plugin_context import PluginContext
+    from lib.ui.router import Router
+    from lib.ui.handler_factory import get_handler_factory
 
     log("=== PLUGIN INVOCATION (REFACTORED) ===")
     log(f"Full sys.argv: {sys.argv}")
@@ -503,7 +508,7 @@ def main():
             pass
 
 
-def _log_window_state(context: PluginContext):
+def _log_window_state(context: 'PluginContext'):
     """Log window state for debugging"""
     try:
         current_window = xbmc.getInfoLabel("System.CurrentWindow")
@@ -532,7 +537,7 @@ def _log_window_state(context: PluginContext):
         log_warning(f"Failed to log window state at plugin entry: {e}")
 
 
-def _check_and_handle_fresh_install(context: PluginContext) -> bool:
+def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
     """Check for fresh install and show setup modal if needed. Returns True if handled."""
     try:
         from lib.library.sync_controller import SyncController
@@ -659,7 +664,7 @@ def _show_setup_complete(message: str):
 
 
 
-def _handle_manual_library_sync(context: PluginContext):
+def _handle_manual_library_sync(context: 'PluginContext'):
     """Handle manual library sync triggered from settings"""
     try:
         from lib.library.sync_controller import SyncController
@@ -707,8 +712,9 @@ def _handle_manual_library_sync(context: PluginContext):
         )
 
 
-def _register_all_handlers(router: Router):
+def _register_all_handlers(router: 'Router'):
     """Register all action handlers with the router using lazy factory"""
+    from lib.ui.handler_factory import get_handler_factory
 
     # Get handler factory for lazy loading
     factory = get_handler_factory()
@@ -788,7 +794,7 @@ def _register_all_handlers(router: Router):
     })
 
 
-def _handle_dialog_response(context: PluginContext, response):
+def _handle_dialog_response(context: 'PluginContext', response):
     """Handle DialogResponse objects from handler methods"""
     from lib.ui.response_types import DialogResponse
     from lib.ui.response_handler import get_response_handler
@@ -800,7 +806,7 @@ def _handle_dialog_response(context: PluginContext, response):
     return response
 
 
-def _handle_remove_from_list(context: PluginContext, lists_handler):
+def _handle_remove_from_list(context: 'PluginContext', lists_handler):
     """Handle remove_from_list with fallback logic"""
     list_id = context.get_param('list_id')
     item_id = context.get_param('item_id')
@@ -856,7 +862,7 @@ def _handle_remove_from_list(context: PluginContext, lists_handler):
     return _handle_dialog_response(context, response)
 
 
-def _handle_directory_response(context: PluginContext, response):
+def _handle_directory_response(context: 'PluginContext', response):
     """Handle DirectoryResponse objects from handler methods"""
     from lib.ui.response_types import DirectoryResponse
     from lib.ui.response_handler import get_response_handler
