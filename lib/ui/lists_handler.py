@@ -295,29 +295,19 @@ class ListsHandler:
             query_manager = None
             
             if cached_data:
-                # CACHE HIT: Use cached data (ZERO database overhead)
+                # CACHE HIT: Use cached processed items (ZERO database overhead)
                 cache_used = True
                 cached_breadcrumbs = cached_data.get('breadcrumbs', {})
                 build_time = cached_data.get('_build_time_ms', 0)
-                
-                # Handle schema v4 (processed items) vs v3 (raw data)
-                if 'processed_items' in cached_data:
-                    # Schema v4: Use pre-processed menu items
-                    processed_menu_items = cached_data.get('processed_items', [])
-                    all_lists = []  # Not needed for v4
-                    all_folders = []  # Not needed for v4
-                    self.logger.debug("CACHE HIT: Schema v4 - %d processed items (built in %d ms) - ZERO DB OVERHEAD", 
-                                       len(processed_menu_items), build_time)
-                else:
-                    # Schema v3: Convert raw data (for backward compatibility)
-                    all_lists = cached_data.get('items', [])
-                    all_folders = cached_data.get('folders', [])
-                    processed_menu_items = None  # Will build later
-                    self.logger.debug("CACHE HIT: Schema v3 - %d items, %d folders (built in %d ms) - ZERO DB OVERHEAD", 
-                                       len(all_lists), len(all_folders), build_time)
+                processed_menu_items = cached_data.get('processed_items', [])
+                self.logger.debug("CACHE HIT: %d processed items (built in %d ms) - ZERO DB OVERHEAD", 
+                                   len(processed_menu_items), build_time)
             else:
                 # CACHE MISS: Initialize DB and query, then cache the result
                 self.logger.debug("CACHE MISS: Root folder not cached, querying database")
+                processed_menu_items = None
+                all_lists = []
+                all_folders = []
                 
                 # Only initialize query manager on cache miss
                 query_manager = self.query_manager
@@ -359,23 +349,23 @@ class ListsHandler:
                 folder_cache.set(cache_key, cache_payload, int(db_query_time))
                 self.logger.debug("CACHE UPDATE: Stored root folder with %d processed items, breadcrumbs", len(processed_menu_items))
 
+            # Initialize user_lists for empty state check
+            user_lists = []
+            
             # Handle cached processed items vs building from raw data
-            if cache_used and processed_menu_items is not None:
-                # Schema v4: Use pre-processed items directly
-                menu_items = processed_menu_items
+            if cache_used:
+                # Use pre-processed items directly from cache
+                menu_items = processed_menu_items if processed_menu_items else []
                 self.logger.debug("Using %d pre-processed menu items from cache", len(menu_items))
             else:
-                # Schema v3 or cache miss: Build menu items from raw data
-                if not cache_used:
-                    self.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
-                
+                # Cache miss: Build menu items from database data
+                user_lists = all_lists
+                self.logger.debug("Found %s total lists (cache_used: %s)", len(user_lists), cache_used)
                 menu_items = self._build_processed_menu_items(context, all_lists, all_folders, query_manager)
                 self.logger.debug("Built %d menu items from raw data", len(menu_items))
 
-            # Check for empty state only when not using processed cache
-            if not cache_used or processed_menu_items is None:
-                user_lists = all_lists if all_lists else []
-                self.logger.debug("Found %s user lists (including Kodi Favorites)", len(user_lists))
+            # Check for empty state when no cache used
+            if not cache_used:
 
                 if not user_lists:
                     # No lists exist - show empty state instead of dialog
