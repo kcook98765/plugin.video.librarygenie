@@ -987,7 +987,7 @@ _folder_cache_instance = None
 _instance_lock = threading.Lock()
 
 
-def get_folder_cache(schema_version: int = 2) -> FolderCache:
+def get_folder_cache(schema_version: int = 3) -> FolderCache:
     """Get global folder cache instance"""
     global _folder_cache_instance
     
