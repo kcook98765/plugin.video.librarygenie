@@ -127,7 +127,6 @@ class FavoritesHandler:
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
-                    import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
                     context.logger.debug("Set directory title: '%s'", directory_title)
@@ -295,7 +294,7 @@ class FavoritesHandler:
                 ):
                     # Redirect to create list
                     from lib.ui.lists_handler import ListsHandler
-                    lists_handler = ListsHandler()
+                    lists_handler = ListsHandler(context)
                     return lists_handler.create_list(context)
                 else:
                     return DialogResponse(success=False)
@@ -523,7 +522,7 @@ class FavoritesHandler:
             response_handler = get_response_handler()
 
             # Call show_favorites directly to get DirectoryResponse
-            directory_response = self.show_favorites(context)
+            directory_response = self.show_favorites_menu(context)
 
             # Handle the DirectoryResponse
             success = response_handler.handle_directory_response(directory_response, context)
@@ -641,11 +640,12 @@ class FavoritesHandler:
             if not favorites:
                 # Show empty message
                 empty_item = xbmcgui.ListItem(label=L(32006), offscreen=True)
-                self.plugin_context.add_item(
-                    url="plugin://plugin.video.librarygenie/?action=empty",
-                    listitem=empty_item,
-                    isFolder=False
-                )
+                if self.plugin_context:
+                    self.plugin_context.add_item(
+                        url="plugin://plugin.video.librarygenie/?action=empty",
+                        listitem=empty_item,
+                        isFolder=False
+                    )
                 return
 
             self.logger.debug("Rendering %s favorites using enhanced data", len(favorites))
@@ -664,13 +664,9 @@ class FavoritesHandler:
             for fav in mapped_favorites:
                 try:
                     # Get enhanced media item data for mapped favorite
-                    # Use available query manager method (get_media_item_by_id may not exist)
+                    # Note: get_media_item_by_id method does not exist on QueryManager
+                    # Use fallback to basic favorite data
                     media_item = None
-                    if hasattr(self.query_manager, 'get_media_item_by_id'):
-                        media_item = self.query_manager.get_media_item_by_id(fav['media_item_id'])
-                    else:
-                        # Fallback to basic favorite data
-                        media_item = None
                     if media_item:
                         # Use enhanced media_items data - no JSON RPC calls needed
                         # Use available listitem builder method
@@ -684,11 +680,12 @@ class FavoritesHandler:
                         listitem, url = self._build_unmapped_favorite_item(fav)
 
                     # Add to response
-                    self.plugin_context.add_item(
-                        url=url,
-                        listitem=listitem,
-                        isFolder=False
-                    )
+                    if self.plugin_context:
+                        self.plugin_context.add_item(
+                            url=url,
+                            listitem=listitem,
+                            isFolder=False
+                        )
 
                 except Exception as e:
                     self.logger.error("Failed to render mapped favorite: %s", e)
@@ -698,17 +695,19 @@ class FavoritesHandler:
             for fav in unmapped_favorites:
                 try:
                     listitem, url = self._build_unmapped_favorite_item(fav)
-                    self.plugin_context.add_item(
-                        url=url,
-                        listitem=listitem,
-                        isFolder=False
-                    )
+                    if self.plugin_context:
+                        self.plugin_context.add_item(
+                            url=url,
+                            listitem=listitem,
+                            isFolder=False
+                        )
                 except Exception as e:
                     self.logger.error("Failed to render unmapped favorite: %s", e)
                     continue
 
             # Set content type
-            self.plugin_context.set_content_type('files')
+            if self.plugin_context:
+                self.plugin_context.set_content_type('files')
 
             self.logger.debug("Successfully rendered %s favorites", len(favorites))
 
