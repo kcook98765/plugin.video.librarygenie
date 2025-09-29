@@ -650,7 +650,9 @@ class FolderCache:
                             'content_type': 'files'
                         }
                     else:
-                        # Subfolder: cache navigation data + breadcrumb components
+                        # Subfolder: Build processed menu items with business logic applied
+                        processed_menu_items = self._build_subfolder_processed_items(folder_info, subfolders, lists_in_folder)
+                        
                         folder_name = folder_info.get('name', 'Unknown Folder') if folder_info else 'Unknown Folder'
                         
                         # Pre-compute breadcrumb components for subfolder
@@ -661,10 +663,9 @@ class FolderCache:
                         }
                         
                         cacheable_payload = {
-                            'folder_info': folder_info,
-                            'subfolders': subfolders,
-                            'lists': lists_in_folder,
-                            'breadcrumbs': breadcrumb_data  # Pre-computed breadcrumb components
+                            'processed_items': processed_menu_items,  # V4: Store processed menu items with business logic
+                            'breadcrumbs': breadcrumb_data,
+                            'content_type': 'files'
                         }
                     
                     # Cache the payload (without additional locking since we're already in a lock)
@@ -782,6 +783,91 @@ class FolderCache:
             })
 
         return menu_items
+    
+    def _build_subfolder_processed_items(self, folder_info, subfolders, lists_in_folder):
+        """Build processed menu items for subfolder with business logic applied"""
+        menu_items = []
+        base_url = "plugin://plugin.video.librarygenie/"
+        
+        # Add Tools & Options first (if folder supports it)
+        if self._folder_has_tools_for_cache(folder_info):
+            folder_id = folder_info.get('id')
+            folder_name = folder_info.get('name', 'Unknown Folder')
+            
+            tools_url = f"{base_url}?action=show_list_tools&list_type=folder&list_id={folder_id}"
+            breadcrumb_text = f"for '{folder_name}'"
+            description_text = f"Tools and options for this folder"
+            
+            menu_items.append({
+                'label': f"⚙️ Tools & Options {breadcrumb_text}",
+                'url': tools_url,
+                'is_folder': True,
+                'description': f"{description_text}Tools and options for this folder",
+                'icon': "DefaultAddonProgram.png",
+                'context_menu': []
+            })
+        
+        # Add subfolders in this folder
+        for subfolder in subfolders:
+            subfolder_id = subfolder.get('id')
+            subfolder_name = subfolder.get('name', 'Unnamed Folder')
+            
+            subfolder_url = f"{base_url}?action=show_folder&folder_id={subfolder_id}"
+            context_menu = [
+                (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
+                (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
+                (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})")
+            ]
+            
+            menu_items.append({
+                'label': f"📁 {subfolder_name}",
+                'url': subfolder_url,
+                'is_folder': True,
+                'description': "Subfolder",
+                'context_menu': context_menu,
+                'icon': "DefaultFolder.png"
+            })
+        
+        # Add lists in this folder
+        for list_item in lists_in_folder:
+            list_id = list_item.get('id')
+            name = list_item.get('name', 'Unnamed List')
+            description = list_item.get('description', '')
+            
+            list_url = f"{base_url}?action=show_list&list_id={list_id}"
+            context_menu = [
+                (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
+                (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
+                (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
+                (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
+            ]
+            
+            menu_items.append({
+                'label': name,
+                'url': list_url,
+                'is_folder': True,
+                'description': description,
+                'icon': "DefaultPlaylist.png",
+                'context_menu': context_menu
+            })
+        
+        return menu_items
+    
+    def _folder_has_tools_for_cache(self, folder_info):
+        """Check if folder supports tools (simplified for cache pre-warming)"""
+        if not folder_info:
+            return False
+        
+        # Check if folder is reserved (like Search History)
+        is_reserved = folder_info.get('is_reserved', False)
+        
+        # Add name-based detection as fallback for Search History
+        folder_name = folder_info.get('name', '')
+        if not is_reserved and folder_name and folder_name.lower() == 'search history':
+            is_reserved = True
+        
+        # All folders support tools, even reserved ones
+        return True
     
     def pre_warm_common_folders(self, max_folders: Optional[int] = None) -> Dict[str, Any]:
         """Pre-warm cache for commonly accessed folders"""
