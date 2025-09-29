@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+    <defaultcontrol>200</defaultcontrol>
+    <allowoverlay>yes</allowoverlay>
+    <controls>
+        <control type="group">
+            <left>150</left>
+            <top>120</top>
+            <width>1620</width>
+            <height>840</height>
+            <control type="image">
+                <width>1620</width>
+                <height>840</height>
+                <texture border="40">DialogBack.png</texture>
+            </control>
+
+            <!-- Header -->
+            <control type="label" id="100">
+                <left>40</left>
+                <top>24</top>
+                <width>1540</width>
+                <height>60</height>
+                <align>center</align>
+                <font>font36</font>
+                <label>$LOCALIZE[36200]</label>
+            </control>
+
+            <!-- Content Type (radio group) -->
+            <control type="group">
+                <left>60</left>
+                <top>120</top>
+                <width>480</width>
+                <height>240</height>
+                <control type="label">
+                    <label>$LOCALIZE[36201]</label>
+                    <font>font30</font>
+                    <width>480</width>
+                    <height>40</height>
+                </control>
+                <control type="radiobutton" id="201">
+                    <top>60</top>
+                    <label>$LOCALIZE[36202]</label>
+                </control>
+                <control type="radiobutton" id="202">
+                    <top>110</top>
+                    <label>$LOCALIZE[36203]</label>
+                </control>
+                <control type="radiobutton" id="203">
+                    <top>160</top>
+                    <label>$LOCALIZE[36204]</label>
+                </control>
+            </control>
+
+            <!-- Field scope (checkboxes) -->
+            <control type="group">
+                <left>600</left>
+                <top>120</top>
+                <width>480</width>
+                <height>240</height>
+                <control type="label">
+                    <label>$LOCALIZE[36205]</label>
+                    <font>font30</font>
+                    <width>480</width>
+                    <height>40</height>
+                </control>
+                <control type="togglebutton" id="211">
+                    <top>60</top>
+                    <label>$LOCALIZE[36206]</label>
+                    <altlabel>$LOCALIZE[36206]</altlabel>
+                </control>
+                <control type="togglebutton" id="212">
+                    <top>110</top>
+                    <label>$LOCALIZE[36207]</label>
+                    <altlabel>$LOCALIZE[36207]</altlabel>
+                </control>
+            </control>
+
+            <!-- Match mode (Any / All / Phrase) -->
+            <control type="group">
+                <left>1140</left>
+                <top>120</top>
+                <width>420</width>
+                <height>240</height>
+                <control type="label">
+                    <label>$LOCALIZE[36208]</label>
+                    <font>font30</font>
+                    <width>420</width>
+                    <height>40</height>
+                </control>
+                <control type="radiobutton" id="221">
+                    <top>60</top>
+                    <label>$LOCALIZE[36209]</label>
+                </control>
+                <control type="radiobutton" id="222">
+                    <top>110</top>
+                    <label>$LOCALIZE[36210]</label>
+                </control>
+                <control type="radiobutton" id="223">
+                    <top>160</top>
+                    <label>$LOCALIZE[36211]</label>
+                </control>
+            </control>
+
+            <!-- Query input -->
+            <control type="group">
+                <left>60</left>
+                <top>390</top>
+                <width>1500</width>
+                <height>120</height>
+                <control type="label">
+                    <label>$LOCALIZE[36212]</label>
+                    <font>font30</font>
+                    <width>300</width>
+                    <height>40</height>
+                </control>
+                <control type="edit" id="200">
+                    <left>0</left>
+                    <top>50</top>
+                    <width>1220</width>
+                    <height>60</height>
+                    <textoffsetx>12</textoffsetx>
+                    <label></label>
+                </control>
+                <control type="button" id="231">
+                    <left>1240</left>
+                    <top>50</top>
+                    <width>240</width>
+                    <height>60</height>
+                    <label>$LOCALIZE[36213]</label>
+                </control>
+            </control>
+
+            <!-- Presets row -->
+            <control type="group">
+                <left>60</left>
+                <top>540</top>
+                <width>1500</width>
+                <height>160</height>
+                <control type="label">
+                    <label>$LOCALIZE[36214]</label>
+                    <font>font30</font>
+                    <width>300</width>
+                    <height>40</height>
+                </control>
+                <control type="list" id="240">
+                    <left>0</left>
+                    <top>50</top>
+                    <width>1220</width>
+                    <height>100</height>
+                    <orientation>horizontal</orientation>
+                    <pagecontrol>241</pagecontrol>
+                </control>
+                <control type="scrollbar" id="241">
+                    <left>1220</left>
+                    <top>50</top>
+                    <width>260</width>
+                    <height>100</height>
+                    <orientation>horizontal</orientation>
+                </control>
+            </control>
+
+            <!-- Actions -->
+            <control type="group">
+                <left>60</left>
+                <top>720</top>
+                <width>1500</width>
+                <height>80</height>
+                <control type="button" id="251">
+                    <width>260</width>
+                    <height>60</height>
+                    <label>$LOCALIZE[36215]</label>
+                </control>
+                <control type="button" id="252">
+                    <left>280</left>
+                    <width>220</width>
+                    <height>60</height>
+                    <label>$LOCALIZE[36216]</label>
+                </control>
+                <control type="button" id="261">
+                    <left>820</left>
+                    <width>220</width>
+                    <height>60</height>
+                    <label>$LOCALIZE[36217]</label>
+                </control>
+                <control type="button" id="260">
+                    <left>1060</left>
+                    <width>500</width>
+                    <height>60</height>
+                    <label>$LOCALIZE[36218]</label>
+                    <font>font30_title</font>
+                </control>
+            </control>
+        </control>
+    </controls>
+</window>
