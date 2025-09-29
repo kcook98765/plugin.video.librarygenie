@@ -66,14 +66,11 @@ class ListOperations:
             else:
                 context.logger.info("Successfully created list: %s", list_name)
                 from lib.ui.response_types import NavigationIntent
-                response = DialogResponse(
+                return DialogResponse(
                     success=True,
                     message=f"Created list: {list_name}", # This string should also be localized
                     intent=NavigationIntent(mode='refresh')
                 )
-                # Add data attribute after creation since DialogResponse doesn't accept 'data' in constructor
-                response.data = {'id': result.get('id'), 'name': list_name}
-                return response
 
         except Exception as e:
             context.logger.error("Error creating list: %s", e)
@@ -450,7 +447,7 @@ class ListOperations:
                 result = self.create_list(context)
                 if not result.success:
                     return False
-                # Get the newly created list ID and add item to it
+                # Get the newly created list ID
                 all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
                 available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
                 if available_lists:
@@ -518,6 +515,7 @@ class ListOperations:
                 if xbmcgui.Dialog().yesno("No Lists Found", "No lists available. Create a new list?"): # Localize these strings
                     result = self.create_list(context)
                     if result.success:
+                        # Refresh lists to get the newly created one
                         all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
                         available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
                     else:
@@ -556,11 +554,14 @@ class ListOperations:
                 context.logger.debug("create_list result: success=%s, data=%s", result.success, getattr(result, 'data', 'NO_DATA_ATTR'))
                 if not result.success:
                     return False
-                # Use the newly created list ID directly from the result
-                target_list_id = result.data.get('id') if result.data else None
-                context.logger.debug("Extracted target_list_id from result.data: %s", target_list_id)
-                if target_list_id is None:
-                    context.logger.error("Failed to get new list ID from create_list result - result.data=%s", result.data)
+                # Get the newly created list ID by refreshing the list
+                all_lists = query_manager.get_all_lists_with_folders() # Refresh lists
+                available_lists = [lst for lst in all_lists if lst.get('folder_name') != 'Search History' and lst.get('name') != 'Kodi Favorites']
+                if available_lists:
+                    target_list_id = available_lists[-1]['id']  # Assume last created
+                    context.logger.debug("Using newly created list ID: %s", target_list_id)
+                else:
+                    context.logger.error("Failed to get new list ID after create_list")
                     return False
                 context.logger.debug("Using newly created list ID: %s", target_list_id)
             else:

@@ -187,20 +187,25 @@ class PluginContext:
             self.logger.error("Error generating breadcrumb: %s", e)
             return None
 
-    def display_folder(self, folder_id: str):
+    def display_folder(self, folder_id: Optional[str]):
         """Display folder contents with proper breadcrumb"""
         try:
             self.logger.debug("Displaying folder %s", folder_id)
 
+            from lib.data.query_manager import get_query_manager
             query_manager = get_query_manager()
-            folder_info = query_manager.get_folder_info(folder_id)
-
-            if not folder_info:
-                self.logger.error("Folder %s not found", folder_id)
-                self._show_error("Folder not found")
-                return
-
-            folder_name = folder_info.get('name', 'Unknown Folder')
+            
+            # Handle root folder case (None/NULL)
+            if folder_id is None:
+                folder_info = None
+                folder_name = "Root Level"
+                self.logger.debug("Displaying root level folder")
+            else:
+                folder_info = query_manager.get_folder_info(int(folder_id))
+                if not folder_info:
+                    self.logger.error("Folder %s not found", folder_id)
+                    return
+                folder_name = folder_info.get('name', 'Unknown Folder')
 
             # Generate breadcrumb for folder
             from lib.ui.breadcrumb_helper import get_breadcrumb_helper
@@ -212,8 +217,8 @@ class PluginContext:
             )
             self.logger.debug("Generated folder breadcrumb: '%s'", breadcrumb_path)
 
-            # Get subfolders
-            subfolders = query_manager.get_all_folders(parent_id=folder_id)
+            # Get subfolders (convert None to proper parameter)
+            subfolders = query_manager.get_all_folders(parent_id=int(folder_id) if folder_id is not None else None)
             self.logger.debug("Folder '%s' has %s subfolders", folder_name, len(subfolders))
 
             # Get lists in this folder
@@ -267,9 +272,11 @@ class PluginContext:
             })
 
             # Use menu builder to display with breadcrumb
+            from lib.ui.menu_builder import MenuBuilder
             menu_builder = MenuBuilder()
-            menu_builder.build_directory_listing(menu_items, self.addon_handle, self.base_url, breadcrumb_path=breadcrumb_path)
+            menu_builder.build_menu(menu_items, self.addon_handle, self.base_url, breadcrumb_path=breadcrumb_path)
 
         except Exception as e:
             self.logger.error("Error displaying folder %s: %s", folder_id, e)
-            self._show_error("Error displaying folder")
+            self.logger.error("Error displaying folder")
+            return

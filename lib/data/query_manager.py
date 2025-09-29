@@ -172,6 +172,84 @@ class QueryManager:
 
         return canonical
 
+    def _invalidate_after_change(self, operation_type: str, **kwargs):
+        """
+        Centralized cache invalidation for all folder/list mutations.
+        
+        Args:
+            operation_type: Type of operation (create_list, delete_list, rename_list, 
+                          move_list, create_folder, delete_folder, rename_folder, 
+                          move_folder, merge_lists, clear_search_history, create_search_history)
+            **kwargs: Operation-specific parameters:
+                - folder_id: Target folder ID
+                - source_folder_id: Source folder ID (for moves)
+                - target_folder_id: Target folder ID (for moves)
+                - list_id: List ID
+                - source_list_id: Source list ID (for merges)
+                - target_list_id: Target list ID (for merges)
+        """
+        try:
+            from lib.ui.folder_cache import get_folder_cache
+            folder_cache = get_folder_cache()
+            if not folder_cache:
+                return
+                
+            folders_to_invalidate = set()
+            
+            if operation_type == "create_list":
+                # Invalidate parent folder (or root if None)
+                folders_to_invalidate.add(kwargs.get('folder_id'))
+                
+            elif operation_type == "delete_list":
+                # Invalidate containing folder
+                folders_to_invalidate.add(kwargs.get('folder_id'))
+                
+            elif operation_type == "rename_list":
+                # Invalidate containing folder
+                folders_to_invalidate.add(kwargs.get('folder_id'))
+                
+            elif operation_type == "move_list":
+                # Invalidate both source and target folders
+                folders_to_invalidate.add(kwargs.get('source_folder_id'))
+                folders_to_invalidate.add(kwargs.get('target_folder_id'))
+                
+            elif operation_type == "create_folder":
+                # Invalidate parent folder (or root if None)
+                folders_to_invalidate.add(kwargs.get('parent_folder_id'))
+                
+            elif operation_type == "delete_folder":
+                # Invalidate parent folder and the folder itself
+                folders_to_invalidate.add(kwargs.get('parent_folder_id'))
+                folders_to_invalidate.add(kwargs.get('folder_id'))
+                
+            elif operation_type == "rename_folder":
+                # Invalidate folder and its parent
+                folders_to_invalidate.add(kwargs.get('folder_id'))
+                folders_to_invalidate.add(kwargs.get('parent_folder_id'))
+                
+            elif operation_type == "move_folder":
+                # Invalidate source parent, target parent, and the folder itself
+                folders_to_invalidate.add(kwargs.get('source_parent_id'))
+                folders_to_invalidate.add(kwargs.get('target_parent_id'))
+                folders_to_invalidate.add(kwargs.get('folder_id'))
+                
+            elif operation_type == "merge_lists":
+                # Invalidate folders containing both lists
+                folders_to_invalidate.add(kwargs.get('source_folder_id'))
+                folders_to_invalidate.add(kwargs.get('target_folder_id'))
+                
+            elif operation_type in ["clear_search_history", "create_search_history"]:
+                # Invalidate search history folder
+                folders_to_invalidate.add(kwargs.get('search_history_folder_id'))
+            
+            # Perform invalidation for all affected folders (including root when folder_id is None)
+            for folder_id in folders_to_invalidate:
+                folder_cache.invalidate_folder(folder_id)
+                self.logger.debug("Cache invalidated for folder %s after %s", folder_id, operation_type)
+                    
+        except Exception as e:
+            self.logger.warning("Failed to invalidate cache after %s: %s", operation_type, e)
+
     def initialize(self):
         """Initialize the data layer with real SQLite database"""
         if self._initialized:
@@ -375,6 +453,9 @@ class QueryManager:
 
                 list_id = cursor.lastrowid
 
+            # Invalidate cache after successful list creation
+            self._invalidate_after_change("create_list", folder_id=folder_id)
+            
             return {
                 "id": str(list_id),
                 "name": name,
@@ -537,6 +618,9 @@ class QueryManager:
                     SET name = ?
                     WHERE id = ?
                 """, [new_name, int(list_id)])
+                
+                # Invalidate cache after successful list rename
+                self._invalidate_after_change("rename_list", folder_id=existing['folder_id'])
 
             return {"success": True, "name": new_name}
 
@@ -555,9 +639,9 @@ class QueryManager:
             self.logger.debug("Deleting list %s", list_id)
 
             with self.connection_manager.transaction() as conn:
-                # Check if list exists
+                # Check if list exists and get folder info for cache invalidation
                 existing = conn.execute(
-                    "SELECT name FROM lists WHERE id = ?", [int(list_id)]
+                    "SELECT name, folder_id FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
@@ -565,6 +649,9 @@ class QueryManager:
 
                 # Delete list (items cascade automatically via foreign key)
                 conn.execute("DELETE FROM lists WHERE id = ?", [int(list_id)])
+                
+                # Invalidate cache after successful list deletion
+                self._invalidate_after_change("delete_list", folder_id=existing['folder_id'])
 
             return {"success": True}
 
@@ -699,6 +786,10 @@ class QueryManager:
                 list_id = cursor.lastrowid
 
                 self.logger.debug("Created search history list '%s' with ID: %s", list_name, list_id)
+                
+                # Invalidate cache after successful search history list creation
+                self._invalidate_after_change("create_search_history", search_history_folder_id=folder_id)
+                
                 return list_id
 
         except Exception as e:
@@ -1599,6 +1690,10 @@ class QueryManager:
                 folder_id = cursor.lastrowid
 
             self.logger.debug("Created folder '%s' with ID: %s", name, folder_id)
+            
+            # Invalidate cache after successful folder creation
+            self._invalidate_after_change("create_folder", parent_folder_id=parent_id)
+            
             return {"success": True, "folder_id": folder_id}
 
         except Exception as e:
@@ -1645,6 +1740,10 @@ class QueryManager:
                 """, [new_name, folder_id])
 
             self.logger.debug("Renamed folder %s from '%s' to '%s'", folder_id, folder['name'], new_name)
+            
+            # Invalidate cache after successful folder rename
+            self._invalidate_after_change("rename_folder", folder_id=folder_id, parent_folder_id=folder['parent_id'])
+            
             return {"success": True}
 
         except Exception as e:
@@ -1712,6 +1811,10 @@ class QueryManager:
                 conn.execute("DELETE FROM folders WHERE id = ?", [folder_id])
 
             self.logger.debug("Deleted folder '%s' (ID: %s)", folder['name'], folder_id)
+            
+            # Invalidate cache after successful folder deletion
+            self._invalidate_after_change("delete_folder", folder_id=folder_id, parent_folder_id=folder['parent_id'])
+            
             return {"success": True}
 
         except Exception as e:
@@ -2013,14 +2116,16 @@ class QueryManager:
             self.logger.debug("Moving list %s to folder %s", list_id, target_folder_id)
 
             with self.connection_manager.transaction() as conn:
-                # Verify the list exists
+                # Verify the list exists and get current folder for cache invalidation
                 list_exists = conn.execute("""
-                    SELECT id, name FROM lists WHERE id = ?
+                    SELECT id, name, folder_id FROM lists WHERE id = ?
                 """, [int(list_id)]).fetchone()
 
                 if not list_exists:
                     self.logger.error("List %s not found", list_id)
                     return {"error": "list_not_found"}
+                    
+                source_folder_id = list_exists['folder_id']
 
                 # Verify the target folder exists if not None
                 if target_folder_id is not None:
@@ -2048,6 +2153,11 @@ class QueryManager:
                     return {"error": "update_failed"}
 
                 self.logger.info("Successfully moved list %s to folder %s", list_id, target_folder_id)
+                
+                # Invalidate cache for both source and target folders
+                self._invalidate_after_change("move_list", 
+                                            source_folder_id=source_folder_id,
+                                            target_folder_id=target_folder_id)
 
             return {"success": True}
 
@@ -2098,6 +2208,21 @@ class QueryManager:
                     items_added += 1
 
             self.logger.debug("Successfully merged %s items from list %s to list %s", items_added, source_list_id, target_list_id)
+            
+            # Get folder information for cache invalidation
+            source_folder = self.connection_manager.execute_single("""
+                SELECT folder_id FROM lists WHERE id = ?
+            """, [int(source_list_id)])
+            
+            target_folder = self.connection_manager.execute_single("""
+                SELECT folder_id FROM lists WHERE id = ?
+            """, [int(target_list_id)])
+            
+            # Invalidate cache for both folders
+            self._invalidate_after_change("merge_lists", 
+                                        source_folder_id=source_folder['folder_id'] if source_folder else None,
+                                        target_folder_id=target_folder['folder_id'] if target_folder else None)
+            
             return {"success": True, "items_added": items_added}
 
         except Exception as e:
@@ -2109,9 +2234,9 @@ class QueryManager:
         try:
             self.logger.debug("Moving folder %s to destination %s", folder_id, target_folder_id)
 
-            # Check if folder exists
+            # Check if folder exists and get current parent for cache invalidation
             existing_folder = self.connection_manager.execute_single("""
-                SELECT id, name FROM folders WHERE id = ?
+                SELECT id, name, parent_id FROM folders WHERE id = ?
             """, [int(folder_id)])
 
             if not existing_folder:
@@ -2147,6 +2272,13 @@ class QueryManager:
                 """, [int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
 
             self.logger.debug("Successfully moved folder %s to destination %s", folder_id, target_folder_id)
+            
+            # Invalidate cache for source parent, target parent, and the folder itself
+            self._invalidate_after_change("move_folder",
+                                        folder_id=folder_id,
+                                        source_parent_id=existing_folder['parent_id'],
+                                        target_parent_id=target_folder_id)
+            
             return {"success": True}
 
         except Exception as e:

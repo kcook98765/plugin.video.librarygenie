@@ -27,7 +27,7 @@ class MenuBuilder:
         self.menu_items = []  # Store menu items for building
         self.base_url = "plugin://plugin.video.librarygenie/"
     
-    def add_menu_item(self, label: str, action: str, icon: str = None, description: str = None):
+    def add_menu_item(self, label: str, action: str, icon: Optional[str] = None, description: Optional[str] = None):
         """Add a menu item for building"""
         item = {
             'label': label,

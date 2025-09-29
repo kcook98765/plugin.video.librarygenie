@@ -332,12 +332,12 @@ class FolderOperations:
                     if current_folder_id:
                         folder_cache.invalidate_folder(str(current_folder_id))
                     else:
-                        folder_cache.invalidate_folder("")  # Root folder
+                        folder_cache.invalidate_folder(None)  # Root folder
                     
                     if target_folder_id:
                         folder_cache.invalidate_folder(str(target_folder_id))
                     else:
-                        folder_cache.invalidate_folder("")  # Root folder
+                        folder_cache.invalidate_folder(None)  # Root folder
                         
                 except Exception as cache_error:
                     context.logger.warning("Failed to invalidate cache after list move: %s", cache_error)

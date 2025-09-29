@@ -9,6 +9,7 @@ Provides lazy instantiation of handlers to improve plugin startup performance
 import time
 from typing import Dict, Optional, Any, Callable
 from lib.utils.kodi_log import get_kodi_logger
+from lib.ui.plugin_context import PluginContext
 
 
 class HandlerFactory:
@@ -18,7 +19,7 @@ class HandlerFactory:
         self.logger = get_kodi_logger('lib.ui.handler_factory')
         self._handler_cache: Dict[str, Any] = {}
         # Added context attribute, assuming it will be set elsewhere or passed during initialization
-        self.context: Optional[Any] = None
+        self.context: Optional[PluginContext] = None
 
     def get_main_menu_handler(self):
         """Get MainMenuHandler instance (lazy loaded)"""
@@ -41,6 +42,8 @@ class HandlerFactory:
     def get_lists_handler(self):
         """Get lists handler instance"""
         if 'lists' not in self._handler_cache:
+            if self.context is None:
+                raise ValueError("Context must be set before creating ListsHandler")
             handler_start = time.time()
             from lib.ui.lists_handler import ListsHandler
             self._handler_cache['lists'] = ListsHandler(self.context)

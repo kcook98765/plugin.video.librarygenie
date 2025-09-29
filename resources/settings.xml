@@ -435,6 +435,19 @@
           </dependencies>
           <control type="toggle"/>
         </setting>
+        <setting id="folder_cache_clear_action" type="action" label="30617" help="35616">
+          <level>1</level>
+          <dependencies>
+            <dependency type="enable" setting="folder_cache_enabled" operator="is">true</dependency>
+          </dependencies>
+          <data>RunScript(plugin.video.librarygenie,clear_folder_cache)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30617</heading>
+          </control>
+        </setting>
       </group>
     </category>
 

@@ -936,7 +936,7 @@ class ToolsHandler:
             progress.update(0)
 
             try:
-                result = backup_manager.restore_backup(selected_backup, replace_mode=replace_mode)
+                result = backup_manager.restore_backup(selected_backup['file_path'], replace_mode=replace_mode)
 
                 progress.update(100, "Restore complete!")
                 progress.close()
@@ -1001,7 +1001,7 @@ class ToolsHandler:
         )
 
 
-    def _import_lists(self, context: PluginContext, target_folder_id: str = None) -> DialogResponse:
+    def _import_lists(self, context: PluginContext, target_folder_id: Optional[str] = None) -> DialogResponse:
         """Import lists from file to specified folder"""
         try:
             from lib.import_export.import_engine import get_import_engine
@@ -1028,8 +1028,8 @@ class ToolsHandler:
                     return DialogResponse(success=False)
                 file_path = file_path[0]  # Take the first file if multiple selected
 
-            # Run import with target folder context
-            result = import_engine.import_data(file_path, target_folder_id=target_folder_id)
+            # Run import (creates its own timestamped folder)
+            result = import_engine.import_data(file_path)
             if result.success:
                 folder_context = ""
                 if target_folder_id:
@@ -1040,25 +1040,18 @@ class ToolsHandler:
                             folder_context = f" to '{folder_info['name']}'"
 
                 message = (
-                    f"Import completed{folder_context}:\n"
+                    f"Import completed:\n"
                     f"Lists: {result.lists_created}\n"
                     f"Items: {result.items_added}\n"
-                    f"Folders: {getattr(result, 'folders_imported', 0)}"
+                    f"Unmatched: {result.items_unmatched}"
                 )
 
-                # Navigate appropriately based on context
-                response = DialogResponse(
+                # Navigate to main lists after import
+                return DialogResponse(
                     success=True,
                     message=message,
-                    refresh_needed=True
+                    navigate_to_lists=True
                 )
-
-                if target_folder_id:
-                    response.navigate_to_folder = target_folder_id
-                else:
-                    response.navigate_to_lists = True
-
-                return response
             else:
                 error_message = result.errors[0] if result.errors else "Unknown error"
                 return DialogResponse(
@@ -1287,9 +1280,29 @@ class ToolsHandler:
 
                 self.logger.info("Successfully converted search history list %s to '%s' in %s", search_list_id, new_name.strip(), destination_name)
 
+                # Invalidate cache for both source and target folders
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    
+                    # Get Search History folder ID for source invalidation
+                    search_folder_id = query_manager.get_or_create_search_history_folder()
+                    
+                    # Invalidate source folder (Search History)
+                    if search_folder_id:
+                        folder_cache.invalidate_folder(str(search_folder_id))
+                        self.logger.debug("Cache invalidated for source folder %s after search history conversion", search_folder_id)
+                    
+                    # Invalidate target folder (could be None for root)
+                    folder_cache.invalidate_folder(target_folder_id)
+                    self.logger.debug("Cache invalidated for target folder %s after search history conversion", target_folder_id)
+                        
+                except Exception as cache_error:
+                    self.logger.warning("Failed to invalidate cache after search history conversion: %s", cache_error)
+
                 # Check if this was the last list in the search history folder
                 search_folder_id = query_manager.get_or_create_search_history_folder()
-                remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
+                remaining_lists = query_manager.get_lists_in_folder(str(search_folder_id))
 
                 # Navigate appropriately based on remaining search history
                 if remaining_lists:
@@ -1323,11 +1336,11 @@ class ToolsHandler:
     def handle_restore_backup(self, params: dict, context) -> DialogResponse:
         """Handle backup restoration"""
         try:
-            from lib.import_export.backup_manager import BackupManager
+            from lib.import_export import get_timestamp_backup_manager
             from lib.ui.localization import L
             import xbmcgui
 
-            backup_manager = BackupManager()
+            backup_manager = get_timestamp_backup_manager()
 
             # Get available backups
             backups = backup_manager.list_backups()
@@ -1350,7 +1363,8 @@ class ToolsHandler:
                 L(37007) % selected_backup['name'],  # "Restore from: %s"
                 L(36065)   # "This will replace all current data."
             ):
-                success = backup_manager.restore_backup(selected_backup['path'])
+                result = backup_manager.restore_backup(selected_backup['path'])
+                success = result.get('success', False) if isinstance(result, dict) else result
                 if success:
                     self.dialog.ok(L(34011), L(34011))  # "Restore completed successfully"
                     return DialogResponse(success=True, message="Restore completed successfully", refresh_needed=True)

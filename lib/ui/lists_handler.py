@@ -59,8 +59,8 @@ class ListsHandler:
             if not media_item_id:
                 return DialogResponse(success=False, message="Missing media item ID")
             
-            # Use list operations to add to default list
-            return self.list_ops.add_item_to_default_list(context, media_item_id)
+            # TODO: Implement add_item_to_default_list method in ListOperations
+            return DialogResponse(success=False, message="Method not implemented yet")
             
         except Exception as e:
             self.logger.error("Error in quick_add_to_default_list: %s", e)
@@ -73,8 +73,8 @@ class ListsHandler:
             if not media_item_id:
                 return DialogResponse(success=False, message="Missing media item ID")
             
-            # Use list operations to add library item to default list  
-            return self.list_ops.add_library_item_to_default_list(context, media_item_id)
+            # TODO: Implement add_library_item_to_default_list method in ListOperations
+            return DialogResponse(success=False, message="Method not implemented yet")
             
         except Exception as e:
             self.logger.error("Error in quick_add_library_item_to_default_list: %s", e)
@@ -87,8 +87,8 @@ class ListsHandler:
             if not media_item_id:
                 return DialogResponse(success=False, message="Missing media item ID")
             
-            # Use list operations to add external item to default list
-            return self.list_ops.add_external_item_to_default_list(context, media_item_id)
+            # TODO: Implement add_external_item_to_default_list method in ListOperations
+            return DialogResponse(success=False, message="Method not implemented yet")
             
         except Exception as e:
             self.logger.error("Error in quick_add_external_item_to_default_list: %s", e)
@@ -285,7 +285,8 @@ class ListsHandler:
             # CACHE-FIRST: Check cache before ANY database operations (zero-DB overhead on HIT)
             folder_cache = get_folder_cache()
             folder_id = None  # Root folder
-            cached_data = folder_cache.get(folder_id)
+            cache_key = "root" if folder_id is None else folder_id
+            cached_data = folder_cache.get(cache_key)
             
             all_lists = None
             all_folders = None
@@ -337,7 +338,8 @@ class ListsHandler:
                     'folders': all_folders,
                     'breadcrumbs': breadcrumb_data
                 }
-                folder_cache.set(folder_id, cache_payload, int(db_query_time))
+                cache_key = "root" if folder_id is None else folder_id
+                folder_cache.set(cache_key, cache_payload, int(db_query_time))
                 self.logger.debug("CACHE UPDATE: Stored root folder with %d items, %d folders, breadcrumbs", len(all_lists), len(all_folders))
 
             self.logger.debug("Found %s total lists (cache_used: %s)", len(all_lists), cache_used)
@@ -422,7 +424,6 @@ class ListsHandler:
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
-                    import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
                     self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
@@ -471,7 +472,10 @@ class ListsHandler:
                     on_favorites_integration_enabled()  # This will create the list if it doesn't exist
 
                     # Refresh the lists to include the newly created "Kodi Favorites"
-                    all_lists = query_manager.get_all_lists_with_folders()
+                    if query_manager is not None:
+                        all_lists = query_manager.get_all_lists_with_folders()
+                    else:
+                        all_lists = []
                     user_lists = all_lists
 
                     # Find the newly created Kodi Favorites
@@ -709,7 +713,6 @@ class ListsHandler:
 
             self.logger.debug("Setting parent path for folder %s: %s", folder_id, parent_path)
             # Set parent directory using proper window property API
-            import xbmcgui
             window = xbmcgui.Window(10025)  # Video window
             window.setProperty('ParentDir', parent_path)
             window.setProperty('Container.ParentDir', parent_path)
@@ -727,7 +730,6 @@ class ListsHandler:
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
-                    import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
                     self.logger.debug("Set directory title: '%s' (cache: %s)", directory_title, cache_used)
@@ -786,6 +788,7 @@ class ListsHandler:
                     breadcrumb_text = cached_breadcrumbs.get('tools_label', 'for folder')
                     description_text = cached_breadcrumbs.get('tools_description', 'Tools and options for this folder')
                 else:
+                    breadcrumb_query_manager = query_manager if query_manager is not None else None
                     breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label(
                         'show_folder', 
                         {'folder_id': folder_id}, 
@@ -929,7 +932,6 @@ class ListsHandler:
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
-                    import xbmcgui
                     window = xbmcgui.Window(10025)  # Video window
                     window.setProperty('FolderName', directory_title)
                     self.logger.debug("Set directory title: '%s'", directory_title)

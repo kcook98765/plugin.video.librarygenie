@@ -63,6 +63,8 @@ def main():
         handle_ai_search_regular_sync()
     elif action == "deactivate_ai_search":
         handle_deactivate_ai_search()
+    elif action == "clear_folder_cache":
+        handle_clear_folder_cache()
     else:
         # Import the custom error types
         from utils.errors import user_error
@@ -618,6 +620,69 @@ def handle_ai_search_regular_sync():
         log_error(f"AI search regular sync error traceback: {traceback.format_exc()}")
         dialog_service = get_dialog_service(logger_name='utilities.handle_ai_search_regular_sync')
         dialog_service.show_error(f"AI search regular sync error: {str(e)}")
+
+
+def handle_clear_folder_cache():
+    """Handle clear folder cache action from settings"""
+    log_info("Handling clear_folder_cache action")
+    
+    try:
+        from ui.folder_cache import get_folder_cache
+        
+        dialog_service = get_dialog_service(logger_name='utilities.handle_clear_folder_cache')
+        
+        # Confirm cache clear
+        if not dialog_service.yesno(
+            "Clear Folder Cache",
+            "This will clear all cached folder data and force fresh rebuilding.\n\nContinue?",
+            no_label="Cancel", 
+            yes_label="Clear Cache"
+        ):
+            return
+        
+        # Get folder cache instance
+        folder_cache = get_folder_cache()
+        
+        if not folder_cache:
+            dialog_service.show_error("Folder cache not available")
+            return
+        
+        # Clear all cached data by removing all cache files
+        import os
+        import glob
+        
+        cleared_count = 0
+        try:
+            # Get cache directory path 
+            cache_dir = folder_cache.cache_dir
+            if os.path.exists(cache_dir):
+                # Remove all .json cache files
+                cache_files = glob.glob(os.path.join(cache_dir, "*.json"))
+                for cache_file in cache_files:
+                    try:
+                        os.remove(cache_file)
+                        cleared_count += 1
+                        log_info(f"Removed cache file: {os.path.basename(cache_file)}")
+                    except Exception as e:
+                        log_error(f"Failed to remove cache file {cache_file}: {e}")
+            
+            if cleared_count > 0:
+                dialog_service.show_success(f"Folder cache cleared successfully!\n\nRemoved {cleared_count} cache files.")
+                log_info(f"Folder cache cleared: {cleared_count} files removed")
+            else:
+                dialog_service.show_success("Folder cache was already empty.")
+                log_info("Folder cache was already empty")
+        
+        except Exception as cache_error:
+            log_error(f"Error clearing cache files: {cache_error}")
+            dialog_service.show_error(f"Error clearing cache: {str(cache_error)}")
+        
+    except Exception as e:
+        log_error(f"Error in handle_clear_folder_cache: {e}")
+        import traceback
+        log_error(f"Clear folder cache error traceback: {traceback.format_exc()}")
+        dialog_service = get_dialog_service(logger_name='utilities.handle_clear_folder_cache')
+        dialog_service.show_error(f"Clear folder cache error: {str(e)}")
 
 
 if __name__ == "__main__":

@@ -468,6 +468,16 @@ class LibraryGenieService:
             if sync_interval_minutes == 0:
                 return
                 
+            # Check if first run setup has been completed
+            if not self.settings.get_first_run_completed():
+                return
+                
+            # Check if user has enabled any sync options
+            sync_movies = self.settings.get_sync_movies()
+            sync_tv_episodes = self.settings.get_sync_tv_episodes()
+            if not sync_movies and not sync_tv_episodes:
+                return
+                
             # Check if enough time has passed since last sync
             current_time = time.time()
             time_since_last_sync = (current_time - self._last_library_sync_time) / 60  # Convert to minutes

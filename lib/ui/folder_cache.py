@@ -23,7 +23,7 @@ class FolderCache:
     Eliminates database overhead by using JSON files with filesystem timestamps for TTL.
     """
     
-    def __init__(self, cache_dir: Optional[str] = None, schema_version: int = 1):
+    def __init__(self, cache_dir: Optional[str] = None, schema_version: int = 2):
         self.logger = get_kodi_logger('lib.ui.folder_cache')
         self.schema_version = schema_version
         
@@ -93,7 +93,7 @@ class FolderCache:
         except Exception as e:
             self.logger.error("Failed to create cache directory %s: %s", self.cache_dir, e)
     
-    def _get_cache_file_path(self, folder_id: str) -> str:
+    def _get_cache_file_path(self, folder_id: Optional[str]) -> str:
         """Generate cache file path for folder ID"""
         # Handle None folder_id (root level)
         if folder_id is None:
@@ -156,7 +156,7 @@ class FolderCache:
             return False
     
     @contextmanager
-    def _singleton_lock(self, folder_id: str):
+    def _singleton_lock(self, folder_id: Optional[str]):
         """Singleton lock for preventing duplicate folder builds"""
         # Handle None folder_id (root level)
         lock_key = str(folder_id) if folder_id is not None else "root"
@@ -180,12 +180,12 @@ class FolderCache:
                     del self._locks[lock_key]
     
     @contextmanager
-    def with_build_lock(self, folder_id: str):
+    def with_build_lock(self, folder_id: Optional[str]):
         """Public context manager for build operations with stampede protection"""
         with self._singleton_lock(folder_id):
             yield
     
-    def get(self, folder_id: str, allow_stale: bool = False) -> Optional[Dict[str, Any]]:
+    def get(self, folder_id: Optional[str], allow_stale: bool = False) -> Optional[Dict[str, Any]]:
         """
         Get cached folder payload if exists and is fresh (or stale if allowed)
         
@@ -250,7 +250,7 @@ class FolderCache:
             self.logger.error("Error reading cache for folder %s: %s", folder_id, e)
             return None
     
-    def set(self, folder_id: str, payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
+    def set(self, folder_id: Optional[str], payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
         """
         Store folder payload in cache with stampede protection
         
@@ -277,7 +277,7 @@ class FolderCache:
             self.logger.error("Error acquiring lock for caching folder %s: %s", folder_id, e)
             return False
     
-    def _set_without_lock(self, folder_id: str, payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
+    def _set_without_lock(self, folder_id: Optional[str], payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
         """Internal set method that doesn't acquire locks (for use within existing locks)"""
         try:
             # Augment payload with cache metadata
@@ -322,7 +322,7 @@ class FolderCache:
                     pass
             return False
     
-    def delete(self, folder_id: str) -> bool:
+    def delete(self, folder_id: Optional[str]) -> bool:
         """
         Delete cached folder entry
         
@@ -349,12 +349,12 @@ class FolderCache:
             self.logger.error("Error deleting cache for folder %s: %s", folder_id, e)
             return False
     
-    def is_fresh(self, folder_id: str) -> bool:
+    def is_fresh(self, folder_id: Optional[str]) -> bool:
         """Check if folder cache is fresh (within fresh TTL)"""
         file_path = self._get_cache_file_path(folder_id)
         return self._is_file_fresh(file_path)
     
-    def is_stale_but_usable(self, folder_id: str) -> bool:
+    def is_stale_but_usable(self, folder_id: Optional[str]) -> bool:
         """Check if folder cache is stale but still usable for immediate serving"""
         file_path = self._get_cache_file_path(folder_id)
         return self._is_file_stale_but_usable(file_path)
@@ -492,7 +492,7 @@ class FolderCache:
             }
         }
     
-    def pre_warm_folder(self, folder_id: str) -> bool:
+    def pre_warm_folder(self, folder_id: Optional[str]) -> bool:
         """Pre-warm cache for a single folder (background operation, no UI)"""
         try:
             # Check if already cached and fresh
@@ -525,34 +525,50 @@ class FolderCache:
                         self.logger.error("Pre-warm: failed to initialize query manager for folder %s", folder_id)
                         return False
                     
-                    # Get folder navigation data
-                    navigation_data = query_manager.get_folder_navigation_batch(folder_id)
-                    
-                    if not navigation_data:
-                        self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
-                        return False
-                    
-                    # Extract data with safe defaults
-                    folder_info = navigation_data.get('folder_info')
-                    subfolders = navigation_data.get('subfolders') or []
-                    lists_in_folder = navigation_data.get('lists') or []
+                    # Use same data sources as lists handler for consistency
+                    if folder_id is None:
+                        # Root folder: use get_all_lists_with_folders() to match lists handler
+                        lists_in_folder = query_manager.get_all_lists_with_folders()
+                        all_folders = query_manager.get_all_folders()
+                        folder_info = None  # Root has no folder info
+                        subfolders = []     # Root uses all_folders instead
+                    else:
+                        # Subfolder: use batch navigation query  
+                        navigation_data = query_manager.get_folder_navigation_batch(folder_id)
+                        
+                        if not navigation_data:
+                            self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
+                            return False
+                        
+                        # Extract data with safe defaults
+                        folder_info = navigation_data.get('folder_info')
+                        subfolders = navigation_data.get('subfolders') or []
+                        lists_in_folder = navigation_data.get('lists') or []
+                        all_folders = []  # Not needed for subfolders
                     
                     # Validate that we have valid data structures
-                    if not isinstance(subfolders, (list, tuple)):
-                        self.logger.warning("Pre-warm: subfolders is not iterable for folder %s: %s", folder_id, type(subfolders))
-                        subfolders = []
-                    
-                    if not isinstance(lists_in_folder, (list, tuple)):
-                        self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
-                        lists_in_folder = []
+                    if folder_id is None:
+                        # Root folder validation
+                        if not isinstance(lists_in_folder, (list, tuple)):
+                            self.logger.warning("Pre-warm: root lists is not iterable: %s", type(lists_in_folder))
+                            lists_in_folder = []
+                        if not isinstance(all_folders, (list, tuple)):
+                            self.logger.warning("Pre-warm: all_folders is not iterable: %s", type(all_folders))
+                            all_folders = []
+                    else:
+                        # Subfolder validation
+                        if not isinstance(subfolders, (list, tuple)):
+                            self.logger.warning("Pre-warm: subfolders is not iterable for folder %s: %s", folder_id, type(subfolders))
+                            subfolders = []
+                        if not isinstance(lists_in_folder, (list, tuple)):
+                            self.logger.warning("Pre-warm: lists is not iterable for folder %s: %s", folder_id, type(lists_in_folder))
+                            lists_in_folder = []
                     
                     warm_time_ms = (time.time() - warm_start) * 1000
                     
                     # Cache raw database data + breadcrumb components for zero-DB overhead
                     if folder_id is None:
-                        # Root folder: cache lists and folders + breadcrumb data
-                        all_folders = query_manager.get_all_folders()
-                        
+                        # Root folder: cache ALL lists and folders + breadcrumb data (matches lists handler)
                         # Pre-compute breadcrumb components for root
                         breadcrumb_data = {
                             'directory_title': 'Lists',
@@ -561,8 +577,8 @@ class FolderCache:
                         }
                         
                         cacheable_payload = {
-                            'items': lists_in_folder,  # Raw list data from DB
-                            'folders': all_folders,   # Raw folder data from DB  
+                            'items': lists_in_folder,  # ALL lists with folder context (from get_all_lists_with_folders)
+                            'folders': all_folders,   # All folders (from get_all_folders)  
                             'breadcrumbs': breadcrumb_data  # Pre-computed breadcrumb components
                         }
                     else:
@@ -732,7 +748,7 @@ class FolderCache:
             self.logger.error("Failed to initialize cache service: %s", e)
             return False
     
-    def invalidate_folder(self, folder_id: str) -> bool:
+    def invalidate_folder(self, folder_id: Optional[str]) -> bool:
         """Invalidate cache for a specific folder"""
         try:
             file_path = self._get_cache_file_path(folder_id)
@@ -747,7 +763,7 @@ class FolderCache:
             self.logger.error("Error invalidating cache for folder %s: %s", folder_id, e)
             return False
     
-    def invalidate_parent_folder(self, folder_id: str) -> bool:
+    def invalidate_parent_folder(self, folder_id: Optional[str]) -> bool:
         """Invalidate cache for the parent folder of a given folder"""
         try:
             # Get parent folder information
@@ -768,14 +784,14 @@ class FolderCache:
                     parent_folder_id = str(folder_info['parent_id'])
                     return self.invalidate_folder(parent_folder_id)
                 else:
-                    # This folder is at root level, invalidate root folder (empty string)
-                    return self.invalidate_folder("")
+                    # This folder is at root level, invalidate root folder (None for root)
+                    return self.invalidate_folder(None)
                     
         except Exception as e:
             self.logger.error("Error invalidating parent folder for %s: %s", folder_id, e)
             return False
     
-    def invalidate_folder_hierarchy(self, folder_id: str) -> Dict[str, bool]:
+    def invalidate_folder_hierarchy(self, folder_id: Optional[str]) -> Dict[str, bool]:
         """Invalidate cache for a folder and all its subfolders"""
         try:
             self.logger.debug("Invalidating folder hierarchy for %s", folder_id)
@@ -822,7 +838,7 @@ class FolderCache:
             self.logger.error("Error invalidating folder hierarchy for %s: %s", folder_id, e)
             return {"error": True}
     
-    def invalidate_after_folder_operation(self, operation: str, folder_id: str, **kwargs) -> bool:
+    def invalidate_after_folder_operation(self, operation: str, folder_id: Optional[str], **kwargs) -> bool:
         """
         Invalidate relevant caches after folder operations
         
@@ -852,7 +868,7 @@ class FolderCache:
                     if parent_id:
                         parent_result = self.invalidate_folder(str(parent_id))
                     else:
-                        parent_result = self.invalidate_folder("")  # Root folder
+                        parent_result = self.invalidate_folder(None)  # Root folder
                 else:
                     # Fallback to querying parent (may fail if folder already deleted)
                     parent_result = self.invalidate_parent_folder(folder_id)
@@ -883,7 +899,7 @@ class FolderCache:
                     if source_parent_id:
                         source_parent_result = self.invalidate_folder(str(source_parent_id))
                     else:
-                        source_parent_result = self.invalidate_folder("")  # Root folder
+                        source_parent_result = self.invalidate_folder(None)  # Root folder
                 
                 # Invalidate target parent if provided
                 target_parent_result = True
@@ -892,7 +908,7 @@ class FolderCache:
                     if target_parent_id:
                         target_parent_result = self.invalidate_folder(str(target_parent_id))
                     else:
-                        target_parent_result = self.invalidate_folder("")  # Root folder
+                        target_parent_result = self.invalidate_folder(None)  # Root folder
                 
                 # Return True if at least one invalidation succeeded
                 hierarchy_success = any(result for result in hierarchy_results.values() if isinstance(result, bool))
@@ -912,7 +928,7 @@ _folder_cache_instance = None
 _instance_lock = threading.Lock()
 
 
-def get_folder_cache(schema_version: int = 1) -> FolderCache:
+def get_folder_cache(schema_version: int = 2) -> FolderCache:
     """Get global folder cache instance"""
     global _folder_cache_instance
     
