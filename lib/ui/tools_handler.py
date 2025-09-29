@@ -165,8 +165,7 @@ class ToolsHandler:
                 # Don't auto-navigate - just show success message and refresh current view
                 # This prevents race conditions and timing issues on slower devices
                 response.refresh_needed = True
-                response.skip_tools_navigation = True  # Prevent tools modal from reappearing
-                self.logger.debug("List moved successfully to folder %s - no auto-navigation, skip_tools_navigation=%s", target_folder_id, response.skip_tools_navigation)
+                self.logger.debug("List moved successfully to folder %s - no auto-navigation", target_folder_id)
                 return response
             else:
                 error_msg = result.get("error", "unknown")
@@ -1289,8 +1288,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Moved '{new_name.strip()}' to {destination_name}",
-                    refresh_needed=True,
-                    skip_tools_navigation=True  # Prevent tools modal from reappearing
+                    refresh_needed=True
                 )
 
             except Exception as db_error:
