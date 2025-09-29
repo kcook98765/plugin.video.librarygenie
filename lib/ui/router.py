@@ -306,8 +306,15 @@ class Router:
                 folder_id = params.get('folder_id')
 
                 if folder_id:
-                    # Cache-first folder view implementation
-                    return self._handle_show_folder_cached(context, str(folder_id))
+                    # Delegate to lists_handler for proper cached data handling
+                    from lib.ui.handler_factory import get_handler_factory
+                    from lib.ui.response_handler import get_response_handler
+                    factory = get_handler_factory()
+                    factory.context = context
+                    lists_handler = factory.get_lists_handler()
+                    response_handler = get_response_handler()
+                    response = lists_handler.show_folder(context, str(folder_id))
+                    return response_handler.handle_directory_response(response, context)
                 else:
                     self.logger.error("Missing folder_id parameter")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
