@@ -162,6 +162,11 @@ class ToolsHandler:
                     message=L(36033) % folder_name,  # "Moved list to %s"
                 )
 
+                # Clear session state to prevent tools modal from reappearing
+                from lib.ui.session_state import get_session_state
+                session_state = get_session_state()
+                session_state.clear_tools_return_location()
+                
                 # Don't auto-navigate - just show success message and refresh current view
                 # This prevents race conditions and timing issues on slower devices
                 response.refresh_needed = True
