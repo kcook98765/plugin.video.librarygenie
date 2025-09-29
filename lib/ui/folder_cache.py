@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
-CACHE_SCHEMA_VERSION = 3
+CACHE_SCHEMA_VERSION = 4
 
 
 class FolderCache:
@@ -262,8 +262,10 @@ class FolderCache:
                 self._stats['hits'] += 1
             
             # Count items correctly based on payload structure
-            if 'items' in payload:
-                item_count = len(payload.get('items', []))  # Root folder format
+            if 'processed_items' in payload:
+                item_count = len(payload.get('processed_items', []))  # V4 processed format
+            elif 'items' in payload:
+                item_count = len(payload.get('items', []))  # Legacy root folder format
             elif 'lists' in payload:
                 item_count = len(payload.get('lists', []))  # Subfolder format
             else:
@@ -341,8 +343,10 @@ class FolderCache:
                 self._stats['writes'] += 1
             
             # Count items correctly based on payload structure
-            if 'items' in payload:
-                item_count = len(payload.get('items', []))  # Root folder format
+            if 'processed_items' in payload:
+                item_count = len(payload.get('processed_items', []))  # V4 processed format
+            elif 'items' in payload:
+                item_count = len(payload.get('items', []))  # Legacy root folder format
             elif 'lists' in payload:
                 item_count = len(payload.get('lists', []))  # Subfolder format
             else:
@@ -599,8 +603,13 @@ class FolderCache:
                         navigation_data = query_manager.get_folder_navigation_batch(folder_id)
                         
                         if not navigation_data:
-                            self.logger.warning("Pre-warm: no navigation data returned for folder %s", folder_id)
-                            return False
+                            self.logger.warning("Pre-warm: no navigation data returned for folder %s - creating empty cache", folder_id)
+                            # Create empty but valid data structure
+                            navigation_data = {
+                                'folder_info': {'id': folder_id, 'name': 'Unknown Folder'},
+                                'subfolders': [],
+                                'lists': []
+                            }
                         
                         # Extract data with safe defaults
                         folder_info = navigation_data.get('folder_info')
@@ -628,23 +637,27 @@ class FolderCache:
                     
                     warm_time_ms = (time.time() - warm_start) * 1000
                     
-                    # Cache raw database data + breadcrumb components for zero-DB overhead
+                    # Cache processed items for V4 cache format  
                     if folder_id is None:
-                        # Root folder: cache ALL lists and folders + breadcrumb data (matches lists handler)
+                        # Root folder: Build processed menu items with business logic applied
+                        processed_menu_items = self._build_root_processed_items(lists_in_folder, all_folders)
+                        
                         # Pre-compute breadcrumb components for root
                         breadcrumb_data = {
                             'directory_title': 'Lists',
-                            'tools_label': 'Lists',
+                            'tools_label': 'Lists', 
                             'tools_description': 'Search, Favorites, Import/Export & Settings'
                         }
                         
                         cacheable_payload = {
-                            'items': lists_in_folder,  # ALL lists with folder context (from get_all_lists_with_folders)
-                            'folders': all_folders,   # All folders (from get_all_folders)  
-                            'breadcrumbs': breadcrumb_data  # Pre-computed breadcrumb components
+                            'processed_items': processed_menu_items,  # V4: Store processed menu items with business logic
+                            'breadcrumbs': breadcrumb_data,
+                            'content_type': 'files'
                         }
                     else:
-                        # Subfolder: cache navigation data + breadcrumb components
+                        # Subfolder: Build processed menu items with business logic applied
+                        processed_menu_items = self._build_subfolder_processed_items(folder_info, subfolders, lists_in_folder)
+                        
                         folder_name = folder_info.get('name', 'Unknown Folder') if folder_info else 'Unknown Folder'
                         
                         # Pre-compute breadcrumb components for subfolder
@@ -655,10 +668,9 @@ class FolderCache:
                         }
                         
                         cacheable_payload = {
-                            'folder_info': folder_info,
-                            'subfolders': subfolders,
-                            'lists': lists_in_folder,
-                            'breadcrumbs': breadcrumb_data  # Pre-computed breadcrumb components
+                            'processed_items': processed_menu_items,  # V4: Store processed menu items with business logic
+                            'breadcrumbs': breadcrumb_data,
+                            'content_type': 'files'
                         }
                     
                     # Cache the payload (without additional locking since we're already in a lock)
@@ -674,6 +686,184 @@ class FolderCache:
         except Exception as e:
             self.logger.error("Error pre-warming folder %s: %s", folder_id, e)
             return False
+    
+    def _build_root_processed_items(self, all_lists, all_folders):
+        """Build processed menu items for root folder with business logic applied"""
+        menu_items = []
+        
+        # Add Tools & Options first (simplified for pre-warming)
+        base_url = "plugin://plugin.video.librarygenie/"
+        tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+        
+        menu_items.append({
+            'label': "Tools & Options • Lists",
+            'url': tools_url,
+            'is_folder': True,
+            'icon': "DefaultAddonProgram.png",
+            'description': "Search, Favorites, Import/Export & Settings"
+        })
+
+        # Handle Kodi Favorites integration
+        try:
+            from lib.config.config_manager import get_config
+            config = get_config()
+            favorites_enabled = config.get_bool('favorites_integration_enabled', False)
+        except Exception:
+            favorites_enabled = False
+            
+        kodi_favorites_item = None
+        for item in all_lists:
+            if item.get('name') == 'Kodi Favorites':
+                kodi_favorites_item = item
+                break
+
+        # Add Kodi Favorites first (if enabled and exists)
+        if favorites_enabled and kodi_favorites_item:
+            list_id = kodi_favorites_item.get('id')
+            name = kodi_favorites_item.get('name', 'Kodi Favorites')
+            description = kodi_favorites_item.get('description', '')
+            list_url = f"{base_url}?action=show_list&list_id={list_id}"
+            tools_context_url = f"{base_url}?action=show_list_tools&list_type=user_list&list_id={list_id}"
+
+            context_menu = [
+                (f"Tools & Options for '{name}'", f"RunPlugin({tools_context_url})")
+            ]
+
+            menu_items.append({
+                'label': name,
+                'url': list_url,
+                'is_folder': True,
+                'description': description,
+                'icon': "DefaultPlaylist.png",
+                'context_menu': context_menu
+            })
+
+        # Add folders (excluding Search History)
+        for folder_info in all_folders:
+            folder_id = folder_info['id']
+            folder_name = folder_info['name']
+
+            # Skip the reserved "Search History" folder
+            if folder_name == 'Search History':
+                continue
+
+            folder_url = f"{base_url}?action=show_folder&folder_id={folder_id}"
+            context_menu = [
+                (f"Rename '{folder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={folder_id})"),
+                (f"Move '{folder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={folder_id})"),
+                (f"Delete '{folder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={folder_id})")
+            ]
+
+            menu_items.append({
+                'label': folder_name,
+                'url': folder_url,
+                'is_folder': True,
+                'description': "Folder",
+                'context_menu': context_menu
+            })
+
+        # Add standalone lists (excluding Kodi Favorites as it's already added)
+        standalone_lists = [item for item in all_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
+
+        for list_item in standalone_lists:
+            list_id = list_item.get('id')
+            name = list_item.get('name', 'Unnamed List')
+            description = list_item.get('description', '')
+            list_url = f"{base_url}?action=show_list&list_id={list_id}"
+
+            context_menu = [
+                (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
+                (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
+                (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
+                (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
+            ]
+
+            menu_items.append({
+                'label': name,
+                'url': list_url,
+                'is_folder': True,
+                'description': description,
+                'icon': "DefaultPlaylist.png",
+                'context_menu': context_menu
+            })
+
+        return menu_items
+    
+    def _build_subfolder_processed_items(self, folder_info, subfolders, lists_in_folder):
+        """Build processed menu items for subfolder with business logic applied"""
+        menu_items = []
+        base_url = "plugin://plugin.video.librarygenie/"
+        
+        try:
+            # Add Tools & Options first (simplified to avoid errors)
+            if folder_info and folder_info.get('id'):
+                folder_id = folder_info.get('id')
+                folder_name = folder_info.get('name', 'Unknown Folder')
+                
+                tools_url = f"{base_url}?action=show_list_tools&list_type=folder&list_id={folder_id}"
+                
+                menu_items.append({
+                    'label': f"⚙️ Tools & Options for '{folder_name}'",
+                    'url': tools_url,
+                    'is_folder': True,
+                    'description': "Tools and options for this folder",
+                    'icon': "DefaultAddonProgram.png",
+                    'context_menu': []
+                })
+            
+            # Add subfolders in this folder
+            if subfolders:
+                for subfolder in subfolders:
+                    subfolder_id = subfolder.get('id')
+                    subfolder_name = subfolder.get('name', 'Unnamed Folder')
+                    
+                    subfolder_url = f"{base_url}?action=show_folder&folder_id={subfolder_id}"
+                    context_menu = [
+                        (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
+                        (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
+                        (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})")
+                    ]
+                    
+                    menu_items.append({
+                        'label': f"📁 {subfolder_name}",
+                        'url': subfolder_url,
+                        'is_folder': True,
+                        'description': "Subfolder",
+                        'context_menu': context_menu,
+                        'icon': "DefaultFolder.png"
+                    })
+            
+            # Add lists in this folder
+            if lists_in_folder:
+                for list_item in lists_in_folder:
+                    list_id = list_item.get('id')
+                    name = list_item.get('name', 'Unnamed List')
+                    description = list_item.get('description', '')
+                    
+                    list_url = f"{base_url}?action=show_list&list_id={list_id}"
+                    context_menu = [
+                        (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
+                        (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
+                        (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
+                        (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
+                    ]
+                    
+                    menu_items.append({
+                        'label': name,
+                        'url': list_url,
+                        'is_folder': True,
+                        'description': description,
+                        'icon': "DefaultPlaylist.png",
+                        'context_menu': context_menu
+                    })
+        
+        except Exception as e:
+            # Log error but return empty list to prevent cache failure
+            self.logger.error("Error building subfolder processed items: %s", e)
+            return []
+        
+        return menu_items
+    
     
     def pre_warm_common_folders(self, max_folders: Optional[int] = None) -> Dict[str, Any]:
         """Pre-warm cache for commonly accessed folders"""
