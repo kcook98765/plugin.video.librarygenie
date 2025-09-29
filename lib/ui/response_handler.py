@@ -47,6 +47,10 @@ class ResponseHandler:
                     if folder_id is not None:
                         success = self._render_folder_directly(context, str(folder_id))
                         if success:
+                            # Clear tools return location after successful folder navigation
+                            from lib.ui.session_state import get_session_state
+                            session_state = get_session_state()
+                            session_state.clear_tools_return_location()
                             context.logger.debug("RESPONSE HANDLER: Successfully displayed folder %s using direct rendering", folder_id)
                             return
                         else:
@@ -62,6 +66,9 @@ class ResponseHandler:
                     session_state = get_session_state()
                     session_state.bump_refresh_token()
                     
+                    # Clear tools return location after navigation
+                    session_state.clear_tools_return_location()
+                    
                     lists_url = context.build_cache_busted_url("lists")
                     context.logger.debug("RESPONSE HANDLER: Navigating to lists with cache-busted URL: %s", lists_url)
                     self.navigator.replace(lists_url)
@@ -75,6 +82,9 @@ class ResponseHandler:
                     session_state = get_session_state()
                     session_state.bump_refresh_token()
                     
+                    # Clear tools return location after navigation
+                    session_state.clear_tools_return_location()
+                    
                     main_url = context.build_cache_busted_url("main_menu")
                     context.logger.debug("RESPONSE HANDLER: Navigating to main with cache-busted URL: %s", main_url)
                     self.navigator.replace(main_url)
@@ -87,6 +97,9 @@ class ResponseHandler:
                     # Bump refresh token for cache-busting
                     session_state = get_session_state()
                     session_state.bump_refresh_token()
+                    
+                    # Clear tools return location after navigation
+                    session_state.clear_tools_return_location()
                     
                     favorites_url = context.build_cache_busted_url("kodi_favorites")
                     context.logger.debug("RESPONSE HANDLER: Navigating to favorites with cache-busted URL: %s", favorites_url)
