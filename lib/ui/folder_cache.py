@@ -93,7 +93,7 @@ class FolderCache:
         except Exception as e:
             self.logger.error("Failed to create cache directory %s: %s", self.cache_dir, e)
     
-    def _get_cache_file_path(self, folder_id: str) -> str:
+    def _get_cache_file_path(self, folder_id: Optional[str]) -> str:
         """Generate cache file path for folder ID"""
         # Handle None folder_id (root level)
         if folder_id is None:
@@ -156,7 +156,7 @@ class FolderCache:
             return False
     
     @contextmanager
-    def _singleton_lock(self, folder_id: str):
+    def _singleton_lock(self, folder_id: Optional[str]):
         """Singleton lock for preventing duplicate folder builds"""
         # Handle None folder_id (root level)
         lock_key = str(folder_id) if folder_id is not None else "root"
@@ -180,12 +180,12 @@ class FolderCache:
                     del self._locks[lock_key]
     
     @contextmanager
-    def with_build_lock(self, folder_id: str):
+    def with_build_lock(self, folder_id: Optional[str]):
         """Public context manager for build operations with stampede protection"""
         with self._singleton_lock(folder_id):
             yield
     
-    def get(self, folder_id: str, allow_stale: bool = False) -> Optional[Dict[str, Any]]:
+    def get(self, folder_id: Optional[str], allow_stale: bool = False) -> Optional[Dict[str, Any]]:
         """
         Get cached folder payload if exists and is fresh (or stale if allowed)
         
@@ -250,7 +250,7 @@ class FolderCache:
             self.logger.error("Error reading cache for folder %s: %s", folder_id, e)
             return None
     
-    def set(self, folder_id: str, payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
+    def set(self, folder_id: Optional[str], payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
         """
         Store folder payload in cache with stampede protection
         
@@ -277,7 +277,7 @@ class FolderCache:
             self.logger.error("Error acquiring lock for caching folder %s: %s", folder_id, e)
             return False
     
-    def _set_without_lock(self, folder_id: str, payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
+    def _set_without_lock(self, folder_id: Optional[str], payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
         """Internal set method that doesn't acquire locks (for use within existing locks)"""
         try:
             # Augment payload with cache metadata
@@ -322,7 +322,7 @@ class FolderCache:
                     pass
             return False
     
-    def delete(self, folder_id: str) -> bool:
+    def delete(self, folder_id: Optional[str]) -> bool:
         """
         Delete cached folder entry
         
@@ -349,12 +349,12 @@ class FolderCache:
             self.logger.error("Error deleting cache for folder %s: %s", folder_id, e)
             return False
     
-    def is_fresh(self, folder_id: str) -> bool:
+    def is_fresh(self, folder_id: Optional[str]) -> bool:
         """Check if folder cache is fresh (within fresh TTL)"""
         file_path = self._get_cache_file_path(folder_id)
         return self._is_file_fresh(file_path)
     
-    def is_stale_but_usable(self, folder_id: str) -> bool:
+    def is_stale_but_usable(self, folder_id: Optional[str]) -> bool:
         """Check if folder cache is stale but still usable for immediate serving"""
         file_path = self._get_cache_file_path(folder_id)
         return self._is_file_stale_but_usable(file_path)
@@ -492,7 +492,7 @@ class FolderCache:
             }
         }
     
-    def pre_warm_folder(self, folder_id: str) -> bool:
+    def pre_warm_folder(self, folder_id: Optional[str]) -> bool:
         """Pre-warm cache for a single folder (background operation, no UI)"""
         try:
             # Check if already cached and fresh
@@ -748,7 +748,7 @@ class FolderCache:
             self.logger.error("Failed to initialize cache service: %s", e)
             return False
     
-    def invalidate_folder(self, folder_id: str) -> bool:
+    def invalidate_folder(self, folder_id: Optional[str]) -> bool:
         """Invalidate cache for a specific folder"""
         try:
             file_path = self._get_cache_file_path(folder_id)
@@ -763,7 +763,7 @@ class FolderCache:
             self.logger.error("Error invalidating cache for folder %s: %s", folder_id, e)
             return False
     
-    def invalidate_parent_folder(self, folder_id: str) -> bool:
+    def invalidate_parent_folder(self, folder_id: Optional[str]) -> bool:
         """Invalidate cache for the parent folder of a given folder"""
         try:
             # Get parent folder information
@@ -784,14 +784,14 @@ class FolderCache:
                     parent_folder_id = str(folder_info['parent_id'])
                     return self.invalidate_folder(parent_folder_id)
                 else:
-                    # This folder is at root level, invalidate root folder (empty string)
-                    return self.invalidate_folder("")
+                    # This folder is at root level, invalidate root folder (None for root)
+                    return self.invalidate_folder(None)
                     
         except Exception as e:
             self.logger.error("Error invalidating parent folder for %s: %s", folder_id, e)
             return False
     
-    def invalidate_folder_hierarchy(self, folder_id: str) -> Dict[str, bool]:
+    def invalidate_folder_hierarchy(self, folder_id: Optional[str]) -> Dict[str, bool]:
         """Invalidate cache for a folder and all its subfolders"""
         try:
             self.logger.debug("Invalidating folder hierarchy for %s", folder_id)
