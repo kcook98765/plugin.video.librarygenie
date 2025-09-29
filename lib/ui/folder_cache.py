@@ -258,9 +258,17 @@ class FolderCache:
             with self._stats_lock:
                 self._stats['hits'] += 1
             
+            # Count items correctly based on payload structure
+            if 'items' in payload:
+                item_count = len(payload.get('items', []))  # Root folder format
+            elif 'lists' in payload:
+                item_count = len(payload.get('lists', []))  # Subfolder format
+            else:
+                item_count = 0
+                
             freshness = "fresh" if self._is_file_fresh(file_path) else "stale"
             self.logger.debug("Cache HIT for folder %s - %d items (%s)", 
-                            folder_id, len(payload.get('items', [])), freshness)
+                            folder_id, item_count, freshness)
             return payload
             
         except Exception as e:
@@ -329,7 +337,13 @@ class FolderCache:
             with self._stats_lock:
                 self._stats['writes'] += 1
             
-            item_count = len(payload.get('items', []))
+            # Count items correctly based on payload structure
+            if 'items' in payload:
+                item_count = len(payload.get('items', []))  # Root folder format
+            elif 'lists' in payload:
+                item_count = len(payload.get('lists', []))  # Subfolder format
+            else:
+                item_count = 0
             self.logger.debug("Cached folder %s - %d items, %d ms build time", 
                             folder_id, item_count, build_time_ms or 0)
             return True
