@@ -11,10 +11,11 @@ import os
 import xbmc
 import xbmcaddon
 import xbmcgui
+import xbmcvfs
 
 ADDON = xbmcaddon.Addon()
 ADDON_ID = ADDON.getAddonInfo('id')
-PROFILE = xbmc.translatePath(ADDON.getAddonInfo('profile'))
+PROFILE = xbmcvfs.translatePath(ADDON.getAddonInfo('profile'))
 PRESETS_PATH = os.path.join(PROFILE, 'search_presets.json')
 
 # Localization helper
