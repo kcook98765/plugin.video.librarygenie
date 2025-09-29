@@ -250,7 +250,6 @@ class FavoritesHandler:
                 return DialogResponse(
                     success=True,
                     message="Favorites scanned successfully",
-                    navigate_to_favorites=True
                 )
             else:
                 error_msg = result.get("message", "Unknown error occurred")
