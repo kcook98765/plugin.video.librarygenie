@@ -62,8 +62,7 @@ class DialogResponse:
                  refresh_needed: bool = False, navigate_to_lists: bool = False,
                  navigate_to_folder: Optional[Union[int, str]] = None, navigate_to_main: bool = False,
                  navigate_to_favorites: bool = False, navigate_on_failure: Optional[str] = None,
-                 is_settings_operation: bool = False, intent: Optional[NavigationIntent] = None,
-                 skip_tools_navigation: bool = False):
+                 is_settings_operation: bool = False, intent: Optional[NavigationIntent] = None):
         self.success = success
         self.message = message
         self.refresh_needed = refresh_needed
@@ -74,7 +73,6 @@ class DialogResponse:
         self.navigate_on_failure = navigate_on_failure
         self.is_settings_operation = is_settings_operation
         self.intent = intent
-        self.skip_tools_navigation = skip_tools_navigation
 
         # Debug logging (moved from __post_init__)
         try:
