@@ -148,8 +148,10 @@ class FolderToolsProvider(BaseToolsProvider):
             lists_handler = ListsHandler(plugin_context)
             result = lists_handler.rename_folder(plugin_context, payload["folder_id"])
             
-            # Don't auto-navigate after rename - just show success message
+            # Don't auto-navigate after rename - just show success message and refresh current view
             # This prevents race conditions and timing issues on slower devices
+            if result.success:
+                result.refresh_needed = True
             return result
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
