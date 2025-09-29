@@ -28,15 +28,23 @@ class PluginContext:
         except (ValueError, IndexError):
             # Fallback for non-integer handles (e.g., utilities.py calls)
             self.addon_handle = -1
-        self.base_url = sys.argv[0] if len(sys.argv) > 0 else ""
+        
+        # Parse query parameters early so we can access addon info
         query_string = sys.argv[2][1:] if len(sys.argv) > 2 and len(sys.argv[2]) > 1 else ""
-
-        # Parse query parameters
         self.params = dict(parse_qsl(query_string))
 
         # Shared resources
         self.addon = xbmcaddon.Addon()
         self.addon_id = self.addon.getAddonInfo('id')
+        
+        # Ensure base_url is always the full plugin URL (fix for test environments)
+        raw_base_url = sys.argv[0] if len(sys.argv) > 0 else ""
+        if raw_base_url and not raw_base_url.startswith('plugin://'):
+            # Test environment or direct script execution - use full plugin URL
+            addon_id = self.addon_id if self.addon_id else 'plugin.video.librarygenie'
+            self.base_url = f"plugin://{addon_id}/"
+        else:
+            self.base_url = raw_base_url
         self.logger = get_kodi_logger('lib.ui.plugin_context')
 
         # Cache auth state
