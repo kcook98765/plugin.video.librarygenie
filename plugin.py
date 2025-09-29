@@ -25,6 +25,22 @@ if TYPE_CHECKING:
 
 # Using direct Kodi logging via lib.utils.kodi_log
 
+# Cached config instance to avoid repeated initialization
+_cached_config = None
+
+def _get_cached_config():
+    """Get cached config instance to avoid repeated get_config() calls"""
+    global _cached_config
+    if _cached_config is None:
+        from lib.config.config_manager import get_config
+        _cached_config = get_config()
+    return _cached_config
+
+def _get_factory():
+    """Get handler factory instance with lazy import for maximum performance"""
+    from lib.ui.handler_factory import get_handler_factory
+    return get_handler_factory()
+
 
 def handle_authorize():
     """Handle device authorization"""
@@ -405,8 +421,7 @@ def _is_service_database_ready():
 def _fast_startup_check(context):
     """Minimal startup checks when service has done heavy lifting"""
     # Only check settings that don't require database operations
-    from lib.config.config_manager import get_config
-    config = get_config()
+    config = _get_cached_config()
     
     favorites_enabled = config.get_bool('favorites_integration_enabled', False)
     log(f"Fast startup: favorites_enabled={favorites_enabled}")
@@ -418,8 +433,7 @@ def _standard_startup_initialization(context: 'PluginContext'):
     log("=== STANDARD STARTUP INITIALIZATION ===")
     
     # Check if favorites integration is enabled
-    from lib.config.config_manager import get_config
-    config = get_config()
+    config = _get_cached_config()
     favorites_enabled = config.get_bool('favorites_integration_enabled', False)
     log(f"Favorites integration enabled: {favorites_enabled}")
     
@@ -461,7 +475,6 @@ def main():
     # Lazy load heavy components only when needed
     from lib.ui.plugin_context import PluginContext
     from lib.ui.router import Router
-    from lib.ui.handler_factory import get_handler_factory
 
     log("=== PLUGIN INVOCATION (REFACTORED) ===")
     log(f"Full sys.argv: {sys.argv}")
@@ -485,7 +498,7 @@ def main():
         # Try to dispatch the request
         if not router.dispatch(context):
             # No handler found, show main menu using lazy factory
-            factory = get_handler_factory()
+            factory = _get_factory()
             main_menu_handler = factory.get_main_menu_handler()
             main_menu_handler.show_main_menu(context)
         
@@ -579,8 +592,7 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             _show_setup_progress(L(35525))  # "Setting up Movies and TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=True)
             # Force cache reload to prevent showing setup again
-            from lib.config.config_manager import get_config
-            get_config().invalidate('first_run_completed')
+            _get_cached_config().invalidate('first_run_completed')
             _show_setup_complete(L(35528))  # "Setup complete! Both movies and TV episodes will be synced."
             
         elif selected == 1:  # Movies only
@@ -588,8 +600,7 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             _show_setup_progress(L(35526))  # "Setting up Movies sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
             # Force cache reload to prevent showing setup again
-            from lib.config.config_manager import get_config
-            get_config().invalidate('first_run_completed')
+            _get_cached_config().invalidate('first_run_completed')
             _show_setup_complete(L(35529))  # "Setup complete! Movies will be synced."
             
         elif selected == 2:  # TV Episodes only
@@ -597,8 +608,7 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             _show_setup_progress(L(35527))  # "Setting up TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=True)
             # Force cache reload to prevent showing setup again
-            from lib.config.config_manager import get_config
-            get_config().invalidate('first_run_completed')
+            _get_cached_config().invalidate('first_run_completed')
             _show_setup_complete(L(35530))  # "Setup complete! TV episodes will be synced."
             
         elif selected == 3:  # Skip setup
@@ -606,8 +616,7 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             # Mark first run complete but don't enable any syncing
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=False)
             # Force cache reload to prevent showing setup again
-            from lib.config.config_manager import get_config
-            get_config().invalidate('first_run_completed')
+            _get_cached_config().invalidate('first_run_completed')
             xbmcgui.Dialog().notification(
                 L(35002),   # "LibraryGenie"
                 L(35531),   # "Setup skipped. Configure sync options in Settings."
@@ -625,8 +634,7 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             sync_controller = SyncController()
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
             # Force cache reload to prevent showing setup again
-            from lib.config.config_manager import get_config
-            get_config().invalidate('first_run_completed')
+            _get_cached_config().invalidate('first_run_completed')
         except:
             pass
         
@@ -713,24 +721,23 @@ def _handle_manual_library_sync(context: 'PluginContext'):
 
 
 def _register_all_handlers(router: 'Router'):
-    """Register all action handlers with the router using lazy factory"""
-    from lib.ui.handler_factory import get_handler_factory
+    """Register all action handlers with the router using per-call lazy factory"""
+    # Handler factory now loaded per-call for maximum lazy loading via module-level _get_factory()
 
-    # Get handler factory for lazy loading
-    factory = get_handler_factory()
-
-    # Register handlers with lazy instantiation - handlers only created when needed
-    router.register_handler('search', lambda ctx: factory.get_search_handler().prompt_and_search(ctx))
-    router.register_handler('ai_search_prompt', lambda ctx: factory.get_search_handler().ai_search_prompt(ctx))
-    router.register_handler('lists', lambda ctx: factory.get_lists_handler().show_lists_menu(ctx))
-    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, factory.get_favorites_handler().show_favorites_menu(ctx)))
+    # Register handlers with true lazy instantiation - factory only created when route is invoked
+    router.register_handler('search', lambda ctx: _get_factory().get_search_handler().prompt_and_search(ctx))
+    router.register_handler('ai_search_prompt', lambda ctx: _get_factory().get_search_handler().ai_search_prompt(ctx))
+    router.register_handler('lists', lambda ctx: _get_factory().get_lists_handler().show_lists_menu(ctx))
+    router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, _get_factory().get_favorites_handler().show_favorites_menu(ctx)))
 
     # Register ListsHandler methods that expect specific parameters
     def _handle_create_list(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().create_list(ctx))
     
     def _handle_create_folder(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().create_folder(ctx))
     
@@ -738,11 +745,12 @@ def _register_all_handlers(router: 'Router'):
     router.register_handler('create_folder_execute', _handle_create_folder)
 
     # Register list and folder view handlers
-    router.register_handler('show_list', lambda ctx: factory.get_lists_handler().view_list(ctx, ctx.get_param('list_id')))
-    router.register_handler('show_folder', lambda ctx: factory.get_lists_handler().show_folder(ctx, ctx.get_param('folder_id')))
+    router.register_handler('show_list', lambda ctx: _get_factory().get_lists_handler().view_list(ctx, ctx.get_param('list_id')))
+    router.register_handler('show_folder', lambda ctx: _get_factory().get_lists_handler().show_folder(ctx, ctx.get_param('folder_id')))
     
     # Register quick add context handler
     def _handle_quick_add_context(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return factory.get_lists_handler().quick_add_context(ctx)
     
@@ -750,22 +758,27 @@ def _register_all_handlers(router: 'Router'):
 
     # Register parameter-based handlers with proper context setting
     def _handle_delete_list(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().delete_list(ctx, ctx.get_param('list_id')))
     
     def _handle_rename_list(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id')))
     
     def _handle_remove_from_list_handler(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().remove_from_list(ctx, ctx.get_param('list_id'), ctx.get_param('item_id')))
     
     def _handle_rename_folder(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().rename_folder(ctx, ctx.get_param('folder_id')))
     
     def _handle_delete_folder(ctx):
+        factory = _get_factory()
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id')))
 
@@ -776,9 +789,9 @@ def _register_all_handlers(router: 'Router'):
     router.register_handler('delete_folder', _handle_delete_folder)
 
     # Register FavoritesHandler methods
-    router.register_handler('scan_favorites_execute', lambda ctx: factory.get_favorites_handler().handle_scan_favorites(ctx))
-    router.register_handler('save_favorites_as', lambda ctx: factory.get_favorites_handler().handle_save_favorites_as(ctx))
-    router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, factory.get_favorites_handler().add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
+    router.register_handler('scan_favorites_execute', lambda ctx: _get_factory().get_favorites_handler().handle_scan_favorites(ctx))
+    router.register_handler('save_favorites_as', lambda ctx: _get_factory().get_favorites_handler().handle_save_favorites_as(ctx))
+    router.register_handler('add_favorite_to_list', lambda ctx: _handle_dialog_response(ctx, _get_factory().get_favorites_handler().add_favorite_to_list(ctx, ctx.get_param('imdb_id'))))
 
     # Register remaining handlers (these don't use handlers so no lazy loading needed)
     router.register_handlers({
