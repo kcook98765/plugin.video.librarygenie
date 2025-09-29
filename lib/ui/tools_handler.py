@@ -94,6 +94,17 @@ class ToolsHandler:
             # Build menu actions using the context-specific provider
             actions = provider.build_tools(tools_context, context)
             if not actions:
+                # For user_list context, if no actions are available (likely because list doesn't exist),
+                # navigate back to a safe location instead of showing an error modal
+                if list_type == "user_list" and list_id:
+                    self.logger.debug("No tools available for list %s - list may not exist, navigating back", list_id)
+                    # Navigate back to the lists main view
+                    return DialogResponse(
+                        success=True, 
+                        navigate_to_lists=True,
+                        message=""  # Silent navigation
+                    )
+                
                 return DialogResponse(
                     success=False,
                     message=L(30504)  # "Operation failed"
@@ -162,17 +173,10 @@ class ToolsHandler:
                     message=L(36033) % folder_name,  # "Moved list to %s"
                 )
 
-                # Navigate to appropriate location after move
-                if target_folder_id is None:
-                    response.navigate_to_lists = True
-                else:
-                    response.navigate_to_folder = target_folder_id
-                    # Ensure no other navigation flags are set that could override folder navigation
-                    response.navigate_to_lists = False
-                    response.navigate_to_main = False
-                    response.refresh_needed = False
-
-                self.logger.debug("Set navigation to folder %s", target_folder_id)
+                # Don't auto-navigate - just show success message and refresh current view
+                # This prevents race conditions and timing issues on slower devices
+                response.refresh_needed = True
+                self.logger.debug("List moved successfully to folder %s - no auto-navigation", target_folder_id)
                 return response
             else:
                 error_msg = result.get("error", "unknown")
@@ -223,7 +227,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=L(36025) % result.get('items_added', 0),  # "Merged %d new items"
-                    navigate_to_lists=True
+                    refresh_needed=True
                 )
             else:
                 return DialogResponse(success=False, message=L(36026))  # "Failed to merge lists"
@@ -262,21 +266,13 @@ class ToolsHandler:
             if result.get("success"):
                 destination_name = "root level" if target_folder_id is None else folder_options[selected_index]
 
-                # Navigate to the destination location instead of refreshing current view
-                if target_folder_id is None:
-                    # Moved to root level - navigate to main lists menu
-                    return DialogResponse(
-                        success=True,
-                        message=f"Moved folder to {destination_name}",
-                        navigate_to_lists=True
-                    )
-                else:
-                    # Moved to another folder - navigate to that destination folder
-                    return DialogResponse(
-                        success=True,
-                        message=f"Moved folder to {destination_name}",
-                        navigate_to_folder=target_folder_id
-                    )
+                # Don't auto-navigate - just show success message and refresh current view
+                # This prevents race conditions and timing issues on slower devices
+                return DialogResponse(
+                    success=True,
+                    message=f"Moved folder to {destination_name}",
+                    refresh_needed=True
+                )
             else:
                 # Handle specific error types with helpful messages
                 error_type = result.get("error", "unknown")
@@ -333,7 +329,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Created list: {new_name}",
-                    navigate_to_folder=folder_id
+                    refresh_needed=True
                 )
 
         except Exception as e:
@@ -375,11 +371,11 @@ class ToolsHandler:
             else:
                 self.logger.info("TOOLS DEBUG: Successfully created subfolder '%s' in parent_folder_id: %s", folder_name, parent_folder_id)
 
-                # Navigate back to the parent folder where the subfolder was created
+                # Don't auto-navigate - just show success message and refresh current view
                 return DialogResponse(
                     success=True,
                     message=f"Created subfolder: {folder_name}",
-                    navigate_to_folder=parent_folder_id
+                    refresh_needed=True
                 )
 
         except Exception as e:
@@ -569,7 +565,6 @@ class ToolsHandler:
                            f"File: {result.get('filename', 'export file')}\n"
                            f"Items: {result.get('total_items', 0)}\n"
                            f"Size: {self._format_file_size(result.get('file_size', 0))}",
-                    navigate_to_folder=folder_id  # Navigate back to the original folder
                 )
             else:
                 return DialogResponse(
@@ -635,7 +630,6 @@ class ToolsHandler:
                            f"File: {result.get('filename', 'export file')}\n"
                            f"Items: {result.get('total_items', 0)}\n"
                            f"Size: {self._format_file_size(file_size)}",
-                    navigate_to_lists=True  # Navigate back to lists main menu
                 )
             else:
                 return DialogResponse(
@@ -718,7 +712,6 @@ class ToolsHandler:
                            f"• Created: {result.lists_created} lists\n"
                            f"• Added: {result.items_added} items\n"
                            f"• Unmatched: {result.items_unmatched} items",
-                    navigate_to_lists=True  # Navigate back to lists main menu
                 )
             else:
                 errors = "\n".join(result.errors) if result.errors else "Unknown error"
@@ -1046,11 +1039,10 @@ class ToolsHandler:
                     f"Unmatched: {result.items_unmatched}"
                 )
 
-                # Navigate to main lists after import
+                # Don't auto-navigate - just show success message
                 return DialogResponse(
                     success=True,
                     message=message,
-                    navigate_to_lists=True
                 )
             else:
                 error_message = result.errors[0] if result.errors else "Unknown error"
@@ -1144,8 +1136,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message=f"Cleared {deleted_count} search history lists",
-                    refresh_needed=True,
-                    navigate_to_main=True  # Navigate to main menu since folder is now empty
+                    refresh_needed=True
                 )
             else:
                 return DialogResponse(
@@ -1304,21 +1295,19 @@ class ToolsHandler:
                 search_folder_id = query_manager.get_or_create_search_history_folder()
                 remaining_lists = query_manager.get_lists_in_folder(str(search_folder_id))
 
-                # Navigate appropriately based on remaining search history
-                if remaining_lists:
-                    # Still have search history lists, navigate back to folder
-                    return DialogResponse(
-                        success=True,
-                        message=f"Moved '{new_name.strip()}' to {destination_name}",
-                        navigate_to_folder=search_folder_id
-                    )
-                else:
-                    # No more search history lists, navigate back to main menu
-                    return DialogResponse(
-                        success=True,
-                        message=f"Moved '{new_name.strip()}' to {destination_name}",
-                        navigate_to_main=True
-                    )
+                # Navigate back to lists main instead of refreshing tools view
+                # This prevents the tools modal from reappearing for the converted list
+                
+                # Add delay to prevent race conditions on slower devices
+                # Give time for database transaction, cache invalidation, and UI updates
+                import xbmc
+                xbmc.sleep(250)  # 250ms delay for slower devices
+                
+                return DialogResponse(
+                    success=True,
+                    message=f"Moved '{new_name.strip()}' to {destination_name}",
+                    navigate_to_lists=True
+                )
 
             except Exception as db_error:
                 self.logger.error("Database error during list conversion: %s", db_error)
@@ -1501,7 +1490,6 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message="",
-                    navigate_to_folder=str(search_folder_id)
                 )
             else:
                 return DialogResponse(success=False, message="Could not access search history")
@@ -1544,11 +1532,11 @@ class ToolsHandler:
             else:
                 self.logger.info("TOOLS DEBUG: Successfully created top-level folder '%s'", folder_name)
 
-                # Navigate back to the lists main menu after creating the folder
+                # Don't auto-navigate - just show success message and refresh current view
                 return DialogResponse(
                     success=True,
                     message=f"Created folder: {folder_name}",
-                    navigate_to_lists=True
+                    refresh_needed=True
                 )
 
         except Exception as e:
@@ -1562,10 +1550,9 @@ class ToolsHandler:
             lists_handler = ListsHandler(context)
             result = lists_handler.create_list(context)
 
-            # Navigate back to lists main menu after creation
+            # Don't auto-navigate - just show success message and refresh current view
             if result.success:
-                result.navigate_to_lists = True
-
+                result.refresh_needed = True
             return result
         except Exception as e:
             self.logger.error("Error creating list: %s", e)

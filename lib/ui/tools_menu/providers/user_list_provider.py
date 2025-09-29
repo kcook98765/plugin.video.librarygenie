@@ -163,10 +163,10 @@ class UserListToolsProvider(BaseToolsProvider):
             lists_handler = ListsHandler(plugin_context)
             result = lists_handler.rename_list(plugin_context, payload["list_id"])
             
+            # Don't auto-navigate after rename - just show success message and refresh current view
+            # This prevents race conditions and timing issues on slower devices
             if result.success:
-                result.navigate_to_lists = True
-                result.refresh_needed = False
-                
+                result.refresh_needed = True
             return result
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
@@ -205,17 +205,10 @@ class UserListToolsProvider(BaseToolsProvider):
             lists_handler = ListsHandler(plugin_context)
             result = lists_handler.delete_list(plugin_context, payload["list_id"])
             
-            # Handle special navigation for search history
-            if payload.get("is_search_history") and result.success:
-                query_manager = plugin_context.query_manager
-                search_folder_id = query_manager.get_or_create_search_history_folder()
-                remaining_lists = query_manager.get_lists_in_folder(search_folder_id)
-                
-                if remaining_lists:
-                    result.navigate_to_folder = search_folder_id
-                else:
-                    result.navigate_to_main = True
-                    
+            # Don't auto-navigate after delete - just show success message and refresh current view
+            # This prevents race conditions and timing issues on slower devices
+            if result.success:
+                result.refresh_needed = True
             return result
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger

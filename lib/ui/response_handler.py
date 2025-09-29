@@ -112,26 +112,34 @@ class ResponseHandler:
                     
                     session_state = get_session_state()
                     
-                    # Check if we're in tools context and need to return to previous location
-                    tools_return_location = session_state.get_tools_return_location()
+                    # Check if we're in tools context
                     import xbmc
                     current_path = xbmc.getInfoLabel('Container.FolderPath')
                     
                     context.logger.debug("RESPONSE HANDLER: Refreshing current path: %s", current_path)
                     
-                    if tools_return_location and 'show_list_tools' in current_path:
-                        # Return to stored location and force refresh
-                        context.logger.debug("RESPONSE HANDLER: Returning to tools origin and refreshing")
-                        self.navigator.replace(tools_return_location)
+                    # For any refresh operation coming from tools context, just refresh without navigating back
+                    # This prevents the tools modal from reappearing after operations
+                    if 'show_list_tools' in current_path:
+                        context.logger.debug("RESPONSE HANDLER: In tools context - clearing session state and refreshing")
                         session_state.clear_tools_return_location()
-                        # Give Kodi a moment to update, then force refresh
-                        import xbmc
-                        xbmc.sleep(100)
                         self.navigator.refresh()
                     else:
-                        # Force complete refresh of current directory to clear Kodi's cache
-                        context.logger.debug("RESPONSE HANDLER: Using Container.Refresh to clear Kodi cache")
-                        self.navigator.refresh()
+                        # Not in tools context, check if we need to return somewhere
+                        tools_return_location = session_state.get_tools_return_location()
+                        if tools_return_location:
+                            # Return to stored location and force refresh
+                            context.logger.debug("RESPONSE HANDLER: Returning to tools origin and refreshing")
+                            self.navigator.replace(tools_return_location)
+                            session_state.clear_tools_return_location()
+                            # Give Kodi a moment to update, then force refresh
+                            import xbmc
+                            xbmc.sleep(100)
+                            self.navigator.refresh()
+                        else:
+                            # Force complete refresh of current directory to clear Kodi's cache
+                            context.logger.debug("RESPONSE HANDLER: Using Container.Refresh to clear Kodi cache")
+                            self.navigator.refresh()
                 else:
                     # For successful responses with just a message and no navigation flags,
                     # don't do any navigation - let the tools handler's direct navigation work
