@@ -692,7 +692,7 @@ class FolderCache:
         menu_items = []
         
         # Add Tools & Options first (simplified for pre-warming)
-        base_url = "plugin.py"
+        base_url = "plugin://plugin.video.librarygenie/"
         tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
         
         menu_items.append({
@@ -792,7 +792,7 @@ class FolderCache:
     def _build_subfolder_processed_items(self, folder_info, subfolders, lists_in_folder):
         """Build processed menu items for subfolder with business logic applied"""
         menu_items = []
-        base_url = "plugin.py"
+        base_url = "plugin://plugin.video.librarygenie/"
         
         try:
             # Add Tools & Options first (simplified to avoid errors)
