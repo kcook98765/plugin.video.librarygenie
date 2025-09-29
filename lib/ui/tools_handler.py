@@ -1280,6 +1280,26 @@ class ToolsHandler:
 
                 self.logger.info("Successfully converted search history list %s to '%s' in %s", search_list_id, new_name.strip(), destination_name)
 
+                # Invalidate cache for both source and target folders
+                try:
+                    from lib.ui.folder_cache import get_folder_cache
+                    folder_cache = get_folder_cache()
+                    
+                    # Get Search History folder ID for source invalidation
+                    search_folder_id = query_manager.get_or_create_search_history_folder()
+                    
+                    # Invalidate source folder (Search History)
+                    if search_folder_id:
+                        folder_cache.invalidate_folder(str(search_folder_id))
+                        self.logger.debug("Cache invalidated for source folder %s after search history conversion", search_folder_id)
+                    
+                    # Invalidate target folder (could be None for root)
+                    folder_cache.invalidate_folder(target_folder_id)
+                    self.logger.debug("Cache invalidated for target folder %s after search history conversion", target_folder_id)
+                        
+                except Exception as cache_error:
+                    self.logger.warning("Failed to invalidate cache after search history conversion: %s", cache_error)
+
                 # Check if this was the last list in the search history folder
                 search_folder_id = query_manager.get_or_create_search_history_folder()
                 remaining_lists = query_manager.get_lists_in_folder(str(search_folder_id))
