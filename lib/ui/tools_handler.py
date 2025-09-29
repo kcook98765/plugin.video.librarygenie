@@ -1490,6 +1490,7 @@ class ToolsHandler:
                 return DialogResponse(
                     success=True,
                     message="",
+                    navigate_to_folder=search_folder_id
                 )
             else:
                 return DialogResponse(success=False, message="Could not access search history")
