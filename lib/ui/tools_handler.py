@@ -94,6 +94,17 @@ class ToolsHandler:
             # Build menu actions using the context-specific provider
             actions = provider.build_tools(tools_context, context)
             if not actions:
+                # For user_list context, if no actions are available (likely because list doesn't exist),
+                # navigate back to a safe location instead of showing an error modal
+                if list_type == "user_list" and list_id:
+                    self.logger.debug("No tools available for list %s - list may not exist, navigating back", list_id)
+                    # Navigate back to the lists main view
+                    return DialogResponse(
+                        success=True, 
+                        navigate_to_lists=True,
+                        message=""  # Silent navigation
+                    )
+                
                 return DialogResponse(
                     success=False,
                     message=L(30504)  # "Operation failed"
