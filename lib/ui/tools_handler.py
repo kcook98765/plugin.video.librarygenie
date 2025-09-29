@@ -1297,6 +1297,12 @@ class ToolsHandler:
 
                 # Navigate back to lists main instead of refreshing tools view
                 # This prevents the tools modal from reappearing for the converted list
+                
+                # Add delay to prevent race conditions on slower devices
+                # Give time for database transaction, cache invalidation, and UI updates
+                import xbmc
+                xbmc.sleep(250)  # 250ms delay for slower devices
+                
                 return DialogResponse(
                     success=True,
                     message=f"Moved '{new_name.strip()}' to {destination_name}",
