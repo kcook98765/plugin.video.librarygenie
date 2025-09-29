@@ -652,6 +652,59 @@ class ListsHandler:
             folder_cache = get_folder_cache()
             cached_data = folder_cache.get(folder_id)
             
+            # Check if using V4 processed cache format
+            schema_version = cached_data.get('_schema') if cached_data else None
+            
+            if cached_data and schema_version == 4:
+                # V4 CACHE HIT: Use pre-built processed menu items (ultra-fast)
+                cache_used = True
+                processed_items = cached_data.get('processed_items', [])
+                cached_breadcrumbs = cached_data.get('breadcrumbs', {})
+                build_time = cached_data.get('_build_time_ms', 0)
+                self.logger.debug("V4 CACHE HIT: Folder %s with %d processed items, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
+                                   folder_id, len(processed_items), build_time)
+                
+                # Convert processed items directly to ListItems for ultra-fast rendering
+                gui_build_start = time.time()
+                menu_items = []
+                for item in processed_items:
+                    list_item = self.list_item_factory.create_from_dict(item)
+                    menu_items.append(list_item)
+                
+                gui_build_time = (time.time() - gui_build_start) * 1000
+                self.logger.debug("V4 CACHE: Rendered %d items in %.2f ms (avg %.2f ms/item)", 
+                                   len(menu_items), gui_build_time, gui_build_time / max(1, len(menu_items)))
+                
+                # Set directory title from cached breadcrumbs
+                directory_title = cached_breadcrumbs.get('directory_title', 'Unknown Folder')
+                try:
+                    window = xbmcgui.Window(10025)
+                    window.setProperty('FolderName', directory_title)
+                    self.logger.debug("Set directory title from V4 cache: '%s'", directory_title)
+                except Exception as e:
+                    self.logger.debug("Could not set directory title: %s", e)
+                
+                # Set parent directory for navigation
+                # For subfolders, parent is root lists menu
+                parent_path = context.build_url('lists')
+                try:
+                    window = xbmcgui.Window(10025)
+                    window.setProperty('ParentDir', parent_path)
+                    window.setProperty('Container.ParentDir', parent_path)
+                    self.logger.debug("Set parent path from V4 cache: %s", parent_path)
+                except Exception as e:
+                    self.logger.debug("Could not set parent path: %s", e)
+                
+                total_time = (time.time() - folder_start) * 1000
+                self.logger.debug("TIMING: V4 cached folder %s rendered in %.2f ms total", folder_id, total_time)
+                
+                return DirectoryResponse(
+                    items=menu_items,
+                    success=True,
+                    content_type="files"
+                )
+            
+            # V3 cache or cache miss - use traditional flow
             folder_info = None
             subfolders = []
             lists_in_folder = []
@@ -659,15 +712,15 @@ class ListsHandler:
             cache_used = False
             query_manager = None
             
-            if cached_data:
-                # CACHE HIT: Use cached navigation data including breadcrumbs (ZERO database overhead)
+            if cached_data and not schema_version:
+                # V3 CACHE HIT: Use old cache format (for compatibility)
                 cache_used = True
                 folder_info = cached_data.get('folder_info')
                 subfolders = cached_data.get('subfolders', [])
                 lists_in_folder = cached_data.get('lists', [])
                 cached_breadcrumbs = cached_data.get('breadcrumbs', {})
                 build_time = cached_data.get('_build_time_ms', 0)
-                self.logger.debug("CACHE HIT: Folder %s cached with %d subfolders, %d lists, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
+                self.logger.debug("V3 CACHE HIT: Folder %s cached with %d subfolders, %d lists, breadcrumbs (built in %d ms)", 
                                    folder_id, len(subfolders), len(lists_in_folder), build_time)
             else:
                 # CACHE MISS: Initialize DB and query, then cache the result
