@@ -220,6 +220,12 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         # Get query from state (which is updated by _open_keyboard)
         query = self._state.get('query', '').strip()
         
+        # DEBUG: Log what we're sending
+        xbmc.log('[LG-SearchPanel] _finalize_and_close called', xbmc.LOGDEBUG)
+        xbmc.log('[LG-SearchPanel] Query from state: "{}"'.format(query), xbmc.LOGDEBUG)
+        xbmc.log('[LG-SearchPanel] Edit control label: "{}"'.format(self.q_edit.getLabel()), xbmc.LOGDEBUG)
+        xbmc.log('[LG-SearchPanel] Full state: {}'.format(self._state), xbmc.LOGDEBUG)
+        
         # Persist last state if desired
         if ADDON.getSettingBool('remember_last_values'):
             self._save_last_state()
@@ -230,6 +236,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             'match_mode': self._state['match_mode'],
             'query': query,
         }
+        xbmc.log('[LG-SearchPanel] Result being returned: {}'.format(self._result), xbmc.LOGDEBUG)
         self.close()
 
     def _read_presets(self):
