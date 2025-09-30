@@ -101,17 +101,43 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _apply_state_to_controls(self):
         """Apply current state to dialog controls"""
+        # DEBUG: Log state being applied
+        xbmc.log('[LG-SearchPanel] Applying state to controls: {}'.format(self._state), xbmc.LOGDEBUG)
+        
         # Content type
-        self.rb_movies.setSelected(self._state['content_type'] == CONTENT_MOVIES)
-        self.rb_series.setSelected(self._state['content_type'] == CONTENT_SERIES)
-        self.rb_all.setSelected(self._state['content_type'] == CONTENT_ALL)
+        movies_selected = (self._state['content_type'] == CONTENT_MOVIES)
+        series_selected = (self._state['content_type'] == CONTENT_SERIES)
+        all_selected = (self._state['content_type'] == CONTENT_ALL)
+        
+        xbmc.log('[LG-SearchPanel] Content type buttons: Movies={}, Series={}, All={}'.format(
+            movies_selected, series_selected, all_selected), xbmc.LOGDEBUG)
+        
+        self.rb_movies.setSelected(movies_selected)
+        self.rb_series.setSelected(series_selected)
+        self.rb_all.setSelected(all_selected)
+        
         # Fields
-        self.tb_title.setSelected(self._state['fields'] in (FIELDS_TITLE, FIELDS_BOTH))
-        self.tb_plot.setSelected(self._state['fields'] in (FIELDS_PLOT, FIELDS_BOTH))
+        title_selected = (self._state['fields'] in (FIELDS_TITLE, FIELDS_BOTH))
+        plot_selected = (self._state['fields'] in (FIELDS_PLOT, FIELDS_BOTH))
+        
+        xbmc.log('[LG-SearchPanel] Field buttons: Title={}, Plot={}'.format(
+            title_selected, plot_selected), xbmc.LOGDEBUG)
+        
+        self.tb_title.setSelected(title_selected)
+        self.tb_plot.setSelected(plot_selected)
+        
         # Match mode
-        self.rb_any.setSelected(self._state['match_mode'] == MATCH_ANY)
-        self.rb_allw.setSelected(self._state['match_mode'] == MATCH_ALL)
-        self.rb_phrase.setSelected(self._state['match_mode'] == MATCH_PHRASE)
+        any_selected = (self._state['match_mode'] == MATCH_ANY)
+        all_selected = (self._state['match_mode'] == MATCH_ALL)
+        phrase_selected = (self._state['match_mode'] == MATCH_PHRASE)
+        
+        xbmc.log('[LG-SearchPanel] Match mode buttons: Any={}, All={}, Phrase={}'.format(
+            any_selected, all_selected, phrase_selected), xbmc.LOGDEBUG)
+        
+        self.rb_any.setSelected(any_selected)
+        self.rb_allw.setSelected(all_selected)
+        self.rb_phrase.setSelected(phrase_selected)
+        
         # Query
         self.q_edit.setText(self._state.get('query', ''))
 
