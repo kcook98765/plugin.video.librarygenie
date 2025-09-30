@@ -64,6 +64,9 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             self._toggle_fields()
         elif control_id in (221, 222, 223):
             self._set_match_mode_by_control(control_id)
+        elif control_id == 200:
+            # Clicking on query box opens keyboard
+            self._open_keyboard()
         elif control_id == 231:
             self._open_keyboard()
         elif control_id == 240:
