@@ -35,6 +35,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def __init__(self, *args, **kwargs):
         super(SearchPanel, self).__init__()
         self._result = None
+        self._keyboard_just_closed = False  # Flag to prevent immediate reopen
         
         # Load defaults - handle 0 as valid value
         default_content = ADDON.getSettingInt('default_content_type')
@@ -85,8 +86,12 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         elif control_id in (221, 222, 223):
             self._set_match_mode_by_control(control_id)
         elif control_id == 200:
-            # Clicking on query box opens keyboard
-            self._open_keyboard()
+            # Clicking on query box opens keyboard (but not if keyboard just closed)
+            if self._keyboard_just_closed:
+                xbmc.log('[LG-SearchPanel] Ignoring click - keyboard just closed', xbmc.LOGDEBUG)
+                self._keyboard_just_closed = False
+            else:
+                self._open_keyboard()
         elif control_id == 252:
             self._save_as_default()
         elif control_id == 260:
@@ -175,6 +180,10 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         current_text = self.q_edit.getText()
         kb = xbmc.Keyboard(current_text, L(30333))  # "Enter search text"
         kb.doModal()
+        
+        # Set flag to prevent immediate reopen
+        self._keyboard_just_closed = True
+        
         if kb.isConfirmed():
             text = kb.getText()
             self._state['query'] = text
