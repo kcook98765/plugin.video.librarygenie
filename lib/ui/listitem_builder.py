@@ -398,7 +398,7 @@ class ListItemBuilder:
             # Import localization for labels
             try:
                 from lib.ui.localization import L
-                remove_label = L(31010) if L(31010) else "Remove from List"
+                remove_label = L(30178) if L(30178) else "Remove from List"
             except ImportError:
                 remove_label = "Remove from List"
             

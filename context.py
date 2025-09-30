@@ -190,7 +190,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     if is_playable_item:
         # 2. LG Quick Add (if enabled and configured)
         if quick_add_enabled and default_list_id:
-            quick_add_label = L(37101)  # "LG Quick Add"
+            quick_add_label = L(30675)  # "LG Quick Add"
             if not quick_add_label or quick_add_label.startswith('LocMiss_'):
                 quick_add_label = "LG Quick Add"
             options.append(quick_add_label)
@@ -204,7 +204,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
                 actions.append("quick_add_external")
 
         # 3. LG Add to List...
-        add_list_label = L(37102)  # "LG Add to List..."
+        add_list_label = L(30675)  # "LG Add to List..."
         if not add_list_label or add_list_label.startswith('LocMiss_'):
             add_list_label = "LG Add to List..."
         options.append(add_list_label)
@@ -219,7 +219,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
 
     # 4. LG Remove from List (if in list context and is playable item)
     if in_list_context and is_playable_item:
-        remove_label = L(37103)  # "LG Remove from List"
+        remove_label = L(30676)  # "LG Remove from List"
         if not remove_label or remove_label.startswith('LocMiss_'):
             remove_label = "LG Remove from List"
         options.append(remove_label)
@@ -283,14 +283,14 @@ def _show_search_submenu(addon):
         actions = []
 
         # Local Movie Search
-        movie_search_label = L(37200)  # "Local Movie Search"
+        movie_search_label = L(30679)  # "Local Movie Search"
         if not movie_search_label or movie_search_label.startswith('LocMiss_'):
             movie_search_label = "Local Movie Search"
         options.append(movie_search_label)
         actions.append("search_movies")
 
         # Local TV Search
-        tv_search_label = L(37201)  # "Local TV Search"
+        tv_search_label = L(30680)  # "Local TV Search"
         if not tv_search_label or tv_search_label.startswith('LocMiss_'):
             tv_search_label = "Local TV Search"
         options.append(tv_search_label)
@@ -298,14 +298,14 @@ def _show_search_submenu(addon):
 
         # AI Movie Search (if available)
         if ai_search_available:
-            ai_search_label = L(37202)  # "AI Movie Search"
+            ai_search_label = L(30681)  # "AI Movie Search"
             if not ai_search_label or ai_search_label.startswith('LocMiss_'):
                 ai_search_label = "AI Movie Search"
             options.append(ai_search_label)
             actions.append("search_ai")
 
         # Search History
-        search_history_label = L(37202)  # "Search History"
+        search_history_label = L(30681)  # "Search History"
         if not search_history_label or search_history_label.startswith('LocMiss_'):
             search_history_label = "Search History"
         options.append(search_history_label)
@@ -313,7 +313,7 @@ def _show_search_submenu(addon):
 
         # Kodi Favorites (if enabled)
         if favorites_enabled:
-            favorites_label = L(37204)  # "Kodi Favorites"
+            favorites_label = L(30683)  # "Kodi Favorites"
             if not favorites_label or favorites_label.startswith('LocMiss_'):
                 favorites_label = "Kodi Favorites"
             options.append(favorites_label)
@@ -437,7 +437,7 @@ def _add_library_episode_options(options, actions, addon, dbtype, dbid):
 def _add_external_item_options(options, actions, addon):
     """Add options for external/plugin items"""
     # For external items, we can only do add to list (no quick add since we need to gather metadata)
-    add_to_list_label = L(31000)  # "Add to List..."
+    add_to_list_label = L(30176)  # "Add to List..."
     options.append(add_to_list_label)
     actions.append("add_external_item")
 
@@ -481,18 +481,18 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
         default_list_id = config.get('default_list_id', "")
 
         if quick_add_enabled and default_list_id:
-            quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
+            quick_add_label = L(30177) if L(30177) else "Quick Add to Default"
             options.append(quick_add_label)
             actions.append(f"quick_add&media_item_id={media_item_id}")
 
-        add_to_list_label = L(31000) if L(31000) else "Add to List..."
+        add_to_list_label = L(30176) if L(30176) else "Add to List..."
         options.append(add_to_list_label)
         actions.append(f"add_to_list&media_item_id={media_item_id}")
 
         # If we're in a list context, add remove option
         target_list_id = list_id if list_id and list_id != '' else extracted_list_id
         if target_list_id:
-            remove_label = L(31010) if L(31010) else "Remove from List"
+            remove_label = L(30178) if L(30178) else "Remove from List"
             options.append(remove_label)
             actions.append(f"remove_from_list&list_id={target_list_id}&item_id={media_item_id}")
             xbmc.log(f"LibraryGenie: Added remove option for list {target_list_id}", xbmc.LOGINFO)
@@ -503,7 +503,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
 
         # If we're in a list context, add remove option first
         if extracted_list_id and item_info.get('title'):
-            remove_label = L(31010) if L(31010) else "Remove from List"
+            remove_label = L(30178) if L(30178) else "Remove from List"
             options.append(remove_label)
             # For library items in lists without media_item_id, we need to identify by title/dbid
             title = item_info.get('title', '')
@@ -518,11 +518,11 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
         default_list_id = config.get('default_list_id', "")
 
         if quick_add_enabled and default_list_id:
-            quick_add_label = L(31001) if L(31001) else "Quick Add to Default"
+            quick_add_label = L(30177) if L(30177) else "Quick Add to Default"
             options.append(quick_add_label)
             actions.append(f"quick_add_context&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
 
-        add_to_list_label = L(31000) if L(31000) else "Add to List..."
+        add_to_list_label = L(30176) if L(30176) else "Add to List..."
         options.append(add_to_list_label)
         actions.append(f"add_to_list&dbtype={dbtype}&dbid={dbid}&title={item_info.get('title', '')}")
 
@@ -532,7 +532,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
 
         # If we're in a list context, add remove option first
         if extracted_list_id:
-            remove_label = L(31010) if L(31010) else "Remove from List"
+            remove_label = L(30178) if L(30178) else "Remove from List"
             options.append(remove_label)
             title = item_info.get('title', '')
             actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")
@@ -546,7 +546,7 @@ def _add_librarygenie_item_options(options, actions, addon, item_info):
 
         # If we're in a list context, add remove option first
         if extracted_list_id:
-            remove_label = L(31010) if L(31010) else "Remove from List"
+            remove_label = L(30178) if L(30178) else "Remove from List"
             options.append(remove_label)
             title = item_info.get('title', '')
             actions.append(f"remove_from_list&list_id={extracted_list_id}&item_title={title}")

@@ -136,7 +136,7 @@ class FavoritesHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
 
-            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
+            tools_item = xbmcgui.ListItem(label=f"{L(30515)} {breadcrumb_text}", offscreen=True)
             self._set_listitem_plot(tools_item, description_text + "Tools and options for favorites")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -155,7 +155,7 @@ class FavoritesHandler:
             if not favorites_items:
                 # No favorites found - show empty message
                 # Add empty state message
-                empty_item = xbmcgui.ListItem(label=L(32006), offscreen=True)
+                empty_item = xbmcgui.ListItem(label=L(30208), offscreen=True)
                 self._set_listitem_plot(empty_item, 'No Kodi favorites found or none mapped to library.')
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
@@ -286,10 +286,10 @@ class FavoritesHandler:
             if not user_lists:
                 # No lists available, offer to create one
                 if self.dialog_service.yesno(
-                    L(35002),  # "LibraryGenie"
-                    L(36071),  # "No lists found. Create a new list first?"
-                    yes_label=L(37018),   # "Create New List"
-                    no_label=L(36003)  # "Cancel"
+                    L(30388),  # "LibraryGenie"
+                    L(30620),  # "No lists found. Create a new list first?"
+                    yes_label=L(30662),   # "Create New List"
+                    no_label=L(30518)  # "Cancel"
                 ):
                     # Redirect to create list
                     from lib.ui.lists_handler import ListsHandler
@@ -300,7 +300,7 @@ class FavoritesHandler:
 
             # Show list selection dialog
             list_names = [lst['name'] for lst in user_lists]
-            selected_index = self.dialog_service.select(L(31100), list_names)  # "Select a list"
+            selected_index = self.dialog_service.select(L(30184), list_names)  # "Select a list"
 
             if selected_index < 0:
                 self.logger.info("User cancelled list selection")
@@ -364,7 +364,7 @@ class FavoritesHandler:
 
             # Prompt for new list name
             default_name = f"Kodi Favorites Copy - {datetime.now().strftime('%Y-%m-%d')}"
-            new_list_name = self.dialog_service.input(L(30590), default=default_name)  # "Enter list name"
+            new_list_name = self.dialog_service.input(L(30142), default=default_name)  # "Enter list name"
 
             if not new_list_name or not new_list_name.strip():
                 self.logger.info("User cancelled or entered empty list name")
@@ -383,8 +383,8 @@ class FavoritesHandler:
             all_folders = query_manager.get_all_folders()
 
             # Ask user if they want to place it in a folder
-            folder_names = [L(36032)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
-            selected_folder_index = self.dialog_service.select(L(36029), list(folder_names))  # "Select destination folder:"
+            folder_names = [L(30561)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
+            selected_folder_index = self.dialog_service.select(L(30559), list(folder_names))  # "Select destination folder:"
 
             if selected_folder_index < 0:
                 self.logger.info("User cancelled folder selection")
@@ -638,7 +638,7 @@ class FavoritesHandler:
         try:
             if not favorites:
                 # Show empty message
-                empty_item = xbmcgui.ListItem(label=L(32006), offscreen=True)
+                empty_item = xbmcgui.ListItem(label=L(30208), offscreen=True)
                 if self.plugin_context:
                     self.plugin_context.add_item(
                         url="plugin://plugin.video.librarygenie/?action=empty",
