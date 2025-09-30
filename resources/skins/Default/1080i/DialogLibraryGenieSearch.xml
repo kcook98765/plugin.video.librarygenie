@@ -3,28 +3,28 @@
     <defaultcontrol always="true">260</defaultcontrol>
     <allowoverlay>yes</allowoverlay>
     <controls>
-        <!-- FULLSCREEN SOLID BACKGROUND - Uses addon's own texture -->
+        <!-- FULLSCREEN SOLID BACKGROUND - Uses addon's landscape.jpg -->
         <control type="image" id="1">
             <description>Fullscreen Dialog Background</description>
             <left>0</left>
             <top>0</top>
             <width>1920</width>
             <height>1080</height>
-            <texture>black.png</texture>
-            <colordiffuse>F5000000</colordiffuse>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texture>
+            <colordiffuse>18000000</colordiffuse>
             <aspectratio>stretch</aspectratio>
             <visible>true</visible>
         </control>
         
-        <!-- ADDITIONAL OPAQUE LAYER - Double layer for complete opacity -->
+        <!-- SOLID BLACK OVERLAY - Creates opaque background -->
         <control type="image" id="2">
-            <description>Extra opacity layer</description>
+            <description>Black overlay for opacity</description>
             <left>0</left>
             <top>0</top>
             <width>1920</width>
             <height>1080</height>
-            <texture>black.png</texture>
-            <colordiffuse>DD000000</colordiffuse>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texture>
+            <colordiffuse>E8000000</colordiffuse>
             <aspectratio>stretch</aspectratio>
             <visible>true</visible>
         </control>
@@ -35,13 +35,14 @@
             <width>1620</width>
             <height>840</height>
             
-            <!-- Content area background - Universal -->
+            <!-- Content area background - Uses addon's texture -->
             <control type="image">
                 <width>1620</width>
                 <height>840</height>
-                <texture fallback="special://skin/media/DialogBack.png">DialogBack.png</texture>
-                <colordiffuse>FF202020</colordiffuse>
+                <texture>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texture>
+                <colordiffuse>FF1A1A1A</colordiffuse>
                 <aspectratio>stretch</aspectratio>
+                <visible>true</visible>
             </control>
             
             <!-- Header -->
