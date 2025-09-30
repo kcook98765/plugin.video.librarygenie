@@ -1473,12 +1473,6 @@ class ToolsHandler:
                             refresh_needed=False,
                             navigate_to_main=False
                         )
-                else:
-                    return DialogResponse(
-                        success=False,
-                        message="Failed to save search history",
-                        refresh_needed=False
-                    )
             else:
                 # Show "no results" notification
                 import xbmcgui
