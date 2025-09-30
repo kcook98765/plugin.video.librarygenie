@@ -368,10 +368,10 @@
                 <ondown>251</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
-                <itemlayout height="100" width="200">
+                <itemlayout height="100" width="800">
                     <control type="label">
                         <left>10</left>
-                        <width>180</width>
+                        <width>780</width>
                         <height>100</height>
                         <font>font13</font>
                         <textcolor>FFFFFFFF</textcolor>
@@ -380,15 +380,15 @@
                         <label>$INFO[ListItem.Label]</label>
                     </control>
                 </itemlayout>
-                <focusedlayout height="100" width="200">
+                <focusedlayout height="100" width="800">
                     <control type="image">
-                        <width>200</width>
+                        <width>800</width>
                         <height>100</height>
                         <texture colordiffuse="FF0066CC">colors/white.png</texture>
                     </control>
                     <control type="label">
                         <left>10</left>
-                        <width>180</width>
+                        <width>780</width>
                         <height>100</height>
                         <font>font13</font>
                         <textcolor>FFFFFFFF</textcolor>
