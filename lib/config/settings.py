@@ -339,7 +339,7 @@ class SettingsManager:
         try:
             # This would require iterating through all settings and resetting them
             # For now, we'll log the action
-            self.logger.info(L(34503))  # "Setting restored to default"
+            self.logger.info(L(30131))  # "Setting restored to default"
         except Exception as e:
             self.logger.error("Failed to reset settings: %s", e)
 
@@ -355,19 +355,19 @@ class SettingsManager:
                 self.logger.warning("JSON-RPC page size too high, using maximum")
                 return False
 
-            self.logger.info(L(34504))  # "Configuration validated"
+            self.logger.info(L(30132))  # "Configuration validated"
             return True
         except Exception as e:
-            self.logger.error("%s: %s", L(34505), e)  # "Configuration validation failed"
+            self.logger.error("%s: %s", L(30133), e)  # "Configuration validation failed"
             return False
 
     def get_validation_status_message(self, is_valid: bool) -> str:
         """Get localized validation status message"""
-        return L(34504) if is_valid else L(34505)  # "Configuration validated" or "Configuration validation failed"
+        return L(30132) if is_valid else L(30133)  # "Configuration validated" or "Configuration validation failed"
 
     def get_setting_save_message(self, success: bool) -> str:
         """Get localized setting save message"""
-        return L(34501) if success else L(34502)  # "Setting saved successfully" or "Failed to save setting"
+        return L(30129) if success else L(30130)  # "Setting saved successfully" or "Failed to save setting"
 
     def get_backup_preferences(self) -> Dict[str, Any]:
         """Get backup-related preferences with defaults"""

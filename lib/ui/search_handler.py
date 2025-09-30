@@ -134,7 +134,7 @@ class SearchHandler:
         """Prompt user for search keywords"""
         try:
             terms = self.dialog_service.input(
-                L(33002),  # "Enter search terms"
+                L(30005),  # "Enter search terms"
                 input_type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None
@@ -147,17 +147,21 @@ class SearchHandler:
     def _execute_simple_search(self, search_terms: str, options: Dict[str, str], context=None):
         """Execute the simplified search"""
         try:
-            # Map media scope to media types
-            media_scope = options.get("media_scope", "movie")
-            if media_scope == "episode":
-                media_types = ["episode", "tvshow"]
-            else:  # default to movie
-                media_types = ["movie"]
+            # Get media types from options (can be passed directly or via legacy media_scope)
+            if "media_types" in options:
+                media_types = options["media_types"]
+            else:
+                # Legacy: Map media scope to media types for backward compatibility
+                media_scope = options.get("media_scope", "movie")
+                if media_scope == "episode":
+                    media_types = ["episode", "tvshow"]
+                else:  # default to movie
+                    media_types = ["movie"]
 
             # Parse query
             query_params = {
-                "search_scope": options["search_scope"],
-                "match_logic": options["match_logic"],
+                "search_scope": options.get("search_scope", "both"),
+                "match_logic": options.get("match_logic", "all"),
                 "media_types": media_types
             }
 
@@ -190,11 +194,14 @@ class SearchHandler:
 
             self._debug(f"Saving search history for '{search_terms}' with {results.total_count} results")
 
-            # Create search history list with simplified description and media scope prefix
-            media_scope = options.get("media_scope", "movie")
-            if media_scope == "episode":
+            # Create search history list with simplified description and media type prefix
+            media_types = options.get("media_types", ["movie"])
+            if "episode" in media_types and "movie" not in media_types:
                 query_desc = f"Episodes: {search_terms}"
                 search_type = "episode_simple"
+            elif "episode" in media_types and "movie" in media_types:
+                query_desc = f"All: {search_terms}"
+                search_type = "simple"
             else:
                 query_desc = f"{search_terms}"
                 search_type = "simple"

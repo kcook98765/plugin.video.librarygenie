@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="dialog">
+    <backgroundcolor>0xff000000</backgroundcolor>
+    <defaultcontrol always="true">200</defaultcontrol>
+    <allowoverlay>yes</allowoverlay>
+    <controls>
+        <control type="group">
+            <left>150</left>
+            <top>120</top>
+            <width>1620</width>
+            <height>840</height>
+            
+            <!-- Solid background -->
+            <control type="image">
+                <width>1620</width>
+                <height>840</height>
+                <texture colordiffuse="E6000000">colors/white.png</texture>
+                <aspectratio>stretch</aspectratio>
+            </control>
+            
+            <!-- Header -->
+            <control type="label" id="100">
+                <left>40</left>
+                <top>24</top>
+                <width>1540</width>
+                <height>60</height>
+                <align>center</align>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <label>$ADDON[plugin.video.librarygenie 30134]</label>
+            </control>
+
+            <!-- Content Type Label -->
+            <control type="label">
+                <left>100</left>
+                <top>120</top>
+                <width>480</width>
+                <height>40</height>
+                <label>$ADDON[plugin.video.librarygenie 30285]</label>
+                <font>font13</font>
+                <textcolor>FFAAAAAA</textcolor>
+            </control>
+            
+            <!-- Content Type: All -->
+            <control type="radiobutton" id="201">
+                <left>100</left>
+                <top>160</top>
+                <width>450</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 30288]</label>
+                <onup>260</onup>
+                <ondown>202</ondown>
+                <onleft>260</onleft>
+                <onright>211</onright>
+            </control>
+            
+            <!-- Content Type: Movies -->
+            <control type="radiobutton" id="202">
+                <left>100</left>
+                <top>210</top>
+                <width>450</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 30286]</label>
+                <onup>201</onup>
+                <ondown>203</ondown>
+                <onleft>260</onleft>
+                <onright>211</onright>
+            </control>
+            
+            <!-- Content Type: Series -->
+            <control type="radiobutton" id="203">
+                <left>100</left>
+                <top>260</top>
+                <width>450</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 30287]</label>
+                <onup>202</onup>
+                <ondown>200</ondown>
+                <onleft>260</onleft>
+                <onright>211</onright>
+            </control>
+
+            <!-- Fields Label -->
+            <control type="label">
+                <left>640</left>
+                <top>120</top>
+                <width>480</width>
+                <height>40</height>
+                <label>$ADDON[plugin.video.librarygenie 30319]</label>
+                <font>font13</font>
+                <textcolor>FFAAAAAA</textcolor>
+            </control>
+            
+            <!-- Field: Title -->
+            <control type="radiobutton" id="211">
+                <left>640</left>
+                <top>160</top>
+                <width>450</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 32300]</label>
+                <onup>260</onup>
+                <ondown>212</ondown>
+                <onleft>201</onleft>
+                <onright>221</onright>
+            </control>
+            
+            <!-- Field: Plot -->
+            <control type="radiobutton" id="212">
+                <left>640</left>
+                <top>210</top>
+                <width>450</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 32301]</label>
+                <onup>211</onup>
+                <ondown>200</ondown>
+                <onleft>202</onleft>
+                <onright>221</onright>
+            </control>
+
+            <!-- Match Mode Label -->
+            <control type="label">
+                <left>1180</left>
+                <top>120</top>
+                <width>420</width>
+                <height>40</height>
+                <label>$ADDON[plugin.video.librarygenie 32302]</label>
+                <font>font13</font>
+                <textcolor>FFAAAAAA</textcolor>
+            </control>
+            
+            <!-- Match: Any word -->
+            <control type="radiobutton" id="221">
+                <left>1180</left>
+                <top>160</top>
+                <width>400</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 30323]</label>
+                <onup>260</onup>
+                <ondown>222</ondown>
+                <onleft>211</onleft>
+                <onright>201</onright>
+            </control>
+            
+            <!-- Match: All words -->
+            <control type="radiobutton" id="222">
+                <left>1180</left>
+                <top>210</top>
+                <width>400</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 30324]</label>
+                <onup>221</onup>
+                <ondown>223</ondown>
+                <onleft>212</onleft>
+                <onright>201</onright>
+            </control>
+            
+            <!-- Match: Exact phrase -->
+            <control type="radiobutton" id="223">
+                <left>1180</left>
+                <top>260</top>
+                <width>400</width>
+                <height>40</height>
+                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <textureradioonfocus colordiffuse="FF00FF00">colors/white.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
+                <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
+                <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
+                <label>$ADDON[plugin.video.librarygenie 30325]</label>
+                <onup>222</onup>
+                <ondown>252</ondown>
+                <onleft>212</onleft>
+                <onright>201</onright>
+            </control>
+
+            <!-- Set as default button -->
+            <control type="button" id="252">
+                <left>100</left>
+                <top>330</top>
+                <width>1480</width>
+                <height>50</height>
+                <texturefocus colordiffuse="FFAA6600">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF553300">colors/white.png</texturenofocus>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>$ADDON[plugin.video.librarygenie 32303]</label>
+                <onup>223</onup>
+                <ondown>200</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
+            </control>
+
+            <!-- Query Label -->
+            <control type="label">
+                <left>100</left>
+                <top>410</top>
+                <width>300</width>
+                <height>40</height>
+                <label>$ADDON[plugin.video.librarygenie 30326]</label>
+                <font>font13</font>
+                <textcolor>FFAAAAAA</textcolor>
+            </control>
+            
+            <!-- Query Edit -->
+            <control type="edit" id="200">
+                <left>100</left>
+                <top>460</top>
+                <width>1480</width>
+                <height>60</height>
+                <texturefocus colordiffuse="FF555555">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF333333">colors/white.png</texturenofocus>
+                <font>font13</font>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>12</textoffsetx>
+                <textcolor>FFFFFFFF</textcolor>
+                <label></label>
+                <onup>252</onup>
+                <ondown>260</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
+            </control>
+            
+            <!-- Cancel button -->
+            <control type="button" id="261">
+                <left>100</left>
+                <top>560</top>
+                <width>740</width>
+                <height>70</height>
+                <texturefocus colordiffuse="FF666666">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF333333">colors/white.png</texturenofocus>
+                <font>font30_title</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>$ADDON[plugin.video.librarygenie 32304]</label>
+                <onup>200</onup>
+                <ondown>201</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
+            </control>
+            
+            <!-- Search button -->
+            <control type="button" id="260">
+                <left>860</left>
+                <top>560</top>
+                <width>720</width>
+                <height>70</height>
+                <texturefocus colordiffuse="FF00AA00">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF005500">colors/white.png</texturenofocus>
+                <font>font30_title</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>$ADDON[plugin.video.librarygenie 32305]</label>
+                <onup>200</onup>
+                <ondown>201</ondown>
+                <onleft>261</onleft>
+                <onright>261</onright>
+            </control>
+        </control>
+    </controls>
+</window>

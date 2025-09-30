@@ -24,11 +24,11 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             actions = []
             
-            # Search operations (matching old system order)
+            # Search operations - Unified Local Search
             actions.append(self._create_action(
-                action_id="local_movie_search",
-                label=L(33000),  # Local Movie Search
-                handler=self._handle_local_movie_search
+                action_id="local_search",
+                label="Local Search",
+                handler=self._handle_local_search
             ))
             
             # Check if AI Search is available (like old system)
@@ -38,17 +38,11 @@ class ListsMainToolsProvider(BaseToolsProvider):
                 if ai_client.is_activated():
                     actions.append(self._create_action(
                         action_id="ai_movie_search",
-                        label=L(34100),  # AI Movie Search
+                        label=L(30079),  # AI Movie Search
                         handler=self._handle_ai_movie_search
                     ))
             except Exception:
                 pass  # AI search not available
-            
-            actions.append(self._create_action(
-                action_id="local_episodes_search",
-                label="Local Episodes Search",  # TODO: Add to localization
-                handler=self._handle_local_episodes_search
-            ))
             
             actions.append(self._create_action(
                 action_id="search_history",
@@ -191,17 +185,17 @@ class ListsMainToolsProvider(BaseToolsProvider):
             logger.error("Error opening settings: %s", e)
             return DialogResponse(success=False, message="Error opening settings")
     
-    def _handle_local_movie_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
-        """Handle local movie search"""
+    def _handle_local_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
+        """Handle unified local search (movies and series)"""
         try:
             from lib.ui.tools_handler import ToolsHandler
             tools_handler = ToolsHandler()
-            return tools_handler._handle_local_search(plugin_context)
+            return tools_handler._handle_unified_local_search(plugin_context)
         except Exception as e:
             from lib.utils.kodi_log import get_kodi_logger
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
-            logger.error("Error handling local movie search: %s", e)
-            return DialogResponse(success=False, message="Error opening local movie search")
+            logger.error("Error handling local search: %s", e)
+            return DialogResponse(success=False, message="Error opening local search")
 
     def _handle_ai_movie_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
         """Handle AI movie search"""
@@ -215,17 +209,6 @@ class ListsMainToolsProvider(BaseToolsProvider):
             logger.error("Error handling AI movie search: %s", e)
             return DialogResponse(success=False, message="Error opening AI movie search")
 
-    def _handle_local_episodes_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
-        """Handle local episodes search"""
-        try:
-            from lib.ui.tools_handler import ToolsHandler
-            tools_handler = ToolsHandler()
-            return tools_handler._handle_local_episodes_search(plugin_context)
-        except Exception as e:
-            from lib.utils.kodi_log import get_kodi_logger
-            logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
-            logger.error("Error handling local episodes search: %s", e)
-            return DialogResponse(success=False, message="Error opening local episodes search")
 
     def _handle_search_history(self, plugin_context: Any, payload: dict) -> DialogResponse:
         """Handle search history"""

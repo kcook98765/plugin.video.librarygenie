@@ -126,9 +126,9 @@ class ToolsHandler:
     def _get_tools_title(self, list_type: str) -> str:
         """Get appropriate title for tools menu based on context"""
         titles = {
-            "favorites": L(36013),  # "Favorites Tools & Options"
-            "user_list": L(36014),  # "List Tools & Options"
-            "folder": L(36015),     # "Folder Tools & Options"
+            "favorites": L(30225),  # "Favorites Tools & Options"
+            "user_list": L(30226),  # "List Tools & Options"
+            "folder": L(30227),     # "Folder Tools & Options"
             "lists_main": "Tools & Options"  # TODO: Add to localization
         }
         return titles.get(list_type, "Tools & Options")
@@ -146,7 +146,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get available folders (excluding Search History)
             all_folders = query_manager.get_all_folders()
@@ -154,7 +154,7 @@ class ToolsHandler:
             folder_options = ["[Root Level]"] + [f['name'] for f in selectable_folders]
 
             # Show folder selection dialog
-            selected_index = self.dialog.select(L(36029), folder_options)  # "Select destination folder:"
+            selected_index = self.dialog.select(L(30301), folder_options)  # "Select destination folder:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -167,10 +167,10 @@ class ToolsHandler:
             result = query_manager.move_list_to_folder(list_id, target_folder_id)
 
             if result.get("success"):
-                folder_name = L(36032) if target_folder_id is None else folder_options[selected_index]  # "root level"
+                folder_name = L(30303) if target_folder_id is None else folder_options[selected_index]  # "root level"
                 response = DialogResponse(
                     success=True,
-                    message=L(36033) % folder_name,  # "Moved list to %s"
+                    message=L(30304) % folder_name,  # "Moved list to %s"
                 )
 
                 # Don't auto-navigate - just show success message and refresh current view
@@ -192,7 +192,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get all lists except the target
             all_lists = query_manager.get_all_lists_with_folders()
@@ -205,7 +205,7 @@ class ToolsHandler:
             list_options = [list_item['name'] for list_item in source_lists]
 
             # Show list selection dialog
-            selected_index = self.dialog.select(L(36028), list_options)  # "Select list to merge:"
+            selected_index = self.dialog.select(L(32322), list_options)  # "Select list to merge:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -213,9 +213,9 @@ class ToolsHandler:
             source_list = source_lists[selected_index]
 
             # Confirm merge
-            message = f"{L(36022) % source_list['name']}\n{L(36024)}"  # "Merge '%s' into target list?\nThe source list will remain unchanged."
+            message = f"{L(30245) % source_list['name']}\n{L(30246)}"  # "Merge '%s' into target list?\nThe source list will remain unchanged."
             if not self.dialog.yesno(
-                L(36021),  # "Confirm Merge"
+                L(30244),  # "Confirm Merge"
                 message
             ):
                 return DialogResponse(success=False)
@@ -226,11 +226,11 @@ class ToolsHandler:
             if result.get("success"):
                 return DialogResponse(
                     success=True,
-                    message=L(36025) % result.get('items_added', 0),  # "Merged %d new items"
+                    message=L(30247) % result.get('items_added', 0),  # "Merged %d new items"
                     refresh_needed=True
                 )
             else:
-                return DialogResponse(success=False, message=L(36026))  # "Failed to merge lists"
+                return DialogResponse(success=False, message=L(30248))  # "Failed to merge lists"
 
         except Exception as e:
             self.logger.error("Error merging lists: %s", e)
@@ -241,7 +241,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get available destination folders (excluding self and children)
             all_folders = query_manager.get_all_folders()
@@ -299,7 +299,7 @@ class ToolsHandler:
 
             # Get list name from user
             new_name = self.dialog.input(
-                L(36056),  # "Enter name for new list:"
+                L(30229),  # "Enter name for new list:"
                 input_type=xbmcgui.INPUT_ALPHANUM
             )
 
@@ -309,7 +309,7 @@ class ToolsHandler:
 
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             self.logger.debug("TOOLS DEBUG: Creating list '%s' in folder_id: %s", new_name.strip(), folder_id)
 
@@ -353,7 +353,7 @@ class ToolsHandler:
 
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             self.logger.debug("TOOLS DEBUG: Creating subfolder '%s' in parent_folder_id: %s", folder_name.strip(), parent_folder_id)
 
@@ -387,7 +387,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get list info for confirmation
             list_info = query_manager.get_list_by_id(list_id)
@@ -500,7 +500,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get folder info for confirmation
             folder_info = query_manager.get_folder_by_id(folder_id)
@@ -581,7 +581,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get count of all lists for user confirmation
             all_lists = query_manager.get_user_lists()
@@ -839,20 +839,20 @@ class ToolsHandler:
                 backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB • {backup['storage_type']}")
 
             import xbmcgui
-            selected_index = self.dialog.select(L(37014), backup_options)  # "Select backup to restore"
+            selected_index = self.dialog.select(L(30363), backup_options)  # "Select backup to restore"
 
             if selected_index < 0:
-                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
+                return DialogResponse(success=False, message=L(30232))  # "Restore cancelled"
 
             selected_backup = backups[selected_index]
 
             # Confirm restore
-            restore_message = f"{L(37007) % selected_backup['display_name']}\n{L(34014)}\n{L(34602)}"
+            restore_message = f"{L(30356) % selected_backup['display_name']}\n{L(30069)}\n{L(30124)}"
             if not self.dialog.yesno(
-                L(34007),  # "Restore from Backup"
+                L(30062),  # "Restore from Backup"
                 restore_message,
-                no_label=L(36003),  # "Cancel"
-                yes_label=L(34007)  # "Restore from Backup"
+                no_label=L(30215),  # "Cancel"
+                yes_label=L(30062)  # "Restore from Backup"
             ):
                 return DialogResponse(success=False)
 
@@ -892,11 +892,11 @@ class ToolsHandler:
             import xbmcgui
 
             # Prompt for replace or append
-            options = [L(37015), L(37016)] # "Replace existing data", "Append to existing data"
-            selected_option = self.dialog.select(L(36073), options) # "Restore Backup Options"
+            options = [L(30364), L(30365)] # "Replace existing data", "Append to existing data"
+            selected_option = self.dialog.select(L(30243), options) # "Restore Backup Options"
 
             if selected_option == -1:  # User cancelled
-                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
+                return DialogResponse(success=False, message=L(30232))  # "Restore cancelled"
 
             replace_mode = options[selected_option].startswith("Replace")
 
@@ -916,10 +916,10 @@ class ToolsHandler:
                 size_mb = round(backup['file_size'] / 1024 / 1024, 2)
                 backup_options.append(f"{backup['filename']} - {age_text} • {size_mb} MB")
 
-            backup_index = self.dialog.select(L(36060), backup_options)  # "Select Backup File"
+            backup_index = self.dialog.select(L(30230), backup_options)  # "Select Backup File"
 
             if backup_index == -1:  # User cancelled
-                return DialogResponse(success=False, message=L(36062))  # "Restore cancelled"
+                return DialogResponse(success=False, message=L(30232))  # "Restore cancelled"
 
             selected_backup = available_backups[backup_index]
 
@@ -1069,12 +1069,12 @@ class ToolsHandler:
                 list_count = len(all_lists)
 
                 # Confirm export
-                export_message = f"{L(36070) % list_count}\n{L(36039)}"
+                export_message = f"{L(30240) % list_count}\n{L(32323)}"
                 if not self.dialog.yesno(
-                    L(36037),  # "Confirm Export"
+                    L(30308),  # "Confirm Export"
                     export_message,
-                    no_label=L(36003),  # "Cancel"
-                    yes_label=L(36007)   # "Export"
+                    no_label=L(30215),  # "Cancel"
+                    yes_label=L(30219)   # "Export"
                 ):
                     return DialogResponse(success=False)
 
@@ -1105,7 +1105,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get lists in search history folder
             search_lists = query_manager.get_lists_in_folder(folder_id)
@@ -1118,10 +1118,10 @@ class ToolsHandler:
 
             # Confirm deletion
             if not self.dialog.yesno(
-                L(36067),  # "Clear Search History"
-                f"{L(36068) % len(search_lists)}\n{L(30502)}",  # "Delete all %d search history lists?" + "This action cannot be undone."
-                no_label=L(36003),  # "Cancel"
-                yes_label=L(36069)   # "Clear"
+                L(30237),  # "Clear Search History"
+                f"{L(30238) % len(search_lists)}\n{L(30502)}",  # "Delete all %d search history lists?" + "This action cannot be undone."
+                no_label=L(30215),  # "Cancel"
+                yes_label=L(30239)   # "Clear"
             ):
                 return DialogResponse(success=False)
 
@@ -1171,7 +1171,7 @@ class ToolsHandler:
         try:
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             # Get search list info
             search_list_info = query_manager.get_list_by_id(search_list_id)
@@ -1334,12 +1334,12 @@ class ToolsHandler:
             # Get available backups
             backups = backup_manager.list_backups()
             if not backups:
-                self.dialog.ok(L(34018), L(34018))  # "No backups found"
+                self.dialog.ok(L(30076), L(30076))  # "No backups found"
                 return DialogResponse(success=False, message="No backups found")
 
             # Let user select backup
             labels = [f"{backup['name']} ({backup['date']})" for backup in backups]
-            selected = self.dialog.select(L(37014), labels)  # "Select backup to restore"
+            selected = self.dialog.select(L(30363), labels)  # "Select backup to restore"
 
             if selected < 0:
                 return DialogResponse(success=False, message="Restore cancelled")
@@ -1348,17 +1348,17 @@ class ToolsHandler:
 
             # Confirm restoration
             if self.dialog.yesno(
-                L(36063),  # "LibraryGenie Restore"
-                L(37007) % selected_backup['name'],  # "Restore from: %s"
-                L(36065)   # "This will replace all current data."
+                L(30233),  # "LibraryGenie Restore"
+                L(30356) % selected_backup['name'],  # "Restore from: %s"
+                L(30235)   # "This will replace all current data."
             ):
                 result = backup_manager.restore_backup(selected_backup['path'])
                 success = result.get('success', False) if isinstance(result, dict) else result
                 if success:
-                    self.dialog.ok(L(34011), L(34011))  # "Restore completed successfully"
+                    self.dialog.ok(L(30066), L(30066))  # "Restore completed successfully"
                     return DialogResponse(success=True, message="Restore completed successfully", refresh_needed=True)
                 else:
-                    self.dialog.ok(L(34012), L(34012))  # "Restore failed"
+                    self.dialog.ok(L(30067), L(30067))  # "Restore failed"
                     return DialogResponse(success=False, message="Restore failed")
 
             return DialogResponse(success=False, message="Restore cancelled")
@@ -1404,7 +1404,7 @@ class ToolsHandler:
             return DialogResponse(success=False, message="Failed to activate AI search")
 
     def _handle_local_search(self, context: PluginContext) -> DialogResponse:
-        """Execute local search directly"""
+        """Execute local search directly (legacy - kept for backwards compatibility)"""
         try:
             from lib.ui.handler_factory import get_handler_factory
 
@@ -1431,6 +1431,95 @@ class ToolsHandler:
                 )
         except Exception as e:
             context.logger.error("Error executing search: %s", e)
+            return DialogResponse(success=False, message="Failed to execute search")
+
+    def _handle_unified_local_search(self, context: PluginContext) -> DialogResponse:
+        """Execute unified local search with custom panel"""
+        try:
+            from lib.search.search_router import start_search_flow
+            from lib.ui.handler_factory import get_handler_factory
+
+            # Start search flow (shows custom panel or keyboard)
+            search_params = start_search_flow()
+            
+            if not search_params or not search_params.get('q'):
+                return DialogResponse(
+                    success=True,
+                    message="Search cancelled",
+                    refresh_needed=False
+                )
+
+            # Get search handler
+            factory = get_handler_factory()
+            factory.context = context
+            search_handler = factory.get_search_handler()
+            
+            # Determine media types from search params (must be a list)
+            media_types = ["movie"]  # default
+            if search_params['type'] == 'episode':
+                media_types = ["episode"]
+            elif search_params['type'] == 'all':
+                media_types = ["movie", "episode"]
+            
+            # Build search options for the search engine
+            search_options = {
+                "search_scope": "both" if len(search_params['scope']) > 1 else search_params['scope'][0] if search_params['scope'] else "both",
+                "match_logic": search_params['match'],
+                "media_types": media_types
+            }
+            
+            # Execute search with the provided query and options
+            results = search_handler._execute_simple_search(
+                search_params['q'],
+                search_options,
+                context
+            )
+
+            # Save results and handle
+            if results.total_count > 0:
+                list_id = search_handler._save_search_history(
+                    search_params['q'],
+                    search_options,
+                    results
+                )
+                
+                if list_id:
+                    from lib.ui.session_state import get_session_state
+                    session_state = get_session_state()
+                    session_state.clear_tools_return_location()
+                    
+                    success = search_handler._render_saved_search_list_directly(str(list_id), context)
+                    if success:
+                        return DialogResponse(
+                            success=True,
+                            message="Search completed",
+                            refresh_needed=False,
+                            navigate_to_main=False
+                        )
+                    else:
+                        return DialogResponse(
+                            success=True,
+                            message="Search completed (fallback)",
+                            refresh_needed=False,
+                            navigate_to_main=False
+                        )
+            else:
+                # Show "no results" notification
+                import xbmcgui
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie Search",
+                    "No results found",
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
+                )
+                return DialogResponse(
+                    success=True,
+                    message="No results found",
+                    refresh_needed=False
+                )
+
+        except Exception as e:
+            context.logger.error("Error in unified local search: %s", e)
             return DialogResponse(success=False, message="Failed to execute search")
 
     def _handle_local_episodes_search(self, context: PluginContext) -> DialogResponse:
@@ -1515,7 +1604,7 @@ class ToolsHandler:
 
             query_manager = context.query_manager
             if not query_manager:
-                return DialogResponse(success=False, message=L(34306))  # "Database error"
+                return DialogResponse(success=False, message=L(30104))  # "Database error"
 
             self.logger.debug("TOOLS DEBUG: Creating top-level folder '%s'", folder_name.strip())
 

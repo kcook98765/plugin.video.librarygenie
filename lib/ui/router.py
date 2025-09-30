@@ -192,14 +192,30 @@ class Router:
                 return response_handler.handle_directory_response(response, context)
             elif action == 'prompt_and_search':
                 from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
                 from lib.ui.nav import finish_directory
+                
                 factory = get_handler_factory()
-                factory.context = context # Set context before using factory
-                search_handler = factory.get_search_handler()
-                result = search_handler.prompt_and_search(context)
-                # Search results use PUSH semantics (new page, not refinement)
-                finish_directory(context.addon_handle, succeeded=result, update=False)
-                return result
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                response_handler = get_response_handler()
+                
+                # Use unified search which properly handles custom panel and cancellation
+                result = tools_handler._handle_unified_local_search(context)
+                
+                # Handle DialogResponse properly
+                if hasattr(result, 'success'):
+                    if result.success and not result.message.startswith("Search cancelled"):
+                        # Search succeeded and wasn't cancelled
+                        return True
+                    else:
+                        # Search was cancelled or no results - close directory gracefully
+                        finish_directory(context.addon_handle, succeeded=True, update=False)
+                        return True
+                else:
+                    # Fallback for non-DialogResponse
+                    finish_directory(context.addon_handle, succeeded=result, update=False)
+                    return result
             elif action == 'save_bookmark_from_context' or action == 'save_bookmark':
                 # Redirect old bookmark actions to the new integrated approach
                 from lib.ui.handler_factory import get_handler_factory
@@ -606,7 +622,7 @@ class Router:
                 self.dialog_service.notification(
                     f"Error in {action}",
                     icon="error",
-                    title=context.addon.getLocalizedString(35002)
+                    title=context.addon.getLocalizedString(30136)
                 )
             except Exception:
                 pass
@@ -687,7 +703,7 @@ class Router:
                     self.dialog_service.notification(
                         "Could not remove item from list.",
                         icon="error",
-                        title=context.addon.getLocalizedString(35002)
+                        title=context.addon.getLocalizedString(30136)
                     )
                 except Exception:
                     pass

@@ -84,7 +84,7 @@ class ContextItem:
         # Add AI Search option if available
         if ai_search_available:
             menu_items.append({
-                'label': f"🤖 {L(34100)}",  # AI Movie Search
+                'label': f"🤖 {L(30079)}",  # AI Movie Search
                 'action': 'ai_search',
                 'params': {
                     'query': f"Search for '{item_info.get('title', 'Unknown')}' ({item_info.get('year', '')})",
@@ -96,7 +96,7 @@ class ContextItem:
         # Add Similar Movies option if AI search is available and item has IMDb ID
         if ai_search_available and has_imdb_id:
             menu_items.append({
-                'label': f"🎬 {L(34106)}",  # Similar Movies
+                'label': f"🎬 {L(30085)}",  # Similar Movies
                 'action': 'find_similar_movies',
                 'params': {
                     'imdb_id': imdb_id,
