@@ -591,56 +591,56 @@
     </category>
 
     <!-- SEARCH SETTINGS (Level 0) - Search panel configuration -->
-    <category id="search" label="30370" help="">
-      <group id="21" label="30370">
-        <setting id="use_custom_search_panel" type="boolean" label="30390" help="30400">
+    <category id="search" label="30134" help="">
+      <group id="21" label="30134">
+        <setting id="use_custom_search_panel" type="boolean" label="30334" help="30344">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="default_content_type" type="integer" label="30391" help="30401">
+        <setting id="default_content_type" type="integer" label="30335" help="30345">
           <level>0</level>
           <default>0</default>
           <constraints>
             <options>
-              <option label="30372">0</option>
-              <option label="30373">1</option>
-              <option label="30374">2</option>
+              <option label="30288">0</option>
+              <option label="30286">1</option>
+              <option label="30287">2</option>
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>30391</heading>
+            <heading>30335</heading>
           </control>
         </setting>
-        <setting id="default_fields" type="integer" label="30392" help="30402">
+        <setting id="default_fields" type="integer" label="30336" help="30346">
           <level>0</level>
           <default>2</default>
           <constraints>
             <options>
-              <option label="30376">0</option>
-              <option label="30377">1</option>
-              <option label="30395">2</option>
+              <option label="30320">0</option>
+              <option label="30321">1</option>
+              <option label="30339">2</option>
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>30392</heading>
+            <heading>30336</heading>
           </control>
         </setting>
-        <setting id="default_match_mode" type="integer" label="30393" help="30403">
+        <setting id="default_match_mode" type="integer" label="30337" help="30347">
           <level>0</level>
           <default>0</default>
           <constraints>
             <options>
-              <option label="30379">0</option>
-              <option label="30380">1</option>
-              <option label="30381">2</option>
+              <option label="30323">0</option>
+              <option label="30324">1</option>
+              <option label="30325">2</option>
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>30393</heading>
+            <heading>30337</heading>
           </control>
         </setting>
-        <setting id="remember_last_values" type="boolean" label="30394" help="30404">
+        <setting id="remember_last_values" type="boolean" label="30338" help="30348">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
