@@ -74,10 +74,18 @@
                 <top>160</top>
                 <width>450</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -94,10 +102,18 @@
                 <top>210</top>
                 <width>450</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -114,10 +130,18 @@
                 <top>260</top>
                 <width>450</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -145,10 +169,18 @@
                 <top>160</top>
                 <width>450</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -165,10 +197,18 @@
                 <top>210</top>
                 <width>450</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -196,10 +236,18 @@
                 <top>160</top>
                 <width>400</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -216,10 +264,18 @@
                 <top>210</top>
                 <width>400</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -236,10 +292,18 @@
                 <top>260</top>
                 <width>400</width>
                 <height>40</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <textureradiofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradiofocus>
+                <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</textureradionofocus>
+                <colordiffuse>FF404040</colordiffuse>
+                <radiowidth>20</radiowidth>
+                <radioheight>20</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>10</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
-                <selectedcolor>FF00FF00</selectedcolor>
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>40</textoffsetx>
@@ -256,6 +320,9 @@
                 <top>330</top>
                 <width>1480</width>
                 <height>50</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFAA00</focusedcolor>
@@ -285,6 +352,9 @@
                 <top>460</top>
                 <width>1480</width>
                 <height>60</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
                 <font>font13</font>
                 <align>left</align>
                 <aligny>center</aligny>
@@ -304,6 +374,9 @@
                 <top>560</top>
                 <width>740</width>
                 <height>70</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
                 <font>font30_title</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFF0000</focusedcolor>
@@ -322,6 +395,9 @@
                 <top>560</top>
                 <width>720</width>
                 <height>70</height>
+                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/landscape.jpg</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
                 <font>font30_title</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FF00FF00</focusedcolor>
