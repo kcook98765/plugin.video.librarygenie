@@ -131,7 +131,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _open_keyboard(self):
         """Open keyboard for query input"""
-        kb = xbmc.Keyboard(self.q_edit.getLabel(), L(30389))  # "Enter search text"
+        kb = xbmc.Keyboard(self.q_edit.getLabel(), L(30333))  # "Enter search text"
         kb.doModal()
         if kb.isConfirmed():
             text = kb.getText()
@@ -148,9 +148,9 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             self.list_presets.addItem(li)
         # If no presets, seed with one localized example label
         if not presets:
-            li = xbmcgui.ListItem(label=L(30398))
+            li = xbmcgui.ListItem(label=L(30342))
             li.setProperty('preset_payload', json.dumps({
-                'name': L(30398),
+                'name': L(30342),
                 'content_type': CONTENT_MOVIES,
                 'fields': FIELDS_TITLE,
                 'match_mode': MATCH_ANY,
@@ -175,7 +175,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _save_as_preset(self):
         """Save current state as preset"""
-        name_kb = xbmc.Keyboard('', L(30396))  # "Preset name"
+        name_kb = xbmc.Keyboard('', L(32306))  # "Preset name"
         name_kb.doModal()
         if not name_kb.isConfirmed():
             return
@@ -197,7 +197,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         ADDON.setSettingInt('default_content_type', self._state['content_type'])
         ADDON.setSettingInt('default_fields', self._state['fields'])
         ADDON.setSettingInt('default_match_mode', self._state['match_mode'])
-        xbmcgui.Dialog().notification('LibraryGenie', L(30397), xbmcgui.NOTIFICATION_INFO, 3000)
+        xbmcgui.Dialog().notification('LibraryGenie', L(32307), xbmcgui.NOTIFICATION_INFO, 3000)
 
     def _finalize_and_close(self):
         """Finalize and close dialog"""
