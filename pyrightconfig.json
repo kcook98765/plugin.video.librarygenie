@@ -1,5 +1,0 @@
-{
-  "include": ["."],
-  "extraPaths": ["lib", "resources/lib", "Kodistubs/stubs"],
-  "stubPath": "Kodistubs/stubs"
-}

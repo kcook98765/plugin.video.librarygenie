@@ -158,20 +158,33 @@ LibraryGenie provides powerful local search capabilities:
 ### Search Features
 
 - **Database-Backed Search**: Uses SQLite index for fast queries against local library
-- **Keyword-Based Matching**: Simple, predictable keyword search across title and plot fields
+- **Multiple Match Modes**: Keyword (any/all) or exact phrase matching
 - **Intelligent Ranking**: Prioritizes title matches over plot matches for better relevance
 - **Text Normalization**: Handles diacritics, punctuation, case, and Unicode consistently
 - **Flexible Search Scope**: Search titles only, plots only, or both fields
-- **Match Logic Options**: "All keywords" or "any keyword" matching
+- **Media Type Filtering**: Search movies, TV episodes, or all content
+- **List-Specific Search**: Search within entire library or specific lists
+- **Pagination Support**: Efficient result browsing with configurable page size and offset
 - **Search History**: Automatic saving of search results to browsable lists
+- **Custom Search Panel**: Optional rich UI panel for advanced search configuration
 
 ### Search Configuration
 
 | Parameter | Values | Default | Description |
 |-----------|--------|---------|-------------|
 | `search_scope` | `"title"`, `"plot"`, `"both"` | `"both"` | Fields to search |
-| `match_logic` | `"all"`, `"any"` | `"all"` | Keyword matching logic |
-| `page_size` | `int` | `50` | Results per page |
+| `match_logic` | `"any"`, `"all"`, `"phrase"` | `"all"` | Match mode: any keyword, all keywords, or exact phrase |
+| `media_types` | `["movie"]`, `["episode", "tvshow"]`, `["all"]` | `["movie"]` | Media types to include in search |
+| `scope_type` | `"library"`, `"list"` | `"library"` | Search entire library or specific list |
+| `scope_id` | `int` | `None` | List ID when `scope_type` is `"list"` |
+| `page_size` | `int` | `50` | Results per page (range: 25-500) |
+| `page_offset` | `int` | `0` | Starting offset for pagination |
+
+### Match Logic Details
+
+- **`"any"`**: Returns results where at least one keyword appears
+- **`"all"`**: Returns results where all keywords must be present
+- **`"phrase"`**: Returns results matching the exact phrase (maintains word order and spacing)
 
 ---
 
