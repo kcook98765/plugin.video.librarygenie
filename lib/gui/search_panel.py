@@ -57,7 +57,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         """Initialize the dialog"""
         self._wire_controls()
         self._apply_state_to_controls()
-        self.setFocusId(200)
+        # Focus on Search button by default, not the edit control
+        self.setFocusId(260)
 
     def onAction(self, action):
         """Handle actions"""
@@ -182,6 +183,9 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             text = kb.getText()
             self._state['query'] = text
             self.q_edit.setText(text)
+        
+        # CRITICAL: Move focus away from edit control to prevent keyboard from reopening
+        self.setFocusId(260)  # Focus on Search button
 
     def _load_presets(self):
         """Load presets into list"""

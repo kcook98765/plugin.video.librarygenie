@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <window type="dialog">
     <backgroundcolor>0xff000000</backgroundcolor>
-    <defaultcontrol always="true">200</defaultcontrol>
+    <defaultcontrol always="true">260</defaultcontrol>
     <allowoverlay>yes</allowoverlay>
     <controls>
         <!-- FULLSCREEN SOLID BACKGROUND - Works across all skins -->
