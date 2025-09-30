@@ -14,7 +14,7 @@
   <extension point="kodi.context.item">
     <menu id="kodi.core.main">
       <item library="context.py">
-        <label>30672</label>
+        <label>37028</label>
         <visible>!String.Contains(Container.FolderPath,plugin.video.librarygenie) + !String.Contains(ListItem.FileNameAndPath,plugin.video.librarygenie)</visible>
       </item>
     </menu>

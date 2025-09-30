@@ -137,7 +137,7 @@ class MenuBuilder:
                     breadcrumb_text = breadcrumb_helper.get_breadcrumb_for_tools_label_raw(breadcrumb_path)
                     description_text = breadcrumb_helper.get_breadcrumb_for_tools_description_raw(breadcrumb_path)
                     
-                    tools_item = xbmcgui.ListItem(label=f"{L(30515)} {breadcrumb_text}", offscreen=True)
+                    tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
                     self._set_listitem_plot(tools_item, description_text)
                     tools_item.setProperty('IsPlayable', 'false')
                     tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})

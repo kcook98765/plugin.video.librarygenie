@@ -377,16 +377,16 @@ class ListsHandler:
                     description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, None)
 
                     menu_items.append({
-                        'label': f"{L(30515)} {breadcrumb_text}",
+                        'label': f"{L(36000)} {breadcrumb_text}",
                         'url': context.build_url('show_list_tools', list_type='lists_main'),
                         'is_folder': True,
                         'icon': "DefaultAddonProgram.png",
-                        'description': f"{description_prefix}{L(30546)}"  # Breadcrumb + "Access lists tools and options"
+                        'description': f"{description_prefix}{L(36018)}"  # Breadcrumb + "Access lists tools and options"
                     })
 
                     # Add "Create First List" option
                     menu_items.append({
-                        'label': f"+ {L(30662)}",
+                        'label': f"+ {L(37018)}",
                         'url': context.build_url('create_list_execute'),
                         'is_folder': True,
                         'icon': "DefaultAddSource.png",
@@ -1029,7 +1029,7 @@ class ListsHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
 
-            tools_item = xbmcgui.ListItem(label=f"{L(30515)} {breadcrumb_text}", offscreen=True)
+            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
             self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -1046,7 +1046,7 @@ class ListsHandler:
                 context.logger.debug("List is empty")
                 self._create_simple_empty_state_item(
                     context,
-                    L(30145),
+                    L(30602),
                     'This list contains no items'  # This string should also be localized
                 )
 
@@ -1282,7 +1282,7 @@ class ListsHandler:
         dialog_service = get_dialog_service(logger_name='lib.ui.lists_handler._show_empty_lists_menu')
         
         if dialog_service.yesno(
-            L(30388), # "LibraryGenie"
+            L(35002), # "LibraryGenie"
             "No lists found. Create your first list?" # This string should also be localized
         ):
             create_response = self.create_list(context)
