@@ -173,13 +173,29 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         })
         self._apply_state_to_controls()
 
+    def _generate_preset_name(self):
+        """Generate preset name from current state"""
+        # Content type
+        content_names = [L(30288), L(30286), L(30287)]  # All, Movies, Series
+        content = content_names[self._state['content_type']]
+        
+        # Fields
+        if self._state['fields'] == FIELDS_TITLE:
+            fields = L(32300)  # Title
+        elif self._state['fields'] == FIELDS_PLOT:
+            fields = L(32301)  # Plot
+        else:
+            fields = L(30339)  # Title + Plot
+        
+        # Match mode
+        match_names = [L(30323), L(30324), L(30325)]  # Any word, All words, Exact phrase
+        match = match_names[self._state['match_mode']]
+        
+        return '{} – {} – {}'.format(content, fields, match)
+
     def _save_as_preset(self):
-        """Save current state as preset"""
-        name_kb = xbmc.Keyboard('', L(32306))  # "Preset name"
-        name_kb.doModal()
-        if not name_kb.isConfirmed():
-            return
-        name = name_kb.getText().strip() or 'Preset'
+        """Save current state as preset with auto-generated name"""
+        name = self._generate_preset_name()
         presets = self._read_presets()
         presets.append({
             'name': name,
