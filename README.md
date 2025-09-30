@@ -163,28 +163,24 @@ LibraryGenie provides powerful local search capabilities:
 - **Text Normalization**: Handles diacritics, punctuation, case, and Unicode consistently
 - **Flexible Search Scope**: Search titles only, plots only, or both fields
 - **Media Type Filtering**: Search movies, TV episodes, or all content
-- **List-Specific Search**: Search within entire library or specific lists
-- **Pagination Support**: Efficient result browsing with configurable page size and offset
 - **Search History**: Automatic saving of search results to browsable lists
 - **Custom Search Panel**: Optional rich UI panel for advanced search configuration
 
 ### Search Configuration
 
-| Parameter | Values | Default | Description |
-|-----------|--------|---------|-------------|
-| `search_scope` | `"title"`, `"plot"`, `"both"` | `"both"` | Fields to search |
-| `match_logic` | `"any"`, `"all"`, `"phrase"` | `"all"` | Match mode: any keyword, all keywords, or exact phrase |
-| `media_types` | `["movie"]`, `["episode", "tvshow"]`, `["all"]` | `["movie"]` | Media types to include in search |
-| `scope_type` | `"library"`, `"list"` | `"library"` | Search entire library or specific list |
-| `scope_id` | `int` | `None` | List ID when `scope_type` is `"list"` |
-| `page_size` | `int` | `50` | Results per page (range: 25-500) |
-| `page_offset` | `int` | `0` | Starting offset for pagination |
+The search interface provides the following configurable options:
 
-### Match Logic Details
+| Option | Values | Default | Description |
+|--------|--------|---------|-------------|
+| **Content Type** | Movies, TV Series, All | Movies | Which media types to search |
+| **Search Fields** | Title, Plot, Both | Both | Which fields to search in |
+| **Match Mode** | Any, All, Phrase | All | How to match keywords |
 
-- **`"any"`**: Returns results where at least one keyword appears
-- **`"all"`**: Returns results where all keywords must be present
-- **`"phrase"`**: Returns results matching the exact phrase (maintains word order and spacing)
+### Match Mode Details
+
+- **Any**: Returns results where at least one keyword appears
+- **All**: Returns results where all keywords must be present
+- **Phrase**: Returns results matching the exact phrase (maintains word order and spacing)
 
 ---
 
