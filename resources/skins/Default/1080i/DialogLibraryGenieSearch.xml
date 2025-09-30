@@ -50,18 +50,27 @@
                 </control>
                 <control type="radiobutton" id="201">
                     <top>60</top>
+                    <width>450</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30288]</label>
                 </control>
                 <control type="radiobutton" id="202">
                     <top>110</top>
+                    <width>450</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30286]</label>
                 </control>
                 <control type="radiobutton" id="203">
                     <top>160</top>
+                    <width>450</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30287]</label>
@@ -83,12 +92,18 @@
                 </control>
                 <control type="radiobutton" id="211">
                     <top>60</top>
+                    <width>450</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32300]</label>
                 </control>
                 <control type="radiobutton" id="212">
                     <top>110</top>
+                    <width>450</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32301]</label>
@@ -110,18 +125,27 @@
                 </control>
                 <control type="radiobutton" id="221">
                     <top>60</top>
+                    <width>400</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30323]</label>
                 </control>
                 <control type="radiobutton" id="222">
                     <top>110</top>
+                    <width>400</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30324]</label>
                 </control>
                 <control type="radiobutton" id="223">
                     <top>160</top>
+                    <width>400</width>
+                    <height>40</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30325]</label>
@@ -146,6 +170,7 @@
                     <top>50</top>
                     <width>1220</width>
                     <height>60</height>
+                    <font>font13</font>
                     <textoffsetx>12</textoffsetx>
                     <textcolor>FFFFFFFF</textcolor>
                     <label></label>
@@ -155,6 +180,7 @@
                     <top>50</top>
                     <width>240</width>
                     <height>60</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30327]</label>
@@ -181,6 +207,30 @@
                     <height>100</height>
                     <orientation>horizontal</orientation>
                     <pagecontrol>241</pagecontrol>
+                    <itemlayout height="100" width="200">
+                        <control type="button">
+                            <width>200</width>
+                            <height>100</height>
+                            <font>font13</font>
+                            <textcolor>FFFFFFFF</textcolor>
+                            <focusedcolor>FFFFFFFF</focusedcolor>
+                            <align>center</align>
+                            <aligny>center</aligny>
+                            <label>$INFO[ListItem.Label]</label>
+                        </control>
+                    </itemlayout>
+                    <focusedlayout height="100" width="200">
+                        <control type="button">
+                            <width>200</width>
+                            <height>100</height>
+                            <font>font13</font>
+                            <textcolor>FF00FF00</textcolor>
+                            <focusedcolor>FF00FF00</focusedcolor>
+                            <align>center</align>
+                            <aligny>center</aligny>
+                            <label>$INFO[ListItem.Label]</label>
+                        </control>
+                    </focusedlayout>
                 </control>
                 <control type="scrollbar" id="241">
                     <left>1220</left>
@@ -200,6 +250,7 @@
                 <control type="button" id="251">
                     <width>260</width>
                     <height>60</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30329]</label>
@@ -208,6 +259,7 @@
                     <left>280</left>
                     <width>220</width>
                     <height>60</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32303]</label>
@@ -216,6 +268,7 @@
                     <left>820</left>
                     <width>220</width>
                     <height>60</height>
+                    <font>font13</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32304]</label>
