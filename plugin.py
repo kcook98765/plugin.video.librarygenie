@@ -431,9 +431,9 @@ def handle_shortlist_import():
         log_info("Showing confirmation dialog")
         if not dialog.yesno(
             L(30071),  # "Import from ShortList addon"
-            L(30349) + "\n" + L(30350),  # Combined message
+            L(30349) + "\n" + L(32326),  # Combined message
             nolabel=L(30215),  # "Cancel"
-            yeslabel=L(30351)  # "Continue"
+            yeslabel=L(32327)  # "Continue"
         ):
             log_info("User cancelled ShortList import")
             return
