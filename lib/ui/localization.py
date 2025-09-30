@@ -15,52 +15,52 @@ _addon = Addon()
 # Centralized UI color map (msgid -> Kodi color name)
 COLOR_MAP = {
     # Context Menu colors (37xxx)
-    30674: "lightblue",   # LG Search
-    30675: "lightgreen",  # LG Quick Add
-    30676: "yellow",      # LG Add to List...
-    30677: "red",         # LG Remove from List
-    30678: "white",       # LG more...
-    30679: "lightblue",   # LG Search/Favorites
-    30680: "lightblue",   # Local Movie Search
-    30681: "lightblue",   # Local TV Search
-    30682: "cyan",        # AI Movie Search
-    30683: "yellow",      # Search History
-    30684: "green",       # Kodi Favorites
+    37100: "lightblue",   # LG Search
+    37101: "lightgreen",  # LG Quick Add
+    37102: "yellow",      # LG Add to List...
+    37103: "red",         # LG Remove from List
+    37104: "white",       # LG more...
+    37105: "lightblue",   # LG Search/Favorites
+    37200: "lightblue",   # Local Movie Search
+    37201: "lightblue",   # Local TV Search
+    37202: "cyan",        # AI Movie Search
+    37203: "yellow",      # Search History
+    37204: "green",       # Kodi Favorites
     
     # Tools Menu colors (36xxx)
-    30516: "white",       # Scan Favorites
-    30517: "lightgreen",  # Save As New List
-    30519: "yellow",      # Merge Into %s
-    30524: "yellow",      # Rename '%s'
-    30527: "red",         # Delete '%s'
-    30528: "lightgreen",  # Create New List in '%s'
-    30529: "lightgreen",  # Create New Subfolder in '%s'
-    30536: "yellow",      # Move '%s' to Folder
-    30537: "white",       # Export All Lists in '%s'
-    30588: "yellow",      # Rename %s
-    30589: "yellow",      # Move %s to Folder
-    30591: "white",       # Export %s
-    30592: "red",         # Delete %s
+    36001: "white",       # Scan Favorites
+    36002: "lightgreen",  # Save As New List
+    36004: "yellow",      # Merge Into %s
+    36005: "yellow",      # Rename '%s'
+    36008: "red",         # Delete '%s'
+    36009: "lightgreen",  # Create New List in '%s'
+    36010: "lightgreen",  # Create New Subfolder in '%s'
+    36011: "yellow",      # Move '%s' to Folder
+    36012: "white",       # Export All Lists in '%s'
+    36051: "yellow",      # Rename %s
+    36052: "yellow",      # Move %s to Folder
+    36053: "white",       # Export %s
+    36054: "red",         # Delete %s
     
     # Search colors (3xxxx)
-    30327: "cyan",        # AI Movie Search
+    34100: "cyan",        # AI Movie Search
     
     # Error Messages (should be red for visibility)
-    30107: "red",         # Failed to create list
-    30359: "red",         # Database error
-    30663: "red",         # List not found
-    30664: "red",         # Folder not found
-    30665: "red",         # Failed to create folder
+    30507: "red",         # Failed to create list
+    34306: "red",         # Database error
+    37019: "red",         # List not found
+    37020: "red",         # Folder not found
+    37021: "red",         # Failed to create folder
     
     # Success Messages (should be green)
-    30314: "green",       # Restore completed successfully
+    34011: "green",       # Restore completed successfully
     
     # Action Labels (should be yellow for emphasis)
-    30666: "yellow",      # Move to New List
-    30593: "yellow",      # Clear All Search History
+    37022: "yellow",      # Move to New List
+    36055: "yellow",      # Clear All Search History
     
     # Navigation Labels (should be white/neutral)
-    30561: "white",       # [Root Level]
+    36032: "white",       # [Root Level]
 }
 
 def _is_colorization_enabled() -> bool:
