@@ -58,6 +58,11 @@ class SimpleSearchEngine:
             # Build SQL query with ranking
             sql_query, params = self._build_ranked_sql_query(query)
 
+            # DEBUG: Log the SQL query for analysis
+            self.logger.debug("=== SEARCH SQL DEBUG ===")
+            self.logger.debug("SQL Query:\n%s", sql_query)
+            self.logger.debug("Parameters: %s", params)
+            self.logger.debug("========================")
 
             # Execute search
             items = self.conn_manager.execute_query(sql_query, params)
