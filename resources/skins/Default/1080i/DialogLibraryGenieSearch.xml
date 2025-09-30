@@ -290,15 +290,35 @@
                 <textoffsetx>50</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 30325]</label>
                 <onup>222</onup>
-                <ondown>200</ondown>
+                <ondown>252</ondown>
                 <onleft>212</onleft>
                 <onright>201</onright>
+            </control>
+
+            <!-- Set as default button -->
+            <control type="button" id="252">
+                <left>100</left>
+                <top>330</top>
+                <width>1480</width>
+                <height>50</height>
+                <texturefocus colordiffuse="FFAA6600">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF553300">colors/white.png</texturenofocus>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>$ADDON[plugin.video.librarygenie 32303]</label>
+                <onup>223</onup>
+                <ondown>200</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
             </control>
 
             <!-- Query Label -->
             <control type="label">
                 <left>100</left>
-                <top>380</top>
+                <top>410</top>
                 <width>300</width>
                 <height>40</height>
                 <label>$ADDON[plugin.video.librarygenie 30326]</label>
@@ -309,7 +329,7 @@
             <!-- Query Edit -->
             <control type="edit" id="200">
                 <left>100</left>
-                <top>430</top>
+                <top>460</top>
                 <width>1480</width>
                 <height>60</height>
                 <texturefocus colordiffuse="FF555555">colors/white.png</texturefocus>
@@ -320,28 +340,8 @@
                 <textoffsetx>12</textoffsetx>
                 <textcolor>FFFFFFFF</textcolor>
                 <label></label>
-                <onup>203</onup>
-                <ondown>252</ondown>
-                <onleft>260</onleft>
-                <onright>260</onright>
-            </control>
-
-            <!-- Set as default button -->
-            <control type="button" id="252">
-                <left>100</left>
-                <top>540</top>
-                <width>640</width>
-                <height>60</height>
-                <texturefocus colordiffuse="FFAA6600">colors/white.png</texturefocus>
-                <texturenofocus colordiffuse="FF553300">colors/white.png</texturenofocus>
-                <font>font13</font>
-                <textcolor>FFFFFFFF</textcolor>
-                <focusedcolor>FFFFFFFF</focusedcolor>
-                <align>center</align>
-                <aligny>center</aligny>
-                <label>$ADDON[plugin.video.librarygenie 32303]</label>
-                <onup>200</onup>
-                <ondown>261</ondown>
+                <onup>252</onup>
+                <ondown>260</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
             </control>
@@ -349,9 +349,9 @@
             <!-- Cancel button -->
             <control type="button" id="261">
                 <left>100</left>
-                <top>640</top>
-                <width>640</width>
-                <height>60</height>
+                <top>560</top>
+                <width>740</width>
+                <height>70</height>
                 <texturefocus colordiffuse="FF666666">colors/white.png</texturefocus>
                 <texturenofocus colordiffuse="FF333333">colors/white.png</texturenofocus>
                 <font>font30_title</font>
@@ -360,7 +360,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <label>$ADDON[plugin.video.librarygenie 32304]</label>
-                <onup>252</onup>
+                <onup>200</onup>
                 <ondown>201</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
@@ -368,10 +368,10 @@
             
             <!-- Search button -->
             <control type="button" id="260">
-                <left>820</left>
-                <top>540</top>
-                <width>760</width>
-                <height>160</height>
+                <left>860</left>
+                <top>560</top>
+                <width>720</width>
+                <height>70</height>
                 <texturefocus colordiffuse="FF00AA00">colors/white.png</texturefocus>
                 <texturenofocus colordiffuse="FF005500">colors/white.png</texturenofocus>
                 <font>font30_title</font>
@@ -381,9 +381,9 @@
                 <aligny>center</aligny>
                 <label>$ADDON[plugin.video.librarygenie 32305]</label>
                 <onup>200</onup>
-                <ondown>203</ondown>
-                <onleft>252</onleft>
-                <onright>252</onright>
+                <ondown>201</ondown>
+                <onleft>261</onleft>
+                <onright>261</onright>
             </control>
         </control>
     </controls>
