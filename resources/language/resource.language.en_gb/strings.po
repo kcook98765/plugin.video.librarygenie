@@ -20,19 +20,6 @@ msgctxt "#30000"
 msgid "General"
 msgstr ""
 
-msgctxt "#30100"
-msgid "Background"
-msgstr ""
-
-# General Settings
-msgctxt "#30010"
-msgid "Debug & Logging"
-msgstr ""
-
-msgctxt "#30011"
-msgid "Enable debug logging"
-msgstr ""
-
 msgctxt "#30020"
 msgid "User Interface"
 msgstr ""
@@ -129,6 +116,10 @@ msgstr ""
 
 msgctxt "#30072"
 msgid "Clear list before importing new data"
+msgstr ""
+
+msgctxt "#30100"
+msgid "Background"
 msgstr ""
 
 # Background Settings
