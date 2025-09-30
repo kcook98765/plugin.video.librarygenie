@@ -53,6 +53,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
@@ -78,6 +82,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
@@ -103,6 +111,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
@@ -139,6 +151,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
@@ -164,6 +180,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
@@ -200,6 +220,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
@@ -225,6 +249,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
@@ -250,6 +278,10 @@
                 <textureradioonnofocus colordiffuse="FF008800">colors/white.png</textureradioonnofocus>
                 <textureradioofffocus colordiffuse="FF555555">colors/white.png</textureradioofffocus>
                 <textureradiooffnofocus colordiffuse="FF333333">colors/white.png</textureradiooffnofocus>
+                <radiowidth>24</radiowidth>
+                <radioheight>24</radioheight>
+                <radioposx>10</radioposx>
+                <radioposy>8</radioposy>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
