@@ -42,7 +42,7 @@ class ImportExportHandler:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message=L(34306)  # "Database error" (red color)
+                    message=L(30104)  # "Database error" (red color)
                 )
 
             # Get list info
@@ -50,7 +50,7 @@ class ImportExportHandler:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message=L(37019)  # "List not found" (red color)
+                    message=L(30368)  # "List not found" (red color)
                 )
 
             list_name = list_info.get('name', 'Unnamed List')
@@ -112,7 +112,7 @@ class ImportExportHandler:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message=L(34306)  # "Database error" (red color)
+                    message=L(30104)  # "Database error" (red color)
                 )
 
             # Get folder info
@@ -120,7 +120,7 @@ class ImportExportHandler:
             if not folder_info:
                 return DialogResponse(
                     success=False,
-                    message=L(37020)  # "Folder not found" (red color)
+                    message=L(30369)  # "Folder not found" (red color)
                 )
 
             folder_name = folder_info.get('name', 'Unnamed Folder')
@@ -206,7 +206,7 @@ class ImportExportHandler:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message=L(34306)  # "Database error" (red color)
+                    message=L(30104)  # "Database error" (red color)
                 )
 
             # Use import engine if available
@@ -263,7 +263,7 @@ class ImportExportHandler:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message=L(34306)  # "Database error" (red color)
+                    message=L(30104)  # "Database error" (red color)
                 )
 
             # Validate both lists exist
@@ -353,7 +353,7 @@ class ImportExportHandler:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message=L(34306)  # "Database error" (red color)
+                    message=L(30104)  # "Database error" (red color)
                 )
 
             # Get all available lists

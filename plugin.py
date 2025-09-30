@@ -263,21 +263,21 @@ def handle_signout():
     # Confirm sign out
     dialog = xbmcgui.Dialog()
     if dialog.yesno(
-        heading=L(35002),  # "LibraryGenie"
-        message=f"{L(35029)}\n{L(35030)}",  # "Sign out" + "Are you sure you want to sign out?"
-        nolabel=L(36003),  # "Cancel"
-        yeslabel=L(35029)  # "Sign out"
+        heading=L(30136),  # "LibraryGenie"
+        message=f"{L(30163)}\n{L(30164)}",  # "Sign out" + "Are you sure you want to sign out?"
+        nolabel=L(30215),  # "Cancel"
+        yeslabel=L(30163)  # "Sign out"
     ):
         if clear_tokens():
             xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),  # "LibraryGenie"
-                addon.getLocalizedString(35031),  # "Signed out successfully"
+                addon.getLocalizedString(30136),  # "LibraryGenie"
+                addon.getLocalizedString(30165),  # "Signed out successfully"
                 xbmcgui.NOTIFICATION_INFO
             )
         else:
             xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),  # "LibraryGenie"
-                addon.getLocalizedString(35032),  # "Sign out failed"
+                addon.getLocalizedString(30136),  # "LibraryGenie"
+                addon.getLocalizedString(30166),  # "Sign out failed"
                 xbmcgui.NOTIFICATION_ERROR
             )
 
@@ -431,9 +431,9 @@ def handle_shortlist_import():
         log_info("Showing confirmation dialog")
         if not dialog.yesno(
             L(30071),  # "Import from ShortList addon"
-            L(37000) + "\n" + L(37001),  # Combined message
-            nolabel=L(36003),  # "Cancel"
-            yeslabel=L(37002)  # "Continue"
+            L(30349) + "\n" + L(30350),  # Combined message
+            nolabel=L(30215),  # "Cancel"
+            yeslabel=L(30351)  # "Continue"
         ):
             log_info("User cancelled ShortList import")
             return
@@ -734,8 +734,8 @@ def main():
         try:
             addon = xbmcaddon.Addon()
             xbmcgui.Dialog().notification(
-                addon.getLocalizedString(35002),
-                addon.getLocalizedString(35013),
+                addon.getLocalizedString(30136),
+                addon.getLocalizedString(30147),
                 xbmcgui.NOTIFICATION_ERROR
             )
         except Exception:
@@ -789,19 +789,19 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
         dialog = xbmcgui.Dialog()
         
         # Show welcome/explanation dialog
-        dialog.ok(L(35540), L(35541))  # Welcome title and detailed explanation
+        dialog.ok(L(30540), L(30541))  # Welcome title and detailed explanation
         
         # Show fresh install setup dialog with enhanced options
         # Create setup options with enhanced descriptions
         options = [
-            L(35521),  # Enhanced "Movies and TV Episodes (Recommended)" with description
-            L(35522),  # Enhanced "Movies Only" with description  
-            L(35523),  # Enhanced "TV Episodes Only" with description
-            L(35524)   # Enhanced "Skip Setup (Configure Later)" with description
+            L(30187),  # Enhanced "Movies and TV Episodes (Recommended)" with description
+            L(30188),  # Enhanced "Movies Only" with description  
+            L(30189),  # Enhanced "TV Episodes Only" with description
+            L(30190)   # Enhanced "Skip Setup (Configure Later)" with description
         ]
         
         # Use compatible dialog.select parameters with proper type casting
-        selected = dialog.select(L(35520), list(options))  # "LibraryGenie Setup"
+        selected = dialog.select(L(30186), list(options))  # "LibraryGenie Setup"
         
         # Handle user selection
         if selected == -1:  # User canceled or pressed back
@@ -810,27 +810,27 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             
         elif selected == 0:  # Both movies and TV episodes
             log_info("User selected: Movies and TV Episodes")
-            _show_setup_progress(L(35525))  # "Setting up Movies and TV Episodes sync..."
+            _show_setup_progress(L(30191))  # "Setting up Movies and TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=True)
             # Force cache reload to prevent showing setup again
             _get_cached_config().invalidate('first_run_completed')
-            _show_setup_complete(L(35528))  # "Setup complete! Both movies and TV episodes will be synced."
+            _show_setup_complete(L(30194))  # "Setup complete! Both movies and TV episodes will be synced."
             
         elif selected == 1:  # Movies only
             log_info("User selected: Movies Only")
-            _show_setup_progress(L(35526))  # "Setting up Movies sync..."
+            _show_setup_progress(L(30192))  # "Setting up Movies sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
             # Force cache reload to prevent showing setup again
             _get_cached_config().invalidate('first_run_completed')
-            _show_setup_complete(L(35529))  # "Setup complete! Movies will be synced."
+            _show_setup_complete(L(30195))  # "Setup complete! Movies will be synced."
             
         elif selected == 2:  # TV Episodes only
             log_info("User selected: TV Episodes Only")
-            _show_setup_progress(L(35527))  # "Setting up TV Episodes sync..."
+            _show_setup_progress(L(30193))  # "Setting up TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=True)
             # Force cache reload to prevent showing setup again
             _get_cached_config().invalidate('first_run_completed')
-            _show_setup_complete(L(35530))  # "Setup complete! TV episodes will be synced."
+            _show_setup_complete(L(30196))  # "Setup complete! TV episodes will be synced."
             
         elif selected == 3:  # Skip setup
             log_info("User selected: Skip Setup")
@@ -839,8 +839,8 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             # Force cache reload to prevent showing setup again
             _get_cached_config().invalidate('first_run_completed')
             xbmcgui.Dialog().notification(
-                L(35002),   # "LibraryGenie"
-                L(35531),   # "Setup skipped. Configure sync options in Settings."
+                L(30136),   # "LibraryGenie"
+                L(30531),   # "Setup skipped. Configure sync options in Settings."
                 xbmcgui.NOTIFICATION_INFO,
                 4000
             )
@@ -861,8 +861,8 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
         
         from lib.ui.localization import L
         xbmcgui.Dialog().notification(
-            L(35002),   # "LibraryGenie"
-            L(35532),   # "Setup error - using default settings"
+            L(30136),   # "LibraryGenie"
+            L(30198),   # "Setup error - using default settings"
             xbmcgui.NOTIFICATION_WARNING,
             4000
         )
@@ -873,7 +873,7 @@ def _show_setup_progress(message: str):
     """Show setup progress notification"""
     from lib.ui.localization import L
     xbmcgui.Dialog().notification(
-        L(35520),   # "LibraryGenie Setup"
+        L(30186),   # "LibraryGenie Setup"
         message,
         xbmcgui.NOTIFICATION_INFO,
         1000
@@ -884,7 +884,7 @@ def _show_setup_complete(message: str):
     """Show setup completion notification"""
     from lib.ui.localization import L
     xbmcgui.Dialog().notification(
-        L(35520),   # "LibraryGenie Setup"
+        L(30186),   # "LibraryGenie Setup"
         message,
         xbmcgui.NOTIFICATION_INFO,
         1000
