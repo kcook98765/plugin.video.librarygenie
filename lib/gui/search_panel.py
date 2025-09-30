@@ -280,9 +280,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         xbmc.log('[LG-SearchPanel] Query from getText(): "{}"'.format(query), xbmc.LOGDEBUG)
         xbmc.log('[LG-SearchPanel] Full state: {}'.format(self._state), xbmc.LOGDEBUG)
         
-        # Persist last state if desired
-        if ADDON.getSettingBool('remember_last_values'):
-            self._save_last_state()
         # Prepare result
         self._result = {
             'content_type': self._state['content_type'],
@@ -306,25 +303,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         os.makedirs(PROFILE, exist_ok=True)
         with open(PRESETS_PATH, 'w', encoding='utf-8') as fh:
             json.dump(presets, fh, ensure_ascii=False, indent=2)
-
-    def _last_state_path(self):
-        """Get last state file path"""
-        return os.path.join(PROFILE, 'search_last_state.json')
-
-    def _load_last_state(self):
-        """Load last used state"""
-        try:
-            with open(self._last_state_path(), 'r', encoding='utf-8') as fh:
-                data = json.load(fh)
-                self._state.update(data)
-        except Exception:
-            pass
-
-    def _save_last_state(self):
-        """Save last used state"""
-        os.makedirs(PROFILE, exist_ok=True)
-        with open(self._last_state_path(), 'w', encoding='utf-8') as fh:
-            json.dump(self._state, fh, ensure_ascii=False, indent=2)
 
     @classmethod
     def prompt(cls, initial_query=''):
