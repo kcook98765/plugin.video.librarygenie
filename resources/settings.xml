@@ -640,11 +640,6 @@
             <heading>30337</heading>
           </control>
         </setting>
-        <setting id="remember_last_values" type="boolean" label="30338" help="30348">
-          <level>0</level>
-          <default>true</default>
-          <control type="toggle"/>
-        </setting>
       </group>
     </category>
 
