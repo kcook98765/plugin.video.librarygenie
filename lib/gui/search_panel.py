@@ -55,6 +55,11 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         """Handle actions"""
         if action.getId() in (xbmcgui.ACTION_NAV_BACK, xbmcgui.ACTION_PREVIOUS_MENU):
             self.close()
+        elif action.getId() in (xbmcgui.ACTION_SELECT_ITEM, xbmcgui.ACTION_MOUSE_LEFT_CLICK):
+            # If query edit control has focus and user presses enter/select, open keyboard
+            focus = self.getFocusId()
+            if focus == 200:
+                self._open_keyboard()
 
     def onClick(self, control_id):
         """Handle control clicks"""
@@ -66,8 +71,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             self._set_match_mode_by_control(control_id)
         elif control_id == 200:
             # Clicking on query box opens keyboard
-            self._open_keyboard()
-        elif control_id == 231:
             self._open_keyboard()
         elif control_id == 240:
             self._apply_selected_preset()
@@ -92,7 +95,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         self.rb_any = self.getControl(221)
         self.rb_allw = self.getControl(222)
         self.rb_phrase = self.getControl(223)
-        self.btn_keyboard = self.getControl(231)
         self.list_presets = self.getControl(240)
         self.btn_save_preset = self.getControl(251)
         self.btn_set_default = self.getControl(252)
