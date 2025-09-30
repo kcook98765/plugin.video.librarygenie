@@ -163,6 +163,9 @@ LibraryGenie provides powerful local search capabilities:
 - **Text Normalization**: Handles diacritics, punctuation, case, and Unicode consistently
 - **Flexible Search Scope**: Search titles only, plots only, or both fields
 - **Match Logic Options**: "All keywords" or "any keyword" matching
+- **Media Type Filtering**: Search movies, TV episodes, or both
+- **List-Specific Search**: Search within entire library or specific lists
+- **Pagination Support**: Efficient result browsing with configurable page size and offset
 - **Search History**: Automatic saving of search results to browsable lists
 
 ### Search Configuration
@@ -171,7 +174,11 @@ LibraryGenie provides powerful local search capabilities:
 |-----------|--------|---------|-------------|
 | `search_scope` | `"title"`, `"plot"`, `"both"` | `"both"` | Fields to search |
 | `match_logic` | `"all"`, `"any"` | `"all"` | Keyword matching logic |
-| `page_size` | `int` | `50` | Results per page |
+| `media_types` | `["movie"]`, `["episode", "tvshow"]`, etc. | `["movie"]` | Media types to include in search |
+| `scope_type` | `"library"`, `"list"` | `"library"` | Search entire library or specific list |
+| `scope_id` | `int` | `None` | List ID when `scope_type` is `"list"` |
+| `page_size` | `int` | `50` | Results per page (range: 25-500) |
+| `page_offset` | `int` | `0` | Starting offset for pagination |
 
 ---
 
