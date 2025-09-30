@@ -35,10 +35,20 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def __init__(self, *args, **kwargs):
         super(SearchPanel, self).__init__()
         self._result = None
+        
+        # Load defaults - handle 0 as valid value
+        default_content = ADDON.getSettingInt('default_content_type')
+        default_fields = ADDON.getSettingInt('default_fields')
+        default_match = ADDON.getSettingInt('default_match_mode')
+        
+        # DEBUG: Log loaded defaults
+        xbmc.log('[LG-SearchPanel] Loading defaults: content_type={}, fields={}, match_mode={}'.format(
+            default_content, default_fields, default_match), xbmc.LOGDEBUG)
+        
         self._state = {
-            'content_type': ADDON.getSettingInt('default_content_type') if ADDON.getSettingInt('default_content_type') else 0,
-            'fields': ADDON.getSettingInt('default_fields') if ADDON.getSettingInt('default_fields') else 2,
-            'match_mode': ADDON.getSettingInt('default_match_mode') if ADDON.getSettingInt('default_match_mode') else 0,
+            'content_type': default_content,
+            'fields': default_fields if default_fields != 0 else 2,  # 0 means not set, default to FIELDS_BOTH (2)
+            'match_mode': default_match,
             'query': ''
         }
         if ADDON.getSettingBool('remember_last_values'):
@@ -205,9 +215,21 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _save_as_default(self):
         """Save current state as default settings"""
+        # DEBUG: Log what we're saving
+        xbmc.log('[LG-SearchPanel] Saving defaults: content_type={}, fields={}, match_mode={}'.format(
+            self._state['content_type'], self._state['fields'], self._state['match_mode']), xbmc.LOGDEBUG)
+        
         ADDON.setSettingInt('default_content_type', self._state['content_type'])
         ADDON.setSettingInt('default_fields', self._state['fields'])
         ADDON.setSettingInt('default_match_mode', self._state['match_mode'])
+        
+        # Verify they were saved
+        saved_content = ADDON.getSettingInt('default_content_type')
+        saved_fields = ADDON.getSettingInt('default_fields')
+        saved_match = ADDON.getSettingInt('default_match_mode')
+        xbmc.log('[LG-SearchPanel] Verified saved values: content_type={}, fields={}, match_mode={}'.format(
+            saved_content, saved_fields, saved_match), xbmc.LOGDEBUG)
+        
         xbmcgui.Dialog().notification('LibraryGenie', L(32307), xbmcgui.NOTIFICATION_INFO, 3000)
 
     def _finalize_and_close(self):
