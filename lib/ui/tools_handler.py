@@ -1504,11 +1504,13 @@ class ToolsHandler:
                             navigate_to_main=False
                         )
             else:
-                context.dialog.notification(
+                # Show "no results" notification
+                import xbmcgui
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie Search",
                     "No results found",
-                    "info",
-                    3000,
-                    "LibraryGenie Search"
+                    xbmcgui.NOTIFICATION_INFO,
+                    3000
                 )
                 return DialogResponse(
                     success=True,
