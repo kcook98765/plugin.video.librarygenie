@@ -31,6 +31,7 @@
                 <height>60</height>
                 <align>center</align>
                 <font>font36</font>
+                <textcolor>FFFFFFFF</textcolor>
                 <label>$LOCALIZE[30134]</label>
             </control>
 
@@ -43,19 +44,26 @@
                 <control type="label">
                     <label>$LOCALIZE[30285]</label>
                     <font>font30</font>
+                    <textcolor>FFFFFFFF</textcolor>
                     <width>480</width>
                     <height>40</height>
                 </control>
                 <control type="radiobutton" id="201">
                     <top>60</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30288]</label>
                 </control>
                 <control type="radiobutton" id="202">
                     <top>110</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30286]</label>
                 </control>
                 <control type="radiobutton" id="203">
                     <top>160</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30287]</label>
                 </control>
             </control>
@@ -69,16 +77,21 @@
                 <control type="label">
                     <label>$LOCALIZE[30319]</label>
                     <font>font30</font>
+                    <textcolor>FFFFFFFF</textcolor>
                     <width>480</width>
                     <height>40</height>
                 </control>
                 <control type="togglebutton" id="211">
                     <top>60</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32300]</label>
                     <altlabel>$LOCALIZE[32300]</altlabel>
                 </control>
                 <control type="togglebutton" id="212">
                     <top>110</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32301]</label>
                     <altlabel>$LOCALIZE[32301]</altlabel>
                 </control>
@@ -93,19 +106,26 @@
                 <control type="label">
                     <label>$LOCALIZE[32302]</label>
                     <font>font30</font>
+                    <textcolor>FFFFFFFF</textcolor>
                     <width>420</width>
                     <height>40</height>
                 </control>
                 <control type="radiobutton" id="221">
                     <top>60</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30323]</label>
                 </control>
                 <control type="radiobutton" id="222">
                     <top>110</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30324]</label>
                 </control>
                 <control type="radiobutton" id="223">
                     <top>160</top>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30325]</label>
                 </control>
             </control>
@@ -119,6 +139,7 @@
                 <control type="label">
                     <label>$LOCALIZE[30326]</label>
                     <font>font30</font>
+                    <textcolor>FFFFFFFF</textcolor>
                     <width>300</width>
                     <height>40</height>
                 </control>
@@ -128,6 +149,7 @@
                     <width>1220</width>
                     <height>60</height>
                     <textoffsetx>12</textoffsetx>
+                    <textcolor>FFFFFFFF</textcolor>
                     <label></label>
                 </control>
                 <control type="button" id="231">
@@ -135,6 +157,8 @@
                     <top>50</top>
                     <width>240</width>
                     <height>60</height>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30327]</label>
                 </control>
             </control>
@@ -148,6 +172,7 @@
                 <control type="label">
                     <label>$LOCALIZE[30328]</label>
                     <font>font30</font>
+                    <textcolor>FFFFFFFF</textcolor>
                     <width>300</width>
                     <height>40</height>
                 </control>
@@ -177,24 +202,32 @@
                 <control type="button" id="251">
                     <width>260</width>
                     <height>60</height>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[30329]</label>
                 </control>
                 <control type="button" id="252">
                     <left>280</left>
                     <width>220</width>
                     <height>60</height>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32303]</label>
                 </control>
                 <control type="button" id="261">
                     <left>820</left>
                     <width>220</width>
                     <height>60</height>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32304]</label>
                 </control>
                 <control type="button" id="260">
                     <left>1060</left>
                     <width>500</width>
                     <height>60</height>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32305]</label>
                     <font>font30_title</font>
                 </control>
