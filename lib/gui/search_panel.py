@@ -47,7 +47,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def onInit(self):
         """Initialize the dialog"""
         self._wire_controls()
-        self._load_presets()
         self._apply_state_to_controls()
         self.setFocusId(200)
 
@@ -72,10 +71,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         elif control_id == 200:
             # Clicking on query box opens keyboard
             self._open_keyboard()
-        elif control_id == 240:
-            self._apply_selected_preset()
-        elif control_id == 251:
-            self._save_as_preset()
         elif control_id == 252:
             self._save_as_default()
         elif control_id == 260:
@@ -95,8 +90,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         self.rb_any = self.getControl(221)
         self.rb_allw = self.getControl(222)
         self.rb_phrase = self.getControl(223)
-        self.list_presets = self.getControl(240)
-        self.btn_save_preset = self.getControl(251)
         self.btn_set_default = self.getControl(252)
         self.btn_search = self.getControl(260)
         self.btn_cancel = self.getControl(261)
