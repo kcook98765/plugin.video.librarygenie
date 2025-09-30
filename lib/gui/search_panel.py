@@ -115,7 +115,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         self.rb_allw.setSelected(self._state['match_mode'] == MATCH_ALL)
         self.rb_phrase.setSelected(self._state['match_mode'] == MATCH_PHRASE)
         # Query
-        self.q_edit.setLabel(self._state.get('query', ''))
+        self.q_edit.setText(self._state.get('query', ''))
 
     def _set_content_type_by_control(self, cid):
         """Set content type based on control ID"""
@@ -136,12 +136,14 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _open_keyboard(self):
         """Open keyboard for query input"""
-        kb = xbmc.Keyboard(self.q_edit.getLabel(), L(30333))  # "Enter search text"
+        # Get current text from edit control
+        current_text = self.q_edit.getText()
+        kb = xbmc.Keyboard(current_text, L(30333))  # "Enter search text"
         kb.doModal()
         if kb.isConfirmed():
             text = kb.getText()
             self._state['query'] = text
-            self.q_edit.setLabel(text)
+            self.q_edit.setText(text)
 
     def _load_presets(self):
         """Load presets into list"""
@@ -222,13 +224,15 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _finalize_and_close(self):
         """Finalize and close dialog"""
-        # Get query from state (which is updated by _open_keyboard)
-        query = self._state.get('query', '').strip()
+        # Get query from edit control using getText() (not getLabel!)
+        query = self.q_edit.getText().strip()
+        
+        # Update state with the final query
+        self._state['query'] = query
         
         # DEBUG: Log what we're sending
         xbmc.log('[LG-SearchPanel] _finalize_and_close called', xbmc.LOGDEBUG)
-        xbmc.log('[LG-SearchPanel] Query from state: "{}"'.format(query), xbmc.LOGDEBUG)
-        xbmc.log('[LG-SearchPanel] Edit control label: "{}"'.format(self.q_edit.getLabel()), xbmc.LOGDEBUG)
+        xbmc.log('[LG-SearchPanel] Query from getText(): "{}"'.format(query), xbmc.LOGDEBUG)
         xbmc.log('[LG-SearchPanel] Full state: {}'.format(self._state), xbmc.LOGDEBUG)
         
         # Persist last state if desired
