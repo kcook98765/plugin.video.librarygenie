@@ -8,22 +8,6 @@ import re
 import os
 from collections import OrderedDict
 
-# Files to search and replace
-PY_FILES = []
-XML_FILES = []
-PO_FILES = ['resources/language/resource.language.en_gb/strings.po']
-
-# Find all Python and XML files
-for root, dirs, files in os.walk('.'):
-    # Skip hidden dirs and non-addon dirs
-    if '/.git' in root or '/venv' in root or '/__pycache__' in root:
-        continue
-    for file in files:
-        if file.endswith('.py'):
-            PY_FILES.append(os.path.join(root, file))
-        elif file.endswith('.xml'):
-            XML_FILES.append(os.path.join(root, file))
-
 def extract_strings_from_po(filepath):
     """Extract all string entries from .po file"""
     with open(filepath, 'r', encoding='utf-8') as f:
@@ -41,7 +25,7 @@ def extract_strings_from_po(filepath):
             'original_id': int(string_id)
         }
     
-    return entries, content
+    return entries
 
 def create_id_mapping(entries, start_id=30000):
     """Create mapping from old IDs to new sequential IDs"""
@@ -76,61 +60,69 @@ def build_new_po_content(entries, mapping):
     
     return '\n'.join(lines)
 
-def replace_in_file(filepath, mapping):
-    """Replace string IDs in a file using the mapping"""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        content = f.read()
+def replace_in_codebase(mapping, exclude_files):
+    """Replace all 5-digit string IDs globally across codebase"""
+    total_replacements = 0
+    files_changed = []
     
-    original_content = content
-    replacements = 0
-    
-    # Sort by old_id descending to avoid partial replacements
-    for old_id in sorted(mapping.keys(), reverse=True):
-        new_id = mapping[old_id]
-        if old_id == new_id:
+    # Find all files to process
+    for root, dirs, files in os.walk('.'):
+        # Skip hidden and irrelevant dirs
+        if '/.git' in root or '/venv' in root or '/__pycache__' in root:
             continue
         
-        # Different patterns for different file types
-        if filepath.endswith('.py'):
-            # L(32500), getLocalizedString(32500)
-            patterns = [
-                (rf'\bL\({old_id}\)', f'L({new_id})'),
-                (rf'getLocalizedString\({old_id}\)', f'getLocalizedString({new_id})'),
-                (rf'ADDON\.getLocalizedString\({old_id}\)', f'ADDON.getLocalizedString({new_id})')
-            ]
-        elif filepath.endswith('.xml'):
-            # $LOCALIZE[32500] or label="32500"
-            patterns = [
-                (rf'\$LOCALIZE\[{old_id}\]', f'$LOCALIZE[{new_id}]'),
-                (rf'label="{old_id}"', f'label="{new_id}"')
-            ]
-        elif filepath.endswith('.po'):
-            # msgctxt "#32500"
-            patterns = [
-                (rf'msgctxt "#{old_id}"', f'msgctxt "#{new_id}"')
-            ]
-        else:
-            continue
-        
-        for pattern, replacement in patterns:
-            new_content = re.sub(pattern, replacement, content)
-            if new_content != content:
-                replacements += re.subn(pattern, replacement, content)[1]
-                content = new_content
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            
+            # Skip excluded files
+            if any(excl in filepath for excl in exclude_files):
+                continue
+            
+            # Only process text files
+            if not (filename.endswith('.py') or filename.endswith('.xml') or filename.endswith('.po')):
+                continue
+            
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                original_content = content
+                
+                # Sort by old_id descending to avoid partial replacements (e.g., 3000 before 30000)
+                for old_id in sorted(mapping.keys(), reverse=True):
+                    new_id = mapping[old_id]
+                    if old_id == new_id:
+                        continue
+                    
+                    # Regex: exactly 5 digits with non-digit before and after
+                    # Using word boundary \D to ensure we don't match partial numbers
+                    pattern = rf'(\D){old_id}(\D)'
+                    replacement = rf'\g<1>{new_id}\g<2>'
+                    content = re.sub(pattern, replacement, content)
+                
+                if content != original_content:
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    
+                    # Count actual replacements
+                    reps = sum(1 for old, new in mapping.items() if old != new and str(old) in original_content)
+                    total_replacements += reps
+                    files_changed.append((filepath, reps))
+            
+            except Exception as e:
+                print(f"  ERROR processing {filepath}: {e}")
     
-    if content != original_content:
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return replacements
-    
-    return 0
+    return total_replacements, files_changed
 
 def main():
     print("=== LibraryGenie String ID Renumbering ===\n")
     
+    po_file = 'resources/language/resource.language.en_gb/strings.po'
+    new_po_file = 'strings_new.po'
+    
     # Step 1: Extract strings
     print("Step 1: Extracting strings from .po file...")
-    entries, original_po = extract_strings_from_po(PO_FILES[0])
+    entries = extract_strings_from_po(po_file)
     print(f"  Found {len(entries)} string entries")
     
     # Step 2: Create mapping
@@ -147,38 +139,37 @@ def main():
             print(f"    {old_id} -> {new_id}")
             count += 1
     
-    # Step 3: Build new .po file
-    print("\nStep 3: Building new strings.po...")
+    # Step 3: Replace in codebase (excluding .po files)
+    print("\nStep 3: Replacing IDs globally in codebase...")
+    print("  Using regex: (\\D){5-digit-number}(\\D)")
+    exclude_files = [po_file, new_po_file, 'renumber_strings.py']
+    total_replacements, files_changed = replace_in_codebase(mapping, exclude_files)
+    
+    for filepath, reps in files_changed[:20]:  # Show first 20 files
+        print(f"  {filepath}: ~{reps} IDs changed")
+    
+    if len(files_changed) > 20:
+        print(f"  ... and {len(files_changed) - 20} more files")
+    
+    print(f"\n  Files modified: {len(files_changed)}")
+    
+    # Step 4: Build new .po file
+    print("\nStep 4: Building new strings.po...")
     new_po_content = build_new_po_content(entries, mapping)
-    with open('strings_new.po', 'w', encoding='utf-8') as f:
+    with open(new_po_file, 'w', encoding='utf-8') as f:
         f.write(new_po_content)
-    print(f"  Created strings_new.po")
+    print(f"  Created {new_po_file}")
     
-    # Step 4: Replace in all files
-    print("\nStep 4: Replacing IDs in codebase...")
-    all_files = PY_FILES + XML_FILES + PO_FILES
-    total_replacements = 0
-    
-    for filepath in all_files:
-        try:
-            reps = replace_in_file(filepath, mapping)
-            if reps > 0:
-                print(f"  {filepath}: {reps} replacements")
-                total_replacements += reps
-        except Exception as e:
-            print(f"  ERROR in {filepath}: {e}")
-    
-    print(f"\n  Total replacements: {total_replacements}")
-    
-    # Step 5: Verify
-    print("\nStep 5: Verification...")
-    print(f"  New strings.po created: strings_new.po")
-    print(f"  To apply: mv strings_new.po resources/language/resource.language.en_gb/strings.po")
-    
+    # Step 5: Summary
     print("\n=== Complete ===")
+    print(f"\nSummary:")
+    print(f"  - {changes} string IDs renumbered")
+    print(f"  - {len(files_changed)} files modified")
+    print(f"  - New strings file: {new_po_file}")
+    
     print("\nNext steps:")
-    print("1. Review strings_new.po")
-    print("2. If satisfied, replace original: mv strings_new.po resources/language/resource.language.en_gb/strings.po")
+    print(f"1. Review {new_po_file}")
+    print(f"2. If satisfied, replace original: mv {new_po_file} {po_file}")
     print("3. Test the addon to verify all labels display correctly")
 
 if __name__ == '__main__':
