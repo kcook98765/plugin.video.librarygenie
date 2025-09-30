@@ -18,1569 +18,1569 @@ msgstr ""
 # Settings Categories
 msgctxt "#30000"
 msgid "General"
-msgstr ""
+msgstr "General"
 
 # Main menu strings
 msgctxt "#30001"
 msgid "Search History"
-msgstr ""
+msgstr "Search History"
 
 msgctxt "#30002"
 msgid "Browse %d saved searches"
-msgstr ""
+msgstr "Browse %d saved searches"
 
 # Search UI and Operations
 msgctxt "#30003"
 msgid "Local Movie Search"
-msgstr ""
+msgstr "Local Movie Search"
 
 msgctxt "#30004"
 msgid "Local Search Movies and Lists"
-msgstr ""
+msgstr "Local Search Movies and Lists"
 
 msgctxt "#30005"
 msgid "Enter search terms"
-msgstr ""
+msgstr "Enter search terms"
 
 msgctxt "#30006"
 msgid "Search Filters"
-msgstr ""
+msgstr "Search Filters"
 
 msgctxt "#30007"
 msgid "Year Filter"
-msgstr ""
+msgstr "Year Filter"
 
 msgctxt "#30008"
 msgid "Search Scope"
-msgstr ""
+msgstr "Search Scope"
 
 msgctxt "#30009"
 msgid "Sort Method"
-msgstr ""
+msgstr "Sort Method"
 
 # General Settings
 msgctxt "#30010"
 msgid "Debug & Logging"
-msgstr ""
+msgstr "Debug & Logging"
 
 msgctxt "#30011"
 msgid "Enable debug logging"
-msgstr ""
+msgstr "Enable debug logging"
 
 msgctxt "#30012"
 msgid "All Library"
-msgstr ""
+msgstr "All Library"
 
 msgctxt "#30013"
 msgid "Current List"
-msgstr ""
+msgstr "Current List"
 
 msgctxt "#30014"
 msgid "Title (A-Z)"
-msgstr ""
+msgstr "Title (A-Z)"
 
 msgctxt "#30015"
 msgid "Title (Z-A)"
-msgstr ""
+msgstr "Title (Z-A)"
 
 msgctxt "#30016"
 msgid "Year (Newest First)"
-msgstr ""
+msgstr "Year (Newest First)"
 
 msgctxt "#30017"
 msgid "Year (Oldest First)"
-msgstr ""
+msgstr "Year (Oldest First)"
 
 msgctxt "#30018"
 msgid "Date Added (Newest)"
-msgstr ""
+msgstr "Date Added (Newest)"
 
 msgctxt "#30019"
 msgid "Date Added (Oldest)"
-msgstr ""
+msgstr "Date Added (Oldest)"
 
 msgctxt "#30020"
 msgid "User Interface"
-msgstr ""
+msgstr "User Interface"
 
 msgctxt "#30021"
 msgid "Confirm destructive actions"
-msgstr ""
+msgstr "Confirm destructive actions"
 
 msgctxt "#30022"
 msgid "Show item counts next to list names"
-msgstr ""
+msgstr "Show item counts next to list names"
 
 msgctxt "#30023"
 msgid "Search Results"
-msgstr ""
+msgstr "Search Results"
 
 msgctxt "#30024"
 msgid "No results found"
-msgstr ""
+msgstr "No results found"
 
 msgctxt "#30025"
 msgid "Search results per page"
-msgstr ""
+msgstr "Search results per page"
 
 msgctxt "#30026"
 msgid "Try different search terms or filters"
-msgstr ""
+msgstr "Try different search terms or filters"
 
 msgctxt "#30027"
 msgid "Next Page"
-msgstr ""
+msgstr "Next Page"
 
 msgctxt "#30028"
 msgid "Previous Page"
-msgstr ""
+msgstr "Previous Page"
 
 msgctxt "#30029"
 msgid "Enter year (e.g. 2020) or range (e.g. 1999-2003)"
-msgstr ""
+msgstr "Enter year (e.g. 2020) or range (e.g. 1999-2003)"
 
 msgctxt "#30030"
 msgid "Library"
-msgstr ""
+msgstr "Library"
 
 msgctxt "#30031"
 msgid "Track library changes in background"
-msgstr ""
+msgstr "Track library changes in background"
 
 msgctxt "#30032"
 msgid "Empty search"
-msgstr ""
+msgstr "Empty search"
 
 
 msgctxt "#30033"
 msgid "Sync TV episodes during library scan"
-msgstr ""
+msgstr "Sync TV episodes during library scan"
 
 msgctxt "#30034"
 msgid "Sync movies during library scan"
-msgstr ""
+msgstr "Sync movies during library scan"
 
 msgctxt "#30035"
 msgid "Manual Library Sync"
-msgstr ""
+msgstr "Manual Library Sync"
 
 msgctxt "#30036"
 msgid "Library Sync Interval"
-msgstr ""
+msgstr "Library Sync Interval"
 
 msgctxt "#30037"
 msgid "Enter search terms or apply filters"
-msgstr ""
+msgstr "Enter search terms or apply filters"
 
 msgctxt "#30038"
 msgid "Search Error"
-msgstr ""
+msgstr "Search Error"
 
 msgctxt "#30039"
 msgid "Filtered by:"
-msgstr ""
+msgstr "Filtered by:"
 
 msgctxt "#30040"
 msgid "Lists Integration"
-msgstr ""
+msgstr "Lists Integration"
 
 msgctxt "#30041"
 msgid "Set Default List"
-msgstr ""
+msgstr "Set Default List"
 
 msgctxt "#30042"
 msgid "Enable quick-add to default list"
-msgstr ""
+msgstr "Enable quick-add to default list"
 
 msgctxt "#30043"
 msgid "Show missing movie indicators"
-msgstr ""
+msgstr "Show missing movie indicators"
 
 msgctxt "#30044"
 msgid "Default list ID (internal)"
-msgstr ""
+msgstr "Default list ID (internal)"
 
 msgctxt "#30045"
 msgid "Current default list:"
-msgstr ""
+msgstr "Current default list:"
 
 msgctxt "#30046"
 msgid "results for"
-msgstr ""
+msgstr "results for"
 
 msgctxt "#30047"
 msgid "in list"
-msgstr ""
+msgstr "in list"
 
 msgctxt "#30048"
 msgid "including paths"
-msgstr ""
+msgstr "including paths"
 
 msgctxt "#30049"
 msgid "Page"
-msgstr ""
+msgstr "Page"
 
 msgctxt "#30050"
 msgid "Kodi Favorites Integration"
-msgstr ""
+msgstr "Kodi Favorites Integration"
 
 msgctxt "#30051"
 msgid "Enable Kodi favorites integration"
-msgstr ""
+msgstr "Enable Kodi favorites integration"
 
 msgctxt "#30052"
 msgid "of"
-msgstr ""
+msgstr "of"
 
 msgctxt "#30053"
 msgid "Show unmapped favorites"
-msgstr ""
+msgstr "Show unmapped favorites"
 
 msgctxt "#30054"
 msgid "Enable favorites batch processing"
-msgstr ""
+msgstr "Enable favorites batch processing"
 
 # Backup & Storage Management
 msgctxt "#30055"
 msgid "Backup & Storage"
-msgstr ""
+msgstr "Backup & Storage"
 
 msgctxt "#30056"
 msgid "Backup Settings"
-msgstr ""
+msgstr "Backup Settings"
 
 msgctxt "#30057"
 msgid "Enable automatic backups"
-msgstr ""
+msgstr "Enable automatic backups"
 
 msgctxt "#30058"
 msgid "Backup interval"
-msgstr ""
+msgstr "Backup interval"
 
 msgctxt "#30059"
 msgid "Backup storage location"
-msgstr ""
+msgstr "Backup storage location"
 
 msgctxt "#30060"
 msgid "Backup retention policy"
-msgstr ""
+msgstr "Backup retention policy"
 
 msgctxt "#30061"
 msgid "Create Backup Now"
-msgstr ""
+msgstr "Create Backup Now"
 
 msgctxt "#30062"
 msgid "Restore from Backup"
-msgstr ""
+msgstr "Restore from Backup"
 
 msgctxt "#30063"
 msgid "Manage Backups"
-msgstr ""
+msgstr "Manage Backups"
 
 msgctxt "#30064"
 msgid "Backup created successfully"
-msgstr ""
+msgstr "Backup created successfully"
 
 msgctxt "#30065"
 msgid "Backup failed"
-msgstr ""
+msgstr "Backup failed"
 
 msgctxt "#30066"
 msgid "Restore completed successfully"
-msgstr ""
+msgstr "Restore completed successfully"
 
 msgctxt "#30067"
 msgid "Restore failed"
-msgstr ""
+msgstr "Restore failed"
 
 msgctxt "#30068"
 msgid "Are you sure you want to restore from this backup?"
-msgstr ""
+msgstr "Are you sure you want to restore from this backup?"
 
 msgctxt "#30069"
 msgid "This will replace all current lists and data."
-msgstr ""
+msgstr "This will replace all current lists and data."
 
 # ShortList Integration
 msgctxt "#30070"
 msgid "ShortList Integration"
-msgstr ""
+msgstr "ShortList Integration"
 
 msgctxt "#30071"
 msgid "Import from ShortList addon"
-msgstr ""
+msgstr "Import from ShortList addon"
 
 msgctxt "#30072"
 msgid "Clear list before importing new data"
-msgstr ""
+msgstr "Clear list before importing new data"
 
 msgctxt "#30073"
 msgid "Backup in progress..."
-msgstr ""
+msgstr "Backup in progress..."
 
 msgctxt "#30074"
 msgid "Restore in progress..."
-msgstr ""
+msgstr "Restore in progress..."
 
 msgctxt "#30075"
 msgid "Select backup to restore"
-msgstr ""
+msgstr "Select backup to restore"
 
 msgctxt "#30076"
 msgid "No backups found"
-msgstr ""
+msgstr "No backups found"
 
 msgctxt "#30077"
 msgid "Backup file not found"
-msgstr ""
+msgstr "Backup file not found"
 
 msgctxt "#30078"
 msgid "Invalid backup file"
-msgstr ""
+msgstr "Invalid backup file"
 
 # Sync & Remote Services
 msgctxt "#30079"
 msgid "AI Movie Search"
-msgstr ""
+msgstr "AI Movie Search"
 
 msgctxt "#30080"
 msgid "Enter AI Search Query"
-msgstr ""
+msgstr "Enter AI Search Query"
 
 msgctxt "#30081"
 msgid "AI Search Results"
-msgstr ""
+msgstr "AI Search Results"
 
 msgctxt "#30082"
 msgid "Sync in progress..."
-msgstr ""
+msgstr "Sync in progress..."
 
 msgctxt "#30083"
 msgid "Sync completed successfully"
-msgstr ""
+msgstr "Sync completed successfully"
 
 msgctxt "#30084"
 msgid "Sync failed"
-msgstr ""
+msgstr "Sync failed"
 
 msgctxt "#30085"
 msgid "Similar Movies"
-msgstr ""
+msgstr "Similar Movies"
 
 msgctxt "#30086"
 msgid "Storage Management"
-msgstr ""
+msgstr "Storage Management"
 
 msgctxt "#30087"
 msgid "Clear cache"
-msgstr ""
+msgstr "Clear cache"
 
 msgctxt "#30088"
 msgid "Cache cleared successfully"
-msgstr ""
+msgstr "Cache cleared successfully"
 
 msgctxt "#30089"
 msgid "Failed to clear cache"
-msgstr ""
+msgstr "Failed to clear cache"
 
 msgctxt "#30090"
 msgid "Validate storage paths"
-msgstr ""
+msgstr "Validate storage paths"
 
 msgctxt "#30091"
 msgid "Storage path validation"
-msgstr ""
+msgstr "Storage path validation"
 
 msgctxt "#30092"
 msgid "All paths are valid"
-msgstr ""
+msgstr "All paths are valid"
 
 msgctxt "#30093"
 msgid "Some paths are invalid"
-msgstr ""
+msgstr "Some paths are invalid"
 
 msgctxt "#30094"
 msgid "Cleanup temporary files"
-msgstr ""
+msgstr "Cleanup temporary files"
 
 msgctxt "#30095"
 msgid "Temporary files cleaned"
-msgstr ""
+msgstr "Temporary files cleaned"
 
 msgctxt "#30096"
 msgid "Cleanup failed"
-msgstr ""
+msgstr "Cleanup failed"
 
 # Common Operation Messages
 msgctxt "#30097"
 msgid "Operation completed"
-msgstr ""
+msgstr "Operation completed"
 
 msgctxt "#30098"
 msgid "Operation failed"
-msgstr ""
+msgstr "Operation failed"
 
 msgctxt "#30099"
 msgid "Please try again"
-msgstr ""
+msgstr "Please try again"
 
 msgctxt "#30100"
 msgid "Background"
-msgstr ""
+msgstr "Background"
 
 msgctxt "#30101"
 msgid "Network error"
-msgstr ""
+msgstr "Network error"
 
 msgctxt "#30102"
 msgid "Timeout error"
-msgstr ""
+msgstr "Timeout error"
 
 msgctxt "#30103"
 msgid "Configuration error"
-msgstr ""
+msgstr "Configuration error"
 
 msgctxt "#30104"
 msgid "Database error"
-msgstr ""
+msgstr "Database error"
 
 msgctxt "#30105"
 msgid "File not accessible"
-msgstr ""
+msgstr "File not accessible"
 
 msgctxt "#30106"
 msgid "Permission denied"
-msgstr ""
+msgstr "Permission denied"
 
 msgctxt "#30107"
 msgid "Invalid format"
-msgstr ""
+msgstr "Invalid format"
 
 msgctxt "#30108"
 msgid "Service unavailable"
-msgstr ""
+msgstr "Service unavailable"
 
 # Progress Messages
 msgctxt "#30109"
 msgid "Initializing..."
-msgstr ""
+msgstr "Initializing..."
 
 # Background Settings
 msgctxt "#30110"
 msgid "Background Tasks"
-msgstr ""
+msgstr "Background Tasks"
 
 msgctxt "#30111"
 msgid "Enable background task"
-msgstr ""
+msgstr "Enable background task"
 
 msgctxt "#30112"
 msgid "Background interval (minutes)"
-msgstr ""
+msgstr "Background interval (minutes)"
 
 msgctxt "#30113"
 msgid "Processing..."
-msgstr ""
+msgstr "Processing..."
 
 msgctxt "#30114"
 msgid "Finalizing..."
-msgstr ""
+msgstr "Finalizing..."
 
 msgctxt "#30115"
 msgid "Please wait..."
-msgstr ""
+msgstr "Please wait..."
 
 msgctxt "#30116"
 msgid "Operation in progress"
-msgstr ""
+msgstr "Operation in progress"
 
 msgctxt "#30117"
 msgid "Scanning library..."
-msgstr ""
+msgstr "Scanning library..."
 
 msgctxt "#30118"
 msgid "Updating database..."
-msgstr ""
+msgstr "Updating database..."
 
 msgctxt "#30119"
 msgid "Validating data..."
-msgstr ""
+msgstr "Validating data..."
 
 msgctxt "#30120"
 msgid "Connecting to server..."
-msgstr ""
+msgstr "Connecting to server..."
 
 msgctxt "#30121"
 msgid "Loading..."
-msgstr ""
+msgstr "Loading..."
 
 # Confirmation Dialogs
 msgctxt "#30122"
 msgid "Confirm Action"
-msgstr ""
+msgstr "Confirm Action"
 
 msgctxt "#30123"
 msgid "Are you sure?"
-msgstr ""
+msgstr "Are you sure?"
 
 msgctxt "#30124"
 msgid "This action cannot be undone"
-msgstr ""
+msgstr "This action cannot be undone"
 
 msgctxt "#30125"
 msgid "Continue anyway?"
-msgstr ""
+msgstr "Continue anyway?"
 
 msgctxt "#30126"
 msgid "Operation cancelled"
-msgstr ""
+msgstr "Operation cancelled"
 
 msgctxt "#30127"
 msgid "Operation confirmed"
-msgstr ""
+msgstr "Operation confirmed"
 
 # Settings Validation Messages
 msgctxt "#30128"
 msgid "Invalid setting value"
-msgstr ""
+msgstr "Invalid setting value"
 
 msgctxt "#30129"
 msgid "Setting saved successfully"
-msgstr ""
+msgstr "Setting saved successfully"
 
 msgctxt "#30130"
 msgid "Failed to save setting"
-msgstr ""
+msgstr "Failed to save setting"
 
 msgctxt "#30131"
 msgid "Setting restored to default"
-msgstr ""
+msgstr "Setting restored to default"
 
 msgctxt "#30132"
 msgid "Configuration validated"
-msgstr ""
+msgstr "Configuration validated"
 
 msgctxt "#30133"
 msgid "Configuration validation failed"
-msgstr ""
+msgstr "Configuration validation failed"
 
 # Dialog Titles and Common Messages
 msgctxt "#30134"
 msgid "Search"
-msgstr ""
+msgstr "Search"
 
 msgctxt "#30135"
 msgid "Playback Error"
-msgstr ""
+msgstr "Playback Error"
 
 msgctxt "#30136"
 msgid "LibraryGenie"
-msgstr ""
+msgstr "LibraryGenie"
 
 msgctxt "#30137"
 msgid "Export Complete"
-msgstr ""
+msgstr "Export Complete"
 
 msgctxt "#30138"
 msgid "Import Complete"
-msgstr ""
+msgstr "Import Complete"
 
 msgctxt "#30139"
 msgid "Remote Connection Test"
-msgstr ""
+msgstr "Remote Connection Test"
 
 msgctxt "#30140"
 msgid "Connection Test Error"
-msgstr ""
+msgstr "Connection Test Error"
 
 msgctxt "#30141"
 msgid "Cache Cleared"
-msgstr ""
+msgstr "Cache Cleared"
 
 msgctxt "#30142"
 msgid "Cache Clear Failed"
-msgstr ""
+msgstr "Cache Clear Failed"
 
 msgctxt "#30143"
 msgid "Cache Clear Error"
-msgstr ""
+msgstr "Cache Clear Error"
 
 msgctxt "#30144"
 msgid "Movie added to playlist"
-msgstr ""
+msgstr "Movie added to playlist"
 
 msgctxt "#30145"
 msgid "Remote cache has been cleared successfully."
-msgstr ""
+msgstr "Remote cache has been cleared successfully."
 
 msgctxt "#30146"
 msgid "Failed to clear remote cache."
-msgstr ""
+msgstr "Failed to clear remote cache."
 
 # Additional UI Messages
 msgctxt "#30147"
 msgid "Plugin failed to start. Check logs."
-msgstr ""
+msgstr "Plugin failed to start. Check logs."
 
 msgctxt "#30148"
 msgid "Search"
-msgstr ""
+msgstr "Search"
 
 msgctxt "#30149"
 msgid "Remote Search"
-msgstr ""
+msgstr "Remote Search"
 
 msgctxt "#30150"
 msgid "Lists"
-msgstr ""
+msgstr "Lists"
 
 msgctxt "#30151"
 msgid "Remote Lists"
-msgstr ""
+msgstr "Remote Lists"
 
 msgctxt "#30152"
 msgid "Search Movies"
-msgstr ""
+msgstr "Search Movies"
 
 msgctxt "#30153"
 msgid "No Results"
-msgstr ""
+msgstr "No Results"
 
 msgctxt "#30154"
 msgid "No movies found for '%s'"
-msgstr ""
+msgstr "No movies found for '%s'"
 
 msgctxt "#30155"
 msgid "Search Error"
-msgstr ""
+msgstr "Search Error"
 
 msgctxt "#30156"
 msgid "Search failed. Check logs for details."
-msgstr ""
+msgstr "Search failed. Check logs for details."
 
 msgctxt "#30157"
 msgid "Remote search unavailable, using local search"
-msgstr ""
+msgstr "Remote search unavailable, using local search"
 
 # UI Colorization Help Text
 msgctxt "#30158"
 msgid "Enable color-coded menu labels and text for better visual organization. When disabled, all text appears in standard white."
-msgstr ""
+msgstr "Enable color-coded menu labels and text for better visual organization. When disabled, all text appears in standard white."
 
 msgctxt "#30159"
 msgid "Remote search failed, using local search"
-msgstr ""
+msgstr "Remote search failed, using local search"
 
 msgctxt "#30160"
 msgid "Search failed - please try again"
-msgstr ""
+msgstr "Search failed - please try again"
 
 msgctxt "#30161"
 msgid "Remote search failed"
-msgstr ""
+msgstr "Remote search failed"
 
 msgctxt "#30162"
 msgid "Authorize device"
-msgstr ""
+msgstr "Authorize device"
 
 msgctxt "#30163"
 msgid "Sign out"
-msgstr ""
+msgstr "Sign out"
 
 msgctxt "#30164"
 msgid "Are you sure you want to sign out?"
-msgstr ""
+msgstr "Are you sure you want to sign out?"
 
 msgctxt "#30165"
 msgid "Signed out successfully"
-msgstr ""
+msgstr "Signed out successfully"
 
 msgctxt "#30166"
 msgid "Sign out failed"
-msgstr ""
+msgstr "Sign out failed"
 
 # Placeholder messages for stub screens
 msgctxt "#30167"
 msgid "Search functionality coming soon..."
-msgstr ""
+msgstr "Search functionality coming soon..."
 
 msgctxt "#30168"
 msgid "Remote search functionality coming soon..."
-msgstr ""
+msgstr "Remote search functionality coming soon..."
 
 msgctxt "#30169"
 msgid "Lists functionality coming soon..."
-msgstr ""
+msgstr "Lists functionality coming soon..."
 
 msgctxt "#30170"
 msgid "Remote lists functionality coming soon..."
-msgstr ""
+msgstr "Remote lists functionality coming soon..."
 
 # General Settings Help Text
 msgctxt "#30171"
 msgid "Enables detailed logging for troubleshooting. Only enable when debugging issues as it may impact performance."
-msgstr ""
+msgstr "Enables detailed logging for troubleshooting. Only enable when debugging issues as it may impact performance."
 
 msgctxt "#30172"
 msgid "Shows confirmation dialogs before deleting lists or items to prevent accidental data loss."
-msgstr ""
+msgstr "Shows confirmation dialogs before deleting lists or items to prevent accidental data loss."
 
 msgctxt "#30173"
 msgid "Displays the number of items next to each list name in the interface for quick reference."
-msgstr ""
+msgstr "Displays the number of items next to each list name in the interface for quick reference."
 
 msgctxt "#30174"
 msgid "Shows visual indicators for movies that are missing from your library but exist in lists."
-msgstr ""
+msgstr "Shows visual indicators for movies that are missing from your library but exist in lists."
 
 
 msgctxt "#30175"
 msgid "Automatically detects when movies are added or removed from your Kodi library in the background."
-msgstr ""
+msgstr "Automatically detects when movies are added or removed from your Kodi library in the background."
 
 
 msgctxt "#30176"
 msgid "Proactively syncs TV episodes during library scans for faster list building. Increases database size and scan time."
-msgstr ""
+msgstr "Proactively syncs TV episodes during library scans for faster list building. Increases database size and scan time."
 
 msgctxt "#30177"
 msgid "Indexes movies during library scans for list management. Disable only if you don't use movie lists."
-msgstr ""
+msgstr "Indexes movies during library scans for list management. Disable only if you don't use movie lists."
 
 msgctxt "#30178"
 msgid "Manually trigger a library sync based on current movie and TV episode settings."
-msgstr ""
+msgstr "Manually trigger a library sync based on current movie and TV episode settings."
 
 # Lists Settings Help Text
 msgctxt "#30179"
 msgid "Allows quickly adding movies to your default list with a single click from the library browser."
-msgstr ""
+msgstr "Allows quickly adding movies to your default list with a single click from the library browser."
 
 msgctxt "#30180"
 msgid "Enable colorized menu labels"
-msgstr ""
+msgstr "Enable colorized menu labels"
 
 msgctxt "#30181"
 msgid "Integrates with Kodi's built-in favorites system to sync and manage favorite movies in lists."
-msgstr ""
+msgstr "Integrates with Kodi's built-in favorites system to sync and manage favorite movies in lists."
 
 msgctxt "#30182"
 msgid "Shows favorites that couldn't be matched to movies in your library for manual review."
-msgstr ""
+msgstr "Shows favorites that couldn't be matched to movies in your library for manual review."
 
 msgctxt "#30183"
 msgid "Processes multiple favorites at once for faster synchronization with your lists."
-msgstr ""
+msgstr "Processes multiple favorites at once for faster synchronization with your lists."
 
 msgctxt "#30184"
 msgid "Removes all existing items from the target list before importing new data from ShortList addon."
-msgstr ""
+msgstr "Removes all existing items from the target list before importing new data from ShortList addon."
 
 msgctxt "#30185"
 msgid "How often automatic library sync runs (1-48 hours). Longer intervals reduce background activity."
-msgstr ""
+msgstr "How often automatic library sync runs (1-48 hours). Longer intervals reduce background activity."
 
 # Fresh Install Setup Strings
 msgctxt "#30186"
 msgid "LibraryGenie Setup"
-msgstr ""
+msgstr "LibraryGenie Setup"
 
 msgctxt "#30187"
 msgid "Movies and TV Episodes (Recommended)\nFull functionality - create lists for all your media\nBest for: Users with both movies and TV shows"
-msgstr ""
+msgstr "Movies and TV Episodes (Recommended)\nFull functionality - create lists for all your media\nBest for: Users with both movies and TV shows"
 
 msgctxt "#30188"
 msgid "Movies Only\nScan and manage only your movie collection\nBest for: Movie-focused libraries or performance concerns"
-msgstr ""
+msgstr "Movies Only\nScan and manage only your movie collection\nBest for: Movie-focused libraries or performance concerns"
 
 msgctxt "#30189"
 msgid "TV Episodes Only\nScan and manage only your TV show episodes\nBest for: TV-focused libraries or performance concerns"
-msgstr ""
+msgstr "TV Episodes Only\nScan and manage only your TV show episodes\nBest for: TV-focused libraries or performance concerns"
 
 msgctxt "#30190"
 msgid "Skip Setup (Configure Later)\nDon't scan anything now - set up manually in Settings\nBest for: Advanced users who want custom configuration"
-msgstr ""
+msgstr "Skip Setup (Configure Later)\nDon't scan anything now - set up manually in Settings\nBest for: Advanced users who want custom configuration"
 
 msgctxt "#30191"
 msgid "Setting up Movies and TV Episodes sync..."
-msgstr ""
+msgstr "Setting up Movies and TV Episodes sync..."
 
 msgctxt "#30192"
 msgid "Setting up Movies sync..."
-msgstr ""
+msgstr "Setting up Movies sync..."
 
 msgctxt "#30193"
 msgid "Setting up TV Episodes sync..."
-msgstr ""
+msgstr "Setting up TV Episodes sync..."
 
 msgctxt "#30194"
 msgid "Setup complete! Both movies and TV episodes will be synced."
-msgstr ""
+msgstr "Setup complete! Both movies and TV episodes will be synced."
 
 msgctxt "#30195"
 msgid "Setup complete! Movies will be synced."
-msgstr ""
+msgstr "Setup complete! Movies will be synced."
 
 msgctxt "#30196"
 msgid "Setup complete! TV episodes will be synced."
-msgstr ""
+msgstr "Setup complete! TV episodes will be synced."
 
 msgctxt "#30197"
 msgid "Setup skipped. Configure sync options in Settings."
-msgstr ""
+msgstr "Setup skipped. Configure sync options in Settings."
 
 msgctxt "#30198"
 msgid "Setup error - using default settings"
-msgstr ""
+msgstr "Setup error - using default settings"
 
 # Advanced Settings Help Text
 msgctxt "#30199"
 msgid "Number of items to request at once from Kodi's JSON-RPC API. Higher values may improve performance."
-msgstr ""
+msgstr "Number of items to request at once from Kodi's JSON-RPC API. Higher values may improve performance."
 
 # Settings Categories (continued)
 msgctxt "#30200"
 msgid "Lists"
-msgstr ""
+msgstr "Lists"
 
 msgctxt "#30201"
 msgid "Settings"
-msgstr ""
+msgstr "Settings"
 
 msgctxt "#30202"
 msgid "Sample List"
-msgstr ""
+msgstr "Sample List"
 
 # Welcome Dialog for Fresh Install
 msgctxt "#30203"
 msgid "Welcome to LibraryGenie!"
-msgstr ""
+msgstr "Welcome to LibraryGenie!"
 
 msgctxt "#30204"
 msgid "Welcome to LibraryGenie!\n\nLibraryGenie creates smart lists and folders from your Kodi library. To get started, we need to scan your media library.\n\nChoose what type of content you'd like to manage:\n• Movies - Create lists of your favorite films\n• TV Episodes - Organize episodes by show, season, or theme\n• Both - Full functionality (recommended for most users)\n\nThe initial scan may take a few minutes but runs in the background. You can change these settings later in the addon configuration.\n\nPress OK to continue to setup options."
-msgstr ""
+msgstr "Welcome to LibraryGenie!\n\nLibraryGenie creates smart lists and folders from your Kodi library. To get started, we need to scan your media library.\n\nChoose what type of content you'd like to manage:\n• Movies - Create lists of your favorite films\n• TV Episodes - Organize episodes by show, season, or theme\n• Both - Full functionality (recommended for most users)\n\nThe initial scan may take a few minutes but runs in the background. You can change these settings later in the addon configuration.\n\nPress OK to continue to setup options."
 
 msgctxt "#30205"
 msgid "How often to check for authentication updates during the login process."
-msgstr ""
+msgstr "How often to check for authentication updates during the login process."
 
 msgctxt "#30206"
 msgid "Interval for background synchronization tasks with remote services."
-msgstr ""
+msgstr "Interval for background synchronization tasks with remote services."
 
 msgctxt "#30207"
 msgid "Automatically refreshes authentication tokens to maintain connection to remote services."
-msgstr ""
+msgstr "Automatically refreshes authentication tokens to maintain connection to remote services."
 
 # UI Settings Help Text  
 msgctxt "#30208"
 msgid "Attempts to show full library information including cast. When disabled, video info will have limited content."
-msgstr ""
+msgstr "Attempts to show full library information including cast. When disabled, video info will have limited content."
 
 msgctxt "#30209"
 msgid "Number of folders to pre-load during startup. Higher values provide better performance but longer startup times."
-msgstr ""
+msgstr "Number of folders to pre-load during startup. Higher values provide better performance but longer startup times."
 
 msgctxt "#30210"
 msgid "Enables detailed logging of cache operations for debugging performance issues. Only enable when troubleshooting."
-msgstr ""
+msgstr "Enables detailed logging of cache operations for debugging performance issues. Only enable when troubleshooting."
 
 msgctxt "#30211"
 msgid "Clear all cached folder data to force fresh rebuilding of folder navigation. Use this if you experience cache-related issues."
-msgstr ""
+msgstr "Clear all cached folder data to force fresh rebuilding of folder navigation. Use this if you experience cache-related issues."
 
 # Tools & Options Menu Items
 msgctxt "#30212"
 msgid "Tools & Options"
-msgstr ""
+msgstr "Tools & Options"
 
 msgctxt "#30213"
 msgid "Scan Favorites"
-msgstr ""
+msgstr "Scan Favorites"
 
 msgctxt "#30214"
 msgid "Save As New List"
-msgstr ""
+msgstr "Save As New List"
 
 msgctxt "#30215"
 msgid "Cancel"
-msgstr ""
+msgstr "Cancel"
 
 msgctxt "#30216"
 msgid "Merge Another List Into '%s'"
-msgstr ""
+msgstr "Merge Another List Into '%s'"
 
 msgctxt "#30217"
 msgid "Rename '%s'"
-msgstr ""
+msgstr "Rename '%s'"
 
 msgctxt "#30218"
 msgid "Move '%s' to Folder"
-msgstr ""
+msgstr "Move '%s' to Folder"
 
 msgctxt "#30219"
 msgid "Export '%s'"
-msgstr ""
+msgstr "Export '%s'"
 
 msgctxt "#30220"
 msgid "Delete '%s'"
-msgstr ""
+msgstr "Delete '%s'"
 
 msgctxt "#30221"
 msgid "Create New List in '%s'"
-msgstr ""
+msgstr "Create New List in '%s'"
 
 msgctxt "#30222"
 msgid "Create New Subfolder in '%s'"
-msgstr ""
+msgstr "Create New Subfolder in '%s'"
 
 msgctxt "#30223"
 msgid "Move '%s' to Folder"
-msgstr ""
+msgstr "Move '%s' to Folder"
 
 msgctxt "#30224"
 msgid "Export All Lists in '%s'"
-msgstr ""
+msgstr "Export All Lists in '%s'"
 
 msgctxt "#30225"
 msgid "Favorites Tools & Options"
-msgstr ""
+msgstr "Favorites Tools & Options"
 
 msgctxt "#30226"
 msgid "List Tools & Options"
-msgstr ""
+msgstr "List Tools & Options"
 
 msgctxt "#30227"
 msgid "Folder Tools & Options"
-msgstr ""
+msgstr "Folder Tools & Options"
 
 msgctxt "#30228"
 msgid "Access list tools and options"
-msgstr ""
+msgstr "Access list tools and options"
 
 msgctxt "#30229"
 msgid "Access tools and options for '%s'"
-msgstr ""
+msgstr "Access tools and options for '%s'"
 
 msgctxt "#30230"
 msgid "Create a new list"
-msgstr ""
+msgstr "Create a new list"
 
 msgctxt "#30231"
 msgid "Create a new folder"
-msgstr ""
+msgstr "Create a new folder"
 
 msgctxt "#30232"
 msgid "Create a new list in '%s'"
-msgstr ""
+msgstr "Create a new list in '%s'"
 
 msgctxt "#30233"
 msgid "Confirm Merge"
-msgstr ""
+msgstr "Confirm Merge"
 
 msgctxt "#30234"
 msgid "Merge '%s' into target list?"
-msgstr ""
+msgstr "Merge '%s' into target list?"
 
 msgctxt "#30235"
 msgid "This will add %d items."
-msgstr ""
+msgstr "This will add %d items."
 
 msgctxt "#30236"
 msgid "The source list will remain unchanged."
-msgstr ""
+msgstr "The source list will remain unchanged."
 
 msgctxt "#30237"
 msgid "Merged %d new items"
-msgstr ""
+msgstr "Merged %d new items"
 
 msgctxt "#30238"
 msgid "Failed to merge lists"
-msgstr ""
+msgstr "Failed to merge lists"
 
 msgctxt "#30239"
 msgid "Merge Into %s"
-msgstr ""
+msgstr "Merge Into %s"
 
 msgctxt "#30240"
 msgid "Rename %s"
-msgstr ""
+msgstr "Rename %s"
 
 msgctxt "#30241"
 msgid "Move %s to Folder"
-msgstr ""
+msgstr "Move %s to Folder"
 
 msgctxt "#30242"
 msgid "Export %s"
-msgstr ""
+msgstr "Export %s"
 
 msgctxt "#30243"
 msgid "Delete %s"
-msgstr ""
+msgstr "Delete %s"
 
 msgctxt "#30244"
 msgid "Clear All Search History"
-msgstr ""
+msgstr "Clear All Search History"
 
 # Input dialog strings
 msgctxt "#30245"
 msgid "Enter name for new list:"
-msgstr ""
+msgstr "Enter name for new list:"
 
 msgctxt "#30246"
 msgid "Enter list name:"
-msgstr ""
+msgstr "Enter list name:"
 
 msgctxt "#30247"
 msgid "Enter folder name:"
-msgstr ""
+msgstr "Enter folder name:"
 
 msgctxt "#30248"
 msgid "Select parent folder:"
-msgstr ""
+msgstr "Select parent folder:"
 
 msgctxt "#30249"
 msgid "Select backup to restore:"
-msgstr ""
+msgstr "Select backup to restore:"
 
 msgctxt "#30250"
 msgid "No backup selected"
-msgstr ""
+msgstr "No backup selected"
 
 msgctxt "#30251"
 msgid "Restore cancelled"
-msgstr ""
+msgstr "Restore cancelled"
 
 # Additional Dialog Messages
 msgctxt "#30252"
 msgid "LibraryGenie Restore"
-msgstr ""
+msgstr "LibraryGenie Restore"
 
 msgctxt "#30253"
 msgid "Restore from backup:"
-msgstr ""
+msgstr "Restore from backup:"
 
 msgctxt "#30254"
 msgid "This will replace all current data."
-msgstr ""
+msgstr "This will replace all current data."
 
 msgctxt "#30255"
 msgid "Restore"
-msgstr ""
+msgstr "Restore"
 
 msgctxt "#30256"
 msgid "Clear Search History"
-msgstr ""
+msgstr "Clear Search History"
 
 msgctxt "#30257"
 msgid "Delete all %d search history lists?"
-msgstr ""
+msgstr "Delete all %d search history lists?"
 
 msgctxt "#30258"
 msgid "Clear"
-msgstr ""
+msgstr "Clear"
 
 msgctxt "#30259"
 msgid "Export all %d lists and folders?"
-msgstr ""
+msgstr "Export all %d lists and folders?"
 
 # Backup restore options
 msgctxt "#30260"
 msgid "Replace Existing"
-msgstr ""
+msgstr "Replace Existing"
 
 msgctxt "#30261"
 msgid "Append to Existing"
-msgstr ""
+msgstr "Append to Existing"
 
 msgctxt "#30262"
 msgid "Restore Backup Options"
-msgstr ""
+msgstr "Restore Backup Options"
 
 # Tools Options Localization Strings
 msgctxt "#30263"
 msgid "Import Lists"
-msgstr ""
+msgstr "Import Lists"
 
 msgctxt "#30264"
 msgid "Export All Lists"
-msgstr ""
+msgstr "Export All Lists"
 
 msgctxt "#30265"
 msgid "Manual Backup"
-msgstr ""
+msgstr "Manual Backup"
 
 msgctxt "#30266"
 msgid "Backup Manager"
-msgstr ""
+msgstr "Backup Manager"
 
 
 msgctxt "#30267"
 msgid "Library Statistics"
-msgstr ""
+msgstr "Library Statistics"
 
 msgctxt "#30268"
 msgid "Force Library Rescan"
-msgstr ""
+msgstr "Force Library Rescan"
 
 msgctxt "#30269"
 msgid "Clear Search History"
-msgstr ""
+msgstr "Clear Search History"
 
 msgctxt "#30270"
 msgid "Reset Preferences"
-msgstr ""
+msgstr "Reset Preferences"
 
 msgctxt "#30271"
 msgid "Move to New List"
-msgstr ""
+msgstr "Move to New List"
 
 msgctxt "#30272"
 msgid "Clear All Search History"
-msgstr ""
+msgstr "Clear All Search History"
 
 msgctxt "#30273"
 msgid "Failed to initialize favorites manager"
-msgstr ""
+msgstr "Failed to initialize favorites manager"
 
 msgctxt "#30274"
 msgid "List not found"
-msgstr ""
+msgstr "List not found"
 
 msgctxt "#30275"
 msgid "Folder not found"
-msgstr ""
+msgstr "Folder not found"
 
 msgctxt "#30276"
 msgid "Error showing favorites tools"
-msgstr ""
+msgstr "Error showing favorites tools"
 
 msgctxt "#30277"
 msgid "Error showing list tools"
-msgstr ""
+msgstr "Error showing list tools"
 
 msgctxt "#30278"
 msgid "Error showing folder tools"
-msgstr ""
+msgstr "Error showing folder tools"
 
 msgctxt "#30279"
 msgid "Error merging lists"
-msgstr ""
+msgstr "Error merging lists"
 
 msgctxt "#30280"
 msgid "Error moving folder"
-msgstr ""
+msgstr "Error moving folder"
 
 msgctxt "#30281"
 msgid "Failed to create folder"
-msgstr ""
+msgstr "Failed to create folder"
 
 msgctxt "#30282"
 msgid "Error exporting list"
-msgstr ""
+msgstr "Error exporting list"
 
 msgctxt "#30283"
 msgid "Error exporting folder lists"
-msgstr ""
+msgstr "Error exporting folder lists"
 
 # Search Panel Labels (IDs 36200-36299)
 msgctxt "#30284"
 msgid "LibraryGenie – Search"
-msgstr ""
+msgstr "LibraryGenie – Search"
 
 msgctxt "#30285"
 msgid "Content type"
-msgstr ""
+msgstr "Content type"
 
 msgctxt "#30286"
 msgid "Movies"
-msgstr ""
+msgstr "Movies"
 
 msgctxt "#30287"
 msgid "Series"
-msgstr ""
+msgstr "Series"
 
 msgctxt "#30288"
 msgid "All"
-msgstr ""
+msgstr "All"
 
 # Export Settings Help Text
 msgctxt "#30289"
 msgid "Directory where exported files will be saved. If empty, you'll be prompted to select a location on first export."
-msgstr ""
+msgstr "Directory where exported files will be saved. If empty, you'll be prompted to select a location on first export."
 
 # List Pagination Help Text
 msgctxt "#30290"
 msgid "Auto mode adjusts page sizes based on your device's available memory for optimal performance. Manual mode lets you set a custom page size."
-msgstr ""
+msgstr "Auto mode adjusts page sizes based on your device's available memory for optimal performance. Manual mode lets you set a custom page size."
 
 msgctxt "#30291"
 msgid "Number of items to show per page when Manual mode is selected. Lower values improve performance on older devices."
-msgstr ""
+msgstr "Number of items to show per page when Manual mode is selected. Lower values improve performance on older devices."
 
 msgctxt "#30292"
 msgid "Controls how many search results are displayed per page. Lower values load faster, higher values show more results at once."
-msgstr ""
+msgstr "Controls how many search results are displayed per page. Lower values load faster, higher values show more results at once."
 
 msgctxt "#30293"
 msgid "Logs detailed information about the first playable item in each list for debugging purposes."
-msgstr ""
+msgstr "Logs detailed information about the first playable item in each list for debugging purposes."
 
 # Help Text for Library Sync Interval
 msgctxt "#30294"
 msgid "How often to automatically check for new movies in your Kodi library. Sync will not run during video playback."
-msgstr ""
+msgstr "How often to automatically check for new movies in your Kodi library. Sync will not run during video playback."
 
 # Help Text for Cache Settings
 msgctxt "#30295"
 msgid "Improves navigation performance by caching folder views. Disable if experiencing memory issues or for troubleshooting."
-msgstr ""
+msgstr "Improves navigation performance by caching folder views. Disable if experiencing memory issues or for troubleshooting."
 
 msgctxt "#30296"
 msgid "How long cached folder data stays fresh before being refreshed. Lower values ensure newer data, higher values improve performance."
-msgstr ""
+msgstr "How long cached folder data stays fresh before being refreshed. Lower values ensure newer data, higher values improve performance."
 
 msgctxt "#30297"
 msgid "Maximum time cached data is kept before being completely removed. Affects disk space usage."
-msgstr ""
+msgstr "Maximum time cached data is kept before being completely removed. Affects disk space usage."
 
 msgctxt "#30298"
 msgid "Pre-loads commonly accessed folders on startup to reduce initial load times. May slightly increase startup time."
-msgstr ""
+msgstr "Pre-loads commonly accessed folders on startup to reduce initial load times. May slightly increase startup time."
 
 msgctxt "#30299"
 msgid "No other lists available to merge"
-msgstr ""
+msgstr "No other lists available to merge"
 
 # Advanced Settings (Phase 3)
 msgctxt "#30300"
 msgid "Advanced"
-msgstr ""
+msgstr "Advanced"
 
 msgctxt "#30301"
 msgid "Select destination folder:"
-msgstr ""
+msgstr "Select destination folder:"
 
 msgctxt "#30302"
 msgid "[Root Level]"
-msgstr ""
+msgstr "[Root Level]"
 
 msgctxt "#30303"
 msgid "root level"
-msgstr ""
+msgstr "root level"
 
 msgctxt "#30304"
 msgid "Moved list to %s"
-msgstr ""
+msgstr "Moved list to %s"
 
 msgctxt "#30305"
 msgid "Moved folder to %s"
-msgstr ""
+msgstr "Moved folder to %s"
 
 msgctxt "#30306"
 msgid "Failed to move list"
-msgstr ""
+msgstr "Failed to move list"
 
 msgctxt "#30307"
 msgid "Failed to move folder"
-msgstr ""
+msgstr "Failed to move folder"
 
 msgctxt "#30308"
 msgid "Confirm Export"
-msgstr ""
+msgstr "Confirm Export"
 
 msgctxt "#30309"
 msgid "Export all %d lists from '%s'?"
-msgstr ""
+msgstr "Export all %d lists from '%s'?"
 
 msgctxt "#30310"
 msgid "JSON-RPC Performance"
-msgstr ""
+msgstr "JSON-RPC Performance"
 
 msgctxt "#30311"
 msgid "JSON-RPC page size"
-msgstr ""
+msgstr "JSON-RPC page size"
 
 msgctxt "#30312"
 msgid "JSON-RPC timeout (seconds)"
-msgstr ""
+msgstr "JSON-RPC timeout (seconds)"
 
 msgctxt "#30313"
 msgid "Manual Backup"
-msgstr ""
+msgstr "Manual Backup"
 
 msgctxt "#30314"
 msgid "Backup Manager"
-msgstr ""
+msgstr "Backup Manager"
 
 
 msgctxt "#30315"
 msgid "Library Statistics"
-msgstr ""
+msgstr "Library Statistics"
 
 msgctxt "#30316"
 msgid "Force Library Rescan"
-msgstr ""
+msgstr "Force Library Rescan"
 
 msgctxt "#30317"
 msgid "Reset Preferences"
-msgstr ""
+msgstr "Reset Preferences"
 
 msgctxt "#30318"
 msgid "Copy to New List"
-msgstr ""
+msgstr "Copy to New List"
 
 msgctxt "#30319"
 msgid "Fields"
-msgstr ""
+msgstr "Fields"
 
 msgctxt "#30320"
 msgid "Database Performance"
-msgstr ""
+msgstr "Database Performance"
 
 msgctxt "#30321"
 msgid "Database batch size"
-msgstr ""
+msgstr "Database batch size"
 
 msgctxt "#30322"
 msgid "Database busy timeout (ms)"
-msgstr ""
+msgstr "Database busy timeout (ms)"
 
 msgctxt "#30323"
 msgid "Any word"
-msgstr ""
+msgstr "Any word"
 
 msgctxt "#30324"
 msgid "All words"
-msgstr ""
+msgstr "All words"
 
 msgctxt "#30325"
 msgid "Exact phrase"
-msgstr ""
+msgstr "Exact phrase"
 
 msgctxt "#30326"
 msgid "Query"
-msgstr ""
+msgstr "Query"
 
 msgctxt "#30327"
 msgid "Keyboard…"
-msgstr ""
+msgstr "Keyboard…"
 
 msgctxt "#30328"
 msgid "Presets"
-msgstr ""
+msgstr "Presets"
 
 msgctxt "#30329"
 msgid "Save as preset"
-msgstr ""
+msgstr "Save as preset"
 
 # List Pagination Settings
 msgctxt "#30330"
 msgid "List Pagination"
-msgstr ""
+msgstr "List Pagination"
 
 msgctxt "#30331"
 msgid "Pagination Mode"
-msgstr ""
+msgstr "Pagination Mode"
 
 msgctxt "#30332"
 msgid "Manual Page Size"
-msgstr ""
+msgstr "Manual Page Size"
 
 msgctxt "#30333"
 msgid "Enter search text"
-msgstr ""
+msgstr "Enter search text"
 
 msgctxt "#30334"
 msgid "Use custom search panel"
-msgstr ""
+msgstr "Use custom search panel"
 
 msgctxt "#30335"
 msgid "Default content type"
-msgstr ""
+msgstr "Default content type"
 
 msgctxt "#30336"
 msgid "Default fields"
-msgstr ""
+msgstr "Default fields"
 
 msgctxt "#30337"
 msgid "Default match mode"
-msgstr ""
+msgstr "Default match mode"
 
 msgctxt "#30338"
 msgid "Remember last used values"
-msgstr ""
+msgstr "Remember last used values"
 
 msgctxt "#30339"
 msgid "Title + Plot"
-msgstr ""
+msgstr "Title + Plot"
 
 # Debug Settings
 msgctxt "#30340"
 msgid "Debug Settings"
-msgstr ""
+msgstr "Debug Settings"
 
 msgctxt "#30341"
 msgid "Debug First Playable Item"
-msgstr ""
+msgstr "Debug First Playable Item"
 
 msgctxt "#30342"
 msgid "Movies – Title – Any"
-msgstr ""
+msgstr "Movies – Title – Any"
 
 msgctxt "#30343"
 msgid "Search & Remember"
-msgstr ""
+msgstr "Search & Remember"
 
 # Search Panel Help Strings
 msgctxt "#30344"
 msgid "Choose whether to use the custom search dialog instead of opening the keyboard immediately."
-msgstr ""
+msgstr "Choose whether to use the custom search dialog instead of opening the keyboard immediately."
 
 msgctxt "#30345"
 msgid "Initial content scope when the search panel opens (Movies, Series, or All)."
-msgstr ""
+msgstr "Initial content scope when the search panel opens (Movies, Series, or All)."
 
 msgctxt "#30346"
 msgid "Default fields to search in (Title, Plot, or both)."
-msgstr ""
+msgstr "Default fields to search in (Title, Plot, or both)."
 
 msgctxt "#30347"
 msgid "Default matching mode: Any word (OR), All words (AND), or Exact phrase."
-msgstr ""
+msgstr "Default matching mode: Any word (OR), All words (AND), or Exact phrase."
 
 msgctxt "#30348"
 msgid "If enabled, the last used search options are restored next time."
-msgstr ""
+msgstr "If enabled, the last used search options are restored next time."
 
 # ShortList Import strings
 msgctxt "#30349"
 msgid "This will REPLACE all existing ShortList Import data with fresh imports from your ShortList addon."
-msgstr ""
+msgstr "This will REPLACE all existing ShortList Import data with fresh imports from your ShortList addon."
 
 # Service and Background Messages  
 msgctxt "#30350"
 msgid "Background service starting"
-msgstr ""
+msgstr "Background service starting"
 
 msgctxt "#30351"
 msgid "Background service stopped"
-msgstr ""
+msgstr "Background service stopped"
 
 msgctxt "#30352"
 msgid "Background task is disabled"
-msgstr ""
+msgstr "Background task is disabled"
 
 msgctxt "#30353"
 msgid "Would you like to authorize this device now?"
-msgstr ""
+msgstr "Would you like to authorize this device now?"
 
 msgctxt "#30354"
 msgid "Device is not authorized for remote services."
-msgstr ""
+msgstr "Device is not authorized for remote services."
 
 msgctxt "#30355"
 msgid "Would you like to authorize now?"
-msgstr ""
+msgstr "Would you like to authorize now?"
 
 msgctxt "#30356"
 msgid "Restore from: %s"
-msgstr ""
+msgstr "Restore from: %s"
 
 msgctxt "#30357"
 msgid "Delete list: %s?"
-msgstr ""
+msgstr "Delete list: %s?"
 
 msgctxt "#30358"
 msgid "Delete folder: %s?"
-msgstr ""
+msgstr "Delete folder: %s?"
 
 msgctxt "#30359"
 msgid "This will also delete all lists in this folder."
-msgstr ""
+msgstr "This will also delete all lists in this folder."
 
 msgctxt "#30360"
 msgid "Remove '%s' from list?"
-msgstr ""
+msgstr "Remove '%s' from list?"
 
 msgctxt "#30361"
 msgid "This will create a new list containing all your Kodi favorites"
-msgstr ""
+msgstr "This will create a new list containing all your Kodi favorites"
 
 msgctxt "#30362"
 msgid "that match movies in your library."
-msgstr ""
+msgstr "that match movies in your library."
 
 # Missing strings found in code
 msgctxt "#30363"
 msgid "Select backup to restore"
-msgstr ""
+msgstr "Select backup to restore"
 
 msgctxt "#30364"
 msgid "Replace existing data"
-msgstr ""
+msgstr "Replace existing data"
 
 msgctxt "#30365"
 msgid "Append to existing data"
-msgstr ""
+msgstr "Append to existing data"
 
 msgctxt "#30366"
 msgid "Delete"
-msgstr ""
+msgstr "Delete"
 
 msgctxt "#30367"
 msgid "Create New List"
-msgstr ""
+msgstr "Create New List"
 
 msgctxt "#30368"
 msgid "Enter folder name"
-msgstr ""
+msgstr "Enter folder name"
 
 msgctxt "#30369"
 msgid "Enter new list name"
-msgstr ""
+msgstr "Enter new list name"
 
 msgctxt "#30370"
 msgid "Please configure the Remote API Base URL in addon settings before authorizing."
-msgstr ""
+msgstr "Please configure the Remote API Base URL in addon settings before authorizing."
 
 msgctxt "#30371"
 msgid "Move to New List"
-msgstr ""
+msgstr "Move to New List"
 
 msgctxt "#30372"
 msgid "Authorization in progress"
-msgstr ""
+msgstr "Authorization in progress"
 
 msgctxt "#30373"
 msgid "Visit the authorization URL to complete setup"
-msgstr ""
+msgstr "Visit the authorization URL to complete setup"
 
 msgctxt "#30374"
 msgid "Waiting for authorization..."
-msgstr ""
+msgstr "Waiting for authorization..."
 
 msgctxt "#30375"
 msgid "Authorization timeout"
-msgstr ""
+msgstr "Authorization timeout"
 
 msgctxt "#30376"
 msgid "Please try the authorization process again"
-msgstr ""
+msgstr "Please try the authorization process again"
 
 # Context Menu Actions
 msgctxt "#30377"
 msgid "LibraryGenie"
-msgstr ""
+msgstr "LibraryGenie"
 
 msgctxt "#30378"
 msgid "Search Movies and Lists"
-msgstr ""
+msgstr "Search Movies and Lists"
 
 # Context Menu with LG Prefix - Improved Navigation
 msgctxt "#30379"
 msgid "LG Search"
-msgstr ""
+msgstr "LG Search"
 
 msgctxt "#30380"  
 msgid "LG Quick Add"
@@ -1588,818 +1588,818 @@ msgstr ""
 
 msgctxt "#30381"
 msgid "LG Add to List..."
-msgstr ""
+msgstr "LG Add to List..."
 
 msgctxt "#30382"
 msgid "LG Remove from List"
-msgstr ""
+msgstr "LG Remove from List"
 
 msgctxt "#30383"
 msgid "LG more..."
-msgstr ""
+msgstr "LG more..."
 
 msgctxt "#30384"
 msgid "LG Search/Favorites"
-msgstr ""
+msgstr "LG Search/Favorites"
 
 # Search Submenu Options
 msgctxt "#30385"
 msgid "Local Movie Search"
-msgstr ""
+msgstr "Local Movie Search"
 
 msgctxt "#30386"
 msgid "Local TV Search"
-msgstr ""
+msgstr "Local TV Search"
 
 msgctxt "#30387"
 msgid "AI Movie Search"
-msgstr ""
+msgstr "AI Movie Search"
 
 msgctxt "#30388"
 msgid "Search History"
-msgstr ""
+msgstr "Search History"
 
 msgctxt "#30389"
 msgid "Kodi Favorites"
-msgstr ""
+msgstr "Kodi Favorites"
 
 # Context Indicators (ASCII-based)
 msgctxt "#30390"
 msgid "[LibraryGenie]"
-msgstr ""
+msgstr "[LibraryGenie]"
 
 msgctxt "#30391"
 msgid "[Library]"
-msgstr ""
+msgstr "[Library]"
 
 msgctxt "#30392"
 msgid "[External]"
-msgstr ""
+msgstr "[External]"
 
 msgctxt "#30393"
 msgid "[In List: %s]"
-msgstr ""
+msgstr "[In List: %s]"
 
 # Remote Services Settings
 msgctxt "#30400"
 msgid "Remote Services"
-msgstr ""
+msgstr "Remote Services"
 
 msgctxt "#30410"
 msgid "Remote AI search (alpha)"
-msgstr ""
+msgstr "Remote AI search (alpha)"
 
 msgctxt "#30411"
 msgid "Remote Server URL (Invite Only)"
-msgstr ""
+msgstr "Remote Server URL (Invite Only)"
 
 msgctxt "#30412"
 msgid "Device name"
-msgstr ""
+msgstr "Device name"
 
 
 msgctxt "#30420"
 msgid "Remote AI Library Sync"
-msgstr ""
+msgstr "Remote AI Library Sync"
 
 msgctxt "#30421"
 msgid "Track library changes"
-msgstr ""
+msgstr "Track library changes"
 
 msgctxt "#30423"
 msgid "AI Search Activated"
-msgstr ""
+msgstr "AI Search Activated"
 
 msgctxt "#30424"
 msgid "Shows whether AI Search is currently active and authenticated"
-msgstr ""
+msgstr "Shows whether AI Search is currently active and authenticated"
 
 msgctxt "#30425"
 msgid "AI Search Sync Interval (seconds)"
-msgstr ""
+msgstr "AI Search Sync Interval (seconds)"
 
 msgctxt "#30426"
 msgid "How often to sync with AI Search server"
-msgstr ""
+msgstr "How often to sync with AI Search server"
 
 msgctxt "#30430"
 msgid "AI Search Server"
-msgstr ""
+msgstr "AI Search Server"
 
 msgctxt "#30431"
 msgid "AI Search Server URL"
-msgstr ""
+msgstr "AI Search Server URL"
 
 
 msgctxt "#30433"
 msgid "AI Search API Key"
-msgstr ""
+msgstr "AI Search API Key"
 
 msgctxt "#30435"
 msgid "Activate AI Search"
-msgstr ""
+msgstr "Activate AI Search"
 
 # Settings Categories - Additional
 msgctxt "#30449"
 msgid "AI Search Replace Sync"
-msgstr ""
+msgstr "AI Search Replace Sync"
 
 msgctxt "#30450"
 msgid "Background Service"
-msgstr ""
+msgstr "Background Service"
 
 # Background Service Settings
 msgctxt "#30451"
 msgid "Background check interval (minutes)"
-msgstr ""
+msgstr "Background check interval (minutes)"
 
 msgctxt "#30452"
 msgid "How often to check for background tasks"
-msgstr ""
+msgstr "How often to check for background tasks"
 
 msgctxt "#30453"
 msgid "Track library changes in background"
-msgstr ""
+msgstr "Track library changes in background"
 
 msgctxt "#30454"
 msgid "Monitor library for new or removed movies"
-msgstr ""
+msgstr "Monitor library for new or removed movies"
 
 msgctxt "#30456"
 msgid "AI Search Regular Sync"
-msgstr ""
+msgstr "AI Search Regular Sync"
 
 msgctxt "#30460"
 msgid "Search"
-msgstr ""
+msgstr "Search"
 
 msgctxt "#30461"
 msgid "Never"
-msgstr ""
+msgstr "Never"
 
 msgctxt "#30462"
 msgid "Daily"
-msgstr ""
+msgstr "Daily"
 
 msgctxt "#30463"
 msgid "Twice Daily"
-msgstr ""
+msgstr "Twice Daily"
 
 msgctxt "#30464"
 msgid "Regular Sync Now"
-msgstr ""
+msgstr "Regular Sync Now"
 
 msgctxt "#30470"
 msgid "Service Tasks"
-msgstr ""
+msgstr "Service Tasks"
 
 msgctxt "#30471"
 msgid "Background interval (seconds)"
-msgstr ""
+msgstr "Background interval (seconds)"
 
 msgctxt "#30480"
 msgid "Advanced & Debug"
-msgstr ""
+msgstr "Advanced & Debug"
 
 # Backup Settings Category and Labels
 msgctxt "#30500"
 msgid "Backup & Storage"
-msgstr ""
+msgstr "Backup & Storage"
 
 msgctxt "#30501"
 msgid "Are you sure you want to delete this list?"
-msgstr ""
+msgstr "Are you sure you want to delete this list?"
 
 msgctxt "#30502"
 msgid "This will permanently remove the list and all its items."
-msgstr ""
+msgstr "This will permanently remove the list and all its items."
 
 msgctxt "#30503"
 msgid "Enter new name for list"
-msgstr ""
+msgstr "Enter new name for list"
 
 msgctxt "#30504"
 msgid "Operation failed"
-msgstr ""
+msgstr "Operation failed"
 
 msgctxt "#30505"
 msgid "List name cannot be empty"
-msgstr ""
+msgstr "List name cannot be empty"
 
 msgctxt "#30506"
 msgid "A list with this name already exists"
-msgstr ""
+msgstr "A list with this name already exists"
 
 msgctxt "#30507"
 msgid "Failed to create list"
-msgstr ""
+msgstr "Failed to create list"
 
 msgctxt "#30508"
 msgid "Failed to rename list"
-msgstr ""
+msgstr "Failed to rename list"
 
 msgctxt "#30509"
 msgid "Failed to delete list"
-msgstr ""
+msgstr "Failed to delete list"
 
 msgctxt "#30510"
 msgid "Automatic Backups"
-msgstr ""
+msgstr "Automatic Backups"
 
 msgctxt "#30511"
 msgid "Enable automatic backups"
-msgstr ""
+msgstr "Enable automatic backups"
 
 msgctxt "#30512"
 msgid "Backup interval"
-msgstr ""
+msgstr "Backup interval"
 
 msgctxt "#30513"
 msgid "Number of backups to keep"
-msgstr ""
+msgstr "Number of backups to keep"
 
 msgctxt "#30520"
 msgid "Backup Content"
-msgstr ""
+msgstr "Backup Content"
 
 msgctxt "#30521"
 msgid "Include addon settings"
-msgstr ""
+msgstr "Include addon settings"
 
 msgctxt "#30522"
 msgid "Include non-library items"
-msgstr ""
+msgstr "Include non-library items"
 
 msgctxt "#30523"
 msgid "Include folder structure"
-msgstr ""
+msgstr "Include folder structure"
 
 msgctxt "#30530"
 msgid "Storage Settings"
-msgstr ""
+msgstr "Storage Settings"
 
 msgctxt "#30531"
 msgid "Storage type"
-msgstr ""
+msgstr "Storage type"
 
 msgctxt "#30532"
 msgid "Backup location"
-msgstr ""
+msgstr "Backup location"
 
 msgctxt "#30533"
 msgid "Storage Location"
-msgstr ""
+msgstr "Storage Location"
 
 msgctxt "#30534"
 msgid "Default (Addon Data)"
-msgstr ""
+msgstr "Default (Addon Data)"
 
 msgctxt "#30535"
 msgid "Custom Location"
-msgstr ""
+msgstr "Custom Location"
 
 msgctxt "#30540"
 msgid "Backup Actions"
-msgstr ""
+msgstr "Backup Actions"
 
 
 msgctxt "#30542"
 msgid "Manual Backup"
-msgstr ""
+msgstr "Manual Backup"
 
 msgctxt "#30543"
 msgid "Restore Backup"
-msgstr ""
+msgstr "Restore Backup"
 
 # Export Settings
 msgctxt "#30550"
 msgid "Export Settings"
-msgstr ""
+msgstr "Export Settings"
 
 msgctxt "#30551"
 msgid "Export Location"
-msgstr ""
+msgstr "Export Location"
 
 # Backup Interval Options
 msgctxt "#30562"
 msgid "Daily"
-msgstr ""
+msgstr "Daily"
 
 msgctxt "#30563"
 msgid "Weekly"
-msgstr ""
+msgstr "Weekly"
 
 msgctxt "#30564"
 msgid "Monthly"
-msgstr ""
+msgstr "Monthly"
 
 # Backup Storage Types
 msgctxt "#30565"
 msgid "Local"
-msgstr ""
+msgstr "Local"
 
 # List Pagination Options
 msgctxt "#30571"
 msgid "Auto (device-based)"
-msgstr ""
+msgstr "Auto (device-based)"
 
 msgctxt "#30572"
 msgid "Manual"
-msgstr ""
+msgstr "Manual"
 
 # Library Sync Interval Options
 msgctxt "#30580"
 msgid "Disabled (manual only)"
-msgstr ""
+msgstr "Disabled (manual only)"
 
 msgctxt "#30581"
 msgid "5 Minutes"
-msgstr ""
+msgstr "5 Minutes"
 
 msgctxt "#30582"
 msgid "Hourly"
-msgstr ""
+msgstr "Hourly"
 
 msgctxt "#30583"
 msgid "Daily"
-msgstr ""
+msgstr "Daily"
 
 # Dialog Messages
 msgctxt "#30590"
 msgid "Enter list name"
-msgstr ""
+msgstr "Enter list name"
 
 # List View Messages
 msgctxt "#30600"
 msgid "No items in this list"
-msgstr ""
+msgstr "No items in this list"
 
 msgctxt "#30601"
 msgid "Add items to get started"
-msgstr ""
+msgstr "Add items to get started"
 
 msgctxt "#30602"
 msgid "List is empty"
-msgstr ""
+msgstr "List is empty"
 
 # Cache & Performance Settings
 msgctxt "#30610"
 msgid "Performance & Cache"
-msgstr ""
+msgstr "Performance & Cache"
 
 msgctxt "#30611"
 msgid "Enable folder view caching"
-msgstr ""
+msgstr "Enable folder view caching"
 
 msgctxt "#30612"
 msgid "Cache freshness (hours)"
-msgstr ""
+msgstr "Cache freshness (hours)"
 
 msgctxt "#30613"
 msgid "Cache expiry (days)"
-msgstr ""
+msgstr "Cache expiry (days)"
 
 msgctxt "#30614"
 msgid "Enable cache pre-warming"
-msgstr ""
+msgstr "Enable cache pre-warming"
 
 msgctxt "#30615"
 msgid "Pre-warm folder count"
-msgstr ""
+msgstr "Pre-warm folder count"
 
 msgctxt "#30616"
 msgid "Enable cache debug logging"
-msgstr ""
+msgstr "Enable cache debug logging"
 
 msgctxt "#30617"
 msgid "Clear Folder Cache"
-msgstr ""
+msgstr "Clear Folder Cache"
 
 # Library Management Actions  
 msgctxt "#30700"
 msgid "Browse Library"
-msgstr ""
+msgstr "Browse Library"
 
 msgctxt "#30701"
 msgid "Library Stats"
-msgstr ""
+msgstr "Library Stats"
 
 msgctxt "#30702"
 msgid "Refresh Library Now"
-msgstr ""
+msgstr "Refresh Library Now"
 
 msgctxt "#30703"
 msgid "Purge Removed Items"
-msgstr ""
+msgstr "Purge Removed Items"
 
 # Library Status Messages
 msgctxt "#30800"
 msgid "Library not indexed yet"
-msgstr ""
+msgstr "Library not indexed yet"
 
 msgctxt "#30801"
 msgid "Use 'Refresh Library Now' to start indexing"
-msgstr ""
+msgstr "Use 'Refresh Library Now' to start indexing"
 
 msgctxt "#30802"
 msgid "Library indexing in progress..."
-msgstr ""
+msgstr "Library indexing in progress..."
 
 msgctxt "#30803"
 msgid "Library refresh complete"
-msgstr ""
+msgstr "Library refresh complete"
 
 msgctxt "#30804"
 msgid "Failed to refresh library"
-msgstr ""
+msgstr "Failed to refresh library"
 
 msgctxt "#30805"
 msgid "Are you sure you want to refresh the entire library?"
-msgstr ""
+msgstr "Are you sure you want to refresh the entire library?"
 
 msgctxt "#30806"
 msgid "This will re-scan all movies and may take several minutes."
-msgstr ""
+msgstr "This will re-scan all movies and may take several minutes."
 
 msgctxt "#30807"
 msgid "Library refresh started"
-msgstr ""
+msgstr "Library refresh started"
 
 # Library Stats Labels
 msgctxt "#30900"
 msgid "Total Movies"
-msgstr ""
+msgstr "Total Movies"
 
 msgctxt "#30901"
 msgid "Removed Movies"
-msgstr ""
+msgstr "Removed Movies"
 
 msgctxt "#30902"
 msgid "Last Scan"
-msgstr ""
+msgstr "Last Scan"
 
 msgctxt "#30903"
 msgid "Last Scan Type"
-msgstr ""
+msgstr "Last Scan Type"
 
 msgctxt "#30904"
 msgid "Items Found"
-msgstr ""
+msgstr "Items Found"
 
 msgctxt "#30905"
 msgid "Items Added"
-msgstr ""
+msgstr "Items Added"
 
 msgctxt "#30906"
 msgid "Items Removed"
-msgstr ""
+msgstr "Items Removed"
 
 msgctxt "#30907"
 msgid "Never"
-msgstr ""
+msgstr "Never"
 
 msgctxt "#30908"
 msgid "Full Scan"
-msgstr ""
+msgstr "Full Scan"
 
 msgctxt "#30909"
 msgid "Delta Scan"
-msgstr ""
+msgstr "Delta Scan"
 
 # Library-List Context Menu Actions
 msgctxt "#31000"
 msgid "Add to List..."
-msgstr ""
+msgstr "Add to List..."
 
 msgctxt "#31001"
 msgid "Quick Add to Default"
-msgstr ""
+msgstr "Quick Add to Default"
 
 msgctxt "#31010"
 msgid "Remove from List"
-msgstr ""
+msgstr "Remove from List"
 
 msgctxt "#31011"
 msgid "Move to Another List..."
-msgstr ""
+msgstr "Move to Another List..."
 
 # Context menu strings
 msgctxt "#31020"
 msgid "Rename"
-msgstr ""
+msgstr "Rename"
 
 msgctxt "#31021"
 msgid "Delete"
-msgstr ""
+msgstr "Delete"
 
 msgctxt "#31022"
 msgid "Export"
-msgstr ""
+msgstr "Export"
 
 # Library-List Operation Messages
 msgctxt "#31100"
 msgid "Select a list"
-msgstr ""
+msgstr "Select a list"
 
 msgctxt "#31101"
 msgid "Create New List"
-msgstr ""
+msgstr "Create New List"
 
 msgctxt "#31102"
 msgid "Added to list successfully"
-msgstr ""
+msgstr "Added to list successfully"
 
 msgctxt "#31103"
 msgid "Movie is already in this list"
-msgstr ""
+msgstr "Movie is already in this list"
 
 msgctxt "#31104"
 msgid "Cannot add missing/removed movie"
-msgstr ""
+msgstr "Cannot add missing/removed movie"
 
 msgctxt "#31105"
 msgid "Removed from list successfully"
-msgstr ""
+msgstr "Removed from list successfully"
 
 msgctxt "#31106"
 msgid "Failed to add to list"
-msgstr ""
+msgstr "Failed to add to list"
 
 msgctxt "#31107"
 msgid "Failed to remove from list"
-msgstr ""
+msgstr "Failed to remove from list"
 
 msgctxt "#31108"
 msgid "No default list configured"
-msgstr ""
+msgstr "No default list configured"
 
 msgctxt "#31109"
 msgid "Movie moved to list successfully"
-msgstr ""
+msgstr "Movie moved to list successfully"
 
 msgctxt "#31110"
 msgid "Failed to move movie"
-msgstr ""
+msgstr "Failed to move movie"
 
 msgctxt "#31111"
 msgid "Select target list"
-msgstr ""
+msgstr "Select target list"
 
 msgctxt "#31112"
 msgid "Are you sure you want to remove this movie from the list?"
-msgstr ""
+msgstr "Are you sure you want to remove this movie from the list?"
 
 # Missing/Removed Item Indicators
 msgctxt "#31201"
 msgid "Removed from library"
-msgstr ""
+msgstr "Removed from library"
 
 msgctxt "#31202"
 msgid "File not found"
-msgstr ""
+msgstr "File not found"
 
 # Favorites UI and Operations
 msgctxt "#32000"
 msgid "Kodi Favorites (read-only)"
-msgstr ""
+msgstr "Kodi Favorites (read-only)"
 
 msgctxt "#32001"
 msgid "Browse Kodi Favorites"
-msgstr ""
+msgstr "Browse Kodi Favorites"
 
 msgctxt "#32002"
 msgid "Add Favorite to List..."
-msgstr ""
+msgstr "Add Favorite to List..."
 
 msgctxt "#32003"
 msgid "Add All Favorites to List..."
-msgstr ""
+msgstr "Add All Favorites to List..."
 
 msgctxt "#32004"
 msgid "Refresh Favorites Now"
-msgstr ""
+msgstr "Refresh Favorites Now"
 
 msgctxt "#32005"
 msgid "Favorites Stats"
-msgstr ""
+msgstr "Favorites Stats"
 
 msgctxt "#32006"
 msgid "No favorites found or mapped"
-msgstr ""
+msgstr "No favorites found or mapped"
 
 msgctxt "#32007"
 msgid "Favorites file not found"
-msgstr ""
+msgstr "Favorites file not found"
 
 msgctxt "#32008"
 msgid "Not in library"
-msgstr ""
+msgstr "Not in library"
 
 msgctxt "#32009"
 msgid "Total Favorites"
-msgstr ""
+msgstr "Total Favorites"
 
 msgctxt "#32010"
 msgid "Mapped to Library"
-msgstr ""
+msgstr "Mapped to Library"
 
 msgctxt "#32011"
 msgid "Not Mapped"
-msgstr ""
+msgstr "Not Mapped"
 
 msgctxt "#32012"
 msgid "Last Scan"
-msgstr ""
+msgstr "Last Scan"
 
 msgctxt "#32013"
 msgid "Scan Duration"
-msgstr ""
+msgstr "Scan Duration"
 
 msgctxt "#32014"
 msgid "Added to list successfully"
-msgstr ""
+msgstr "Added to list successfully"
 
 msgctxt "#32015"
 msgid "Bulk add completed"
-msgstr ""
+msgstr "Bulk add completed"
 
 msgctxt "#32016"
 msgid "Failed to add favorites"
-msgstr ""
+msgstr "Failed to add favorites"
 
 msgctxt "#32017"
 msgid "Favorites scanning..."
-msgstr ""
+msgstr "Favorites scanning..."
 
 msgctxt "#32018"
 msgid "Favorites integration disabled"
-msgstr ""
+msgstr "Favorites integration disabled"
 
 msgctxt "#32019"
 msgid "Enable in settings to use this feature"
-msgstr ""
+msgstr "Enable in settings to use this feature"
 
 msgctxt "#32020"
 msgid "Missing from library"
-msgstr ""
+msgstr "Missing from library"
 
 msgctxt "#32086"
 msgid "Automatically refresh authentication tokens"
-msgstr ""
+msgstr "Automatically refresh authentication tokens"
 
 msgctxt "#32087"
 msgid "Use experimental Native Kodi Video Info"
-msgstr ""
+msgstr "Use experimental Native Kodi Video Info"
 
 msgctxt "#32088"
 msgid "Enable automatic token refresh in the background service"
-msgstr ""
+msgstr "Enable automatic token refresh in the background service"
 
 msgctxt "#32100"
 msgid "Enter search keywords"
-msgstr ""
+msgstr "Enter search keywords"
 
 msgctxt "#32101"
 msgid "No results found for '{0}'"
-msgstr ""
+msgstr "No results found for '{0}'"
 
 msgctxt "#32102"
 msgid "Search saved: %d items"
-msgstr ""
+msgstr "Search saved: %d items"
 
 msgctxt "#32181"
 msgid "Integrate with Kodi's built-in favorites for seamless list management"
-msgstr ""
+msgstr "Integrate with Kodi's built-in favorites for seamless list management"
 
 msgctxt "#32200"
 msgid "Add to LibraryGenie List..."
-msgstr ""
+msgstr "Add to LibraryGenie List..."
 
 msgctxt "#32201"
 msgid "Add this item to a LibraryGenie list"
-msgstr ""
+msgstr "Add this item to a LibraryGenie list"
 
 
 msgctxt "#32300"
 msgid "Title"
-msgstr ""
+msgstr "Title"
 
 msgctxt "#32301"
 msgid "Plot"
-msgstr ""
+msgstr "Plot"
 
 msgctxt "#32302"
 msgid "Match mode"
-msgstr ""
+msgstr "Match mode"
 
 msgctxt "#32303"
 msgid "Set as default"
-msgstr ""
+msgstr "Set as default"
 
 msgctxt "#32304"
 msgid "Cancel"
-msgstr ""
+msgstr "Cancel"
 
 msgctxt "#32305"
 msgid "Search"
-msgstr ""
+msgstr "Search"
 
 msgctxt "#32306"
 msgid "Preset name"
-msgstr ""
+msgstr "Preset name"
 
 msgctxt "#32307"
 msgid "Default search options updated"
-msgstr ""
+msgstr "Default search options updated"
 
 # Background Settings Help Text
 msgctxt "#32308"
 msgid "Runs automated tasks in the background to keep your library and lists synchronized."
-msgstr ""
+msgstr "Runs automated tasks in the background to keep your library and lists synchronized."
 
 msgctxt "#32309"
 msgid "How often the background service checks for changes. Lower values use more system resources."
-msgstr ""
+msgstr "How often the background service checks for changes. Lower values use more system resources."
 
 # Backup Settings Help Text
 msgctxt "#32310"
 msgid "Automatically creates backup copies of your lists and settings to prevent data loss."
-msgstr ""
+msgstr "Automatically creates backup copies of your lists and settings to prevent data loss."
 
 msgctxt "#32311"
 msgid "How frequently automatic backups are created. More frequent backups use more storage space."
-msgstr ""
+msgstr "How frequently automatic backups are created. More frequent backups use more storage space."
 
 msgctxt "#32312"
 msgid "Number of backup files to keep. Older backups beyond this limit are automatically deleted."
-msgstr ""
+msgstr "Number of backup files to keep. Older backups beyond this limit are automatically deleted."
 
 msgctxt "#32313"
 msgid "Includes addon configuration and user preferences in backup files."
-msgstr ""
+msgstr "Includes addon configuration and user preferences in backup files."
 
 msgctxt "#32314"
 msgid "Includes lists that contain items not found in your current Kodi library."
-msgstr ""
+msgstr "Includes lists that contain items not found in your current Kodi library."
 
 msgctxt "#32315"
 msgid "Includes folder structure and organization in backup files."
-msgstr ""
+msgstr "Includes folder structure and organization in backup files."
 
 msgctxt "#32316"
 msgid "Choose where backup files are stored. Local storage is recommended for reliability."
-msgstr ""
+msgstr "Choose where backup files are stored. Local storage is recommended for reliability."
 
 msgctxt "#32317"
 msgid "Maximum time to wait for JSON-RPC responses. Increase if you experience timeout errors."
-msgstr ""
+msgstr "Maximum time to wait for JSON-RPC responses. Increase if you experience timeout errors."
 
 msgctxt "#32318"
 msgid "Number of database operations to batch together. Higher values may improve performance."
-msgstr ""
+msgstr "Number of database operations to batch together. Higher values may improve performance."
 
 msgctxt "#32319"
 msgid "How long to wait when database is busy. Increase if you experience database lock errors."
-msgstr ""
+msgstr "How long to wait when database is busy. Increase if you experience database lock errors."
 
 # Remote Services Settings Help Text
 msgctxt "#32320"
 msgid "URL of the remote server for OTP authentication, AI Search, and similarity features."
-msgstr ""
+msgstr "URL of the remote server for OTP authentication, AI Search, and similarity features."
 
 msgctxt "#32321"
 msgid "Name used to identify this Kodi device when connecting to remote services."
-msgstr ""
+msgstr "Name used to identify this Kodi device when connecting to remote services."
 
 msgctxt "#32322"
 msgid "Select list to merge:"
-msgstr ""
+msgstr "Select list to merge:"
 
 msgctxt "#32323"
 msgid "This will include all list items and metadata."
-msgstr ""
+msgstr "This will include all list items and metadata."
 
 # Tools dialog strings
 msgctxt "#32324"
 msgid "Import Lists"
-msgstr ""
+msgstr "Import Lists"
 
 msgctxt "#32325"
 msgid "Export All Lists"
-msgstr ""
+msgstr "Export All Lists"
 
 msgctxt "#32326"
 msgid "Any existing ShortList Import folder and its contents will be permanently deleted first. Only items matching your Kodi library will be imported."
-msgstr ""
+msgstr "Any existing ShortList Import folder and its contents will be permanently deleted first. Only items matching your Kodi library will be imported."
 
 msgctxt "#32327"
 msgid "Continue"
-msgstr ""
+msgstr "Continue"
 
 msgctxt "#32328"
 msgid "The %s requires authorization with the remote server."
-msgstr ""
+msgstr "The %s requires authorization with the remote server."
 
 msgctxt "#32329"
 msgid "Deactivate AI Search"
-msgstr ""
+msgstr "Deactivate AI Search"
