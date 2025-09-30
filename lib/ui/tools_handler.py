@@ -1403,36 +1403,6 @@ class ToolsHandler:
             context.logger.error("Error in AI search activation handler: %s", e)
             return DialogResponse(success=False, message="Failed to activate AI search")
 
-    def _handle_local_search(self, context: PluginContext) -> DialogResponse:
-        """Execute local search directly (legacy - kept for backwards compatibility)"""
-        try:
-            from lib.ui.handler_factory import get_handler_factory
-
-            # Get search handler and execute search
-            factory = get_handler_factory()
-            factory.context = context
-            search_handler = factory.get_search_handler()
-
-            # Execute the search directly
-            success = search_handler.prompt_and_search(context)
-
-            if success:
-                return DialogResponse(
-                    success=True, 
-                    message="Search completed",
-                    refresh_needed=False,
-                    navigate_to_main=False
-                )
-            else:
-                return DialogResponse(
-                    success=True, 
-                    message="Search cancelled",
-                    refresh_needed=False
-                )
-        except Exception as e:
-            context.logger.error("Error executing search: %s", e)
-            return DialogResponse(success=False, message="Failed to execute search")
-
     def _handle_unified_local_search(self, context: PluginContext) -> DialogResponse:
         """Execute unified local search with custom panel"""
         try:
