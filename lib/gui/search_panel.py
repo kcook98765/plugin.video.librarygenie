@@ -102,10 +102,11 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _wire_controls(self):
         """Wire up all controls"""
+        # XML layout: 201=All, 202=Movies, 203=Series
         self.q_edit = self.getControl(200)
-        self.rb_movies = self.getControl(201)
-        self.rb_series = self.getControl(202)
-        self.rb_all = self.getControl(203)
+        self.rb_all = self.getControl(201)
+        self.rb_movies = self.getControl(202)
+        self.rb_series = self.getControl(203)
         self.tb_title = self.getControl(211)
         self.tb_plot = self.getControl(212)
         self.rb_any = self.getControl(221)
@@ -159,7 +160,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _set_content_type_by_control(self, cid):
         """Set content type based on control ID"""
-        self._state['content_type'] = {201: CONTENT_MOVIES, 202: CONTENT_SERIES, 203: CONTENT_ALL}[cid]
+        # XML layout: 201=All, 202=Movies, 203=Series
+        self._state['content_type'] = {201: CONTENT_ALL, 202: CONTENT_MOVIES, 203: CONTENT_SERIES}[cid]
         self._apply_state_to_controls()
 
     def _toggle_fields(self):
