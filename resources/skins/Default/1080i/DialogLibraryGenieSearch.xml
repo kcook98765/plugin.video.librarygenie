@@ -56,6 +56,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[30288]</label>
                 <onup>260</onup>
                 <ondown>202</ondown>
@@ -78,6 +81,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[30286]</label>
                 <onup>201</onup>
                 <ondown>203</ondown>
@@ -100,6 +106,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[30287]</label>
                 <onup>202</onup>
                 <ondown>200</ondown>
@@ -133,6 +142,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[32300]</label>
                 <onup>260</onup>
                 <ondown>212</ondown>
@@ -155,6 +167,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[32301]</label>
                 <onup>211</onup>
                 <ondown>200</ondown>
@@ -188,6 +203,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[30323]</label>
                 <onup>260</onup>
                 <ondown>222</ondown>
@@ -210,6 +228,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[30324]</label>
                 <onup>221</onup>
                 <ondown>223</ondown>
@@ -232,6 +253,9 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>50</textoffsetx>
                 <label>$LOCALIZE[30325]</label>
                 <onup>222</onup>
                 <ondown>200</ondown>
@@ -259,6 +283,8 @@
                 <texturefocus colordiffuse="FF555555">colors/white.png</texturefocus>
                 <texturenofocus colordiffuse="FF333333">colors/white.png</texturenofocus>
                 <font>font13</font>
+                <align>left</align>
+                <aligny>center</aligny>
                 <textoffsetx>12</textoffsetx>
                 <textcolor>FFFFFFFF</textcolor>
                 <label></label>
@@ -279,6 +305,8 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
                 <label>$LOCALIZE[30327]</label>
                 <onup>223</onup>
                 <ondown>240</ondown>
@@ -350,6 +378,8 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
                 <label>$LOCALIZE[30329]</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
@@ -368,6 +398,8 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
                 <label>$LOCALIZE[32303]</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
@@ -386,6 +418,8 @@
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
                 <label>$LOCALIZE[32304]</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
@@ -404,6 +438,8 @@
                 <font>font30_title</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
                 <label>$LOCALIZE[32305]</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
