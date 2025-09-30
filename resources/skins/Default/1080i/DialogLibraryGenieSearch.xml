@@ -81,19 +81,17 @@
                     <width>480</width>
                     <height>40</height>
                 </control>
-                <control type="togglebutton" id="211">
+                <control type="radiobutton" id="211">
                     <top>60</top>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32300]</label>
-                    <altlabel>$LOCALIZE[32300]</altlabel>
                 </control>
-                <control type="togglebutton" id="212">
+                <control type="radiobutton" id="212">
                     <top>110</top>
                     <textcolor>FFFFFFFF</textcolor>
                     <focusedcolor>FFFFFFFF</focusedcolor>
                     <label>$LOCALIZE[32301]</label>
-                    <altlabel>$LOCALIZE[32301]</altlabel>
                 </control>
             </control>
 
