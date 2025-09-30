@@ -567,7 +567,7 @@ msgstr ""
 # Dialog Titles and Common Messages
 msgctxt "#30134"
 msgid "Search"
-msgstr ""
+msgstr "Search"
 
 msgctxt "#30135"
 msgid "Playback Error"
@@ -1190,19 +1190,19 @@ msgstr ""
 
 msgctxt "#30285"
 msgid "Content type"
-msgstr ""
+msgstr "Content type"
 
 msgctxt "#30286"
 msgid "Movies"
-msgstr ""
+msgstr "Movies"
 
 msgctxt "#30287"
 msgid "Series"
-msgstr ""
+msgstr "Series"
 
 msgctxt "#30288"
 msgid "All"
-msgstr ""
+msgstr "All"
 
 # Export Settings Help Text
 msgctxt "#30289"
@@ -1332,7 +1332,7 @@ msgstr ""
 
 msgctxt "#30319"
 msgid "Fields"
-msgstr ""
+msgstr "Fields"
 
 msgctxt "#30320"
 msgid "Database Performance"
@@ -1348,31 +1348,31 @@ msgstr ""
 
 msgctxt "#30323"
 msgid "Any word"
-msgstr ""
+msgstr "Any word"
 
 msgctxt "#30324"
 msgid "All words"
-msgstr ""
+msgstr "All words"
 
 msgctxt "#30325"
 msgid "Exact phrase"
-msgstr ""
+msgstr "Exact phrase"
 
 msgctxt "#30326"
 msgid "Query"
-msgstr ""
+msgstr "Query"
 
 msgctxt "#30327"
 msgid "Keyboard…"
-msgstr ""
+msgstr "Keyboard…"
 
 msgctxt "#30328"
 msgid "Presets"
-msgstr ""
+msgstr "Presets"
 
 msgctxt "#30329"
 msgid "Save as preset"
-msgstr ""
+msgstr "Save as preset"
 
 # List Pagination Settings
 msgctxt "#30330"
@@ -1389,7 +1389,7 @@ msgstr ""
 
 msgctxt "#30333"
 msgid "Enter search text"
-msgstr ""
+msgstr "Enter search text"
 
 msgctxt "#30334"
 msgid "Use custom search panel"
@@ -1426,7 +1426,7 @@ msgstr ""
 
 msgctxt "#30342"
 msgid "Movies – Title – Any"
-msgstr ""
+msgstr "Movies – Title – Any"
 
 msgctxt "#30343"
 msgid "Search & Remember"
@@ -2282,35 +2282,35 @@ msgstr ""
 
 msgctxt "#32300"
 msgid "Title"
-msgstr ""
+msgstr "Title"
 
 msgctxt "#32301"
 msgid "Plot"
-msgstr ""
+msgstr "Plot"
 
 msgctxt "#32302"
 msgid "Match mode"
-msgstr ""
+msgstr "Match mode"
 
 msgctxt "#32303"
 msgid "Set as default"
-msgstr ""
+msgstr "Set as default"
 
 msgctxt "#32304"
 msgid "Cancel"
-msgstr ""
+msgstr "Cancel"
 
 msgctxt "#32305"
 msgid "Search"
-msgstr ""
+msgstr "Search"
 
 msgctxt "#32306"
 msgid "Preset name"
-msgstr ""
+msgstr "Preset name"
 
 msgctxt "#32307"
 msgid "Default search options updated"
-msgstr ""
+msgstr "Default search options updated"
 
 # Background Settings Help Text
 msgctxt "#32308"
