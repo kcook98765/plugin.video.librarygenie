@@ -50,21 +50,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             'content_type': default_content,
             'fields': default_fields if default_fields != 0 else 2,  # 0 means not set, default to FIELDS_BOTH (2)
             'match_mode': default_match,
-            'query': ''
+            'query': ''  # Always start with empty query
         }
-        
-        # Load last state only for the query, NOT the radio button settings
-        # Radio buttons always use the saved defaults
-        if ADDON.getSettingBool('remember_last_values'):
-            try:
-                with open(self._last_state_path(), 'r', encoding='utf-8') as fh:
-                    data = json.load(fh)
-                    # Only restore the query text, keep radio button defaults
-                    if 'query' in data:
-                        self._state['query'] = data.get('query', '')
-                        xbmc.log('[LG-SearchPanel] Restored last query: "{}"'.format(self._state['query']), xbmc.LOGDEBUG)
-            except Exception:
-                pass
 
     def onInit(self):
         """Initialize the dialog"""
