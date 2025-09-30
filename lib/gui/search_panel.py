@@ -35,7 +35,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def __init__(self, *args, **kwargs):
         super(SearchPanel, self).__init__()
         self._result = None
-        self._keyboard_just_closed = False  # Flag to prevent immediate reopen
+        self._keyboard_closed_time = 0  # Timestamp when keyboard closed
         
         # Load defaults - handle 0 as valid value
         default_content = ADDON.getSettingInt('default_content_type')
@@ -73,10 +73,13 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         elif control_id in (221, 222, 223):
             self._set_match_mode_by_control(control_id)
         elif control_id == 200:
-            # Clicking on query box opens keyboard (but not if keyboard just closed)
-            if self._keyboard_just_closed:
-                xbmc.log('[LG-SearchPanel] Ignoring click - keyboard just closed', xbmc.LOGDEBUG)
-                self._keyboard_just_closed = False
+            # Clicking on query box opens keyboard (with debounce)
+            import time
+            current_time = time.time()
+            time_since_close = current_time - self._keyboard_closed_time
+            
+            if time_since_close < 0.5:  # Ignore clicks within 500ms of keyboard closing
+                xbmc.log('[LG-SearchPanel] Ignoring click - keyboard closed {:.2f}s ago'.format(time_since_close), xbmc.LOGDEBUG)
             else:
                 self._open_keyboard()
         elif control_id == 252:
@@ -165,13 +168,15 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _open_keyboard(self):
         """Open keyboard for query input"""
+        import time
+        
         # Get current text from edit control
         current_text = self.q_edit.getText()
         kb = xbmc.Keyboard(current_text, L(30333))  # "Enter search text"
         kb.doModal()
         
-        # Set flag to prevent immediate reopen
-        self._keyboard_just_closed = True
+        # Record when keyboard closed to prevent immediate reopen
+        self._keyboard_closed_time = time.time()
         
         if kb.isConfirmed():
             text = kb.getText()
