@@ -310,7 +310,7 @@
             <control type="edit" id="200">
                 <left>100</left>
                 <top>430</top>
-                <width>1220</width>
+                <width>1480</width>
                 <height>60</height>
                 <texturefocus colordiffuse="FF555555">colors/white.png</texturefocus>
                 <texturenofocus colordiffuse="FF333333">colors/white.png</texturenofocus>
@@ -322,28 +322,8 @@
                 <label></label>
                 <onup>203</onup>
                 <ondown>240</ondown>
-                <onleft>231</onleft>
-                <onright>231</onright>
-            </control>
-            
-            <!-- Keyboard Button -->
-            <control type="button" id="231">
-                <left>1340</left>
-                <top>430</top>
-                <width>240</width>
-                <height>60</height>
-                <texturefocus colordiffuse="FF0066CC">colors/white.png</texturefocus>
-                <texturenofocus colordiffuse="FF003366">colors/white.png</texturenofocus>
-                <font>font13</font>
-                <textcolor>FFFFFFFF</textcolor>
-                <focusedcolor>FFFFFFFF</focusedcolor>
-                <align>center</align>
-                <aligny>center</aligny>
-                <label>$ADDON[plugin.video.librarygenie 30327]</label>
-                <onup>223</onup>
-                <ondown>240</ondown>
-                <onleft>200</onleft>
-                <onright>200</onright>
+                <onleft>260</onleft>
+                <onright>260</onright>
             </control>
 
             <!-- Presets Label -->
