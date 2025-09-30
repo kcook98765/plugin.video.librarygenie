@@ -25,9 +25,9 @@
                 <width>1540</width>
                 <height>60</height>
                 <align>center</align>
-                <font>font36</font>
+                <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
-                <label>$LOCALIZE[30134]</label>
+                <label>Search</label>
             </control>
 
             <!-- Content Type Label -->
@@ -36,7 +36,7 @@
                 <top>120</top>
                 <width>480</width>
                 <height>40</height>
-                <label>$LOCALIZE[30285]</label>
+                <label>Content type</label>
                 <font>font13</font>
                 <textcolor>FFAAAAAA</textcolor>
             </control>
@@ -59,7 +59,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[30288]</label>
+                <label>All</label>
                 <onup>260</onup>
                 <ondown>202</ondown>
                 <onleft>260</onleft>
@@ -84,7 +84,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[30286]</label>
+                <label>Movies</label>
                 <onup>201</onup>
                 <ondown>203</ondown>
                 <onleft>260</onleft>
@@ -109,7 +109,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[30287]</label>
+                <label>Series</label>
                 <onup>202</onup>
                 <ondown>200</ondown>
                 <onleft>260</onleft>
@@ -122,7 +122,7 @@
                 <top>120</top>
                 <width>480</width>
                 <height>40</height>
-                <label>$LOCALIZE[30319]</label>
+                <label>Fields</label>
                 <font>font13</font>
                 <textcolor>FFAAAAAA</textcolor>
             </control>
@@ -145,7 +145,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[32300]</label>
+                <label>Title</label>
                 <onup>260</onup>
                 <ondown>212</ondown>
                 <onleft>201</onleft>
@@ -170,7 +170,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[32301]</label>
+                <label>Plot</label>
                 <onup>211</onup>
                 <ondown>200</ondown>
                 <onleft>202</onleft>
@@ -183,7 +183,7 @@
                 <top>120</top>
                 <width>420</width>
                 <height>40</height>
-                <label>$LOCALIZE[32302]</label>
+                <label>Match mode</label>
                 <font>font13</font>
                 <textcolor>FFAAAAAA</textcolor>
             </control>
@@ -206,7 +206,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[30323]</label>
+                <label>Any word</label>
                 <onup>260</onup>
                 <ondown>222</ondown>
                 <onleft>211</onleft>
@@ -231,7 +231,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[30324]</label>
+                <label>All words</label>
                 <onup>221</onup>
                 <ondown>223</ondown>
                 <onleft>212</onleft>
@@ -256,7 +256,7 @@
                 <align>left</align>
                 <aligny>center</aligny>
                 <textoffsetx>50</textoffsetx>
-                <label>$LOCALIZE[30325]</label>
+                <label>Exact phrase</label>
                 <onup>222</onup>
                 <ondown>200</ondown>
                 <onleft>212</onleft>
@@ -269,7 +269,7 @@
                 <top>380</top>
                 <width>300</width>
                 <height>40</height>
-                <label>$LOCALIZE[30326]</label>
+                <label>Query</label>
                 <font>font13</font>
                 <textcolor>FFAAAAAA</textcolor>
             </control>
@@ -307,7 +307,7 @@
                 <focusedcolor>FFFFFFFF</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>$LOCALIZE[30327]</label>
+                <label>Keyboard...</label>
                 <onup>223</onup>
                 <ondown>240</ondown>
                 <onleft>200</onleft>
@@ -320,7 +320,7 @@
                 <top>540</top>
                 <width>300</width>
                 <height>40</height>
-                <label>$LOCALIZE[30328]</label>
+                <label>Presets</label>
                 <font>font13</font>
                 <textcolor>FFAAAAAA</textcolor>
             </control>
@@ -380,7 +380,7 @@
                 <focusedcolor>FFFFFFFF</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>$LOCALIZE[30329]</label>
+                <label>Save as preset</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
                 <onleft>260</onleft>
@@ -400,7 +400,7 @@
                 <focusedcolor>FFFFFFFF</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>$LOCALIZE[32303]</label>
+                <label>Set as default</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
                 <onleft>251</onleft>
@@ -420,7 +420,7 @@
                 <focusedcolor>FFFFFFFF</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>$LOCALIZE[32304]</label>
+                <label>Cancel</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
                 <onleft>252</onleft>
@@ -440,7 +440,7 @@
                 <focusedcolor>FFFFFFFF</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>$LOCALIZE[32305]</label>
+                <label>Search</label>
                 <onup>240</onup>
                 <ondown>201</ondown>
                 <onleft>261</onleft>
