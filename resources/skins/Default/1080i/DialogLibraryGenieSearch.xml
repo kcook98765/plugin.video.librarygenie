@@ -321,130 +321,57 @@
                 <textcolor>FFFFFFFF</textcolor>
                 <label></label>
                 <onup>203</onup>
-                <ondown>240</ondown>
+                <ondown>252</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
             </control>
 
-            <!-- Presets Label -->
-            <control type="label">
-                <left>100</left>
-                <top>540</top>
-                <width>300</width>
-                <height>40</height>
-                <label>$ADDON[plugin.video.librarygenie 30328]</label>
-                <font>font13</font>
-                <textcolor>FFAAAAAA</textcolor>
-            </control>
-            
-            <!-- Presets List -->
-            <control type="list" id="240">
-                <left>100</left>
-                <top>590</top>
-                <width>1480</width>
-                <height>100</height>
-                <orientation>horizontal</orientation>
-                <onup>200</onup>
-                <ondown>251</ondown>
-                <onleft>260</onleft>
-                <onright>260</onright>
-                <itemlayout height="100" width="800">
-                    <control type="label">
-                        <left>10</left>
-                        <width>780</width>
-                        <height>100</height>
-                        <font>font13</font>
-                        <textcolor>FFFFFFFF</textcolor>
-                        <align>center</align>
-                        <aligny>center</aligny>
-                        <label>$INFO[ListItem.Label]</label>
-                    </control>
-                </itemlayout>
-                <focusedlayout height="100" width="800">
-                    <control type="image">
-                        <width>800</width>
-                        <height>100</height>
-                        <texture colordiffuse="FF0066CC">colors/white.png</texture>
-                    </control>
-                    <control type="label">
-                        <left>10</left>
-                        <width>780</width>
-                        <height>100</height>
-                        <font>font13</font>
-                        <textcolor>FFFFFFFF</textcolor>
-                        <align>center</align>
-                        <aligny>center</aligny>
-                        <label>$INFO[ListItem.Label]</label>
-                    </control>
-                </focusedlayout>
-            </control>
-
-            <!-- Save as preset button -->
-            <control type="button" id="251">
-                <left>100</left>
-                <top>720</top>
-                <width>260</width>
-                <height>60</height>
-                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
-                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
-                <font>font13</font>
-                <textcolor>FFFFFFFF</textcolor>
-                <focusedcolor>FFFFFFFF</focusedcolor>
-                <align>center</align>
-                <aligny>center</aligny>
-                <label>$ADDON[plugin.video.librarygenie 30329]</label>
-                <onup>240</onup>
-                <ondown>201</ondown>
-                <onleft>260</onleft>
-                <onright>252</onright>
-            </control>
-            
             <!-- Set as default button -->
             <control type="button" id="252">
-                <left>380</left>
-                <top>720</top>
-                <width>220</width>
+                <left>100</left>
+                <top>540</top>
+                <width>640</width>
                 <height>60</height>
-                <texturefocus colordiffuse="FF444444">colors/white.png</texturefocus>
-                <texturenofocus colordiffuse="FF222222">colors/white.png</texturenofocus>
+                <texturefocus colordiffuse="FFAA6600">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF553300">colors/white.png</texturenofocus>
                 <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
                 <label>$ADDON[plugin.video.librarygenie 32303]</label>
-                <onup>240</onup>
-                <ondown>201</ondown>
-                <onleft>251</onleft>
-                <onright>261</onright>
+                <onup>200</onup>
+                <ondown>261</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
             </control>
             
             <!-- Cancel button -->
             <control type="button" id="261">
-                <left>920</left>
-                <top>720</top>
-                <width>220</width>
+                <left>100</left>
+                <top>640</top>
+                <width>640</width>
                 <height>60</height>
-                <texturefocus colordiffuse="FF884444">colors/white.png</texturefocus>
-                <texturenofocus colordiffuse="FF442222">colors/white.png</texturenofocus>
-                <font>font13</font>
+                <texturefocus colordiffuse="FF666666">colors/white.png</texturefocus>
+                <texturenofocus colordiffuse="FF333333">colors/white.png</texturenofocus>
+                <font>font30_title</font>
                 <textcolor>FFFFFFFF</textcolor>
                 <focusedcolor>FFFFFFFF</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
                 <label>$ADDON[plugin.video.librarygenie 32304]</label>
-                <onup>240</onup>
+                <onup>252</onup>
                 <ondown>201</ondown>
-                <onleft>252</onleft>
+                <onleft>260</onleft>
                 <onright>260</onright>
             </control>
             
             <!-- Search button -->
             <control type="button" id="260">
-                <left>1160</left>
-                <top>720</top>
-                <width>420</width>
-                <height>60</height>
+                <left>820</left>
+                <top>540</top>
+                <width>760</width>
+                <height>160</height>
                 <texturefocus colordiffuse="FF00AA00">colors/white.png</texturefocus>
                 <texturenofocus colordiffuse="FF005500">colors/white.png</texturenofocus>
                 <font>font30_title</font>
@@ -453,10 +380,10 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <label>$ADDON[plugin.video.librarygenie 32305]</label>
-                <onup>240</onup>
-                <ondown>201</ondown>
-                <onleft>261</onleft>
-                <onright>251</onright>
+                <onup>200</onup>
+                <ondown>203</ondown>
+                <onleft>252</onleft>
+                <onright>252</onright>
             </control>
         </control>
     </controls>
