@@ -217,6 +217,9 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _finalize_and_close(self):
         """Finalize and close dialog"""
+        # Get query from state (which is updated by _open_keyboard)
+        query = self._state.get('query', '').strip()
+        
         # Persist last state if desired
         if ADDON.getSettingBool('remember_last_values'):
             self._save_last_state()
@@ -225,7 +228,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             'content_type': self._state['content_type'],
             'fields': self._state['fields'],
             'match_mode': self._state['match_mode'],
-            'query': self.q_edit.getLabel(),
+            'query': query,
         }
         self.close()
 
