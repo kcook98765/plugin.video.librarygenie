@@ -338,8 +338,8 @@
                 <textcolor>FFAAAAAA</textcolor>
             </control>
             
-            <!-- Query Edit -->
-            <control type="edit" id="200">
+            <!-- Query Button (acts like text field, opens keyboard on click) -->
+            <control type="button" id="200">
                 <left>100</left>
                 <top>460</top>
                 <width>1480</width>
@@ -351,6 +351,7 @@
                 <aligny>center</aligny>
                 <textoffsetx>12</textoffsetx>
                 <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFFFFF</focusedcolor>
                 <label></label>
                 <onup>252</onup>
                 <ondown>260</ondown>
