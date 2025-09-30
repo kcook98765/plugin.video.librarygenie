@@ -31,7 +31,7 @@
                 <height>60</height>
                 <align>center</align>
                 <font>font36</font>
-                <label>$LOCALIZE[30370]</label>
+                <label>$LOCALIZE[30134]</label>
             </control>
 
             <!-- Content Type (radio group) -->
@@ -41,22 +41,22 @@
                 <width>480</width>
                 <height>240</height>
                 <control type="label">
-                    <label>$LOCALIZE[30371]</label>
+                    <label>$LOCALIZE[30285]</label>
                     <font>font30</font>
                     <width>480</width>
                     <height>40</height>
                 </control>
                 <control type="radiobutton" id="201">
                     <top>60</top>
-                    <label>$LOCALIZE[30372]</label>
+                    <label>$LOCALIZE[30288]</label>
                 </control>
                 <control type="radiobutton" id="202">
                     <top>110</top>
-                    <label>$LOCALIZE[30373]</label>
+                    <label>$LOCALIZE[30286]</label>
                 </control>
                 <control type="radiobutton" id="203">
                     <top>160</top>
-                    <label>$LOCALIZE[30374]</label>
+                    <label>$LOCALIZE[30287]</label>
                 </control>
             </control>
 
@@ -67,20 +67,20 @@
                 <width>480</width>
                 <height>240</height>
                 <control type="label">
-                    <label>$LOCALIZE[30375]</label>
+                    <label>$LOCALIZE[30319]</label>
                     <font>font30</font>
                     <width>480</width>
                     <height>40</height>
                 </control>
                 <control type="togglebutton" id="211">
                     <top>60</top>
-                    <label>$LOCALIZE[30376]</label>
-                    <altlabel>$LOCALIZE[30376]</altlabel>
+                    <label>$LOCALIZE[32300]</label>
+                    <altlabel>$LOCALIZE[32300]</altlabel>
                 </control>
                 <control type="togglebutton" id="212">
                     <top>110</top>
-                    <label>$LOCALIZE[30377]</label>
-                    <altlabel>$LOCALIZE[30377]</altlabel>
+                    <label>$LOCALIZE[32301]</label>
+                    <altlabel>$LOCALIZE[32301]</altlabel>
                 </control>
             </control>
 
@@ -91,22 +91,22 @@
                 <width>420</width>
                 <height>240</height>
                 <control type="label">
-                    <label>$LOCALIZE[30378]</label>
+                    <label>$LOCALIZE[32302]</label>
                     <font>font30</font>
                     <width>420</width>
                     <height>40</height>
                 </control>
                 <control type="radiobutton" id="221">
                     <top>60</top>
-                    <label>$LOCALIZE[30379]</label>
+                    <label>$LOCALIZE[30323]</label>
                 </control>
                 <control type="radiobutton" id="222">
                     <top>110</top>
-                    <label>$LOCALIZE[30380]</label>
+                    <label>$LOCALIZE[30324]</label>
                 </control>
                 <control type="radiobutton" id="223">
                     <top>160</top>
-                    <label>$LOCALIZE[30381]</label>
+                    <label>$LOCALIZE[30325]</label>
                 </control>
             </control>
 
@@ -117,7 +117,7 @@
                 <width>1500</width>
                 <height>120</height>
                 <control type="label">
-                    <label>$LOCALIZE[30382]</label>
+                    <label>$LOCALIZE[30326]</label>
                     <font>font30</font>
                     <width>300</width>
                     <height>40</height>
@@ -135,7 +135,7 @@
                     <top>50</top>
                     <width>240</width>
                     <height>60</height>
-                    <label>$LOCALIZE[30383]</label>
+                    <label>$LOCALIZE[30327]</label>
                 </control>
             </control>
 
@@ -146,7 +146,7 @@
                 <width>1500</width>
                 <height>160</height>
                 <control type="label">
-                    <label>$LOCALIZE[30384]</label>
+                    <label>$LOCALIZE[30328]</label>
                     <font>font30</font>
                     <width>300</width>
                     <height>40</height>
@@ -177,25 +177,25 @@
                 <control type="button" id="251">
                     <width>260</width>
                     <height>60</height>
-                    <label>$LOCALIZE[30385]</label>
+                    <label>$LOCALIZE[30329]</label>
                 </control>
                 <control type="button" id="252">
                     <left>280</left>
                     <width>220</width>
                     <height>60</height>
-                    <label>$LOCALIZE[30386]</label>
+                    <label>$LOCALIZE[32303]</label>
                 </control>
                 <control type="button" id="261">
                     <left>820</left>
                     <width>220</width>
                     <height>60</height>
-                    <label>$LOCALIZE[30387]</label>
+                    <label>$LOCALIZE[32304]</label>
                 </control>
                 <control type="button" id="260">
                     <left>1060</left>
                     <width>500</width>
                     <height>60</height>
-                    <label>$LOCALIZE[30388]</label>
+                    <label>$LOCALIZE[32305]</label>
                     <font>font30_title</font>
                 </control>
             </control>

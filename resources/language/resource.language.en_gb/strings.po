@@ -1414,7 +1414,7 @@ msgctxt "#30320"
 msgid "Database Performance"
 msgstr ""
 
-msgctxt "#30320"
+msgctxt "#32300"
 msgid "Title"
 msgstr ""
 
@@ -1422,7 +1422,7 @@ msgctxt "#30321"
 msgid "Database batch size"
 msgstr ""
 
-msgctxt "#30321"
+msgctxt "#32301"
 msgid "Plot"
 msgstr ""
 
@@ -1430,7 +1430,7 @@ msgctxt "#30322"
 msgid "Database busy timeout (ms)"
 msgstr ""
 
-msgctxt "#30322"
+msgctxt "#32302"
 msgid "Match mode"
 msgstr ""
 
@@ -1467,7 +1467,7 @@ msgctxt "#30330"
 msgid "List Pagination"
 msgstr ""
 
-msgctxt "#30330"
+msgctxt "#32303"
 msgid "Set as default"
 msgstr ""
 
@@ -1475,7 +1475,7 @@ msgctxt "#30331"
 msgid "Pagination Mode"
 msgstr ""
 
-msgctxt "#30331"
+msgctxt "#32304"
 msgid "Cancel"
 msgstr ""
 
@@ -1483,7 +1483,7 @@ msgctxt "#30332"
 msgid "Manual Page Size"
 msgstr ""
 
-msgctxt "#30332"
+msgctxt "#32305"
 msgid "Search"
 msgstr ""
 
@@ -1520,7 +1520,7 @@ msgctxt "#30340"
 msgid "Debug Settings"
 msgstr ""
 
-msgctxt "#30340"
+msgctxt "#32306"
 msgid "Preset name"
 msgstr ""
 
@@ -1528,7 +1528,7 @@ msgctxt "#30341"
 msgid "Debug First Playable Item"
 msgstr ""
 
-msgctxt "#30341"
+msgctxt "#32307"
 msgid "Default search options updated"
 msgstr ""
 
