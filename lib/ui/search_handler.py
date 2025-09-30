@@ -134,7 +134,7 @@ class SearchHandler:
         """Prompt user for search keywords"""
         try:
             terms = self.dialog_service.input(
-                L(33002),  # "Enter search terms"
+                L(30271),  # "Enter search terms"
                 input_type=xbmcgui.INPUT_ALPHANUM
             )
             return terms.strip() if terms and terms.strip() else None
@@ -313,7 +313,7 @@ class SearchHandler:
 
     def _show_no_results_message(self, search_terms: str):
         """Show message when no results found"""
-        self._notify_info(L(32101).format(search_terms))  # "No results found for '{0}'"
+        self._notify_info(L(30227).format(search_terms))  # "No results found for '{0}'"
 
     # Helper methods
     def _ensure_handle_from_context(self, context):

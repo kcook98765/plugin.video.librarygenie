@@ -12,95 +12,95 @@ def get_confirmation_dialog_strings(action_type: str = "delete"):
     """Get localized strings for confirmation dialogs"""
     if action_type == "delete":
         return {
-            'title': L(34600),  # "Confirm Action"
-            'message': L(34601),  # "Are you sure?"
-            'warning': L(34602)  # "This action cannot be undone"
+            'title': L(30380),  # "Confirm Action"
+            'message': L(30381),  # "Are you sure?"
+            'warning': L(30382)  # "This action cannot be undone"
         }
     elif action_type == "restore":
         return {
-            'title': L(34013),  # "Are you sure you want to restore from this backup?"
-            'message': L(34014),  # "This will replace all current lists and data."
-            'warning': L(34602)  # "This action cannot be undone"
+            'title': L(30316),  # "Are you sure you want to restore from this backup?"
+            'message': L(30317),  # "This will replace all current lists and data."
+            'warning': L(30382)  # "This action cannot be undone"
         }
     return {
-        'title': L(34600),  # "Confirm Action"
-        'message': L(34601),  # "Are you sure?"
-        'warning': L(34603)  # "Continue anyway?"
+        'title': L(30380),  # "Confirm Action"
+        'message': L(30381),  # "Are you sure?"
+        'warning': L(30383)  # "Continue anyway?"
     }
 
 def get_operation_status_strings():
     """Get localized strings for operation status messages"""
     return {
-        'success': L(34300),  # "Operation completed"
-        'failed': L(34301),   # "Operation failed"
-        'retry': L(34302),    # "Please try again"
-        'cancelled': L(34604), # "Operation cancelled"
-        'confirmed': L(34605)  # "Operation confirmed"
+        'success': L(30353),  # "Operation completed"
+        'failed': L(30354),   # "Operation failed"
+        'retry': L(30355),    # "Please try again"
+        'cancelled': L(30384), # "Operation cancelled"
+        'confirmed': L(30385)  # "Operation confirmed"
     }
 
 def get_sync_status_strings():
     """Get localized strings for sync operations"""
     return {
-        'status': L(34100),      # "Sync Status"
-        'last_sync': L(34101),   # "Last sync"
-        'sync_now': L(34102),    # "Sync now"
-        'in_progress': L(34103), # "Sync in progress..."
-        'completed': L(34104),   # "Sync completed successfully"
-        'failed': L(34105),      # "Sync failed"
-        'auth_required': L(34106) # "Authentication required"
+        'status': L(30327),      # "Sync Status"
+        'last_sync': L(30328),   # "Last sync"
+        'sync_now': L(30329),    # "Sync now"
+        'in_progress': L(30333), # "Sync in progress..."
+        'completed': L(30334),   # "Sync completed successfully"
+        'failed': L(30335),      # "Sync failed"
+        'auth_required': L(30336) # "Authentication required"
     }
 
 def get_backup_status_strings():
     """Get localized strings for backup operations"""
     return {
-        'settings': L(34001),     # "Backup Settings"
-        'create_now': L(34006),   # "Create Backup Now"
-        'restore': L(34007),      # "Restore from Backup"
-        'manage': L(34008),       # "Manage Backups"
-        'created': L(34009),      # "Backup created successfully"
-        'failed': L(34010),       # "Backup failed"
-        'restore_complete': L(34011), # "Restore completed successfully"
-        'restore_failed': L(34012),   # "Restore failed"
-        'in_progress': L(34015),      # "Backup in progress..."
-        'restore_progress': L(34016), # "Restore in progress..."
-        'select_backup': L(34017),    # "Select backup to restore"
-        'no_backups': L(34018),       # "No backups found"
-        'not_found': L(34019),        # "Backup file not found"
-        'invalid': L(34020)           # "Invalid backup file"
+        'settings': L(30301),     # "Backup Settings"
+        'create_now': L(30306),   # "Create Backup Now"
+        'restore': L(30307),      # "Restore from Backup"
+        'manage': L(30308),       # "Manage Backups"
+        'created': L(30309),      # "Backup created successfully"
+        'failed': L(30313),       # "Backup failed"
+        'restore_complete': L(30314), # "Restore completed successfully"
+        'restore_failed': L(30315),   # "Restore failed"
+        'in_progress': L(30318),      # "Backup in progress..."
+        'restore_progress': L(30319), # "Restore in progress..."
+        'select_backup': L(30323),    # "Select backup to restore"
+        'no_backups': L(30324),       # "No backups found"
+        'not_found': L(30325),        # "Backup file not found"
+        'invalid': L(30326)           # "Invalid backup file"
     }
 
 def get_error_message_strings():
     """Get localized strings for common error messages"""
     return {
-        'network': L(34303),      # "Network error"
-        'timeout': L(34304),      # "Timeout error"
-        'config': L(34305),       # "Configuration error"
-        'database': L(34306),     # "Database error"
-        'file_access': L(34307),  # "File not accessible"
-        'permission': L(34308),   # "Permission denied"
-        'invalid_format': L(34309), # "Invalid format"
-        'service_unavailable': L(34310) # "Service unavailable"
+        'network': L(30356),      # "Network error"
+        'timeout': L(30357),      # "Timeout error"
+        'config': L(30358),       # "Configuration error"
+        'database': L(30359),     # "Database error"
+        'file_access': L(30360),  # "File not accessible"
+        'permission': L(30361),   # "Permission denied"
+        'invalid_format': L(30362), # "Invalid format"
+        'service_unavailable': L(30363) # "Service unavailable"
     }
 
 def get_progress_message_strings():
     """Get localized strings for progress messages"""
     return {
-        'initializing': L(34400),     # "Initializing..."
-        'processing': L(34401),       # "Processing..."
-        'finalizing': L(34402),       # "Finalizing..."
-        'please_wait': L(34403),      # "Please wait..."
-        'in_progress': L(34404),      # "Operation in progress"
-        'scanning_library': L(34405), # "Scanning library..."
-        'updating_db': L(34406),      # "Updating database..."
-        'validating': L(34407),       # "Validating data..."
-        'connecting': L(34408),       # "Connecting to server..."
-        'loading': L(34409)           # "Loading..."
+        'initializing': L(30364),     # "Initializing..."
+        'processing': L(30365),       # "Processing..."
+        'finalizing': L(30366),       # "Finalizing..."
+        'please_wait': L(30367),      # "Please wait..."
+        'in_progress': L(30368),      # "Operation in progress"
+        'scanning_library': L(30369), # "Scanning library..."
+        'updating_db': L(30370),      # "Updating database..."
+        'validating': L(30371),       # "Validating data..."
+        'connecting': L(30372),       # "Connecting to server..."
+        'loading': L(30373)           # "Loading..."
     }
 
 def get_auth_status_strings():
     """Get localized strings for authentication operations"""
     return {
-        'required': L(34106),         # "Authentication required"
+        'required': L(30336),         # "Authentication required"
         'device_auth': L(34107),      # "Device authorization"
         'pending': L(34108),          # "Authorization pending"
         'complete': L(34109),         # "Authorization complete"
@@ -114,15 +114,15 @@ def get_auth_status_strings():
 def get_storage_strings():
     """Get localized strings for storage management"""
     return {
-        'management': L(34200),       # "Storage Management"
-        'clear_cache': L(34201),      # "Clear cache"
-        'cache_cleared': L(34202),    # "Cache cleared successfully"
-        'cache_failed': L(34203),     # "Failed to clear cache"
-        'validate_paths': L(34204),   # "Validate storage paths"
-        'validation': L(34205),       # "Storage path validation"
-        'paths_valid': L(34206),      # "All paths are valid"
-        'paths_invalid': L(34207),    # "Some paths are invalid"
-        'cleanup_temp': L(34208),     # "Cleanup temporary files"
-        'temp_cleaned': L(34209),     # "Temporary files cleaned"
-        'cleanup_failed': L(34210)    # "Cleanup failed"
+        'management': L(30337),       # "Storage Management"
+        'clear_cache': L(30338),      # "Clear cache"
+        'cache_cleared': L(30339),    # "Cache cleared successfully"
+        'cache_failed': L(30342),     # "Failed to clear cache"
+        'validate_paths': L(30343),   # "Validate storage paths"
+        'validation': L(30344),       # "Storage path validation"
+        'paths_valid': L(30345),      # "All paths are valid"
+        'paths_invalid': L(30346),    # "Some paths are invalid"
+        'cleanup_temp': L(30347),     # "Cleanup temporary files"
+        'temp_cleaned': L(30348),     # "Temporary files cleaned"
+        'cleanup_failed': L(30349)    # "Cleanup failed"
     }

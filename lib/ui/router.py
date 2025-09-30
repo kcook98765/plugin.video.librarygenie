@@ -606,7 +606,7 @@ class Router:
                 self.dialog_service.notification(
                     f"Error in {action}",
                     icon="error",
-                    title=context.addon.getLocalizedString(35002)
+                    title=context.addon.getLocalizedString(30388)
                 )
             except Exception:
                 pass
@@ -687,7 +687,7 @@ class Router:
                     self.dialog_service.notification(
                         "Could not remove item from list.",
                         icon="error",
-                        title=context.addon.getLocalizedString(35002)
+                        title=context.addon.getLocalizedString(30388)
                     )
                 except Exception:
                     pass

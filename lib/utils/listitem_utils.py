@@ -611,10 +611,10 @@ class ContextMenuBuilder:
                 try:
                     from lib.ui.localization import L
                     context_items.extend([
-                        (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
-                        (L(36011).replace('%s', 'List'), f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),  # "Move List to Folder"
-                        (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
-                        (L(31022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")   # "Export"
+                        (L(30181), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
+                        (L(30536).replace('%s', 'List'), f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),  # "Move List to Folder"
+                        (L(30182), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
+                        (L(30183), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")   # "Export"
                     ])
                 except ImportError:
                     # Fallback if localization not available
@@ -631,8 +631,8 @@ class ContextMenuBuilder:
                     try:
                         from lib.ui.localization import L
                         context_items.extend([
-                            (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),  # "Rename"
-                            (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})")   # "Delete"
+                            (L(30181), f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),  # "Rename"
+                            (L(30182), f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})")   # "Delete"
                         ])
                     except ImportError:
                         # Fallback if localization not available

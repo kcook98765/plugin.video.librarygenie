@@ -38,7 +38,7 @@ class ListsMainToolsProvider(BaseToolsProvider):
                 if ai_client.is_activated():
                     actions.append(self._create_action(
                         action_id="ai_movie_search",
-                        label=L(34100),  # AI Movie Search
+                        label=L(30327),  # AI Movie Search
                         handler=self._handle_ai_movie_search
                     ))
             except Exception:

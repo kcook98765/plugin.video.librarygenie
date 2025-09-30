@@ -113,7 +113,7 @@ class ActionResponse:
             try:
                 import xbmcgui
                 xbmcgui.Dialog().notification(
-                    context.addon.getLocalizedString(32000),  # Addon name
+                    context.addon.getLocalizedString(30199),  # Addon name
                     self.notification_message,
                     xbmcgui.NOTIFICATION_INFO if self.success else xbmcgui.NOTIFICATION_ERROR
                 )

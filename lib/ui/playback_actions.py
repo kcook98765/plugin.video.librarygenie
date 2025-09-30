@@ -217,7 +217,7 @@ class PlaybackActionHandler:
         self.logger.error("Playback error for movie %s: %s", kodi_id, error_message)
         
         # Show user-friendly error dialog
-        self.dialog_service.ok(L(35001) or "Playback Error", 
+        self.dialog_service.ok(L(30387) or "Playback Error", 
                  f"Unable to play movie.\n{error_message}\n\nPlease check that the file exists and is accessible.")
         
     def get_movie_file_path(self, kodi_id: int) -> Optional[str]:
@@ -283,8 +283,8 @@ class PlaybackContextMenuHandler:
             success = self.playback_handler.queue_movie(kodi_id)
             if success:
                 # Show confirmation
-                self.dialog_service.notification(L(35010) or "Movie added to playlist", 
-                                            icon="info", time_ms=2000, title=L(35002) or "LibraryGenie")
+                self.dialog_service.notification(L(30396) or "Movie added to playlist", 
+                                            icon="info", time_ms=2000, title=L(30388) or "LibraryGenie")
         
         elif action == "show_info":
             success = self.playback_handler.show_movie_info(kodi_id)
@@ -301,10 +301,10 @@ class PlaybackContextMenuHandler:
     def _fallback_string_getter(self, string_id: int) -> str:
         """Fallback string getter"""
         strings = {
-            35001: "Play",
-            35002: "Resume",
-            35003: "Add to Queue", 
-            35004: "Movie Information"
+            30387: "Play",
+            30388: "Resume",
+            30389: "Add to Queue", 
+            30390: "Movie Information"
         }
         return strings.get(string_id, f"String {string_id}")
 
