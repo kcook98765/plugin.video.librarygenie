@@ -54,11 +54,6 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         """Handle actions"""
         if action.getId() in (xbmcgui.ACTION_NAV_BACK, xbmcgui.ACTION_PREVIOUS_MENU):
             self.close()
-        elif action.getId() in (xbmcgui.ACTION_SELECT_ITEM, xbmcgui.ACTION_MOUSE_LEFT_CLICK):
-            # If query edit control has focus and user presses enter/select, open keyboard
-            focus = self.getFocusId()
-            if focus == 200:
-                self._open_keyboard()
 
     def onClick(self, control_id):
         """Handle control clicks"""
