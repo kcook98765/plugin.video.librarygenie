@@ -170,6 +170,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def _open_keyboard(self):
         """Open keyboard for query input"""
         import time
+        import xbmc
         
         # Get current text from edit control
         current_text = self.q_edit.getText()
@@ -185,6 +186,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             self.q_edit.setText(text)
         
         # CRITICAL: Move focus away from edit control to prevent keyboard from reopening
+        # Use a small delay to ensure doModal() cleanup is complete
+        xbmc.sleep(100)  # 100ms delay
         self.setFocusId(260)  # Focus on Search button
 
     def _load_presets(self):
