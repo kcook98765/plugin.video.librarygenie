@@ -146,8 +146,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         self.rb_allw.setSelected(all_selected)
         self.rb_phrase.setSelected(phrase_selected)
         
-        # Query
-        self.q_edit.setText(self._state.get('query', ''))
+        # Query (now using button label instead of edit text)
+        self.q_edit.setLabel(self._state.get('query', ''))
 
     def _set_content_type_by_control(self, cid):
         """Set content type based on control ID"""
@@ -170,25 +170,23 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def _open_keyboard(self):
         """Open keyboard for query input"""
         import time
-        import xbmc
         
-        # Get current text from edit control
-        current_text = self.q_edit.getText()
+        # Get current text from button label (now using button instead of edit)
+        current_text = self.q_edit.getLabel()
         kb = xbmc.Keyboard(current_text, L(30333))  # "Enter search text"
         kb.doModal()
         
-        # Record when keyboard closed to prevent immediate reopen
+        # Record when keyboard closed
         self._keyboard_closed_time = time.time()
         
         if kb.isConfirmed():
             text = kb.getText()
             self._state['query'] = text
-            self.q_edit.setText(text)
+            self.q_edit.setLabel(text)  # Update button label
         
-        # CRITICAL: Move focus away from edit control to prevent keyboard from reopening
-        # Use a small delay to ensure doModal() cleanup is complete
-        xbmc.sleep(100)  # 100ms delay
-        self.setFocusId(260)  # Focus on Search button
+        # Move focus to Search button after keyboard closes
+        # Since we're now using a button control, no automatic keyboard reopening!
+        self.setFocusId(260)
 
     def _load_presets(self):
         """Load presets into list"""
@@ -281,8 +279,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _finalize_and_close(self):
         """Finalize and close dialog"""
-        # Get query from edit control using getText() (not getLabel!)
-        query = self.q_edit.getText().strip()
+        # Get query from button label (now using button instead of edit)
+        query = self.q_edit.getLabel().strip()
         
         # Update state with the final query
         self._state['query'] = query
