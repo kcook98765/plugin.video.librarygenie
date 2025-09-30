@@ -785,17 +785,8 @@ msgctxt "#30186"
 msgid "LibraryGenie Setup"
 msgstr ""
 
-# Background Settings Help Text
-msgctxt "#30186"
-msgid "Runs automated tasks in the background to keep your library and lists synchronized."
-msgstr ""
-
 msgctxt "#30187"
 msgid "Movies and TV Episodes (Recommended)\nFull functionality - create lists for all your media\nBest for: Users with both movies and TV shows"
-msgstr ""
-
-msgctxt "#30187"
-msgid "How often the background service checks for changes. Lower values use more system resources."
 msgstr ""
 
 msgctxt "#30188"
@@ -814,57 +805,28 @@ msgctxt "#30191"
 msgid "Setting up Movies and TV Episodes sync..."
 msgstr ""
 
-# Backup Settings Help Text
-msgctxt "#30191"
-msgid "Automatically creates backup copies of your lists and settings to prevent data loss."
-msgstr ""
-
 msgctxt "#30192"
 msgid "Setting up Movies sync..."
-msgstr ""
-
-msgctxt "#30192"
-msgid "How frequently automatic backups are created. More frequent backups use more storage space."
 msgstr ""
 
 msgctxt "#30193"
 msgid "Setting up TV Episodes sync..."
 msgstr ""
 
-msgctxt "#30193"
-msgid "Number of backup files to keep. Older backups beyond this limit are automatically deleted."
-msgstr ""
-
 msgctxt "#30194"
 msgid "Setup complete! Both movies and TV episodes will be synced."
-msgstr ""
-
-msgctxt "#30194"
-msgid "Includes addon configuration and user preferences in backup files."
 msgstr ""
 
 msgctxt "#30195"
 msgid "Setup complete! Movies will be synced."
 msgstr ""
 
-msgctxt "#30195"
-msgid "Includes lists that contain items not found in your current Kodi library."
-msgstr ""
-
 msgctxt "#30196"
 msgid "Setup complete! TV episodes will be synced."
 msgstr ""
 
-msgctxt "#30196"
-msgid "Includes folder structure and organization in backup files."
-msgstr ""
-
 msgctxt "#30197"
 msgid "Setup skipped. Configure sync options in Settings."
-msgstr ""
-
-msgctxt "#30197"
-msgid "Choose where backup files are stored. Local storage is recommended for reliability."
 msgstr ""
 
 msgctxt "#30198"
@@ -881,24 +843,12 @@ msgctxt "#30200"
 msgid "Lists"
 msgstr ""
 
-msgctxt "#30200"
-msgid "Maximum time to wait for JSON-RPC responses. Increase if you experience timeout errors."
-msgstr ""
-
 msgctxt "#30201"
 msgid "Settings"
 msgstr ""
 
-msgctxt "#30201"
-msgid "Number of database operations to batch together. Higher values may improve performance."
-msgstr ""
-
 msgctxt "#30202"
 msgid "Sample List"
-msgstr ""
-
-msgctxt "#30202"
-msgid "How long to wait when database is busy. Increase if you experience database lock errors."
 msgstr ""
 
 # Welcome Dialog for Fresh Install
@@ -906,17 +856,8 @@ msgctxt "#30203"
 msgid "Welcome to LibraryGenie!"
 msgstr ""
 
-# Remote Services Settings Help Text
-msgctxt "#30203"
-msgid "URL of the remote server for OTP authentication, AI Search, and similarity features."
-msgstr ""
-
 msgctxt "#30204"
 msgid "Welcome to LibraryGenie!\n\nLibraryGenie creates smart lists and folders from your Kodi library. To get started, we need to scan your media library.\n\nChoose what type of content you'd like to manage:\n• Movies - Create lists of your favorite films\n• TV Episodes - Organize episodes by show, season, or theme\n• Both - Full functionality (recommended for most users)\n\nThe initial scan may take a few minutes but runs in the background. You can change these settings later in the addon configuration.\n\nPress OK to continue to setup options."
-msgstr ""
-
-msgctxt "#30204"
-msgid "Name used to identify this Kodi device when connecting to remote services."
 msgstr ""
 
 msgctxt "#30205"
@@ -1316,10 +1257,6 @@ msgctxt "#30300"
 msgid "Advanced"
 msgstr ""
 
-msgctxt "#30300"
-msgid "Select list to merge:"
-msgstr ""
-
 msgctxt "#30301"
 msgid "Select destination folder:"
 msgstr ""
@@ -1360,25 +1297,12 @@ msgctxt "#30310"
 msgid "JSON-RPC Performance"
 msgstr ""
 
-msgctxt "#30310"
-msgid "This will include all list items and metadata."
-msgstr ""
-
 msgctxt "#30311"
 msgid "JSON-RPC page size"
 msgstr ""
 
-# Tools dialog strings
-msgctxt "#30311"
-msgid "Import Lists"
-msgstr ""
-
 msgctxt "#30312"
 msgid "JSON-RPC timeout (seconds)"
-msgstr ""
-
-msgctxt "#30312"
-msgid "Export All Lists"
 msgstr ""
 
 msgctxt "#30313"
@@ -1414,24 +1338,12 @@ msgctxt "#30320"
 msgid "Database Performance"
 msgstr ""
 
-msgctxt "#32300"
-msgid "Title"
-msgstr ""
-
 msgctxt "#30321"
 msgid "Database batch size"
 msgstr ""
 
-msgctxt "#32301"
-msgid "Plot"
-msgstr ""
-
 msgctxt "#30322"
 msgid "Database busy timeout (ms)"
-msgstr ""
-
-msgctxt "#32302"
-msgid "Match mode"
 msgstr ""
 
 msgctxt "#30323"
@@ -1467,24 +1379,12 @@ msgctxt "#30330"
 msgid "List Pagination"
 msgstr ""
 
-msgctxt "#32303"
-msgid "Set as default"
-msgstr ""
-
 msgctxt "#30331"
 msgid "Pagination Mode"
 msgstr ""
 
-msgctxt "#32304"
-msgid "Cancel"
-msgstr ""
-
 msgctxt "#30332"
 msgid "Manual Page Size"
-msgstr ""
-
-msgctxt "#32305"
-msgid "Search"
 msgstr ""
 
 msgctxt "#30333"
@@ -1520,16 +1420,8 @@ msgctxt "#30340"
 msgid "Debug Settings"
 msgstr ""
 
-msgctxt "#32306"
-msgid "Preset name"
-msgstr ""
-
 msgctxt "#30341"
 msgid "Debug First Playable Item"
-msgstr ""
-
-msgctxt "#32307"
-msgid "Default search options updated"
 msgstr ""
 
 msgctxt "#30342"
@@ -1571,24 +1463,12 @@ msgctxt "#30350"
 msgid "Background service starting"
 msgstr ""
 
-msgctxt "#30350"
-msgid "Any existing ShortList Import folder and its contents will be permanently deleted first. Only items matching your Kodi library will be imported."
-msgstr ""
-
 msgctxt "#30351"
 msgid "Background service stopped"
 msgstr ""
 
-msgctxt "#30351"
-msgid "Continue"
-msgstr ""
-
 msgctxt "#30352"
 msgid "Background task is disabled"
-msgstr ""
-
-msgctxt "#30352"
-msgid "The %s requires authorization with the remote server."
 msgstr ""
 
 msgctxt "#30353"
@@ -1871,10 +1751,6 @@ msgstr ""
 
 msgctxt "#30470"
 msgid "Service Tasks"
-msgstr ""
-
-msgctxt "#30470"
-msgid "Deactivate AI Search"
 msgstr ""
 
 msgctxt "#30471"
@@ -2401,4 +2277,129 @@ msgstr ""
 
 msgctxt "#32201"
 msgid "Add this item to a LibraryGenie list"
+msgstr ""
+
+
+msgctxt "#32300"
+msgid "Title"
+msgstr ""
+
+msgctxt "#32301"
+msgid "Plot"
+msgstr ""
+
+msgctxt "#32302"
+msgid "Match mode"
+msgstr ""
+
+msgctxt "#32303"
+msgid "Set as default"
+msgstr ""
+
+msgctxt "#32304"
+msgid "Cancel"
+msgstr ""
+
+msgctxt "#32305"
+msgid "Search"
+msgstr ""
+
+msgctxt "#32306"
+msgid "Preset name"
+msgstr ""
+
+msgctxt "#32307"
+msgid "Default search options updated"
+msgstr ""
+
+# Background Settings Help Text
+msgctxt "#32308"
+msgid "Runs automated tasks in the background to keep your library and lists synchronized."
+msgstr ""
+
+msgctxt "#32309"
+msgid "How often the background service checks for changes. Lower values use more system resources."
+msgstr ""
+
+# Backup Settings Help Text
+msgctxt "#32310"
+msgid "Automatically creates backup copies of your lists and settings to prevent data loss."
+msgstr ""
+
+msgctxt "#32311"
+msgid "How frequently automatic backups are created. More frequent backups use more storage space."
+msgstr ""
+
+msgctxt "#32312"
+msgid "Number of backup files to keep. Older backups beyond this limit are automatically deleted."
+msgstr ""
+
+msgctxt "#32313"
+msgid "Includes addon configuration and user preferences in backup files."
+msgstr ""
+
+msgctxt "#32314"
+msgid "Includes lists that contain items not found in your current Kodi library."
+msgstr ""
+
+msgctxt "#32315"
+msgid "Includes folder structure and organization in backup files."
+msgstr ""
+
+msgctxt "#32316"
+msgid "Choose where backup files are stored. Local storage is recommended for reliability."
+msgstr ""
+
+msgctxt "#32317"
+msgid "Maximum time to wait for JSON-RPC responses. Increase if you experience timeout errors."
+msgstr ""
+
+msgctxt "#32318"
+msgid "Number of database operations to batch together. Higher values may improve performance."
+msgstr ""
+
+msgctxt "#32319"
+msgid "How long to wait when database is busy. Increase if you experience database lock errors."
+msgstr ""
+
+# Remote Services Settings Help Text
+msgctxt "#32320"
+msgid "URL of the remote server for OTP authentication, AI Search, and similarity features."
+msgstr ""
+
+msgctxt "#32321"
+msgid "Name used to identify this Kodi device when connecting to remote services."
+msgstr ""
+
+msgctxt "#32322"
+msgid "Select list to merge:"
+msgstr ""
+
+msgctxt "#32323"
+msgid "This will include all list items and metadata."
+msgstr ""
+
+# Tools dialog strings
+msgctxt "#32324"
+msgid "Import Lists"
+msgstr ""
+
+msgctxt "#32325"
+msgid "Export All Lists"
+msgstr ""
+
+msgctxt "#32326"
+msgid "Any existing ShortList Import folder and its contents will be permanently deleted first. Only items matching your Kodi library will be imported."
+msgstr ""
+
+msgctxt "#32327"
+msgid "Continue"
+msgstr ""
+
+msgctxt "#32328"
+msgid "The %s requires authorization with the remote server."
+msgstr ""
+
+msgctxt "#32329"
+msgid "Deactivate AI Search"
 msgstr ""
