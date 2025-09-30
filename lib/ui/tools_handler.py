@@ -205,7 +205,7 @@ class ToolsHandler:
             list_options = [list_item['name'] for list_item in source_lists]
 
             # Show list selection dialog
-            selected_index = self.dialog.select(L(30300), list_options)  # "Select list to merge:"
+            selected_index = self.dialog.select(L(32322), list_options)  # "Select list to merge:"
 
             if selected_index < 0:
                 return DialogResponse(success=False)
@@ -1069,7 +1069,7 @@ class ToolsHandler:
                 list_count = len(all_lists)
 
                 # Confirm export
-                export_message = f"{L(30240) % list_count}\n{L(30310)}"
+                export_message = f"{L(30240) % list_count}\n{L(32323)}"
                 if not self.dialog.yesno(
                     L(30308),  # "Confirm Export"
                     export_message,

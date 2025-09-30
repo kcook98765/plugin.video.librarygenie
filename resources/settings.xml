@@ -167,12 +167,12 @@
       </group>
       
       <group id="8" label="30510">
-        <setting id="backup_enabled" type="boolean" label="30511" help="30191">
+        <setting id="backup_enabled" type="boolean" label="30511" help="32310">
           <level>2</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_interval" type="integer" label="30512" help="30192">
+        <setting id="backup_interval" type="integer" label="30512" help="32311">
           <level>2</level>
           <default>0</default>
           <constraints>
@@ -189,7 +189,7 @@
             <heading>30512</heading>
           </control>
         </setting>
-        <setting id="backup_retention_count" type="integer" label="30513" help="30193">
+        <setting id="backup_retention_count" type="integer" label="30513" help="32312">
           <level>2</level>
           <default>5</default>
           <constraints>
@@ -204,17 +204,17 @@
       </group>
       
       <group id="9" label="30520">
-        <setting id="backup_include_settings" type="boolean" label="30521" help="30194">
+        <setting id="backup_include_settings" type="boolean" label="30521" help="32313">
           <level>2</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_include_non_library" type="boolean" label="30522" help="30195">
+        <setting id="backup_include_non_library" type="boolean" label="30522" help="32314">
           <level>2</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_include_folders" type="boolean" label="30523" help="30196">
+        <setting id="backup_include_folders" type="boolean" label="30523" help="32315">
           <level>2</level>
           <default>true</default>
           <control type="toggle"/>
@@ -482,7 +482,7 @@
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="ai_search_deactivate_action" type="action" label="30470" help="">
+        <setting id="ai_search_deactivate_action" type="action" label="32329" help="">
           <level>3</level>
           <dependencies>
             <dependency type="enable" setting="ai_search_activated" operator="is">true</dependency>
@@ -492,7 +492,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="button" format="action">
-            <heading>30470</heading>
+            <heading>32329</heading>
           </control>
         </setting>
         <setting id="ai_search_sync_interval" type="integer" label="30425" help="30426">
