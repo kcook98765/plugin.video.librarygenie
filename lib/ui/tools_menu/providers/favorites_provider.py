@@ -24,12 +24,12 @@ class FavoritesToolsProvider(BaseToolsProvider):
         return [
             self._create_action(
                 action_id="scan_favorites",
-                label=L(36001),  # "Scan Favorites"
+                label=L(30213),  # "Scan Favorites"
                 handler=self._handle_scan_favorites
             ),
             self._create_action(
                 action_id="save_as_list", 
-                label=L(36002),  # "Save As New List"
+                label=L(30214),  # "Save As New List"
                 handler=self._handle_save_as_list
             )
         ]

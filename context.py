@@ -190,7 +190,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     if is_playable_item:
         # 2. LG Quick Add (if enabled and configured)
         if quick_add_enabled and default_list_id:
-            quick_add_label = L(37101)  # "LG Quick Add"
+            quick_add_label = L(30380)  # "LG Quick Add"
             if not quick_add_label or quick_add_label.startswith('LocMiss_'):
                 quick_add_label = "LG Quick Add"
             options.append(quick_add_label)
@@ -204,7 +204,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
                 actions.append("quick_add_external")
 
         # 3. LG Add to List...
-        add_list_label = L(37102)  # "LG Add to List..."
+        add_list_label = L(30381)  # "LG Add to List..."
         if not add_list_label or add_list_label.startswith('LocMiss_'):
             add_list_label = "LG Add to List..."
         options.append(add_list_label)
@@ -219,7 +219,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
 
     # 4. LG Remove from List (if in list context and is playable item)
     if in_list_context and is_playable_item:
-        remove_label = L(37103)  # "LG Remove from List"
+        remove_label = L(30382)  # "LG Remove from List"
         if not remove_label or remove_label.startswith('LocMiss_'):
             remove_label = "LG Remove from List"
         options.append(remove_label)
@@ -244,7 +244,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     # Only show for navigable folders/containers
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     if not _is_folder_context(container_path, item_info.get('file_path')):
-        bookmark_label = L(37110)  # "LG Save Bookmark"
+        bookmark_label = L(30400)  # "LG Save Bookmark"
         if not bookmark_label or bookmark_label.startswith('LocMiss_'):
             bookmark_label = "LG Save Bookmark"
         options.append(bookmark_label)
@@ -283,14 +283,14 @@ def _show_search_submenu(addon):
         actions = []
 
         # Local Movie Search
-        movie_search_label = L(37200)  # "Local Movie Search"
+        movie_search_label = L(30385)  # "Local Movie Search"
         if not movie_search_label or movie_search_label.startswith('LocMiss_'):
             movie_search_label = "Local Movie Search"
         options.append(movie_search_label)
         actions.append("search_movies")
 
         # Local TV Search
-        tv_search_label = L(37201)  # "Local TV Search"
+        tv_search_label = L(30386)  # "Local TV Search"
         if not tv_search_label or tv_search_label.startswith('LocMiss_'):
             tv_search_label = "Local TV Search"
         options.append(tv_search_label)
@@ -298,14 +298,14 @@ def _show_search_submenu(addon):
 
         # AI Movie Search (if available)
         if ai_search_available:
-            ai_search_label = L(37202)  # "AI Movie Search"
+            ai_search_label = L(30387)  # "AI Movie Search"
             if not ai_search_label or ai_search_label.startswith('LocMiss_'):
                 ai_search_label = "AI Movie Search"
             options.append(ai_search_label)
             actions.append("search_ai")
 
         # Search History
-        search_history_label = L(37202)  # "Search History"
+        search_history_label = L(30387)  # "Search History"
         if not search_history_label or search_history_label.startswith('LocMiss_'):
             search_history_label = "Search History"
         options.append(search_history_label)
@@ -313,7 +313,7 @@ def _show_search_submenu(addon):
 
         # Kodi Favorites (if enabled)
         if favorites_enabled:
-            favorites_label = L(37204)  # "Kodi Favorites"
+            favorites_label = L(30389)  # "Kodi Favorites"
             if not favorites_label or favorites_label.startswith('LocMiss_'):
                 favorites_label = "Kodi Favorites"
             options.append(favorites_label)

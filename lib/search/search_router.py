@@ -26,7 +26,7 @@ def start_search_flow(initial_query=''):
         return build_query_from_result(result)
     else:
         # Legacy: straight keyboard - return unified structure
-        kb = xbmc.Keyboard(initial_query, L(36200))
+        kb = xbmc.Keyboard(initial_query, L(30370))
         kb.doModal()
         if not kb.isConfirmed():
             return None

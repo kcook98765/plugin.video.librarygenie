@@ -136,7 +136,7 @@ class FavoritesHandler:
             # Add Tools & Options with unified breadcrumb approach
             breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
 
-            tools_item = xbmcgui.ListItem(label=f"{L(36000)} {breadcrumb_text}", offscreen=True)
+            tools_item = xbmcgui.ListItem(label=f"{L(30212)} {breadcrumb_text}", offscreen=True)
             self._set_listitem_plot(tools_item, description_text + "Tools and options for favorites")
             tools_item.setProperty('IsPlayable', 'false')
             tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
@@ -286,10 +286,10 @@ class FavoritesHandler:
             if not user_lists:
                 # No lists available, offer to create one
                 if self.dialog_service.yesno(
-                    L(35002),  # "LibraryGenie"
-                    L(36071),  # "No lists found. Create a new list first?"
-                    yes_label=L(37018),   # "Create New List"
-                    no_label=L(36003)  # "Cancel"
+                    L(30136),  # "LibraryGenie"
+                    L(30241),  # "No lists found. Create a new list first?"
+                    yes_label=L(30367),   # "Create New List"
+                    no_label=L(30215)  # "Cancel"
                 ):
                     # Redirect to create list
                     from lib.ui.lists_handler import ListsHandler
@@ -383,8 +383,8 @@ class FavoritesHandler:
             all_folders = query_manager.get_all_folders()
 
             # Ask user if they want to place it in a folder
-            folder_names = [L(36032)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
-            selected_folder_index = self.dialog_service.select(L(36029), list(folder_names))  # "Select destination folder:"
+            folder_names = [L(30303)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
+            selected_folder_index = self.dialog_service.select(L(30301), list(folder_names))  # "Select destination folder:"
 
             if selected_folder_index < 0:
                 self.logger.info("User cancelled folder selection")

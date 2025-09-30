@@ -5,17 +5,17 @@
     <!-- BASIC SETTINGS (Level 0) - Essential user preferences -->
     <category id="general" label="30000" help="">
       <group id="1" label="30020">
-        <setting id="confirm_destructive_actions" type="boolean" label="30021" help="35501">
+        <setting id="confirm_destructive_actions" type="boolean" label="30021" help="30172">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="show_missing_indicators" type="boolean" label="30043" help="35503">
+        <setting id="show_missing_indicators" type="boolean" label="30043" help="30174">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="search_page_size" type="integer" label="30025" help="35552">
+        <setting id="search_page_size" type="integer" label="30025" help="30292">
           <level>0</level>
           <default>200</default>
           <constraints>
@@ -30,17 +30,17 @@
       </group>
       
       <group id="2" label="30030">
-        <setting id="sync_movies" type="boolean" label="30034" help="35508">
+        <setting id="sync_movies" type="boolean" label="30034" help="30177">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="sync_tv_episodes" type="boolean" label="30033" help="35507">
+        <setting id="sync_tv_episodes" type="boolean" label="30033" help="30176">
           <level>1</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="manual_library_sync" type="action" label="30035" help="35509">
+        <setting id="manual_library_sync" type="action" label="30035" help="30178">
           <level>1</level>
           <data>RunScript(plugin.video.librarygenie,manual_library_sync)</data>
           <constraints>
@@ -50,7 +50,7 @@
             <heading>30035</heading>
           </control>
         </setting>
-        <setting id="library_sync_interval" type="integer" label="30036" help="35560">
+        <setting id="library_sync_interval" type="integer" label="30036" help="30294">
           <level>0</level>
           <default>2</default>
           <constraints>
@@ -71,7 +71,7 @@
     <!-- LISTS SETTINGS (Level 0-1) - List management features -->
     <category id="lists" label="30200" help="">
       <group id="3" label="30040">
-        <setting id="quick_add_enabled" type="boolean" label="30042" help="35510">
+        <setting id="quick_add_enabled" type="boolean" label="30042" help="30179">
           <level>0</level>
           <default>false</default>
           <control type="toggle"/>
@@ -106,12 +106,12 @@
       </group>
       
       <group id="4" label="30050">
-        <setting id="favorites_integration_enabled" type="boolean" label="30051" help="35511">
+        <setting id="favorites_integration_enabled" type="boolean" label="30051" help="30181">
           <level>0</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="show_unmapped_favorites" type="boolean" label="30053" help="35512">
+        <setting id="show_unmapped_favorites" type="boolean" label="30053" help="30182">
           <level>1</level>
           <default>false</default>
           <dependencies>
@@ -119,7 +119,7 @@
           </dependencies>
           <control type="toggle"/>
         </setting>
-        <setting id="favorites_batch_processing" type="boolean" label="30054" help="35513">
+        <setting id="favorites_batch_processing" type="boolean" label="30054" help="30183">
           <level>1</level>
           <default>true</default>
           <dependencies>
@@ -140,7 +140,7 @@
             <heading>30071</heading>
           </control>
         </setting>
-        <setting id="shortlist_clear_before_import" type="boolean" label="30072" help="35514">
+        <setting id="shortlist_clear_before_import" type="boolean" label="30072" help="30184">
           <level>1</level>
           <default>true</default>
           <control type="toggle"/>
@@ -152,7 +152,7 @@
     <!-- BACKUP & STORAGE SETTINGS (Level 2) - Advanced backup features -->
     <category id="backup" label="30500" help="">
       <group id="7" label="30550">
-        <setting id="export_location" type="path" label="30551" help="35546">
+        <setting id="export_location" type="path" label="30551" help="30289">
           <level>2</level>
           <default></default>
           <constraints>
@@ -167,12 +167,12 @@
       </group>
       
       <group id="8" label="30510">
-        <setting id="backup_enabled" type="boolean" label="30511" help="35525">
+        <setting id="backup_enabled" type="boolean" label="30511" help="30191">
           <level>2</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_interval" type="integer" label="30512" help="35526">
+        <setting id="backup_interval" type="integer" label="30512" help="30192">
           <level>2</level>
           <default>0</default>
           <constraints>
@@ -189,7 +189,7 @@
             <heading>30512</heading>
           </control>
         </setting>
-        <setting id="backup_retention_count" type="integer" label="30513" help="35527">
+        <setting id="backup_retention_count" type="integer" label="30513" help="30193">
           <level>2</level>
           <default>5</default>
           <constraints>
@@ -204,17 +204,17 @@
       </group>
       
       <group id="9" label="30520">
-        <setting id="backup_include_settings" type="boolean" label="30521" help="35528">
+        <setting id="backup_include_settings" type="boolean" label="30521" help="30194">
           <level>2</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_include_non_library" type="boolean" label="30522" help="35529">
+        <setting id="backup_include_non_library" type="boolean" label="30522" help="30195">
           <level>2</level>
           <default>false</default>
           <control type="toggle"/>
         </setting>
-        <setting id="backup_include_folders" type="boolean" label="30523" help="35530">
+        <setting id="backup_include_folders" type="boolean" label="30523" help="30196">
           <level>2</level>
           <default>true</default>
           <control type="toggle"/>
@@ -222,7 +222,7 @@
       </group>
       
       <group id="10" label="30530">
-        <setting id="backup_storage_type" type="integer" label="30531" help="35531">
+        <setting id="backup_storage_type" type="integer" label="30531" help="30531">
           <level>2</level>
           <default>0</default>
           <constraints>
@@ -275,7 +275,7 @@
     <!-- ADVANCED SETTINGS (Level 2) - Performance tuning -->
     <category id="advanced" label="30300" help="">
       <group id="12" label="30310">
-        <setting id="jsonrpc_page_size" type="integer" label="30311" help="35535">
+        <setting id="jsonrpc_page_size" type="integer" label="30311" help="30535">
           <level>2</level>
           <default>200</default>
           <constraints>
@@ -287,7 +287,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="jsonrpc_timeout_seconds" type="integer" label="30312" help="35536">
+        <setting id="jsonrpc_timeout_seconds" type="integer" label="30312" help="30536">
           <level>2</level>
           <default>10</default>
           <constraints>
@@ -302,7 +302,7 @@
       </group>
       
       <group id="13" label="30320">
-        <setting id="db_batch_size" type="integer" label="30321" help="35537">
+        <setting id="db_batch_size" type="integer" label="30321" help="30537">
           <level>2</level>
           <default>200</default>
           <constraints>
@@ -314,7 +314,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="db_busy_timeout_ms" type="integer" label="30322" help="35538">
+        <setting id="db_busy_timeout_ms" type="integer" label="30322" help="30538">
           <level>2</level>
           <default>3000</default>
           <constraints>
@@ -329,7 +329,7 @@
       </group>
       
       <group id="18" label="30330">
-        <setting id="list_pagination_mode" type="integer" label="30331" help="35550">
+        <setting id="list_pagination_mode" type="integer" label="30331" help="30290">
           <level>2</level>
           <default>0</default>
           <constraints>
@@ -342,7 +342,7 @@
             <heading>30331</heading>
           </control>
         </setting>
-        <setting id="list_manual_page_size" type="integer" label="30332" help="35551">
+        <setting id="list_manual_page_size" type="integer" label="30332" help="30291">
           <level>2</level>
           <default>50</default>
           <constraints>
@@ -360,7 +360,7 @@
       </group>
       
       <group id="19" label="30340">
-        <setting id="debug_first_playable" type="boolean" label="30341" help="35553">
+        <setting id="debug_first_playable" type="boolean" label="30341" help="30293">
           <level>3</level>
           <default>false</default>
           <control type="toggle"/>
@@ -368,12 +368,12 @@
       </group>
       
       <group id="20" label="30610">
-        <setting id="folder_cache_enabled" type="boolean" label="30611" help="35610">
+        <setting id="folder_cache_enabled" type="boolean" label="30611" help="30295">
           <level>1</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="folder_cache_fresh_ttl" type="integer" label="30612" help="35611">
+        <setting id="folder_cache_fresh_ttl" type="integer" label="30612" help="30296">
           <level>2</level>
           <default>12</default>
           <constraints>
@@ -388,7 +388,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="folder_cache_hard_expiry" type="integer" label="30613" help="35612">
+        <setting id="folder_cache_hard_expiry" type="integer" label="30613" help="30297">
           <level>2</level>
           <default>30</default>
           <constraints>
@@ -403,7 +403,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="folder_cache_prewarm_enabled" type="boolean" label="30614" help="35613">
+        <setting id="folder_cache_prewarm_enabled" type="boolean" label="30614" help="30298">
           <level>2</level>
           <default>true</default>
           <dependencies>
@@ -411,7 +411,7 @@
           </dependencies>
           <control type="toggle"/>
         </setting>
-        <setting id="folder_cache_prewarm_max_folders" type="integer" label="30615" help="35614">
+        <setting id="folder_cache_prewarm_max_folders" type="integer" label="30615" help="30614">
           <level>2</level>
           <default>10</default>
           <constraints>
@@ -427,7 +427,7 @@
             <popup>false</popup>
           </control>
         </setting>
-        <setting id="folder_cache_debug_logging" type="boolean" label="30616" help="35615">
+        <setting id="folder_cache_debug_logging" type="boolean" label="30616" help="30615">
           <level>3</level>
           <default>false</default>
           <dependencies>
@@ -435,7 +435,7 @@
           </dependencies>
           <control type="toggle"/>
         </setting>
-        <setting id="folder_cache_clear_action" type="action" label="30617" help="35616">
+        <setting id="folder_cache_clear_action" type="action" label="30617" help="30616">
           <level>1</level>
           <dependencies>
             <dependency type="enable" setting="folder_cache_enabled" operator="is">true</dependency>
@@ -464,7 +464,7 @@
             <heading>30435</heading>
           </control>
         </setting>
-        <setting id="remote_server_url" type="string" label="30411" help="35540">
+        <setting id="remote_server_url" type="string" label="30411" help="30540">
           <level>3</level>
           <default></default>
           <dependencies>
@@ -541,7 +541,7 @@
       </group>
       
       <group id="15" label="30420">
-        <setting id="device_name" type="string" label="30412" help="35541">
+        <setting id="device_name" type="string" label="30412" help="30541">
           <level>3</level>
           <default>Kodi</default>
           <dependencies>
@@ -554,7 +554,7 @@
             <heading>30412</heading>
           </control>
         </setting>
-        <setting id="background_interval_minutes" type="integer" label="30451" help="35543">
+        <setting id="background_interval_minutes" type="integer" label="30451" help="30543">
           <level>3</level>
           <default>5</default>
           <dependencies>
@@ -568,7 +568,7 @@
             <heading>30451</heading>
           </control>
         </setting>
-        <setting id="background_token_refresh" type="boolean" label="32086" help="35544">
+        <setting id="background_token_refresh" type="boolean" label="32086" help="30544">
           <level>3</level>
           <default>true</default>
           <dependencies>
@@ -582,7 +582,7 @@
     <!-- UI SETTINGS (Level 0) - Interface customization -->
     <category id="ui" label="30020" help="">
       <group id="16" label="30020">
-        <setting id="enable_colorized_labels" type="boolean" label="30180" help="35020">
+        <setting id="enable_colorized_labels" type="boolean" label="30180" help="30158">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
@@ -591,56 +591,56 @@
     </category>
 
     <!-- SEARCH SETTINGS (Level 0) - Search panel configuration -->
-    <category id="search" label="36200" help="">
-      <group id="21" label="36200">
-        <setting id="use_custom_search_panel" type="boolean" label="36220" help="36240">
+    <category id="search" label="30370" help="">
+      <group id="21" label="30370">
+        <setting id="use_custom_search_panel" type="boolean" label="30390" help="30400">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="default_content_type" type="integer" label="36221" help="36241">
+        <setting id="default_content_type" type="integer" label="30391" help="30401">
           <level>0</level>
           <default>0</default>
           <constraints>
             <options>
-              <option label="36202">0</option>
-              <option label="36203">1</option>
-              <option label="36204">2</option>
+              <option label="30372">0</option>
+              <option label="30373">1</option>
+              <option label="30374">2</option>
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>36221</heading>
+            <heading>30391</heading>
           </control>
         </setting>
-        <setting id="default_fields" type="integer" label="36222" help="36242">
+        <setting id="default_fields" type="integer" label="30392" help="30402">
           <level>0</level>
           <default>2</default>
           <constraints>
             <options>
-              <option label="36206">0</option>
-              <option label="36207">1</option>
-              <option label="36225">2</option>
+              <option label="30376">0</option>
+              <option label="30377">1</option>
+              <option label="30395">2</option>
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>36222</heading>
+            <heading>30392</heading>
           </control>
         </setting>
-        <setting id="default_match_mode" type="integer" label="36223" help="36243">
+        <setting id="default_match_mode" type="integer" label="30393" help="30403">
           <level>0</level>
           <default>0</default>
           <constraints>
             <options>
-              <option label="36209">0</option>
-              <option label="36210">1</option>
-              <option label="36211">2</option>
+              <option label="30379">0</option>
+              <option label="30380">1</option>
+              <option label="30381">2</option>
             </options>
           </constraints>
           <control type="list" format="integer">
-            <heading>36223</heading>
+            <heading>30393</heading>
           </control>
         </setting>
-        <setting id="remember_last_values" type="boolean" label="36224" help="36244">
+        <setting id="remember_last_values" type="boolean" label="30394" help="30404">
           <level>0</level>
           <default>true</default>
           <control type="toggle"/>
