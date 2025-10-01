@@ -201,6 +201,47 @@ def _serve_from_cache_ultra_fast(action, params=None):
         log_error(f"Ultra-fast cache serving failed: {e}")
         return False
 
+def _get_simple_resource_art(item_type):
+    """
+    Get resource artwork for folders/lists without requiring full renderer.
+    Simple implementation for ultra-fast rendering.
+    
+    Args:
+        item_type: 'folder' or 'list'
+        
+    Returns:
+        Dict of art paths or empty dict
+    """
+    try:
+        import os
+        addon = xbmcaddon.Addon()
+        addon_path = addon.getAddonInfo('path')
+        resources_dir = os.path.join(addon_path, 'resources')
+        
+        # Map type to resource files
+        if item_type == 'folder':
+            icon_file = 'list_folder_icon.png'
+            thumb_file = 'list_folder.jpg'
+        elif item_type == 'list':
+            icon_file = 'list_playlist_icon.png'
+            thumb_file = 'list_playlist.jpg'
+        else:
+            return {}
+        
+        icon_path = os.path.join(resources_dir, icon_file)
+        thumb_path = os.path.join(resources_dir, thumb_file)
+        
+        art = {}
+        if os.path.exists(icon_path):
+            art['icon'] = icon_path
+        if os.path.exists(thumb_path):
+            art['thumb'] = thumb_path
+            art['poster'] = thumb_path
+        
+        return art
+    except Exception:
+        return {}
+
 def _render_cached_items_direct(cached_data, addon_handle):
     """Render cached processed items directly to Kodi without full plugin infrastructure"""
     try:
@@ -215,9 +256,51 @@ def _render_cached_items_direct(cached_data, addon_handle):
             if item_data.get('description'):
                 listitem.setInfo('video', {'plot': item_data['description']})
             
-            # Set art/icon if available
-            if item_data.get('icon'):
-                listitem.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
+            # Apply comprehensive artwork from art_data if available
+            art_applied = False
+            art_data = item_data.get('art_data')
+            if art_data:
+                try:
+                    import json
+                    # Parse if it's a JSON string
+                    if isinstance(art_data, str):
+                        try:
+                            art_data = json.loads(art_data)
+                        except (json.JSONDecodeError, ValueError) as e:
+                            log_error(f"Failed to parse art_data JSON: {e}")
+                            art_data = None
+                    
+                    # Apply the art dictionary if valid
+                    if art_data and isinstance(art_data, dict):
+                        listitem.setArt(art_data)
+                        art_applied = True
+                except Exception as e:
+                    log_error(f"Failed to apply art_data: {e}")
+            
+            # Fallback: compute resource art based on item type
+            if not art_applied:
+                # Determine item type from URL
+                url = item_data.get('url', '')
+                if 'action=show_folder' in url:
+                    resource_art = _get_simple_resource_art('folder')
+                elif 'action=show_list' in url:
+                    resource_art = _get_simple_resource_art('list')
+                else:
+                    resource_art = {}
+                
+                # Apply resource art if found
+                if resource_art:
+                    listitem.setArt(resource_art)
+                    art_applied = True
+                # Use icon field if available
+                elif item_data.get('icon'):
+                    listitem.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
+                    art_applied = True
+            
+            # Ultimate fallback if still no art
+            if not art_applied:
+                default_icon = 'DefaultFolder.png' if item_data.get('is_folder') else 'DefaultVideo.png'
+                listitem.setArt({'icon': default_icon, 'thumb': default_icon})
             
             # Add context menu if available
             if item_data.get('context_menu'):
