@@ -377,13 +377,24 @@ class ImportHandler:
         self.logger.debug("  Parent folder ID: %s", parent_folder_id)
         self.logger.debug("  Scan results: %d videos, %d subdirs", len(scan_result['videos']), len(scan_result['subdirs']))
         
+        # Determine where to place content based on whether we have subdirs
+        folder_id_for_content = parent_folder_id
+        
+        # If we have subdirectories, create a folder for this directory to organize content
+        if scan_result['subdirs']:
+            folder_name = os.path.basename(folder_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
+            self.logger.debug("  Has subdirs - creating folder: '%s'", folder_name)
+            folder_id_for_content = self._create_or_get_folder(folder_name, parent_folder_id)
+            self.logger.debug("  Created/found folder ID: %s", folder_id_for_content)
+            results['folders_created'] += 1
+        
         # Create a list for this folder's videos if any
         if scan_result['videos']:
             # Strip trailing slashes to get proper folder name
             folder_name = os.path.basename(folder_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
             self.logger.debug("  Creating list for videos with name: '%s'", folder_name)
-            list_id = self._create_or_get_list(folder_name, parent_folder_id)
-            self.logger.debug("  Created/found list ID: %s", list_id)
+            list_id = self._create_or_get_list(folder_name, folder_id_for_content)
+            self.logger.debug("  Created/found list ID: %s in folder: %s", list_id, folder_id_for_content)
             results['lists_created'] += 1
             
             # Import each video
@@ -422,7 +433,7 @@ class ImportHandler:
                     results['items_imported'] += 1
                     self.logger.debug("    Added to list (total imported: %d)", results['items_imported'])
         
-        # Process subdirectories recursively
+        # Process subdirectories recursively - pass the folder we created (or parent if no folder created)
         for subdir in scan_result['subdirs']:
             if self.cancel_requested:
                 break
@@ -435,11 +446,11 @@ class ImportHandler:
                 subdir_result['subdirs']
             )
             
-            # Recurse based on classification
+            # Recurse based on classification - use folder_id_for_content as parent
             if subdir_classification['type'] == 'tv_show':
                 show_results = self._import_tv_show(
                     subdir, subdir_result, subdir_classification,
-                    parent_folder_id, progress_callback
+                    folder_id_for_content, progress_callback
                 )
                 results['folders_created'] += show_results.get('folders_created', 0)
                 results['lists_created'] += show_results.get('lists_created', 0)
@@ -447,7 +458,7 @@ class ImportHandler:
             else:
                 mixed_results = self._import_mixed_content(
                     subdir, subdir_result, subdir_classification,
-                    parent_folder_id, progress_callback
+                    folder_id_for_content, progress_callback
                 )
                 results['folders_created'] += mixed_results.get('folders_created', 0)
                 results['lists_created'] += mixed_results.get('lists_created', 0)
