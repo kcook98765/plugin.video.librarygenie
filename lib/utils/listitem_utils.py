@@ -558,7 +558,8 @@ class ListItemArtManager:
     def apply_type_specific_art(self, list_item: xbmcgui.ListItem, item_type: str, 
                                resource_path_func: Optional[Callable[[str], str]] = None) -> bool:
         """
-        Apply type-specific artwork (list, folder, etc.) with resource path support.
+        Apply type-specific artwork (list, folder, etc.) with comprehensive resource fallbacks.
+        Uses dimensions and filename patterns to select best available resource artwork.
         
         Args:
             list_item: The ListItem to apply art to
@@ -569,46 +570,180 @@ class ListItemArtManager:
             bool: True if art was applied successfully
         """
         try:
-            art_mapping = {
-                'list': {
-                    'icon_name': 'list_playlist_icon.png',
-                    'thumb_name': 'list_playlist.jpg',
-                    'fallback': 'DefaultPlaylist.png'
-                },
-                'folder': {
-                    'icon_name': 'list_folder_icon.png', 
-                    'thumb_name': 'list_folder.jpg',
-                    'fallback': 'DefaultFolder.png'
-                }
+            # Define default fallbacks
+            default_fallbacks = {
+                'list': 'DefaultPlaylist.png',
+                'folder': 'DefaultFolder.png'
             }
             
-            if item_type not in art_mapping:
+            if item_type not in default_fallbacks:
                 return self._apply_fallback_art(list_item, 'DefaultFolder.png')
             
-            art_config = art_mapping[item_type]
+            # If no resource_path_func, use default fallback
+            if not resource_path_func:
+                return self._apply_fallback_art(list_item, default_fallbacks[item_type])
             
-            if resource_path_func:
-                try:
-                    icon = resource_path_func(art_config['icon_name'])
-                    thumb = resource_path_func(art_config['thumb_name'])
-                    
-                    list_item.setArt({
-                        'icon': icon,
-                        'thumb': thumb
-                    })
-                    self.logger.debug("ART: Applied resource art for %s type", item_type)
-                    return True
-                    
-                except Exception as e:
-                    self.logger.warning("ART: Resource art failed for %s: %s", item_type, e)
-                    # Fall through to fallback
+            # Build comprehensive art dict from resources
+            art_dict = self._build_resource_art_dict(item_type, resource_path_func)
             
-            # Use fallback art
-            return self._apply_fallback_art(list_item, art_config['fallback'])
+            if art_dict:
+                list_item.setArt(art_dict)
+                self.logger.debug("ART: Applied comprehensive resource art for %s with %d art types", 
+                                item_type, len(art_dict))
+                return True
+            else:
+                # No resources found, use default fallback
+                return self._apply_fallback_art(list_item, default_fallbacks[item_type])
             
         except Exception as e:
             self.logger.error("ART: Failed to apply type-specific art for %s: %s", item_type, e)
             return self._apply_fallback_art(list_item, 'DefaultFolder.png')
+    
+    def _build_resource_art_dict(self, item_type: str, resource_path_func: Callable[[str], str]) -> Dict[str, str]:
+        """
+        Build comprehensive artwork dictionary from resource files based on type and dimensions.
+        
+        Args:
+            item_type: Type of item ('list', 'folder', etc.)
+            resource_path_func: Function to get resource paths
+            
+        Returns:
+            Dictionary mapping art types to resource paths
+        """
+        import os
+        
+        # Try to import PIL for dimension checking, but continue without it if not available
+        try:
+            from PIL import Image
+            has_pil = True
+        except ImportError:
+            has_pil = False
+            self.logger.debug("PIL not available, using filename-only art detection")
+        
+        art_dict = {}
+        
+        try:
+            # Define filename patterns for each item type
+            type_patterns = {
+                'folder': ['folder', 'list_folder'],
+                'list': ['playlist', 'list_playlist']
+            }
+            
+            patterns = type_patterns.get(item_type, [])
+            if not patterns:
+                return art_dict
+            
+            # Get all available resource files
+            available_files = [
+                'banner.jpg', 'clearart.jpg', 'clearlogo.png', 'fanart.jpg', 
+                'icon.jpg', 'landscape.jpg', 'thumb.jpg',
+                'list_folder.jpg', 'list_folder_icon.png',
+                'list_playlist.jpg', 'list_playlist_icon.png'
+            ]
+            
+            # Filter files matching the item type patterns
+            matching_files = []
+            for filename in available_files:
+                name_lower = filename.lower()
+                if any(pattern in name_lower for pattern in patterns):
+                    try:
+                        file_path = resource_path_func(filename)
+                        if os.path.exists(file_path):
+                            matching_files.append((filename, file_path))
+                    except:
+                        pass
+            
+            # Also check generic resource files for fallback art types
+            generic_files = ['banner.jpg', 'clearart.jpg', 'clearlogo.png', 
+                           'fanart.jpg', 'landscape.jpg', 'thumb.jpg', 'icon.jpg']
+            
+            for filename in generic_files:
+                try:
+                    file_path = resource_path_func(filename)
+                    if os.path.exists(file_path):
+                        matching_files.append((filename, file_path))
+                except:
+                    pass
+            
+            # Build art dictionary based on filenames and dimensions
+            for filename, file_path in matching_files:
+                name_lower = filename.lower()
+                
+                # Determine art type based on filename
+                if 'icon' in name_lower or name_lower == 'icon.jpg':
+                    art_dict['icon'] = file_path
+                elif 'banner' in name_lower:
+                    art_dict['banner'] = file_path
+                elif 'clearlogo' in name_lower or 'logo' in name_lower:
+                    art_dict['clearlogo'] = file_path
+                elif 'clearart' in name_lower:
+                    art_dict['clearart'] = file_path
+                elif 'fanart' in name_lower:
+                    art_dict['fanart'] = file_path
+                elif 'landscape' in name_lower:
+                    art_dict['landscape'] = file_path
+                elif 'thumb' in name_lower:
+                    art_dict['thumb'] = file_path
+                elif any(pattern in name_lower for pattern in patterns):
+                    # Type-specific file - use dimensions to determine usage (if PIL available)
+                    if has_pil:
+                        try:
+                            with Image.open(file_path) as img:
+                                width, height = img.size
+                                aspect_ratio = width / height if height > 0 else 1.0
+                                
+                                # Decide based on dimensions
+                                if width <= 256 or height <= 256:
+                                    # Small image - use as icon
+                                    if 'icon' not in art_dict:
+                                        art_dict['icon'] = file_path
+                                elif aspect_ratio > 1.5:
+                                    # Wide image - use as fanart/landscape
+                                    if 'fanart' not in art_dict:
+                                        art_dict['fanart'] = file_path
+                                    if 'landscape' not in art_dict:
+                                        art_dict['landscape'] = file_path
+                                else:
+                                    # Portrait/square - use as poster/thumb
+                                    if 'poster' not in art_dict:
+                                        art_dict['poster'] = file_path
+                                    if 'thumb' not in art_dict:
+                                        art_dict['thumb'] = file_path
+                        except Exception as e:
+                            self.logger.debug("Could not read dimensions for %s: %s", filename, e)
+                            # Fallback to thumb if no dimension check possible
+                            if 'thumb' not in art_dict:
+                                art_dict['thumb'] = file_path
+                    else:
+                        # No PIL - use filename heuristics
+                        # .png files are typically icons, .jpg files are typically poster/thumb
+                        if filename.endswith('.png'):
+                            if 'icon' not in art_dict:
+                                art_dict['icon'] = file_path
+                        else:
+                            if 'poster' not in art_dict:
+                                art_dict['poster'] = file_path
+                            if 'thumb' not in art_dict:
+                                art_dict['thumb'] = file_path
+            
+            # Ensure minimum required art types
+            if art_dict:
+                # If we have poster but no thumb, use poster
+                if 'poster' in art_dict and 'thumb' not in art_dict:
+                    art_dict['thumb'] = art_dict['poster']
+                # If we have thumb but no icon, use thumb
+                if 'thumb' in art_dict and 'icon' not in art_dict:
+                    art_dict['icon'] = art_dict['thumb']
+                # If we only have icon, also use it for thumb
+                if 'icon' in art_dict and 'thumb' not in art_dict:
+                    art_dict['thumb'] = art_dict['icon']
+                    
+            self.logger.debug("Built resource art dict for %s: %s", item_type, list(art_dict.keys()))
+            return art_dict
+            
+        except Exception as e:
+            self.logger.error("Failed to build resource art dict: %s", e)
+            return {}
 
 class ContextMenuBuilder:
     """Unified context menu builder for consistent menu creation"""
