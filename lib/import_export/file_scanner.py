@@ -140,13 +140,9 @@ class FileScanner:
                     # Check if folder should be ignored
                     if entry_name not in IGNORE_FOLDERS:
                         result['subdirs'].append(str(entry))
-                        if recursive:
-                            # Recursively scan subdirectory and merge results
-                            subdir_result = self._scan_local_directory(str(entry), recursive=True)
-                            result['videos'].extend(subdir_result['videos'])
-                            result['nfos'].extend(subdir_result['nfos'])
-                            result['art'].extend(subdir_result['art'])
-                            result['subdirs'].extend(subdir_result['subdirs'])
+                        # NOTE: When recursive=True, we still return subdirs for the caller to process
+                        # We do NOT merge subdir contents here to avoid duplicates
+                        # The import handler will recursively process subdirectories separately
             
         except Exception as e:
             self.logger.error("Error scanning local directory %s: %s", path_str, e)
@@ -253,13 +249,9 @@ class FileScanner:
                 elif file_type == 'directory':
                     if file_label.lower() not in IGNORE_FOLDERS:
                         result['subdirs'].append(file_path)
-                        if recursive:
-                            # Recursively scan subdirectory and merge results
-                            subdir_result = self._scan_vfs_directory(file_path, recursive=True)
-                            result['videos'].extend(subdir_result['videos'])
-                            result['nfos'].extend(subdir_result['nfos'])
-                            result['art'].extend(subdir_result['art'])
-                            result['subdirs'].extend(subdir_result['subdirs'])
+                        # NOTE: When recursive=True, we still return subdirs for the caller to process
+                        # We do NOT merge subdir contents here to avoid duplicates
+                        # The import handler will recursively process subdirectories separately
             
         except Exception as e:
             self.logger.error("Error scanning VFS directory %s: %s", url, e)
