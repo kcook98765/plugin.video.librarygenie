@@ -116,6 +116,101 @@ class Router:
             from lib.ui.nav import push
             push(next_route)
 
+    def _handle_refresh_import(self, context: PluginContext, folder_id: str):
+        """Handle refresh import action"""
+        try:
+            # Get folder info to retrieve import_source_id
+            folder_info = context.query_manager.get_folder_info(int(folder_id))
+            if not folder_info:
+                self.dialog_service.ok("Error", "Folder not found.")
+                return
+            
+            import_source_id = folder_info.get('import_source_id')
+            if not import_source_id:
+                self.dialog_service.ok("Error", "This folder is not from an import.")
+                return
+            
+            # Get import source record to retrieve source_url
+            conn = context.query_manager.connection_manager.get_connection()
+            import_source = conn.execute(
+                "SELECT source_url, folder_id FROM import_sources WHERE id = ?",
+                (import_source_id,)
+            ).fetchone()
+            
+            if not import_source:
+                self.dialog_service.ok("Error", "Import source not found.")
+                return
+            
+            source_url = import_source['source_url']
+            root_folder_id = import_source['folder_id']
+            folder_name = folder_info.get('name')
+            
+            # Show confirmation dialog
+            if not self.dialog_service.yesno(
+                "Refresh Import",
+                f"Refresh content from:[CR]{source_url}[CR][CR]This will delete all imported content and re-scan the source."
+            ):
+                return
+            
+            # Show progress dialog
+            progress = xbmcgui.DialogProgressBG()
+            progress.create("Refreshing Import", "Preparing...")
+            
+            try:
+                # Delete the import source (cascade deletes all locked content)
+                progress.update(20, "Removing old content...")
+                conn.execute("DELETE FROM import_sources WHERE id = ?", (import_source_id,))
+                conn.commit()
+                
+                # Re-run the import
+                progress.update(40, "Re-scanning source...")
+                from lib.import_export.import_handler import ImportHandler
+                import_handler = ImportHandler(context.query_manager.connection_manager)
+                
+                def update_progress(message):
+                    progress.update(60, message)
+                
+                # This should always be the root wrapper folder
+                # Get its parent and name for re-import
+                parent_folder_id = folder_info.get('parent_id')
+                root_name = folder_name
+                
+                result = import_handler.import_from_source(
+                    source_url,
+                    target_folder_id=parent_folder_id,
+                    progress_callback=update_progress,
+                    root_folder_name=root_name
+                )
+                
+                progress.update(100, "Complete")
+                progress.close()
+                
+                # Show result
+                if result.get('success'):
+                    self.dialog_service.ok(
+                        "Import Refreshed",
+                        f"Successfully refreshed:[CR]" +
+                        f"Folders: {result.get('folders_created', 0)}[CR]" +
+                        f"Lists: {result.get('lists_created', 0)}[CR]" +
+                        f"Items: {result.get('items_imported', 0)}"
+                    )
+                    # Refresh the view
+                    import xbmc
+                    xbmc.executebuiltin('Container.Refresh')
+                else:
+                    errors = result.get('errors', [])
+                    error_msg = errors[0] if errors else "Unknown error"
+                    self.dialog_service.ok("Import Failed", f"Error: {error_msg}")
+            
+            except Exception as e:
+                progress.close()
+                self.logger.error("Error during refresh import: %s", e)
+                self.dialog_service.ok("Error", f"Failed to refresh import: {str(e)}")
+        
+        except Exception as e:
+            self.logger.error("Error in _handle_refresh_import: %s", e)
+            self.dialog_service.ok("Error", f"Failed to refresh import: {str(e)}")
+
     def dispatch(self, context: PluginContext) -> bool:
         """
         Dispatch request to appropriate handler based on context
@@ -483,6 +578,17 @@ class Router:
                     return bool(success) if success is not None else True
                 else:
                     self.logger.error("Missing folder_id parameter for move_folder")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'refresh_import':
+                folder_id = params.get('folder_id')
+                if folder_id:
+                    # Handle refresh import action
+                    self._handle_refresh_import(context, str(folder_id))
+                    return True
+                else:
+                    self.logger.error("Missing folder_id parameter for refresh_import")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
 

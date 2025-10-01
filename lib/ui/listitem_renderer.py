@@ -293,7 +293,27 @@ class ListItemRenderer:
         is_import_locked = folder_data.get('is_import_sourced', 0) == 1
         is_reserved = folder_name == "Search History"
         is_protected = is_import_locked or is_reserved
-        context_items = self.context_menu_builder.build_context_menu(folder_id, 'folder', folder_name, is_protected)
+        
+        # Only show refresh option if this is the ROOT folder of an import
+        # (i.e., import_source.folder_id points to this folder)
+        import_source_id = folder_data.get('import_source_id')
+        show_refresh = False
+        if import_source_id and self.query_manager:
+            try:
+                conn = self.query_manager.connection_manager.get_connection()
+                import_source = conn.execute(
+                    "SELECT folder_id FROM import_sources WHERE id = ?",
+                    (import_source_id,)
+                ).fetchone()
+                if import_source and str(import_source['folder_id']) == str(folder_id):
+                    show_refresh = True
+            except Exception as e:
+                self.logger.warning("Failed to check if folder is import root: %s", e)
+        
+        context_items = self.context_menu_builder.build_context_menu(
+            folder_id, 'folder', folder_name, is_protected, 
+            import_source_id if show_refresh else None
+        )
         list_item.addContextMenuItems(context_items)
 
     def create_simple_listitem(self, title: str, description: Optional[str] = None, action: Optional[str] = None, icon: Optional[str] = None) -> xbmcgui.ListItem:
