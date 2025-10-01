@@ -789,7 +789,7 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
         dialog = xbmcgui.Dialog()
         
         # Show welcome/explanation dialog
-        dialog.ok(L(30540), L(30541))  # Welcome title and detailed explanation
+        dialog.ok(L(30591), L(30592))  # Welcome title and detailed explanation
         
         # Show fresh install setup dialog with enhanced options
         # Create setup options with enhanced descriptions
