@@ -31,17 +31,54 @@ class NFOParser:
         """
         try:
             self.logger.debug("=== PARSING NFO FILE: %s ===", nfo_path)
-            with open(nfo_path, 'r', encoding='utf-8') as f:
+            # Read with utf-8-sig to automatically strip BOM if present
+            with open(nfo_path, 'r', encoding='utf-8-sig') as f:
                 content = f.read()
             
             # Log raw NFO content for debugging
             self.logger.debug("RAW NFO CONTENT (%d chars):\n%s", len(content), content)
             
             # Parse with force_list for keys that can be 1..n items
-            nfo_data = xmltodict.parse(
-                content,
-                force_list=('genre', 'actor', 'episodedetails', 'director', 'writer', 'studio', 'tag')
-            )
+            try:
+                nfo_data = xmltodict.parse(
+                    content,
+                    force_list=('genre', 'actor', 'episodedetails', 'director', 'writer', 'studio', 'tag')
+                )
+            except Exception as parse_error:
+                # Check if error is due to multiple root elements (multi-episode without wrapper)
+                if "junk after document element" in str(parse_error):
+                    self.logger.debug("Detected multiple root elements, wrapping with multiepisodenfo")
+                    
+                    # Extract XML declaration (optional) to prepend to wrapped content
+                    xml_declaration = ''
+                    xml_decl_match = re.match(r'^\s*(<\?xml[^?]*\?>)\s*', content, re.IGNORECASE)
+                    if xml_decl_match:
+                        xml_declaration = xml_decl_match.group(1) + '\n'
+                    
+                    # Find all episodedetails blocks (this strips all prolog content: comments, DOCTYPE, etc.)
+                    # Match everything between <episodedetails> and </episodedetails> tags
+                    episode_pattern = r'(<episodedetails>.*?</episodedetails>)'
+                    episodes = re.findall(episode_pattern, content, re.DOTALL | re.IGNORECASE)
+                    
+                    if not episodes:
+                        self.logger.error("No episodedetails blocks found in multi-root NFO")
+                        raise
+                    
+                    self.logger.debug("Found %d episodedetails blocks", len(episodes))
+                    
+                    # Join all episodes and wrap with multiepisodenfo
+                    episodes_content = '\n'.join(episodes)
+                    wrapped_content = xml_declaration + '<multiepisodenfo>\n' + episodes_content + '\n</multiepisodenfo>'
+                    
+                    self.logger.debug("Wrapped content for re-parsing (%d chars)", len(wrapped_content))
+                    nfo_data = xmltodict.parse(
+                        wrapped_content,
+                        force_list=('genre', 'actor', 'episodedetails', 'director', 'writer', 'studio', 'tag')
+                    )
+                    self.logger.debug("Successfully parsed wrapped multi-episode NFO with %d episodes", len(episodes))
+                else:
+                    # Re-raise if it's a different error
+                    raise
             
             self.logger.debug("Parsed NFO root keys: %s", list(nfo_data.keys()) if nfo_data else "None")
             
