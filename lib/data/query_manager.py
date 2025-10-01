@@ -684,6 +684,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT l.id, l.name, l.folder_id, l.created_at,
+                       l.is_import_sourced, l.import_source_id,
                        f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
@@ -698,7 +699,9 @@ class QueryManager:
                     "description": folder_context.lstrip(' ') if folder_context else '',
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['created_at'][:10] if result['created_at'] else '',
-                    "folder_name": result['folder_name']
+                    "folder_name": result['folder_name'],
+                    "is_import_sourced": result.get('is_import_sourced', 0),
+                    "import_source_id": result.get('import_source_id')
                 }
             return None
 
@@ -711,6 +714,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT l.id, l.name, l.folder_id, l.created_at,
+                       l.is_import_sourced, l.import_source_id,
                        f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
@@ -725,7 +729,9 @@ class QueryManager:
                     "description": folder_context.lstrip(' ') if folder_context else '',
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['created_at'][:10] if result['created_at'] else '',
-                    "folder_name": result['folder_name']
+                    "folder_name": result['folder_name'],
+                    "is_import_sourced": result.get('is_import_sourced', 0),
+                    "import_source_id": result.get('import_source_id')
                 }
             return None
 
@@ -1922,7 +1928,8 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT 
-                    f.id, f.name, f.parent_id, f.created_at, f.art_data
+                    f.id, f.name, f.parent_id, f.created_at, f.art_data,
+                    f.is_import_sourced, f.import_source_id
                 FROM folders f
                 WHERE f.id = ?
             """, [int(folder_id)])
@@ -1933,7 +1940,9 @@ class QueryManager:
                     "name": result['name'],
                     "parent_id": result['parent_id'],
                     "created": result['created_at'][:10] if result['created_at'] else '',
-                    "art_data": result['art_data']
+                    "art_data": result['art_data'],
+                    "is_import_sourced": result.get('is_import_sourced', 0),
+                    "import_source_id": result.get('import_source_id')
                 }
 
             return None
@@ -1949,7 +1958,8 @@ class QueryManager:
                 # Get top-level folders
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at, f.art_data
+                        f.id, f.name, f.created_at, f.art_data,
+                        f.is_import_sourced, f.import_source_id
                     FROM folders f
                     WHERE f.parent_id IS NULL
                     ORDER BY 
@@ -1960,7 +1970,8 @@ class QueryManager:
                 # Get subfolders of specified parent
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at, f.art_data
+                        f.id, f.name, f.created_at, f.art_data,
+                        f.is_import_sourced, f.import_source_id
                     FROM folders f
                     WHERE f.parent_id = ?
                     ORDER BY f.name
@@ -1972,7 +1983,9 @@ class QueryManager:
                     "id": str(row['id']),
                     "name": row['name'],
                     "created": row['created_at'][:10] if row['created_at'] else '',
-                    "art_data": row['art_data']
+                    "art_data": row['art_data'],
+                    "is_import_sourced": row.get('is_import_sourced', 0),
+                    "import_source_id": row.get('import_source_id')
                 })
 
             if parent_id is None:
@@ -1995,14 +2008,16 @@ class QueryManager:
                 # For root level: get top-level folders and lists
                 results = self.connection_manager.execute_query("""
                     -- Get top-level subfolders (root level has no folder info)
-                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data,
+                           f.is_import_sourced, f.import_source_id
                     FROM folders f 
                     WHERE f.parent_id IS NULL
                     
                     UNION ALL
                     
                     -- Get top-level lists
-                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data,
+                           l.is_import_sourced, l.import_source_id
                     FROM lists l 
                     WHERE l.folder_id IS NULL
                     ORDER BY data_type, name
@@ -2011,21 +2026,24 @@ class QueryManager:
                 # Single batch query to get folder info, subfolders, and lists
                 results = self.connection_manager.execute_query("""
                     -- Get folder info
-                    SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data
+                    SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data,
+                           f.is_import_sourced, f.import_source_id
                     FROM folders f 
                     WHERE f.id = ?
                     
                     UNION ALL
                     
                     -- Get subfolders in this folder
-                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data,
+                           f.is_import_sourced, f.import_source_id
                     FROM folders f 
                     WHERE f.parent_id = ?
                     
                     UNION ALL
                     
                     -- Get lists in this folder
-                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data,
+                           l.is_import_sourced, l.import_source_id
                     FROM lists l 
                     WHERE l.folder_id = ?
                     ORDER BY data_type, name
@@ -2044,14 +2062,18 @@ class QueryManager:
                         "id": str(row['id']),
                         "name": row['name'],
                         "created": row['created_at'][:10] if row['created_at'] else '',
-                        "art_data": row['art_data']
+                        "art_data": row['art_data'],
+                        "is_import_sourced": row.get('is_import_sourced', 0),
+                        "import_source_id": row.get('import_source_id')
                     }
                 elif data_type == 'subfolder':
                     subfolders.append({
                         "id": str(row['id']),
                         "name": row['name'],
                         "created": row['created_at'][:10] if row['created_at'] else '',
-                        "art_data": row['art_data']
+                        "art_data": row['art_data'],
+                        "is_import_sourced": row.get('is_import_sourced', 0),
+                        "import_source_id": row.get('import_source_id')
                     })
                 elif data_type == 'list':
                     lists.append(dict(row))
@@ -2119,7 +2141,8 @@ class QueryManager:
         """Get information about a specific list"""
         try:
             result = self.connection_manager.execute_single("""
-                SELECT l.id, l.name, l.folder_id, l.created_at
+                SELECT l.id, l.name, l.folder_id, l.created_at,
+                       l.is_import_sourced, l.import_source_id
                 FROM lists l
                 WHERE l.id = ?
             """, [list_id])
@@ -2129,7 +2152,9 @@ class QueryManager:
                     'id': result['id'],
                     'name': result['name'],
                     'folder_id': result['folder_id'],
-                    'created_at': result['created_at']
+                    'created_at': result['created_at'],
+                    'is_import_sourced': result.get('is_import_sourced', 0),
+                    'import_source_id': result.get('import_source_id')
                 }
             return None
 
@@ -2141,7 +2166,8 @@ class QueryManager:
         """Get information about a specific folder"""
         try:
             result = self.connection_manager.execute_single("""
-                SELECT f.id, f.name, f.parent_id, f.created_at
+                SELECT f.id, f.name, f.parent_id, f.created_at,
+                       f.is_import_sourced, f.import_source_id
                 FROM folders f
                 WHERE f.id = ?
             """, [folder_id])
@@ -2151,7 +2177,9 @@ class QueryManager:
                     'id': result['id'],
                     'name': result['name'],
                     'parent_id': result['parent_id'],
-                    'created_at': result['created_at']
+                    'created_at': result['created_at'],
+                    'is_import_sourced': result.get('is_import_sourced', 0),
+                    'import_source_id': result.get('import_source_id')
                 }
             return None
 

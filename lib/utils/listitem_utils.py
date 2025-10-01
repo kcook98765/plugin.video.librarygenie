@@ -608,22 +608,29 @@ class ContextMenuBuilder:
             
             # Standard actions based on type
             if item_type == 'list':
+                # Don't add rename/move/delete for protected lists (e.g. import-sourced)
+                if not is_protected:
+                    try:
+                        from lib.ui.localization import L
+                        context_items.extend([
+                            (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
+                            (L(30223).replace('%s', 'List'), f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),  # "Move List to Folder"
+                            (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
+                        ])
+                    except ImportError:
+                        # Fallback if localization not available
+                        context_items.extend([
+                            ("Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),
+                            ("Move to Folder", f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),
+                            ("Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),
+                        ])
+                
+                # Export is always available even for protected lists
                 try:
                     from lib.ui.localization import L
-                    context_items.extend([
-                        (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
-                        (L(30223).replace('%s', 'List'), f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),  # "Move List to Folder"
-                        (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
-                        (L(31022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")   # "Export"
-                    ])
+                    context_items.append((L(31022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))  # "Export"
                 except ImportError:
-                    # Fallback if localization not available
-                    context_items.extend([
-                        ("Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),
-                        ("Move to Folder", f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),
-                        ("Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),
-                        ("Export", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")
-                    ])
+                    context_items.append(("Export", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))
                 
             elif item_type == 'folder':
                 # Don't add rename/delete for protected folders

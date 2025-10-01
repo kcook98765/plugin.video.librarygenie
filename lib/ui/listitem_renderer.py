@@ -280,15 +280,19 @@ class ListItemRenderer:
     def _set_list_context_menu(self, list_item: xbmcgui.ListItem, list_data: Dict[str, Any]):
         """Set context menu for list items - CONSOLIDATED"""
         list_id = list_data.get('id', '')
-        context_items = self.context_menu_builder.build_context_menu(list_id, 'list')
+        # Check if list is import-sourced (locked)
+        is_protected = list_data.get('is_import_sourced', 0) == 1
+        context_items = self.context_menu_builder.build_context_menu(list_id, 'list', is_protected=is_protected)
         list_item.addContextMenuItems(context_items)
 
     def _set_folder_context_menu(self, list_item: xbmcgui.ListItem, folder_data: Dict[str, Any]):
         """Set context menu for folder items - CONSOLIDATED"""
         folder_id = folder_data.get('id', '')
         folder_name = folder_data.get('name', '')
-        # Check if this is a protected folder (currently only "Search History")
-        is_protected = folder_name == "Search History"
+        # Check if folder is import-sourced (locked) or is a reserved folder like "Search History"
+        is_import_locked = folder_data.get('is_import_sourced', 0) == 1
+        is_reserved = folder_name == "Search History"
+        is_protected = is_import_locked or is_reserved
         context_items = self.context_menu_builder.build_context_menu(folder_id, 'folder', folder_name, is_protected)
         list_item.addContextMenuItems(context_items)
 
