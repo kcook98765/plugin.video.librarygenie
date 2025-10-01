@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 5
+TARGET_SCHEMA_VERSION = 6
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 5, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 6, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -132,6 +132,7 @@ class MigrationManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             parent_id INTEGER,
+            art_data TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
         );
@@ -395,6 +396,12 @@ class MigrationManager:
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_import_sources_folder_id ON import_sources (folder_id)")
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_import_sources_source_url ON import_sources (source_url)")
                 self.logger.info("import_sources table created successfully")
+            
+            # Migration from version 5 to 6: Add art_data column to folders table
+            if current_version < 6:
+                self.logger.info("Migrating from version 5 to 6: Adding art_data column to folders table")
+                conn.execute("ALTER TABLE folders ADD COLUMN art_data TEXT")
+                self.logger.info("art_data column added to folders table successfully")
             
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
