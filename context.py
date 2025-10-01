@@ -182,7 +182,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             # Only exclude Kodi library paths - allow everything else
             # Import handler will validate if it can handle the path
             if not folder_path.startswith('library://'):
-                options.append("🎬 LG Import File Media")
+                options.append("LG Import File Structure and Media")
                 actions.append(f"import_file_media&source_url={urllib.parse.quote(folder_path)}")
     
     is_playable_item = (
