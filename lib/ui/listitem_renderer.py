@@ -222,10 +222,18 @@ class ListItemRenderer:
         """Build ListItem for a user list"""
         try:
             name = list_data.get('name', 'Unnamed List')
-            list_item = xbmcgui.ListItem(label=name, offscreen=True)
+            is_locked = list_data.get('is_import_sourced', 0) == 1
+            
+            # Add [L] prefix if locked
+            display_name = f"[L] {name}" if is_locked else name
+            list_item = xbmcgui.ListItem(label=display_name, offscreen=True)
+
+            # Set label2 for skins that support it
+            if is_locked:
+                list_item.setLabel2("Imported")
 
             # Set basic info - CONSOLIDATED
-            self.metadata_manager.set_basic_metadata(list_item, name, f"User list: {name}", "list")
+            self.metadata_manager.set_basic_metadata(list_item, display_name, f"User list: {name}", "list")
 
             # Set list playlist icon
             self._apply_art(list_item, 'list')
@@ -243,10 +251,18 @@ class ListItemRenderer:
         """Build ListItem for a folder"""
         try:
             name = folder_data.get('name', 'Unnamed Folder')
-            list_item = xbmcgui.ListItem(label=name, offscreen=True)
+            is_locked = folder_data.get('is_import_sourced', 0) == 1
+            
+            # Add [L] prefix if locked
+            display_name = f"[L] {name}" if is_locked else name
+            list_item = xbmcgui.ListItem(label=display_name, offscreen=True)
+
+            # Set label2 for skins that support it
+            if is_locked:
+                list_item.setLabel2("Imported")
 
             # Set basic info - CONSOLIDATED
-            self.metadata_manager.set_basic_metadata(list_item, name, f"Folder: {name}", "folder")
+            self.metadata_manager.set_basic_metadata(list_item, display_name, f"Folder: {name}", "folder")
 
             # Apply artwork - custom art_data if available, otherwise default folder icon
             art_data = folder_data.get('art_data')
