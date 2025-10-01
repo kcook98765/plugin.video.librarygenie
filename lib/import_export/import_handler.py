@@ -67,6 +67,13 @@ class ImportHandler:
             
             scan_result = self.scanner.scan_directory(source_url, recursive=True)
             
+            self.logger.debug("=== IMPORT FROM SOURCE ===")
+            self.logger.debug("  Source URL: %s", source_url)
+            self.logger.debug("  Target folder ID: %s", target_folder_id)
+            self.logger.debug("  Scan results: %d videos, %d NFOs, %d subdirs, %d art files",
+                            len(scan_result['videos']), len(scan_result['nfos']), 
+                            len(scan_result['subdirs']), len(scan_result['art']))
+            
             # Classify the source folder
             classification = self.classifier.classify_folder(
                 source_url,
@@ -75,6 +82,8 @@ class ImportHandler:
                 scan_result['subdirs'],
                 scan_result.get('disc_structure')
             )
+            
+            self.logger.debug("  Classification result: %s", classification)
             
             # Process based on classification
             if classification['type'] == 'tv_show':
@@ -139,18 +148,31 @@ class ImportHandler:
         """Import a TV show with seasons"""
         results = {'folders_created': 0, 'lists_created': 0, 'items_imported': 0}
         
+        self.logger.debug("=== IMPORTING TV SHOW ===")
+        self.logger.debug("  Path: %s", show_path)
+        self.logger.debug("  Classification: %s", classification)
+        self.logger.debug("  Parent folder ID: %s", parent_folder_id)
+        
         # Parse tvshow.nfo if available
         tvshow_nfo_path = self.scanner.find_folder_nfo(show_path, 'tvshow.nfo')
         tvshow_data = None
         if tvshow_nfo_path:
+            self.logger.debug("  Found tvshow.nfo: %s", tvshow_nfo_path)
             tvshow_data = self.nfo_parser.parse_tvshow_nfo(Path(tvshow_nfo_path))
+            self.logger.debug("  Parsed tvshow.nfo data: %s", json.dumps(tvshow_data, indent=2) if tvshow_data else "None")
+        else:
+            self.logger.debug("  No tvshow.nfo found")
         
         # Extract show metadata and art
         show_title = self._get_show_title(tvshow_data, show_path)
+        self.logger.debug("  Show title: %s", show_title)
+        
         show_art = self.art_extractor.extract_show_art(
             scan_result['art'],
             tvshow_data
         )
+        self.logger.debug("  Show artwork extracted: %s", json.dumps(show_art, indent=2) if show_art else "None")
+        self.logger.debug("  Available art files in scan: %s", scan_result['art'])
         
         # Create show folder
         show_folder_id = self._create_or_get_folder(
@@ -158,6 +180,7 @@ class ImportHandler:
             parent_folder_id,
             art_data=show_art
         )
+        self.logger.debug("  Created/found show folder ID: %s", show_folder_id)
         results['folders_created'] += 1
         
         # Process subdirectories (seasons)
@@ -201,42 +224,60 @@ class ImportHandler:
         """Import a TV season"""
         results = {'lists_created': 0, 'items_imported': 0}
         
+        self.logger.debug("=== IMPORTING SEASON ===")
+        self.logger.debug("  Path: %s", season_path)
+        self.logger.debug("  Classification: %s", classification)
+        self.logger.debug("  Parent folder ID: %s", parent_folder_id)
+        
         # Determine season number and name
         season_number = classification.get('season_number', 0)
         season_name = f"Season {season_number}" if season_number else os.path.basename(season_path)
+        self.logger.debug("  Season name: %s (number: %s)", season_name, season_number)
         
         # Create season list
         season_list_id = self._create_or_get_list(season_name, parent_folder_id)
+        self.logger.debug("  Created/found season list ID: %s", season_list_id)
         results['lists_created'] += 1
         
         # Import episode videos
+        self.logger.debug("  Processing %d video files", len(scan_result['videos']))
         for video_path in scan_result['videos']:
             if self.cancel_requested:
                 break
+            
+            self.logger.debug("  --- Processing episode: %s", video_path)
             
             # Find matching NFO
             nfo_path = self.scanner.find_matching_nfo(video_path, scan_result['nfos'])
             episode_data = None
             if nfo_path:
+                self.logger.debug("    Found episode NFO: %s", nfo_path)
                 parsed = self.nfo_parser.parse_episode_nfo(Path(nfo_path))
                 # Episode parser returns a list, take the first episode
                 if isinstance(parsed, list) and parsed:
                     episode_data = parsed[0]
                 elif isinstance(parsed, dict):
                     episode_data = parsed
+                self.logger.debug("    Parsed episode data: %s", json.dumps(episode_data, indent=2) if episode_data else "None")
+            else:
+                self.logger.debug("    No episode NFO found")
             
             # Extract art
             folder_art = self.art_extractor.extract_folder_art(scan_result['art'])
+            self.logger.debug("    Folder art extracted: %s", json.dumps(folder_art, indent=2) if folder_art else "None")
+            
             episode_art = self.art_extractor.extract_art_for_video(
                 video_path,
                 scan_result['art'],
                 episode_data,
                 folder_art
             )
+            self.logger.debug("    Episode art extracted: %s", json.dumps(episode_art, indent=2) if episode_art else "None")
             
             # Merge with show art as fallback
             if show_art:
                 episode_art = self.art_extractor.merge_art(episode_art, show_art)
+                self.logger.debug("    Merged with show art: %s", json.dumps(episode_art, indent=2))
             
             # Create media item
             media_item_id = self._create_episode_item(
@@ -246,11 +287,13 @@ class ImportHandler:
                 tvshow_data,
                 season_number
             )
+            self.logger.debug("    Created episode media item ID: %s", media_item_id)
             
             # Add to season list (avoid duplicates)
             if media_item_id:
                 self._add_item_to_list_if_not_exists(season_list_id, media_item_id)
                 results['items_imported'] += 1
+                self.logger.debug("    Added to season list (total imported: %d)", results['items_imported'])
         
         return results
     
@@ -265,9 +308,15 @@ class ImportHandler:
         """Import a single video (movie or standalone)"""
         results = {'items_imported': 0}
         
+        self.logger.debug("=== IMPORTING SINGLE VIDEO ===")
+        self.logger.debug("  Path: %s", video_path)
+        self.logger.debug("  Classification: %s", classification)
+        self.logger.debug("  Parent folder ID: %s", parent_folder_id)
+        
         # Determine actual video path
         if classification.get('is_disc'):
             video_path = classification['disc_info']['path']
+            self.logger.debug("  Disc structure detected, using path: %s", video_path)
         else:
             video_path = classification.get('video_path', scan_result['videos'][0] if scan_result['videos'] else video_path)
         
@@ -279,19 +328,28 @@ class ImportHandler:
         
         movie_data = None
         if nfo_path:
+            self.logger.debug("  Found movie NFO: %s", nfo_path)
             movie_data = self.nfo_parser.parse_movie_nfo(Path(nfo_path))
+            self.logger.debug("  Parsed movie data: %s", json.dumps(movie_data, indent=2) if movie_data else "None")
+        else:
+            self.logger.debug("  No movie NFO found")
         
         # Extract art
         folder_art = self.art_extractor.extract_folder_art(scan_result['art'])
+        self.logger.debug("  Folder art extracted: %s", json.dumps(folder_art, indent=2) if folder_art else "None")
+        
         movie_art = self.art_extractor.extract_art_for_video(
             video_path,
             scan_result['art'],
             movie_data,
             folder_art
         )
+        self.logger.debug("  Movie art extracted: %s", json.dumps(movie_art, indent=2) if movie_art else "None")
+        self.logger.debug("  Available art files in scan: %s", scan_result['art'])
         
         # Create media item
         media_item_id = self._create_movie_item(video_path, movie_data, movie_art)
+        self.logger.debug("  Created movie media item ID: %s", media_item_id)
         
         if media_item_id:
             results['items_imported'] += 1
@@ -309,34 +367,55 @@ class ImportHandler:
         """Import mixed content folder"""
         results = {'folders_created': 0, 'lists_created': 0, 'items_imported': 0}
         
+        self.logger.debug("=== IMPORTING MIXED CONTENT ===")
+        self.logger.debug("  Path: %s", folder_path)
+        self.logger.debug("  Classification: %s", classification)
+        self.logger.debug("  Parent folder ID: %s", parent_folder_id)
+        self.logger.debug("  Scan results: %d videos, %d subdirs", len(scan_result['videos']), len(scan_result['subdirs']))
+        
         # Create a list for this folder's videos if any
         if scan_result['videos']:
             folder_name = os.path.basename(folder_path)
+            self.logger.debug("  Creating list for videos with name: '%s'", folder_name)
             list_id = self._create_or_get_list(folder_name, parent_folder_id)
+            self.logger.debug("  Created/found list ID: %s", list_id)
             results['lists_created'] += 1
             
             # Import each video
+            self.logger.debug("  Processing %d video files in folder", len(scan_result['videos']))
             for video_path in scan_result['videos']:
                 if self.cancel_requested:
                     break
                 
+                self.logger.debug("  --- Processing video: %s", video_path)
+                
                 nfo_path = self.scanner.find_matching_nfo(video_path, scan_result['nfos'])
                 movie_data = None
                 if nfo_path:
+                    self.logger.debug("    Found NFO: %s", nfo_path)
                     movie_data = self.nfo_parser.parse_movie_nfo(Path(nfo_path))
+                    self.logger.debug("    Parsed movie data: %s", json.dumps(movie_data, indent=2) if movie_data else "None")
+                else:
+                    self.logger.debug("    No NFO found")
                 
                 folder_art = self.art_extractor.extract_folder_art(scan_result['art'])
+                self.logger.debug("    Folder art: %s", json.dumps(folder_art, indent=2) if folder_art else "None")
+                
                 movie_art = self.art_extractor.extract_art_for_video(
                     video_path,
                     scan_result['art'],
                     movie_data,
                     folder_art
                 )
+                self.logger.debug("    Video art: %s", json.dumps(movie_art, indent=2) if movie_art else "None")
                 
                 media_item_id = self._create_movie_item(video_path, movie_data, movie_art)
+                self.logger.debug("    Created media item ID: %s", media_item_id)
+                
                 if media_item_id:
                     self._add_item_to_list_if_not_exists(list_id, media_item_id)
                     results['items_imported'] += 1
+                    self.logger.debug("    Added to list (total imported: %d)", results['items_imported'])
         
         # Process subdirectories recursively
         for subdir in scan_result['subdirs']:
@@ -384,6 +463,9 @@ class ImportHandler:
         art_data: Optional[Dict] = None
     ) -> int:
         """Create or get existing folder using QueryManager"""
+        self.logger.debug("_create_or_get_folder called: name='%s', parent_id=%s, has_art=%s",
+                         name, parent_id, bool(art_data))
+        
         # Check if folder exists
         if parent_id is None:
             existing = self.connection_manager.execute_single(
@@ -397,12 +479,15 @@ class ImportHandler:
             )
         
         if existing:
+            self.logger.debug("  Found existing folder ID: %s", existing['id'])
             return existing['id']
         
         # Create new folder using QueryManager
+        self.logger.debug("  Creating new folder...")
         result = self.query_manager.create_folder(name, parent_id)
         
         if result.get('success'):
+            self.logger.debug("  Successfully created folder ID: %s", result['folder_id'])
             return result['folder_id']
         else:
             # Handle error or duplicate (shouldn't happen due to check above)
@@ -411,6 +496,8 @@ class ImportHandler:
     
     def _create_or_get_list(self, name: str, folder_id: Optional[int]) -> int:
         """Create or get existing list using QueryManager"""
+        self.logger.debug("_create_or_get_list called: name='%s', folder_id=%s", name, folder_id)
+        
         # Check if list exists
         if folder_id is None:
             existing = self.connection_manager.execute_single(
@@ -424,12 +511,15 @@ class ImportHandler:
             )
         
         if existing:
+            self.logger.debug("  Found existing list ID: %s", existing['id'])
             return existing['id']
         
         # Create new list using QueryManager
+        self.logger.debug("  Creating new list...")
         result = self.query_manager.create_list(name, folder_id=folder_id)
         
         if 'id' in result:
+            self.logger.debug("  Successfully created list ID: %s", result['id'])
             return int(result['id'])
         else:
             # Handle error or duplicate (shouldn't happen due to check above)
@@ -599,7 +689,7 @@ class ImportHandler:
             (source_url, 'file', folder_id, datetime.now().isoformat())
         )
         conn.commit()
-        return cursor.lastrowid
+        return cursor.lastrowid or 0
     
     def _update_import_source(self, import_source_id: int):
         """Update import source last_scan timestamp"""
