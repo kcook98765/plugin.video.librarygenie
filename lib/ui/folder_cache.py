@@ -318,6 +318,38 @@ class FolderCache:
     def _set_without_lock(self, folder_id: Optional[str], payload: Dict[str, Any], build_time_ms: Optional[int] = None) -> bool:
         """Internal set method that doesn't acquire locks (for use within existing locks)"""
         try:
+            # VALIDATION: Prevent caching empty data that could corrupt the cache
+            # Count items based on payload structure
+            if 'processed_items' in payload:
+                item_count = len(payload.get('processed_items', []))  # V4 processed format
+            elif 'items' in payload:
+                item_count = len(payload.get('items', []))  # Legacy root folder format
+            elif 'lists' in payload:
+                item_count = len(payload.get('lists', []))  # Subfolder format
+            else:
+                item_count = 0
+            
+            # CRITICAL: Don't cache empty data unless it's explicitly an empty folder state
+            # Check if we have folder_info or explicit empty state markers
+            has_folder_info = 'folder_info' in payload
+            has_breadcrumbs = 'breadcrumbs' in payload
+            is_explicit_empty_state = has_folder_info or has_breadcrumbs
+            
+            if item_count == 0 and not is_explicit_empty_state:
+                self.logger.warning(
+                    "CACHE VALIDATION FAILED: Refusing to cache folder %s with 0 items and no folder_info/breadcrumbs. "
+                    "This prevents cache corruption from empty navigation states. Payload keys: %s",
+                    folder_id, list(payload.keys())
+                )
+                return False
+            
+            # Log warning for suspicious empty cache (empty but with folder_info)
+            if item_count == 0 and is_explicit_empty_state:
+                self.logger.info(
+                    "Caching empty folder %s with folder_info/breadcrumbs (legitimate empty state)",
+                    folder_id
+                )
+            
             # Augment payload with cache metadata
             cache_payload = {
                 **payload,
@@ -342,15 +374,6 @@ class FolderCache:
             with self._stats_lock:
                 self._stats['writes'] += 1
             
-            # Count items correctly based on payload structure
-            if 'processed_items' in payload:
-                item_count = len(payload.get('processed_items', []))  # V4 processed format
-            elif 'items' in payload:
-                item_count = len(payload.get('items', []))  # Legacy root folder format
-            elif 'lists' in payload:
-                item_count = len(payload.get('lists', []))  # Subfolder format
-            else:
-                item_count = 0
             self.logger.debug("Cached folder %s - %d items, %d ms build time", 
                             folder_id, item_count, build_time_ms or 0)
             return True
