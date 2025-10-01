@@ -891,6 +891,17 @@ class FolderCache:
     def pre_warm_common_folders(self, max_folders: Optional[int] = None) -> Dict[str, Any]:
         """Pre-warm cache for commonly accessed folders"""
         try:
+            # Check if import is in progress - skip pre-warming to avoid race conditions
+            from lib.utils.sync_lock import is_import_in_progress
+            if is_import_in_progress():
+                self.logger.info("Pre-warming skipped - import in progress")
+                return {
+                    "success": False,
+                    "error": "Import in progress - pre-warming paused",
+                    "folders_attempted": 0,
+                    "folders_success": 0
+                }
+            
             # Check if pre-warming is enabled
             if not self.cache_enabled or not self.prewarm_enabled:
                 self.logger.debug("Pre-warming disabled via configuration")
