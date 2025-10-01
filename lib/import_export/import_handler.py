@@ -166,38 +166,41 @@ class ImportHandler:
             results['errors'].append(str(e))
         
         finally:
-            # Synchronously rebuild cache for imported folder, then clear import-in-progress flag
+            # Synchronously rebuild cache for imported folder hierarchy, then clear import-in-progress flag
             try:
-                # If import succeeded and we have a root folder, synchronously rebuild its cache
+                # If import succeeded and we have a root folder, synchronously rebuild cache hierarchy
                 if results.get('success') and results.get('root_folder_id'):
-                    self.logger.info("Import completed - synchronously rebuilding cache for root folder %s", 
+                    self.logger.info("Import completed - rebuilding cache hierarchy for root folder %s", 
                                    results['root_folder_id'])
                     from lib.ui.folder_cache import FolderCache
                     cache = FolderCache()  # Use default cache directory
                     
-                    # Delete stale cache first
-                    cache.delete(results['root_folder_id'])
+                    # Recursively delete stale caches for the entire folder hierarchy
+                    invalidate_results = cache.invalidate_folder_hierarchy(results['root_folder_id'])
+                    invalidated_count = sum(1 for success in invalidate_results.values() if success and success != "error")
+                    affected_folders = [fid for fid in invalidate_results.keys() if fid != "error"]
+                    self.logger.info("Invalidated %d folders in hierarchy for root folder %s: %s", 
+                                   invalidated_count, results['root_folder_id'], affected_folders)
                     
-                    # Synchronously rebuild cache using pre_warm_folder which:
-                    # - Uses build lock for stampede protection
-                    # - Queries fresh database state
-                    # - Builds processed items
-                    # - Caches the result
-                    rebuild_success = cache.pre_warm_folder(results['root_folder_id'])
+                    # Synchronously rebuild cache for ALL folders in the hierarchy
+                    # This ensures no stale caches remain when user navigates
+                    rebuild_count = 0
+                    for folder_id in affected_folders:
+                        self.logger.debug("Pre-warming folder %s after import", folder_id)
+                        if cache.pre_warm_folder(folder_id):
+                            rebuild_count += 1
+                        else:
+                            self.logger.warning("Failed to pre-warm folder %s - will rebuild on navigation", folder_id)
                     
-                    if rebuild_success:
-                        self.logger.info("Cache successfully rebuilt for root folder %s", 
-                                       results['root_folder_id'])
-                    else:
-                        self.logger.warning("Cache rebuild failed for root folder %s - will rebuild on navigation",
-                                          results['root_folder_id'])
+                    self.logger.info("Successfully rebuilt cache for %d/%d folders in hierarchy", 
+                                   rebuild_count, len(affected_folders))
                 
-                # Clear flag AFTER cache rebuild to prevent pre-warming from racing
+                # Clear flag AFTER cache hierarchy rebuild to prevent pre-warming from racing
                 clear_import_in_progress()
                 self.logger.info("Import-in-progress flag cleared")
                     
             except Exception as e:
-                self.logger.error("Failed to rebuild cache or clear import flag: %s", e)
+                self.logger.error("Failed to rebuild cache hierarchy or clear import flag: %s", e)
                 # Always clear the flag even if cache rebuild failed
                 try:
                     clear_import_in_progress()
