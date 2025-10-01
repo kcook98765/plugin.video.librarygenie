@@ -254,7 +254,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     # Only show for navigable folders/containers
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     if not _is_folder_context(container_path, item_info.get('file_path')):
-        bookmark_label = L(30400)  # "LG Save Bookmark"
+        bookmark_label = L(30394)  # "LG Save Bookmark"
         if not bookmark_label or bookmark_label.startswith('LocMiss_'):
             bookmark_label = "LG Save Bookmark"
         options.append(bookmark_label)
@@ -315,7 +315,7 @@ def _show_search_submenu(addon):
             actions.append("search_ai")
 
         # Search History
-        search_history_label = L(30387)  # "Search History"
+        search_history_label = L(30388)  # "Search History"
         if not search_history_label or search_history_label.startswith('LocMiss_'):
             search_history_label = "Search History"
         options.append(search_history_label)

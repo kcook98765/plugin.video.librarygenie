@@ -1641,6 +1641,10 @@ msgctxt "#30393"
 msgid "[In List: %s]"
 msgstr ""
 
+msgctxt "#30394"
+msgid "LG Save Bookmark"
+msgstr ""
+
 # Remote Services Settings
 msgctxt "#30400"
 msgid "Remote Services"
