@@ -300,6 +300,9 @@ class ListsHandler:
                 cached_breadcrumbs = cached_data.get('breadcrumbs', {})
                 build_time = cached_data.get('_build_time_ms', 0)
                 processed_menu_items = cached_data.get('processed_items', [])
+                # Set to empty lists since we're using cached processed items
+                all_lists = []
+                all_folders = []
                 self.logger.debug("CACHE HIT: %d processed items (built in %d ms) - ZERO DB OVERHEAD", 
                                    len(processed_menu_items), build_time)
             else:
