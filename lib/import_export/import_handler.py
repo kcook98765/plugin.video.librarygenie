@@ -144,7 +144,8 @@ class ImportHandler:
                     scan_result,
                     classification,
                     actual_target_folder_id,
-                    progress_callback
+                    progress_callback,
+                    is_root_import=True  # Flag to prevent duplicate folder creation
                 )
                 results.update(mixed_results)
             
@@ -389,7 +390,8 @@ class ImportHandler:
         scan_result: Dict,
         classification: Dict,
         parent_folder_id: Optional[int],
-        progress_callback: Optional[Callable]
+        progress_callback: Optional[Callable],
+        is_root_import: bool = False
     ) -> Dict[str, int]:
         """Import mixed content folder"""
         results = {'folders_created': 0, 'lists_created': 0, 'items_imported': 0}
@@ -408,12 +410,16 @@ class ImportHandler:
         has_videos = len(scan_result['videos']) > 0
         has_subdirs = len(scan_result['subdirs']) > 0
         
-        # If we have subdirectories, always create a folder for organization
-        if has_subdirs:
+        # If we have subdirectories, create a folder for organization
+        # BUT skip this if it's the root import and we already have a wrapper folder
+        if has_subdirs and not is_root_import:
             self.logger.debug("  Has subdirs - creating folder: '%s'", folder_name)
             folder_id_for_content = self._create_or_get_folder(folder_name, parent_folder_id, mark_as_import=True)
             self.logger.debug("  Created/found folder ID: %s", folder_id_for_content)
             results['folders_created'] += 1
+        elif is_root_import:
+            self.logger.debug("  Root import - using wrapper folder directly (no duplicate)")
+            folder_id_for_content = parent_folder_id
         
         # Only create a list if we have videos DIRECTLY in this folder
         # (Scanner no longer merges subdir videos, so this is accurate)
