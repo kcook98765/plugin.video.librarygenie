@@ -413,9 +413,16 @@ class Router:
                                 # Check if import actually succeeded
                                 if results.get('success'):
                                     succeeded = True
-                                    # Navigate to plugin root to show imported content
+                                    # Navigate directly to the imported root folder
                                     import xbmc
-                                    xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.librarygenie/,return)')
+                                    root_folder_id = results.get('root_folder_id')
+                                    if root_folder_id:
+                                        folder_url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={root_folder_id}"
+                                        xbmc.executebuiltin(f'ActivateWindow(Videos,{folder_url},return)')
+                                        self.logger.info("Navigating to imported folder: %s", root_folder_id)
+                                    else:
+                                        # Fallback to plugin root if no folder_id (shouldn't happen)
+                                        xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.librarygenie/,return)')
                                 else:
                                     self.logger.error("Import failed: %s", results.get('errors'))
                                     error_msg = '; '.join(results.get('errors', ['Unknown error']))[:100]
