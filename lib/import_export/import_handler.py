@@ -49,15 +49,20 @@ class ImportHandler:
             root_folder_name: Optional custom name for root import folder
         
         Returns:
-            Dictionary with import results
+            Dictionary with import results including 'root_folder_id'
         """
+        # Set import-in-progress flag to pause background cache operations
+        from lib.utils.sync_lock import set_import_in_progress, clear_import_in_progress
+        set_import_in_progress("file_import")
+        
         self.cancel_requested = False
         results = {
             'success': False,
             'folders_created': 0,
             'lists_created': 0,
             'items_imported': 0,
-            'errors': []
+            'errors': [],
+            'root_folder_id': None
         }
         
         try:
@@ -152,11 +157,32 @@ class ImportHandler:
             # Update import source last_scan
             self._update_import_source(import_source_id)
             
+            # Store root folder ID for navigation
+            results['root_folder_id'] = actual_target_folder_id
             results['success'] = True
             
         except Exception as e:
             self.logger.error("Import failed: %s", e, exc_info=True)
             results['errors'].append(str(e))
+        
+        finally:
+            # Clear import-in-progress flag and rebuild cache for imported folder
+            try:
+                clear_import_in_progress()
+                
+                # If import succeeded and we have a root folder, synchronously rebuild its cache
+                if results.get('success') and results.get('root_folder_id'):
+                    self.logger.info("Import completed - rebuilding cache for root folder %s", 
+                                   results['root_folder_id'])
+                    from lib.ui.folder_cache import FolderCache
+                    cache = FolderCache(self.query_manager)
+                    cache.invalidate_cache(results['root_folder_id'])
+                    # Force a synchronous rebuild by building the folder now
+                    cache.build_and_cache_folder(results['root_folder_id'], force_rebuild=True)
+                    self.logger.info("Cache rebuilt for root folder %s", results['root_folder_id'])
+                    
+            except Exception as e:
+                self.logger.error("Failed to clear import flag or rebuild cache: %s", e)
         
         return results
     
