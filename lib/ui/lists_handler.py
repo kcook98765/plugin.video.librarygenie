@@ -151,6 +151,22 @@ class ListsHandler:
             # Get the lazy-loaded renderer instance to use its art methods
             renderer = self.listitem_renderer
 
+            # Check if item has custom art_data (from imported folders)
+            art_data = item_data.get('art_data')
+            if art_data:
+                # Parse art_data if it's a JSON string
+                import json
+                if isinstance(art_data, str):
+                    try:
+                        art_data = json.loads(art_data)
+                    except (json.JSONDecodeError, ValueError):
+                        art_data = None
+                
+                # Apply custom artwork if valid
+                if art_data and isinstance(art_data, dict):
+                    renderer.art_manager.apply_art(list_item, art_data, fallback_icon='DefaultFolder.png')
+                    return
+
             # Determine if this is a list or folder based on the URL action
             url = item_data.get('url', '')
 
@@ -875,14 +891,22 @@ class ListsHandler:
                     (f"Delete '{subfolder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=subfolder_id)})")
                 ]
 
-                menu_items.append({
+                subfolder_item = {
                     'label': f"📁 {subfolder_name}",
                     'url': context.build_url('show_folder', folder_id=subfolder_id),
                     'is_folder': True,
                     'description': f"Subfolder",
                     'context_menu': context_menu,
                     'icon': "DefaultFolder.png"
-                })
+                }
+                
+                # Include art_data and import status if available
+                if 'art_data' in subfolder:
+                    subfolder_item['art_data'] = subfolder['art_data']
+                if 'is_import_sourced' in subfolder:
+                    subfolder_item['is_import_sourced'] = subfolder['is_import_sourced']
+                
+                menu_items.append(subfolder_item)
 
             # Add lists in this folder
             for list_item in lists_in_folder:
@@ -1732,13 +1756,21 @@ class ListsHandler:
                 (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
             ]
 
-            menu_items.append({
+            folder_item = {
                 'label': folder_name,
                 'url': context.build_url('show_folder', folder_id=folder_id),
                 'is_folder': True,
                 'description': f"Folder",
                 'context_menu': context_menu
-            })
+            }
+            
+            # Include art_data and import status if available
+            if 'art_data' in folder_info:
+                folder_item['art_data'] = folder_info['art_data']
+            if 'is_import_sourced' in folder_info:
+                folder_item['is_import_sourced'] = folder_info['is_import_sourced']
+            
+            menu_items.append(folder_item)
 
         # Add standalone lists (excluding Kodi Favorites as it's already added)
         standalone_lists = [item for item in all_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
