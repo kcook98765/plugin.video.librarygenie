@@ -332,6 +332,13 @@ class ListsHandler:
                     context, all_lists, all_folders, query_manager
                 )
                 
+                # VALIDATION: Check for empty data before caching
+                if len(processed_menu_items) == 0:
+                    self.logger.info(
+                        "Root folder has 0 processed items (%d lists, %d folders from DB) - caching as legitimate empty state",
+                        len(all_lists), len(all_folders)
+                    )
+                
                 # Cache the final processed view instead of raw data (schema v4)
                 breadcrumb_data = {
                     'directory_title': 'Lists',
@@ -345,9 +352,19 @@ class ListsHandler:
                     'breadcrumbs': breadcrumb_data,
                     'content_type': 'files'
                 }
+                
+                # Log what we're about to cache for debugging
+                self.logger.debug(
+                    "CACHE UPDATE: About to cache root folder with %d processed items from %d lists and %d folders",
+                    len(processed_menu_items), len(all_lists), len(all_folders)
+                )
+                
                 cache_key = "root" if folder_id is None else folder_id
-                folder_cache.set(cache_key, cache_payload, int(db_query_time))
-                self.logger.debug("CACHE UPDATE: Stored root folder with %d processed items, breadcrumbs", len(processed_menu_items))
+                cache_success = folder_cache.set(cache_key, cache_payload, int(db_query_time))
+                if cache_success:
+                    self.logger.debug("CACHE UPDATE: Successfully stored root folder")
+                else:
+                    self.logger.warning("CACHE UPDATE: Failed to cache root folder (likely validation failure)")
 
             # Initialize user_lists for empty state check
             user_lists = []
@@ -772,6 +789,14 @@ class ListsHandler:
                     'tools_description': f"Tools and options for this folder"
                 }
                 
+                # VALIDATION: Check for empty data before caching
+                total_items = len(subfolders) + len(lists_in_folder)
+                if total_items == 0:
+                    self.logger.info(
+                        "Folder %s (%s) is empty (0 subfolders, 0 lists) - caching as legitimate empty state",
+                        folder_id, folder_name
+                    )
+                
                 # Cache the result including breadcrumbs for future navigation
                 cache_payload = {
                     'folder_info': folder_info,
@@ -779,9 +804,18 @@ class ListsHandler:
                     'lists': lists_in_folder,
                     'breadcrumbs': cached_breadcrumbs
                 }
-                folder_cache.set(folder_id, cache_payload, int(db_query_time))
-                self.logger.debug("CACHE UPDATE: Stored folder %s with %d subfolders, %d lists, breadcrumbs", 
-                                   folder_id, len(subfolders), len(lists_in_folder))
+                
+                # Log what we're about to cache for debugging
+                self.logger.debug(
+                    "CACHE UPDATE: About to cache folder %s with %d subfolders, %d lists, folder_info=%s",
+                    folder_id, len(subfolders), len(lists_in_folder), folder_info is not None
+                )
+                
+                cache_success = folder_cache.set(folder_id, cache_payload, int(db_query_time))
+                if cache_success:
+                    self.logger.debug("CACHE UPDATE: Successfully stored folder %s", folder_id)
+                else:
+                    self.logger.warning("CACHE UPDATE: Failed to cache folder %s (likely validation failure)", folder_id)
 
             if not folder_info:
                 self.logger.error("Folder %s not found", folder_id)
