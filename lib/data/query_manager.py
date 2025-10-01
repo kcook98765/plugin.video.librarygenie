@@ -435,8 +435,16 @@ class QueryManager:
             self.logger.error("Error getting list item count: %s", e)
             return 0
 
-    def create_list(self, name, description="", folder_id=None):
-        """Create a new list in unified lists table with proper validation"""
+    def create_list(self, name, description="", folder_id=None, is_import_sourced=0, import_source_id=None):
+        """Create a new list in unified lists table with proper validation
+        
+        Args:
+            name: List name
+            description: List description (legacy parameter, not stored)
+            folder_id: Parent folder ID
+            is_import_sourced: 1 if list is from import (locked), 0 otherwise
+            import_source_id: ID of the import source (for tracking and cascade delete)
+        """
         if not name or not name.strip():
             self.logger.warning("Attempted to create list with empty name")
             return {"error": "empty_name"}
@@ -444,12 +452,14 @@ class QueryManager:
         name = name.strip()
 
         try:
-            self.logger.debug("Creating list '%s' in folder %s", name, folder_id)
+            self.logger.debug("Creating list '%s' in folder %s (import_sourced: %s)", 
+                            name, folder_id, bool(is_import_sourced))
 
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO lists (name, folder_id) VALUES (?, ?)
-                """, [name, folder_id])
+                    INSERT INTO lists (name, folder_id, is_import_sourced, import_source_id) 
+                    VALUES (?, ?, ?, ?)
+                """, [name, folder_id, is_import_sourced, import_source_id])
 
                 list_id = cursor.lastrowid
 
@@ -604,13 +614,18 @@ class QueryManager:
             self.logger.debug("Renaming list %s to '%s'", list_id, new_name)
 
             with self.connection_manager.transaction() as conn:
-                # Check if list exists
+                # Check if list exists and get import status
                 existing = conn.execute(
-                    "SELECT name, folder_id FROM lists WHERE id = ?", [int(list_id)]
+                    "SELECT name, folder_id, is_import_sourced FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
                     return {"error": "list_not_found"}
+                
+                # Check if list is import-sourced (locked)
+                if existing['is_import_sourced'] == 1:
+                    return {"error": "import_locked", 
+                           "message": "Cannot rename import-sourced list. Structure is locked to source."}
 
                 # Update the list name
                 conn.execute("""
@@ -639,13 +654,18 @@ class QueryManager:
             self.logger.debug("Deleting list %s", list_id)
 
             with self.connection_manager.transaction() as conn:
-                # Check if list exists and get folder info for cache invalidation
+                # Check if list exists, get folder info and import status
                 existing = conn.execute(
-                    "SELECT name, folder_id FROM lists WHERE id = ?", [int(list_id)]
+                    "SELECT name, folder_id, is_import_sourced FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
                     return {"error": "list_not_found"}
+                
+                # Check if list is import-sourced (locked)
+                if existing['is_import_sourced'] == 1:
+                    return {"error": "import_locked", 
+                           "message": "Cannot delete import-sourced list. Structure is locked to source."}
 
                 # Delete list (items cascade automatically via foreign key)
                 conn.execute("DELETE FROM lists WHERE id = ?", [int(list_id)])
@@ -1660,8 +1680,16 @@ class QueryManager:
         else:
             return "movies"  # Only movies/external (or empty)
 
-    def create_folder(self, name, parent_id=None, art_data=None):
-        """Create a new folder"""
+    def create_folder(self, name, parent_id=None, art_data=None, is_import_sourced=0, import_source_id=None):
+        """Create a new folder
+        
+        Args:
+            name: Folder name
+            parent_id: Parent folder ID
+            art_data: Artwork dictionary
+            is_import_sourced: 1 if folder is from import (locked), 0 otherwise
+            import_source_id: ID of the import source (for tracking and cascade delete)
+        """
         try:
             # Validate name
             if not name or not name.strip():
@@ -1690,12 +1718,13 @@ class QueryManager:
             # Create folder
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO folders (name, parent_id, art_data)
-                    VALUES (?, ?, ?)
-                """, [name, parent_id, art_json])
+                    INSERT INTO folders (name, parent_id, art_data, is_import_sourced, import_source_id)
+                    VALUES (?, ?, ?, ?, ?)
+                """, [name, parent_id, art_json, is_import_sourced, import_source_id])
                 folder_id = cursor.lastrowid
 
-            self.logger.debug("Created folder '%s' with ID: %s (with_art: %s)", name, folder_id, bool(art_data))
+            self.logger.debug("Created folder '%s' with ID: %s (with_art: %s, import_sourced: %s)", 
+                            name, folder_id, bool(art_data), bool(is_import_sourced))
             
             # Invalidate cache after successful folder creation
             self._invalidate_after_change("create_folder", parent_folder_id=parent_id)
@@ -1723,13 +1752,18 @@ class QueryManager:
             if new_name in self.RESERVED_FOLDERS:
                 return {"success": False, "error": "reserved_name", "message": "Folder name is reserved"}
 
-            # Get current folder info
+            # Get current folder info including import status
             folder = self.connection_manager.execute_single("""
-                SELECT name, parent_id FROM folders WHERE id = ?
+                SELECT name, parent_id, is_import_sourced FROM folders WHERE id = ?
             """, [folder_id])
 
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
+            
+            # Check if folder is import-sourced (locked)
+            if folder.get('is_import_sourced', 0) == 1:
+                return {"success": False, "error": "import_locked", 
+                       "message": "Cannot rename import-sourced folder. Structure is locked to source."}
 
             # Check for duplicate names in same parent
             existing = self.connection_manager.execute_single("""
@@ -1763,13 +1797,18 @@ class QueryManager:
             if self.is_reserved_folder(folder_id):
                 return {"success": False, "error": "reserved", "message": "Cannot delete reserved folder"}
 
-            # Check if folder exists
+            # Check if folder exists and get import status
             folder = self.connection_manager.execute_single("""
-                SELECT name FROM folders WHERE id = ?
+                SELECT name, is_import_sourced FROM folders WHERE id = ?
             """, [folder_id])
 
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
+            
+            # Check if folder is import-sourced (locked)
+            if folder.get('is_import_sourced', 0) == 1:
+                return {"success": False, "error": "import_locked", 
+                       "message": "Cannot delete import-sourced folder. Structure is locked to source."}
 
             if force_delete_contents:
                 # Delete all lists in folder first
@@ -2126,14 +2165,19 @@ class QueryManager:
             self.logger.debug("Moving list %s to folder %s", list_id, target_folder_id)
 
             with self.connection_manager.transaction() as conn:
-                # Verify the list exists and get current folder for cache invalidation
+                # Verify the list exists, get current folder and import status
                 list_exists = conn.execute("""
-                    SELECT id, name, folder_id FROM lists WHERE id = ?
+                    SELECT id, name, folder_id, is_import_sourced FROM lists WHERE id = ?
                 """, [int(list_id)]).fetchone()
 
                 if not list_exists:
                     self.logger.error("List %s not found", list_id)
                     return {"error": "list_not_found"}
+                
+                # Check if list is import-sourced (locked)
+                if list_exists['is_import_sourced'] == 1:
+                    return {"error": "import_locked", 
+                           "message": "Cannot move import-sourced list. Structure is locked to source."}
                     
                 source_folder_id = list_exists['folder_id']
 
@@ -2244,13 +2288,18 @@ class QueryManager:
         try:
             self.logger.debug("Moving folder %s to destination %s", folder_id, target_folder_id)
 
-            # Check if folder exists and get current parent for cache invalidation
+            # Check if folder exists, get current parent and import status
             existing_folder = self.connection_manager.execute_single("""
-                SELECT id, name, parent_id FROM folders WHERE id = ?
+                SELECT id, name, parent_id, is_import_sourced FROM folders WHERE id = ?
             """, [int(folder_id)])
 
             if not existing_folder:
                 return {"success": False, "error": "folder_not_found"}
+            
+            # Check if folder is import-sourced (locked)
+            if existing_folder.get('is_import_sourced', 0) == 1:
+                return {"success": False, "error": "import_locked", 
+                       "message": "Cannot move import-sourced folder. Structure is locked to source."}
 
             # If target_folder_id is provided, verify the destination folder exists
             if target_folder_id is not None:

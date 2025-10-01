@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 6
+TARGET_SCHEMA_VERSION = 7
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 6, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 7, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -133,8 +133,11 @@ class MigrationManager:
             name TEXT NOT NULL,
             parent_id INTEGER,
             art_data TEXT,
+            is_import_sourced INTEGER DEFAULT 0,
+            import_source_id INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
+            FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL,
+            FOREIGN KEY (import_source_id) REFERENCES import_sources(id) ON DELETE CASCADE
         );
         
         CREATE UNIQUE INDEX idx_folders_name_parent ON folders (name, parent_id);
@@ -144,8 +147,11 @@ class MigrationManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             folder_id INTEGER,
+            is_import_sourced INTEGER DEFAULT 0,
+            import_source_id INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL,
+            FOREIGN KEY (import_source_id) REFERENCES import_sources(id) ON DELETE CASCADE
         );
         
         CREATE UNIQUE INDEX idx_lists_name_folder ON lists (name, folder_id);
@@ -402,6 +408,15 @@ class MigrationManager:
                 self.logger.info("Migrating from version 5 to 6: Adding art_data column to folders table")
                 conn.execute("ALTER TABLE folders ADD COLUMN art_data TEXT")
                 self.logger.info("art_data column added to folders table successfully")
+            
+            # Migration from version 6 to 7: Add import locking columns
+            if current_version < 7:
+                self.logger.info("Migrating from version 6 to 7: Adding import locking columns")
+                conn.execute("ALTER TABLE folders ADD COLUMN is_import_sourced INTEGER DEFAULT 0")
+                conn.execute("ALTER TABLE folders ADD COLUMN import_source_id INTEGER REFERENCES import_sources(id) ON DELETE CASCADE")
+                conn.execute("ALTER TABLE lists ADD COLUMN is_import_sourced INTEGER DEFAULT 0")
+                conn.execute("ALTER TABLE lists ADD COLUMN import_source_id INTEGER REFERENCES import_sources(id) ON DELETE CASCADE")
+                self.logger.info("Import locking columns added successfully")
             
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)

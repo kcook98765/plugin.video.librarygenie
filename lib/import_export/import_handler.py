@@ -30,6 +30,7 @@ class ImportHandler:
         self.classifier = MediaClassifier()
         self.art_extractor = ArtExtractor()
         self.cancel_requested = False
+        self.current_import_source_id = None  # Track current import for locking
     
     def import_from_source(
         self,
@@ -60,16 +61,25 @@ class ImportHandler:
         }
         
         try:
-            # If root_folder_name is provided, create a wrapper folder
+            # Create import source record first so we can lock all created folders/lists
+            # Initially set folder_id to target_folder_id (will be updated if root_folder_name provided)
+            import_source_id = self._create_import_source(source_url, target_folder_id)
+            self.current_import_source_id = import_source_id
+            
+            # If root_folder_name is provided, create a wrapper folder (mark as import-sourced)
             actual_target_folder_id = target_folder_id
             if root_folder_name:
                 self.logger.debug("Creating root import folder: '%s'", root_folder_name)
-                actual_target_folder_id = self._create_or_get_folder(root_folder_name, target_folder_id)
+                actual_target_folder_id = self._create_or_get_folder(
+                    root_folder_name, 
+                    target_folder_id,
+                    mark_as_import=True
+                )
                 self.logger.debug("Root import folder ID: %s", actual_target_folder_id)
                 results['folders_created'] += 1
-            
-            # Create import source record
-            import_source_id = self._create_import_source(source_url, actual_target_folder_id)
+                
+                # Update import_source with actual target folder
+                self._update_import_source_folder(import_source_id, actual_target_folder_id)
             
             # Scan the source directory
             if progress_callback:
@@ -186,11 +196,12 @@ class ImportHandler:
         self.logger.debug("  Show artwork extracted: %s", json.dumps(show_art, indent=2) if show_art else "None")
         self.logger.debug("  Available art files in scan: %s", scan_result['art'])
         
-        # Create show folder
+        # Create show folder (mark as import-sourced)
         show_folder_id = self._create_or_get_folder(
             show_title,
             parent_folder_id,
-            art_data=show_art
+            art_data=show_art,
+            mark_as_import=True
         )
         self.logger.debug("  Created/found show folder ID: %s", show_folder_id)
         results['folders_created'] += 1
@@ -250,8 +261,8 @@ class ImportHandler:
             season_name = os.path.basename(season_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Season"
         self.logger.debug("  Season name: %s (number: %s)", season_name, season_number)
         
-        # Create season list
-        season_list_id = self._create_or_get_list(season_name, parent_folder_id)
+        # Create season list (mark as import-sourced)
+        season_list_id = self._create_or_get_list(season_name, parent_folder_id, mark_as_import=True)
         self.logger.debug("  Created/found season list ID: %s", season_list_id)
         results['lists_created'] += 1
         
@@ -400,7 +411,7 @@ class ImportHandler:
         # If we have subdirectories, always create a folder for organization
         if has_subdirs:
             self.logger.debug("  Has subdirs - creating folder: '%s'", folder_name)
-            folder_id_for_content = self._create_or_get_folder(folder_name, parent_folder_id)
+            folder_id_for_content = self._create_or_get_folder(folder_name, parent_folder_id, mark_as_import=True)
             self.logger.debug("  Created/found folder ID: %s", folder_id_for_content)
             results['folders_created'] += 1
         
@@ -408,7 +419,7 @@ class ImportHandler:
         # (Scanner no longer merges subdir videos, so this is accurate)
         if has_videos:
             self.logger.debug("  Has %d direct videos - creating list: '%s'", len(scan_result['videos']), folder_name)
-            list_id = self._create_or_get_list(folder_name, folder_id_for_content)
+            list_id = self._create_or_get_list(folder_name, folder_id_for_content, mark_as_import=True)
             self.logger.debug("  Created/found list ID: %s in folder: %s", list_id, folder_id_for_content)
             results['lists_created'] += 1
             
@@ -492,11 +503,19 @@ class ImportHandler:
         self,
         name: str,
         parent_id: Optional[int],
-        art_data: Optional[Dict] = None
+        art_data: Optional[Dict] = None,
+        mark_as_import: bool = False
     ) -> int:
-        """Create or get existing folder using QueryManager"""
-        self.logger.debug("_create_or_get_folder called: name='%s', parent_id=%s, has_art=%s",
-                         name, parent_id, bool(art_data))
+        """Create or get existing folder using QueryManager
+        
+        Args:
+            name: Folder name
+            parent_id: Parent folder ID
+            art_data: Artwork dictionary
+            mark_as_import: Whether to mark folder as import-sourced (locked)
+        """
+        self.logger.debug("_create_or_get_folder called: name='%s', parent_id=%s, has_art=%s, mark_as_import=%s",
+                         name, parent_id, bool(art_data), mark_as_import)
         
         # Check if folder exists
         if parent_id is None:
@@ -514,21 +533,36 @@ class ImportHandler:
             self.logger.debug("  Found existing folder ID: %s", existing['id'])
             return existing['id']
         
-        # Create new folder using QueryManager with art_data
-        self.logger.debug("  Creating new folder with artwork...")
-        result = self.query_manager.create_folder(name, parent_id, art_data=art_data)
+        # Create new folder using QueryManager with art_data and import locking
+        self.logger.debug("  Creating new folder...")
+        import_source_id = self.current_import_source_id if mark_as_import else None
+        result = self.query_manager.create_folder(
+            name, 
+            parent_id, 
+            art_data=art_data,
+            is_import_sourced=1 if mark_as_import else 0,
+            import_source_id=import_source_id
+        )
         
         if result.get('success'):
-            self.logger.debug("  Successfully created folder ID: %s", result['folder_id'])
+            self.logger.debug("  Successfully created folder ID: %s (import_locked: %s)", 
+                            result['folder_id'], mark_as_import)
             return result['folder_id']
         else:
             # Handle error or duplicate (shouldn't happen due to check above)
             self.logger.error("Failed to create folder '%s': %s", name, result.get('error'))
             raise RuntimeError(f"Failed to create folder: {result.get('error')}")
     
-    def _create_or_get_list(self, name: str, folder_id: Optional[int]) -> int:
-        """Create or get existing list using QueryManager"""
-        self.logger.debug("_create_or_get_list called: name='%s', folder_id=%s", name, folder_id)
+    def _create_or_get_list(self, name: str, folder_id: Optional[int], mark_as_import: bool = False) -> int:
+        """Create or get existing list using QueryManager
+        
+        Args:
+            name: List name
+            folder_id: Parent folder ID
+            mark_as_import: Whether to mark list as import-sourced (locked)
+        """
+        self.logger.debug("_create_or_get_list called: name='%s', folder_id=%s, mark_as_import=%s", 
+                         name, folder_id, mark_as_import)
         
         # Check if list exists
         if folder_id is None:
@@ -546,9 +580,15 @@ class ImportHandler:
             self.logger.debug("  Found existing list ID: %s", existing['id'])
             return existing['id']
         
-        # Create new list using QueryManager
+        # Create new list using QueryManager with import locking
         self.logger.debug("  Creating new list...")
-        result = self.query_manager.create_list(name, folder_id=folder_id)
+        import_source_id = self.current_import_source_id if mark_as_import else None
+        result = self.query_manager.create_list(
+            name, 
+            folder_id=folder_id,
+            is_import_sourced=1 if mark_as_import else 0,
+            import_source_id=import_source_id
+        )
         
         if 'id' in result:
             self.logger.debug("  Successfully created list ID: %s", result['id'])
@@ -741,6 +781,15 @@ class ImportHandler:
         conn.execute(
             "UPDATE import_sources SET last_scan = ? WHERE id = ?",
             (datetime.now().isoformat(), import_source_id)
+        )
+        conn.commit()
+    
+    def _update_import_source_folder(self, import_source_id: int, folder_id: int):
+        """Update import source folder_id (for root wrapper folder updates)"""
+        conn = self.connection_manager.get_connection()
+        conn.execute(
+            "UPDATE import_sources SET folder_id = ? WHERE id = ?",
+            (folder_id, import_source_id)
         )
         conn.commit()
     
