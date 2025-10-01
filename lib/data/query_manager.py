@@ -369,7 +369,7 @@ class QueryManager:
 
             for row_idx, row in enumerate(rows):
                 # Convert row to dict
-                item = dict(row)
+                item = self._row_to_dict(row)
 
 
                 # Parse JSON data if present
@@ -692,16 +692,17 @@ class QueryManager:
             """, [int(list_id)])
 
             if result:
-                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                row_dict = self._row_to_dict(result)
+                folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] else ""
                 return {
-                    "id": str(result['id']),
-                    "name": result['name'],
+                    "id": str(row_dict['id']),
+                    "name": row_dict['name'],
                     "description": folder_context.lstrip(' ') if folder_context else '',
-                    "created": result['created_at'][:10] if result['created_at'] else '',
-                    "modified": result['created_at'][:10] if result['created_at'] else '',
-                    "folder_name": result['folder_name'],
-                    "is_import_sourced": result.get('is_import_sourced', 0),
-                    "import_source_id": result.get('import_source_id')
+                    "created": row_dict['created_at'][:10] if row_dict['created_at'] else '',
+                    "modified": row_dict['created_at'][:10] if row_dict['created_at'] else '',
+                    "folder_name": row_dict['folder_name'],
+                    "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                    "import_source_id": row_dict.get('import_source_id')
                 }
             return None
 
@@ -1096,7 +1097,7 @@ class QueryManager:
                 # Convert to list of dicts for easier handling
                 formatted_results = []
                 for row in lists:
-                    row_dict = dict(row)
+                    row_dict = self._row_to_dict(row)
                     # Ensure string conversion for compatibility
                     row_dict['id'] = str(row_dict['id'])
                     # Add description based on folder only
@@ -1910,7 +1911,7 @@ class QueryManager:
                     ORDER BY l.name
                 """, [int(folder_id)])
 
-            lists = [dict(row) for row in results]
+            lists = [self._row_to_dict(row) for row in results]
             self.logger.debug("Found %s lists in folder %s", len(lists), folder_id)
 
             # Log each list found for debugging
@@ -1935,14 +1936,15 @@ class QueryManager:
             """, [int(folder_id)])
 
             if result:
+                row_dict = self._row_to_dict(result)
                 return {
-                    "id": str(result['id']),
-                    "name": result['name'],
-                    "parent_id": result['parent_id'],
-                    "created": result['created_at'][:10] if result['created_at'] else '',
-                    "art_data": result['art_data'],
-                    "is_import_sourced": result.get('is_import_sourced', 0),
-                    "import_source_id": result.get('import_source_id')
+                    "id": str(row_dict['id']),
+                    "name": row_dict['name'],
+                    "parent_id": row_dict['parent_id'],
+                    "created": row_dict['created_at'][:10] if row_dict['created_at'] else '',
+                    "art_data": row_dict['art_data'],
+                    "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                    "import_source_id": row_dict.get('import_source_id')
                 }
 
             return None
@@ -1980,7 +1982,7 @@ class QueryManager:
             result = []
             for row in folders or []:
                 # Convert Row to dict to safely access columns with .get()
-                row_dict = dict(row)
+                row_dict = self._row_to_dict(row)
                 result.append({
                     "id": str(row_dict['id']),
                     "name": row_dict['name'],
@@ -2058,7 +2060,7 @@ class QueryManager:
             
             for row in results:
                 # Convert Row to dict for safe .get() access
-                row_dict = dict(row)
+                row_dict = self._row_to_dict(row)
                 data_type = row_dict['data_type']
                 
                 if data_type == 'folder_info':
@@ -2152,13 +2154,14 @@ class QueryManager:
             """, [list_id])
 
             if result:
+                row_dict = self._row_to_dict(result)
                 return {
-                    'id': result['id'],
-                    'name': result['name'],
-                    'folder_id': result['folder_id'],
-                    'created_at': result['created_at'],
-                    'is_import_sourced': result.get('is_import_sourced', 0),
-                    'import_source_id': result.get('import_source_id')
+                    'id': row_dict['id'],
+                    'name': row_dict['name'],
+                    'folder_id': row_dict['folder_id'],
+                    'created_at': row_dict['created_at'],
+                    'is_import_sourced': row_dict.get('is_import_sourced', 0),
+                    'import_source_id': row_dict.get('import_source_id')
                 }
             return None
 
@@ -2177,13 +2180,14 @@ class QueryManager:
             """, [folder_id])
 
             if result:
+                row_dict = self._row_to_dict(result)
                 return {
-                    'id': result['id'],
-                    'name': result['name'],
-                    'parent_id': result['parent_id'],
-                    'created_at': result['created_at'],
-                    'is_import_sourced': result.get('is_import_sourced', 0),
-                    'import_source_id': result.get('import_source_id')
+                    'id': row_dict['id'],
+                    'name': row_dict['name'],
+                    'parent_id': row_dict['parent_id'],
+                    'created_at': row_dict['created_at'],
+                    'is_import_sourced': row_dict.get('is_import_sourced', 0),
+                    'import_source_id': row_dict.get('import_source_id')
                 }
             return None
 
