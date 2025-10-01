@@ -285,12 +285,23 @@ class FileScanner:
         return result
     
     def _should_ignore(self, name: str) -> bool:
-        """Check if file/folder should be ignored based on name"""
+        """Check if file/folder should be ignored based on name
+        
+        Only matches patterns as whole words (with word boundaries) to avoid
+        false positives like "The Sample Show" being ignored due to "sample"
+        """
         name_lower = name.lower()
         
-        # Check ignore patterns
+        # Check ignore patterns - only match as whole words or at boundaries
         for pattern in IGNORE_PATTERNS:
-            if pattern in name_lower:
+            # Use word boundary matching to avoid false positives
+            # Match pattern if it's:
+            # - At start followed by non-alphanumeric: "sample-video.mp4"
+            # - At end preceded by non-alphanumeric: "video-sample.mp4"
+            # - Surrounded by non-alphanumeric: "video-sample-rip.mp4"
+            # - The entire name: "sample"
+            pattern_regex = r'(^|[^a-z0-9])' + re.escape(pattern) + r'($|[^a-z0-9])'
+            if re.search(pattern_regex, name_lower):
                 return True
         
         # Check file extension
