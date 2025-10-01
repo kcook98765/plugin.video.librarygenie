@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from lib.utils.kodi_log import get_kodi_logger
-from lib import xmltodict
+from lib.vendor import xmltodict
 
 
 class NFOParser:
