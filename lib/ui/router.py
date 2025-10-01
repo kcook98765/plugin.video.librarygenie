@@ -268,9 +268,15 @@ class Router:
                             3000
                         )
                     else:
-                        # Get default folder name from source path
+                        # Get default folder name from source path (handle URLs and paths)
                         import os
-                        default_name = os.path.basename(source_url.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
+                        import re
+                        
+                        # Strip scheme (smb://, nfs://, special://) if present
+                        path_without_scheme = source_url.split('://', 1)[-1] if '://' in source_url else source_url
+                        # Split on both forward and back slashes, take last non-empty segment
+                        segments = [s for s in re.split(r'[/\\]+', path_without_scheme) if s]
+                        default_name = segments[-1] if segments else "Imported Media"
                         
                         # Prompt user for folder name
                         import xbmcgui
@@ -285,13 +291,44 @@ class Router:
                             self.logger.debug("Import cancelled by user")
                             succeeded = False
                         else:
-                            from lib.import_export.import_handler import ImportHandler
-                            from lib.data.storage_manager import get_storage_manager
+                            # Sanitize folder name
+                            folder_name = folder_name.strip()
+                            # Remove forbidden characters and control characters
+                            folder_name = re.sub(r'[/\\:*?"<>|\x00-\x1f]', '', folder_name)
+                            folder_name = ' '.join(folder_name.split())  # Collapse whitespace
                             
-                            storage = get_storage_manager()
-                            import_handler = ImportHandler(storage)
-                            import_handler.import_from_source(source_url, root_folder_name=folder_name.strip())
-                            succeeded = True
+                            if not folder_name:
+                                self.logger.error("Invalid folder name after sanitization")
+                                import xbmcgui
+                                xbmcgui.Dialog().notification(
+                                    "LibraryGenie",
+                                    "Import failed: Invalid folder name",
+                                    xbmcgui.NOTIFICATION_ERROR,
+                                    3000
+                                )
+                                succeeded = False
+                            else:
+                                from lib.import_export.import_handler import ImportHandler
+                                from lib.data.storage_manager import get_storage_manager
+                                
+                                storage = get_storage_manager()
+                                import_handler = ImportHandler(storage)
+                                results = import_handler.import_from_source(source_url, root_folder_name=folder_name)
+                                
+                                # Check if import actually succeeded
+                                if results.get('success'):
+                                    succeeded = True
+                                else:
+                                    self.logger.error("Import failed: %s", results.get('errors'))
+                                    error_msg = '; '.join(results.get('errors', ['Unknown error']))[:100]
+                                    import xbmcgui
+                                    xbmcgui.Dialog().notification(
+                                        "LibraryGenie",
+                                        f"Import failed: {error_msg}",
+                                        xbmcgui.NOTIFICATION_ERROR,
+                                        5000
+                                    )
+                                    succeeded = False
                 except Exception as e:
                     self.logger.error("Import file media failed: %s", str(e))
                     import xbmcgui
