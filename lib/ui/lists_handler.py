@@ -10,7 +10,7 @@ import xbmcplugin
 import xbmcgui
 import time
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
