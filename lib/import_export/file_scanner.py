@@ -126,8 +126,9 @@ class FileScanner:
                 # Log every path encountered
                 self.logger.debug("  Found: %s (is_file=%s, is_dir=%s)", entry, entry.is_file(), entry.is_dir())
                 
-                # Skip ignored items
-                if self._should_ignore(entry_name):
+                # Skip ignored items - only apply IGNORE_PATTERNS to files, not directories
+                # Directories are filtered separately by IGNORE_FOLDERS
+                if entry.is_file() and self._should_ignore(entry_name):
                     self.logger.debug("    -> IGNORED (matches ignore pattern)")
                     continue
                 
@@ -246,10 +247,11 @@ class FileScanner:
                 mimetype = file_info.get('mimetype', '')
                 
                 # Log every path encountered
-                self.logger.debug("  Found: %s (type=%s, mime=%s)", file_path, file_type, mimetype)
+                self.logger.debug("  Found: %s (is_file=%s, is_dir=%s)", file_path, file_type == 'file', file_type == 'directory')
                 
-                # Skip ignored items
-                if self._should_ignore(file_label.lower()):
+                # Skip ignored items - only apply IGNORE_PATTERNS to files, not directories
+                # Directories are filtered separately by IGNORE_FOLDERS
+                if file_type == 'file' and self._should_ignore(file_label.lower()):
                     self.logger.debug("    -> IGNORED (matches ignore pattern)")
                     continue
                 
