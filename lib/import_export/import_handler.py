@@ -122,8 +122,7 @@ class ImportHandler:
                     scan_result,
                     classification,
                     target_folder_id,
-                    progress_callback,
-                    is_root_import=True
+                    progress_callback
                 )
                 results.update(mixed_results)
             
@@ -367,8 +366,7 @@ class ImportHandler:
         scan_result: Dict,
         classification: Dict,
         parent_folder_id: Optional[int],
-        progress_callback: Optional[Callable],
-        is_root_import: bool = False
+        progress_callback: Optional[Callable]
     ) -> Dict[str, int]:
         """Import mixed content folder"""
         results = {'folders_created': 0, 'lists_created': 0, 'items_imported': 0}
@@ -377,17 +375,15 @@ class ImportHandler:
         self.logger.debug("  Path: %s", folder_path)
         self.logger.debug("  Classification: %s", classification)
         self.logger.debug("  Parent folder ID: %s", parent_folder_id)
-        self.logger.debug("  Is root import: %s", is_root_import)
         self.logger.debug("  Scan results: %d videos, %d subdirs", len(scan_result['videos']), len(scan_result['subdirs']))
         
         # Determine where to place content based on whether we have subdirs
         folder_id_for_content = parent_folder_id
         
-        # If we have subdirectories AND we're not at root import, create a folder for this directory to organize content
-        # Root imports should create content directly at target location, not wrapped in another folder
-        if scan_result['subdirs'] and not is_root_import:
+        # If we have subdirectories, create a folder for this directory to organize content
+        if scan_result['subdirs']:
             folder_name = os.path.basename(folder_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
-            self.logger.debug("  Has subdirs (non-root) - creating folder: '%s'", folder_name)
+            self.logger.debug("  Has subdirs - creating folder: '%s'", folder_name)
             folder_id_for_content = self._create_or_get_folder(folder_name, parent_folder_id)
             self.logger.debug("  Created/found folder ID: %s", folder_id_for_content)
             results['folders_created'] += 1
@@ -462,8 +458,7 @@ class ImportHandler:
             else:
                 mixed_results = self._import_mixed_content(
                     subdir, subdir_result, subdir_classification,
-                    folder_id_for_content, progress_callback,
-                    is_root_import=False  # Recursive calls are not root imports
+                    folder_id_for_content, progress_callback
                 )
                 results['folders_created'] += mixed_results.get('folders_created', 0)
                 results['lists_created'] += mixed_results.get('lists_created', 0)
