@@ -166,23 +166,29 @@ class ImportHandler:
             results['errors'].append(str(e))
         
         finally:
-            # Clear import-in-progress flag and rebuild cache for imported folder
+            # Rebuild cache for imported folder, then clear import-in-progress flag
             try:
-                clear_import_in_progress()
-                
                 # If import succeeded and we have a root folder, synchronously rebuild its cache
                 if results.get('success') and results.get('root_folder_id'):
                     self.logger.info("Import completed - rebuilding cache for root folder %s", 
                                    results['root_folder_id'])
                     from lib.ui.folder_cache import FolderCache
-                    cache = FolderCache(self.query_manager)
+                    cache = FolderCache()  # Use default cache directory
                     cache.invalidate_cache(results['root_folder_id'])
                     # Force a synchronous rebuild by building the folder now
                     cache.build_and_cache_folder(results['root_folder_id'], force_rebuild=True)
                     self.logger.info("Cache rebuilt for root folder %s", results['root_folder_id'])
+                
+                # Clear flag AFTER rebuild to prevent pre-warming from racing
+                clear_import_in_progress()
                     
             except Exception as e:
-                self.logger.error("Failed to clear import flag or rebuild cache: %s", e)
+                self.logger.error("Failed to rebuild cache or clear import flag: %s", e)
+                # Always clear the flag even if rebuild failed
+                try:
+                    clear_import_in_progress()
+                except:
+                    pass
         
         return results
     
