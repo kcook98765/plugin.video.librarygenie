@@ -286,7 +286,7 @@ class ImportHandler:
                 break
             
             self.logger.debug("  === Processing subdirectory: %s ===", subdir)
-            subdir_result = self.scanner.scan_directory(subdir, recursive=True)
+            subdir_result = self.scanner.scan_directory(subdir, recursive=True, apply_ignore_patterns=False)
             self.logger.debug("    Scan results: %d videos, %d NFOs, %d subdirs", 
                             len(subdir_result['videos']), len(subdir_result['nfos']), len(subdir_result['subdirs']))
             
@@ -550,7 +550,7 @@ class ImportHandler:
                 break
             
             self.logger.debug("  === Processing subdirectory: %s ===", subdir)
-            subdir_result = self.scanner.scan_directory(subdir, recursive=True)
+            subdir_result = self.scanner.scan_directory(subdir, recursive=True, apply_ignore_patterns=False)
             self.logger.debug("    Scan results: %d videos, %d NFOs, %d subdirs", 
                             len(subdir_result['videos']), len(subdir_result['nfos']), len(subdir_result['subdirs']))
             
