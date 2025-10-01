@@ -589,6 +589,7 @@ class ContextMenuBuilder:
     
     def build_context_menu(self, item_id: str, item_type: str, item_name: str = "", 
                           is_protected: bool = False,
+                          import_source_id: Optional[int] = None,
                           custom_actions: Optional[List[Tuple[str, str]]] = None) -> List[Tuple[str, str]]:
         """
         Build a context menu for an item.
@@ -598,6 +599,7 @@ class ContextMenuBuilder:
             item_type: Type of item (list, folder, etc.)
             item_name: Name of the item (for logging/compatibility)
             is_protected: Whether the item is protected from rename/delete operations
+            import_source_id: Import source ID if this is an import-sourced root folder
             custom_actions: List of (label, action_url) tuples to add
             
         Returns:
@@ -633,6 +635,10 @@ class ContextMenuBuilder:
                     context_items.append(("Export", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))
                 
             elif item_type == 'folder':
+                # Add refresh option for import-sourced folders
+                if import_source_id is not None:
+                    context_items.append(("Refresh Import", f"RunPlugin(plugin://{self.addon_id}/?action=refresh_import&folder_id={item_id})"))
+                
                 # Don't add rename/delete for protected folders
                 if not is_protected:
                     try:
