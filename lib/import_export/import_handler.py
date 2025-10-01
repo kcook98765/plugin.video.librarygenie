@@ -13,6 +13,7 @@ from lib.import_export.file_scanner import FileScanner
 from lib.import_export.nfo_parser import NFOParser
 from lib.import_export.media_classifier import MediaClassifier
 from lib.import_export.art_extractor import ArtExtractor
+from lib.data.connection_manager import get_connection_manager
 
 
 class ImportHandler:
@@ -21,6 +22,7 @@ class ImportHandler:
     def __init__(self, storage):
         self.logger = get_kodi_logger('lib.import_export.import_handler')
         self.storage = storage
+        self.connection_manager = get_connection_manager()
         self.scanner = FileScanner()
         self.nfo_parser = NFOParser()
         self.classifier = MediaClassifier()
@@ -381,7 +383,7 @@ class ImportHandler:
     ) -> int:
         """Create or get existing folder"""
         # Check if folder exists
-        conn = self.storage._get_connection()
+        conn = self.connection_manager.get_connection()
         
         if parent_id is None:
             cursor = conn.execute(
@@ -410,7 +412,7 @@ class ImportHandler:
     def _create_or_get_list(self, name: str, folder_id: Optional[int]) -> int:
         """Create or get existing list"""
         # Check if list exists
-        conn = self.storage._get_connection()
+        conn = self.connection_manager.get_connection()
         
         if folder_id is None:
             cursor = conn.execute(
@@ -448,7 +450,7 @@ class ImportHandler:
         if not episode_data:
             episode_data = {}
         
-        conn = self.storage._get_connection()
+        conn = self.connection_manager.get_connection()
         
         # Check if item already exists
         cursor = conn.execute(
@@ -514,7 +516,7 @@ class ImportHandler:
         if not movie_data:
             movie_data = {}
         
-        conn = self.storage._get_connection()
+        conn = self.connection_manager.get_connection()
         
         # Check if item already exists
         cursor = conn.execute(
@@ -573,7 +575,7 @@ class ImportHandler:
     
     def _create_import_source(self, source_url: str, folder_id: Optional[int]) -> int:
         """Create or get existing import source record"""
-        conn = self.storage._get_connection()
+        conn = self.connection_manager.get_connection()
         
         # Check if import source already exists
         if folder_id is None:
@@ -603,7 +605,7 @@ class ImportHandler:
     
     def _update_import_source(self, import_source_id: int):
         """Update import source last_scan timestamp"""
-        conn = self.storage._get_connection()
+        conn = self.connection_manager.get_connection()
         conn.execute(
             "UPDATE import_sources SET last_scan = ? WHERE id = ?",
             (datetime.now().isoformat(), import_source_id)
@@ -612,7 +614,7 @@ class ImportHandler:
     
     def _add_item_to_list_if_not_exists(self, list_id: int, media_item_id: int):
         """Add item to list only if not already present"""
-        conn = self.storage._get_connection()
+        conn = self.connection_manager.get_connection()
         
         # Check if already exists
         cursor = conn.execute(
