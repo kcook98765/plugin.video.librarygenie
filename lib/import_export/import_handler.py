@@ -15,6 +15,7 @@ from lib.import_export.media_classifier import MediaClassifier
 from lib.import_export.art_extractor import ArtExtractor
 from lib.data.connection_manager import get_connection_manager
 from lib.data.query_manager import QueryManager
+from lib.ui.dialog_service import get_dialog_service
 
 
 class ImportHandler:
@@ -54,6 +55,10 @@ class ImportHandler:
         # Set import-in-progress flag to pause background cache operations
         from lib.utils.sync_lock import set_import_in_progress, clear_import_in_progress
         set_import_in_progress("file_import")
+        
+        # Show start notification
+        dialog = get_dialog_service()
+        dialog.show_success("Starting media import...", time_ms=2000)
         
         self.cancel_requested = False
         results = {
@@ -206,6 +211,23 @@ class ImportHandler:
                     clear_import_in_progress()
                 except:
                     pass
+            
+            # Show completion notification
+            if results.get('success'):
+                items_count = results.get('items_imported', 0)
+                folders_count = results.get('folders_created', 0)
+                lists_count = results.get('lists_created', 0)
+                
+                message = f"Import complete: {items_count} items"
+                if folders_count > 0:
+                    message += f", {folders_count} folders"
+                if lists_count > 0:
+                    message += f", {lists_count} lists"
+                
+                dialog.show_success(message, time_ms=4000)
+            else:
+                error_msg = results.get('errors', ['Unknown error'])[0] if results.get('errors') else 'Unknown error'
+                dialog.show_error(f"Import failed: {error_msg}", time_ms=5000)
         
         return results
     
