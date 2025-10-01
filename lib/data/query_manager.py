@@ -1660,7 +1660,7 @@ class QueryManager:
         else:
             return "movies"  # Only movies/external (or empty)
 
-    def create_folder(self, name, parent_id=None):
+    def create_folder(self, name, parent_id=None, art_data=None):
         """Create a new folder"""
         try:
             # Validate name
@@ -1681,15 +1681,21 @@ class QueryManager:
             if existing:
                 return {"success": False, "error": "duplicate", "message": "Folder name already exists"}
 
+            # Serialize art_data if provided
+            art_json = None
+            if art_data:
+                import json
+                art_json = json.dumps(art_data)
+
             # Create folder
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO folders (name, parent_id)
-                    VALUES (?, ?)
-                """, [name, parent_id])
+                    INSERT INTO folders (name, parent_id, art_data)
+                    VALUES (?, ?, ?)
+                """, [name, parent_id, art_json])
                 folder_id = cursor.lastrowid
 
-            self.logger.debug("Created folder '%s' with ID: %s", name, folder_id)
+            self.logger.debug("Created folder '%s' with ID: %s (with_art: %s)", name, folder_id, bool(art_data))
             
             # Invalidate cache after successful folder creation
             self._invalidate_after_change("create_folder", parent_folder_id=parent_id)
