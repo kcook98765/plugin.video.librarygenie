@@ -144,16 +144,26 @@ class ListItemMetadataManager:
             
             if item_data.get('genre'):
                 try:
-                    # V20+ stores genre as JSON array, parse it back to list
-                    if isinstance(item_data['genre'], str) and item_data['genre'].startswith('['):
-                        genre_list = json.loads(item_data['genre'])
-                        video_info_tag.setGenres(genre_list if isinstance(genre_list, list) else [item_data['genre']])
+                    # Handle different genre formats
+                    if isinstance(item_data['genre'], list):
+                        # Already a list
+                        video_info_tag.setGenres(item_data['genre'])
+                    elif isinstance(item_data['genre'], str):
+                        if item_data['genre'].lstrip().startswith('['):
+                            # JSON array string - parse it
+                            genre_list = json.loads(item_data['genre'])
+                            video_info_tag.setGenres(genre_list if isinstance(genre_list, list) else [item_data['genre']])
+                        else:
+                            # Comma-separated string - split it
+                            genre_list = [g.strip() for g in item_data['genre'].split(',') if g.strip()]
+                            video_info_tag.setGenres(genre_list)
                     else:
-                        # Handle as string or already parsed list
-                        video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
-                except (json.JSONDecodeError, ValueError):
-                    # Fallback for malformed JSON or non-JSON strings
-                    video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
+                        # Unknown format - convert to list
+                        video_info_tag.setGenres([str(item_data['genre'])])
+                except (json.JSONDecodeError, ValueError) as e:
+                    # Fallback for malformed data
+                    self.logger.warning("METADATA: Failed to parse genre '%s': %s", item_data.get('genre'), e)
+                    video_info_tag.setGenres([str(item_data['genre'])])
             
             if item_data.get('votes'):
                 try:
@@ -193,7 +203,27 @@ class ListItemMetadataManager:
                     video_info_tag.setDirectors([item_data['director']] if isinstance(item_data['director'], str) else item_data['director'])
                 
             if item_data.get('studio'):
-                video_info_tag.setStudios([item_data['studio']] if isinstance(item_data['studio'], str) else item_data['studio'])
+                try:
+                    # Handle different studio formats
+                    if isinstance(item_data['studio'], list):
+                        # Already a list
+                        video_info_tag.setStudios(item_data['studio'])
+                    elif isinstance(item_data['studio'], str):
+                        if item_data['studio'].lstrip().startswith('['):
+                            # JSON array string - parse it
+                            studio_list = json.loads(item_data['studio'])
+                            video_info_tag.setStudios(studio_list if isinstance(studio_list, list) else [item_data['studio']])
+                        else:
+                            # Comma-separated string - split it
+                            studio_list = [s.strip() for s in item_data['studio'].split(',') if s.strip()]
+                            video_info_tag.setStudios(studio_list)
+                    else:
+                        # Unknown format - convert to list
+                        video_info_tag.setStudios([str(item_data['studio'])])
+                except (json.JSONDecodeError, ValueError) as e:
+                    # Fallback for malformed data
+                    self.logger.warning("METADATA: Failed to parse studio '%s': %s", item_data.get('studio'), e)
+                    video_info_tag.setStudios([str(item_data['studio'])])
                 
             if item_data.get('country'):
                 video_info_tag.setCountries([item_data['country']] if isinstance(item_data['country'], str) else item_data['country'])
