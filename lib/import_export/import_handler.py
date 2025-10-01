@@ -766,9 +766,11 @@ class ImportHandler:
             'tmdb_id': movie_data.get('tmdb_id'),
             'duration': movie_data.get('runtime'),
             'mpaa': movie_data.get('mpaa'),
-            'genre': json.dumps(movie_data.get('genre')) if movie_data.get('genre') else None,
+            # Store genre and studio as comma-separated strings (matching library sync format)
+            # Join lists, preserve strings as-is, keep None for missing values
+            'genre': ", ".join(movie_data.get('genre')) if isinstance(movie_data.get('genre'), list) else (str(movie_data.get('genre')) if movie_data.get('genre') else None),
             'director': json.dumps(movie_data.get('director')) if movie_data.get('director') else None,
-            'studio': json.dumps(movie_data.get('studio')) if movie_data.get('studio') else None,
+            'studio': ", ".join(movie_data.get('studio')) if isinstance(movie_data.get('studio'), list) else (str(movie_data.get('studio')) if movie_data.get('studio') else None),
             'writer': json.dumps(movie_data.get('writer')) if movie_data.get('writer') else None,
             'cast': json.dumps(movie_data.get('actor', [])) if movie_data.get('actor') else None,
             'updated_at': datetime.now().isoformat()
