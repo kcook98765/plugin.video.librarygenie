@@ -1979,13 +1979,15 @@ class QueryManager:
 
             result = []
             for row in folders or []:
+                # Convert Row to dict to safely access columns with .get()
+                row_dict = dict(row)
                 result.append({
-                    "id": str(row['id']),
-                    "name": row['name'],
-                    "created": row['created_at'][:10] if row['created_at'] else '',
-                    "art_data": row['art_data'],
-                    "is_import_sourced": row.get('is_import_sourced', 0),
-                    "import_source_id": row.get('import_source_id')
+                    "id": str(row_dict['id']),
+                    "name": row_dict['name'],
+                    "created": row_dict['created_at'][:10] if row_dict.get('created_at') else '',
+                    "art_data": row_dict.get('art_data'),
+                    "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                    "import_source_id": row_dict.get('import_source_id')
                 })
 
             if parent_id is None:
