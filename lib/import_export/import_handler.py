@@ -474,8 +474,8 @@ class ImportHandler:
             'rating': episode_data.get('rating'),
             'year': episode_data.get('year'),
             'duration': episode_data.get('runtime'),
-            'director': episode_data.get('director'),
-            'writer': episode_data.get('writer'),
+            'director': json.dumps(episode_data.get('director')) if episode_data.get('director') else None,
+            'writer': json.dumps(episode_data.get('writer')) if episode_data.get('writer') else None,
             'cast': json.dumps(episode_data.get('actor', [])) if episode_data.get('actor') else None,
             'updated_at': datetime.now().isoformat()
         }
@@ -539,10 +539,10 @@ class ImportHandler:
             'tmdb_id': movie_data.get('tmdb_id'),
             'duration': movie_data.get('runtime'),
             'mpaa': movie_data.get('mpaa'),
-            'genre': movie_data.get('genre'),
-            'director': movie_data.get('director'),
-            'studio': movie_data.get('studio'),
-            'writer': movie_data.get('writer'),
+            'genre': json.dumps(movie_data.get('genre')) if movie_data.get('genre') else None,
+            'director': json.dumps(movie_data.get('director')) if movie_data.get('director') else None,
+            'studio': json.dumps(movie_data.get('studio')) if movie_data.get('studio') else None,
+            'writer': json.dumps(movie_data.get('writer')) if movie_data.get('writer') else None,
             'cast': json.dumps(movie_data.get('actor', [])) if movie_data.get('actor') else None,
             'updated_at': datetime.now().isoformat()
         }
