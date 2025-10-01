@@ -257,17 +257,23 @@ class ImportHandler:
         results['folders_created'] += 1
         
         # Process subdirectories (seasons)
+        self.logger.debug("Processing %d subdirectories of TV show", len(scan_result['subdirs']))
         for subdir in scan_result['subdirs']:
             if self.cancel_requested:
                 break
             
+            self.logger.debug("  === Processing subdirectory: %s ===", subdir)
             subdir_result = self.scanner.scan_directory(subdir, recursive=True)
+            self.logger.debug("    Scan results: %d videos, %d NFOs, %d subdirs", 
+                            len(subdir_result['videos']), len(subdir_result['nfos']), len(subdir_result['subdirs']))
+            
             subdir_classification = self.classifier.classify_folder(
                 subdir,
                 subdir_result['videos'],
                 subdir_result['nfos'],
                 subdir_result['subdirs']
             )
+            self.logger.debug("    Classification: %s", subdir_classification)
             
             if subdir_classification['type'] == 'season':
                 season_results = self._import_season(
@@ -515,17 +521,23 @@ class ImportHandler:
                     self.logger.debug("    Added to list (total imported: %d)", results['items_imported'])
         
         # Process subdirectories recursively - pass the folder we created (or parent if no folder created)
+        self.logger.debug("Processing %d subdirectories of mixed content folder", len(scan_result['subdirs']))
         for subdir in scan_result['subdirs']:
             if self.cancel_requested:
                 break
             
+            self.logger.debug("  === Processing subdirectory: %s ===", subdir)
             subdir_result = self.scanner.scan_directory(subdir, recursive=True)
+            self.logger.debug("    Scan results: %d videos, %d NFOs, %d subdirs", 
+                            len(subdir_result['videos']), len(subdir_result['nfos']), len(subdir_result['subdirs']))
+            
             subdir_classification = self.classifier.classify_folder(
                 subdir,
                 subdir_result['videos'],
                 subdir_result['nfos'],
                 subdir_result['subdirs']
             )
+            self.logger.debug("    Classification: %s", subdir_classification)
             
             # Recurse based on classification - use folder_id_for_content as parent
             if subdir_classification['type'] == 'tv_show':

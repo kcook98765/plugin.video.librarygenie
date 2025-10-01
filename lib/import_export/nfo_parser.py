@@ -30,14 +30,20 @@ class NFOParser:
             Dict containing NFO data, or None if parsing fails
         """
         try:
+            self.logger.debug("=== PARSING NFO FILE: %s ===", nfo_path)
             with open(nfo_path, 'r', encoding='utf-8') as f:
                 content = f.read()
+            
+            # Log raw NFO content for debugging
+            self.logger.debug("RAW NFO CONTENT (%d chars):\n%s", len(content), content)
             
             # Parse with force_list for keys that can be 1..n items
             nfo_data = xmltodict.parse(
                 content,
                 force_list=('genre', 'actor', 'episodedetails', 'director', 'writer', 'studio', 'tag')
             )
+            
+            self.logger.debug("Parsed NFO root keys: %s", list(nfo_data.keys()) if nfo_data else "None")
             
             return nfo_data
             

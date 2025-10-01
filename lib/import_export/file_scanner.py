@@ -119,27 +119,40 @@ class FileScanner:
                 return result
             
             # Scan files and folders
+            self.logger.debug("Processing %d entries in: %s", len(entries), path)
             for entry in entries:
                 entry_name = entry.name.lower()
                 
+                # Log every path encountered
+                self.logger.debug("  Found: %s (is_file=%s, is_dir=%s)", entry, entry.is_file(), entry.is_dir())
+                
                 # Skip ignored items
                 if self._should_ignore(entry_name):
+                    self.logger.debug("    -> IGNORED (matches ignore pattern)")
                     continue
                 
                 if entry.is_file():
                     ext = entry.suffix.lower()
                     
                     if ext in VIDEO_EXTENSIONS:
+                        self.logger.debug("    -> VIDEO FILE")
                         result['videos'].append(str(entry))
                     elif ext == NFO_EXTENSION:
+                        self.logger.debug("    -> NFO FILE")
                         result['nfos'].append(str(entry))
                     elif ext in ART_EXTENSIONS:
+                        self.logger.debug("    -> ART FILE")
                         result['art'].append(str(entry))
+                    else:
+                        self.logger.debug("    -> OTHER FILE (ext=%s)", ext)
                 
                 elif entry.is_dir():
                     # Check if folder should be ignored
                     if entry_name not in IGNORE_FOLDERS:
+                        self.logger.debug("    -> SUBDIRECTORY (will process)")
                         result['subdirs'].append(str(entry))
+                    else:
+                        self.logger.debug("    -> SUBDIRECTORY (ignored folder type)")
                         # NOTE: When recursive=True, we still return subdirs for the caller to process
                         # We do NOT merge subdir contents here to avoid duplicates
                         # The import handler will recursively process subdirectories separately
@@ -225,14 +238,19 @@ class FileScanner:
                 return result
             
             # Process files
+            self.logger.debug("Processing %d VFS entries in: %s", len(files), url)
             for file_info in files:
                 file_label = file_info.get('label', '')
                 file_path = file_info.get('file', '')
                 file_type = file_info.get('filetype', 'file')
                 mimetype = file_info.get('mimetype', '')
                 
+                # Log every path encountered
+                self.logger.debug("  Found: %s (type=%s, mime=%s)", file_path, file_type, mimetype)
+                
                 # Skip ignored items
                 if self._should_ignore(file_label.lower()):
+                    self.logger.debug("    -> IGNORED (matches ignore pattern)")
                     continue
                 
                 if file_type == 'file':
@@ -240,15 +258,23 @@ class FileScanner:
                     
                     # Check if video
                     if ext in VIDEO_EXTENSIONS or (mimetype and mimetype.startswith('video/')):
+                        self.logger.debug("    -> VIDEO FILE")
                         result['videos'].append(file_path)
                     elif ext == NFO_EXTENSION:
+                        self.logger.debug("    -> NFO FILE")
                         result['nfos'].append(file_path)
                     elif ext in ART_EXTENSIONS:
+                        self.logger.debug("    -> ART FILE")
                         result['art'].append(file_path)
+                    else:
+                        self.logger.debug("    -> OTHER FILE (ext=%s)", ext)
                 
                 elif file_type == 'directory':
                     if file_label.lower() not in IGNORE_FOLDERS:
+                        self.logger.debug("    -> SUBDIRECTORY (will process)")
                         result['subdirs'].append(file_path)
+                    else:
+                        self.logger.debug("    -> SUBDIRECTORY (ignored folder type)")
                         # NOTE: When recursive=True, we still return subdirs for the caller to process
                         # We do NOT merge subdir contents here to avoid duplicates
                         # The import handler will recursively process subdirectories separately
