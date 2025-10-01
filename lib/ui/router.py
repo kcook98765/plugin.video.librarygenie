@@ -268,13 +268,30 @@ class Router:
                             3000
                         )
                     else:
-                        from lib.import_export.import_handler import ImportHandler
-                        from lib.data.storage_manager import get_storage_manager
+                        # Get default folder name from source path
+                        import os
+                        default_name = os.path.basename(source_url.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
                         
-                        storage = get_storage_manager()
-                        import_handler = ImportHandler(storage)
-                        import_handler.import_from_source(source_url)
-                        succeeded = True
+                        # Prompt user for folder name
+                        import xbmcgui
+                        folder_name = self.dialog_service.input(
+                            "Enter name for import folder:",
+                            default=default_name,
+                            input_type=xbmcgui.INPUT_ALPHANUM
+                        )
+                        
+                        # Check if user cancelled
+                        if not folder_name or not folder_name.strip():
+                            self.logger.debug("Import cancelled by user")
+                            succeeded = False
+                        else:
+                            from lib.import_export.import_handler import ImportHandler
+                            from lib.data.storage_manager import get_storage_manager
+                            
+                            storage = get_storage_manager()
+                            import_handler = ImportHandler(storage)
+                            import_handler.import_from_source(source_url, root_folder_name=folder_name.strip())
+                            succeeded = True
                 except Exception as e:
                     self.logger.error("Import file media failed: %s", str(e))
                     import xbmcgui
