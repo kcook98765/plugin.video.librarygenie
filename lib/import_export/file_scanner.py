@@ -56,26 +56,29 @@ class FileScanner:
     def __init__(self):
         self.logger = get_kodi_logger('lib.import_export.file_scanner')
         self._dir_cache = {}  # Cache directory listings within a scan
+        self._apply_ignore_patterns = True  # Track current scan mode
     
-    def scan_directory(self, source_url: str, recursive: bool = True) -> Dict[str, Any]:
+    def scan_directory(self, source_url: str, recursive: bool = True, apply_ignore_patterns: bool = True) -> Dict[str, Any]:
         """
         Scan a directory and return structured information about its contents
         
         Args:
             source_url: Kodi URL or filesystem path
             recursive: Whether to scan subdirectories
+            apply_ignore_patterns: Whether to apply ignore patterns (False for user-initiated imports)
             
         Returns:
             Dict with files, folders, and metadata
         """
         self.logger.info("Scanning directory: %s", source_url)
         self._dir_cache.clear()  # Clear cache for new scan
+        self._apply_ignore_patterns = apply_ignore_patterns  # Save state for helper methods
         
         # Determine scan method based on URL
         if self._is_local_path(source_url):
-            return self._scan_local_directory(source_url, recursive)
+            return self._scan_local_directory(source_url, recursive, apply_ignore_patterns)
         else:
-            return self._scan_vfs_directory(source_url, recursive)
+            return self._scan_vfs_directory(source_url, recursive, apply_ignore_patterns)
     
     def _is_local_path(self, url: str) -> bool:
         """Check if URL is a local filesystem path"""
@@ -89,7 +92,7 @@ class FileScanner:
         # All network paths (SMB, NFS, etc.) and Kodi protocols use VFS
         return False
     
-    def _scan_local_directory(self, path_str: str, recursive: bool) -> Dict[str, Any]:
+    def _scan_local_directory(self, path_str: str, recursive: bool, apply_ignore_patterns: bool) -> Dict[str, Any]:
         """Scan local filesystem directory"""
         result = {
             'videos': [],
@@ -128,7 +131,8 @@ class FileScanner:
                 
                 # Skip ignored items - only apply IGNORE_PATTERNS to files, not directories
                 # Directories are filtered separately by IGNORE_FOLDERS
-                if entry.is_file() and self._should_ignore(entry_name):
+                # During user-initiated imports, skip all ignore pattern filtering
+                if apply_ignore_patterns and entry.is_file() and self._should_ignore(entry_name):
                     self.logger.debug("    -> IGNORED (matches ignore pattern)")
                     continue
                 
@@ -163,7 +167,7 @@ class FileScanner:
         
         return result
     
-    def _scan_vfs_directory(self, url: str, recursive: bool) -> Dict[str, Any]:
+    def _scan_vfs_directory(self, url: str, recursive: bool, apply_ignore_patterns: bool) -> Dict[str, Any]:
         """Scan directory using Kodi VFS (JSON-RPC Files.GetDirectory)"""
         result = {
             'videos': [],
@@ -251,7 +255,8 @@ class FileScanner:
                 
                 # Skip ignored items - only apply IGNORE_PATTERNS to files, not directories
                 # Directories are filtered separately by IGNORE_FOLDERS
-                if file_type == 'file' and self._should_ignore(file_label.lower()):
+                # During user-initiated imports, skip all ignore pattern filtering
+                if apply_ignore_patterns and file_type == 'file' and self._should_ignore(file_label.lower()):
                     self.logger.debug("    -> IGNORED (matches ignore pattern)")
                     continue
                 
@@ -368,8 +373,8 @@ class FileScanner:
         entries = self._dir_cache.get(folder_path, [])
         
         if not entries:
-            # Try to scan if not cached
-            result = self.scan_directory(folder_path, recursive=False)
+            # Try to scan if not cached - use current scan mode (import vs browse)
+            result = self.scan_directory(folder_path, recursive=False, apply_ignore_patterns=self._apply_ignore_patterns)
             entries = result['nfos']
         
         for nfo_path in entries if isinstance(entries, list) else []:
@@ -402,7 +407,8 @@ class FileScanner:
         entries = self._dir_cache.get(folder_path, [])
         
         if not entries:
-            result = self.scan_directory(folder_path, recursive=False)
+            # Try to scan if not cached - use current scan mode (import vs browse)
+            result = self.scan_directory(folder_path, recursive=False, apply_ignore_patterns=self._apply_ignore_patterns)
             entries = result['art']
         
         # Look for art type
