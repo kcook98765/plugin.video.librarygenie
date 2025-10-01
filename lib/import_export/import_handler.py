@@ -14,6 +14,7 @@ from lib.import_export.nfo_parser import NFOParser
 from lib.import_export.media_classifier import MediaClassifier
 from lib.import_export.art_extractor import ArtExtractor
 from lib.data.connection_manager import get_connection_manager
+from lib.data.query_manager import QueryManager
 
 
 class ImportHandler:
@@ -23,6 +24,7 @@ class ImportHandler:
         self.logger = get_kodi_logger('lib.import_export.import_handler')
         self.storage = storage
         self.connection_manager = get_connection_manager()
+        self.query_manager = QueryManager()
         self.scanner = FileScanner()
         self.nfo_parser = NFOParser()
         self.classifier = MediaClassifier()
@@ -614,21 +616,26 @@ class ImportHandler:
     
     def _add_item_to_list_if_not_exists(self, list_id: int, media_item_id: int):
         """Add item to list only if not already present"""
-        conn = self.connection_manager.get_connection()
-        
-        # Check if already exists
-        cursor = conn.execute(
-            "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
-            (list_id, media_item_id)
-        )
-        
-        if not cursor.fetchone():
-            # Not exists, add it
-            conn.execute(
-                "INSERT INTO list_items (list_id, media_item_id, position, created_at) VALUES (?, ?, ?, ?)",
-                (list_id, media_item_id, 0, datetime.now().isoformat())
+        with self.connection_manager.transaction() as conn:
+            # Check if already exists
+            cursor = conn.execute(
+                "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
+                (list_id, media_item_id)
             )
-            conn.commit()
+            
+            if not cursor.fetchone():
+                # Get next position
+                position_result = conn.execute(
+                    "SELECT COALESCE(MAX(position), -1) + 1 as next_position FROM list_items WHERE list_id = ?",
+                    (list_id,)
+                ).fetchone()
+                next_position = position_result[0] if position_result else 0
+                
+                # Insert with proper position
+                conn.execute(
+                    "INSERT INTO list_items (list_id, media_item_id, position, created_at) VALUES (?, ?, ?, ?)",
+                    (list_id, media_item_id, next_position, datetime.now().isoformat())
+                )
     
     def cancel(self):
         """Request cancellation of current import"""
