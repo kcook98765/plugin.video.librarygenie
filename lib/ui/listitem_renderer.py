@@ -248,8 +248,25 @@ class ListItemRenderer:
             # Set basic info - CONSOLIDATED
             self.metadata_manager.set_basic_metadata(list_item, name, f"Folder: {name}", "folder")
 
-            # Set folder icon
-            self._apply_art(list_item, 'folder')
+            # Apply artwork - custom art_data if available, otherwise default folder icon
+            art_data = folder_data.get('art_data')
+            if art_data:
+                # Parse art_data if it's a JSON string
+                import json
+                if isinstance(art_data, str):
+                    try:
+                        art_data = json.loads(art_data)
+                    except (json.JSONDecodeError, ValueError):
+                        art_data = None
+                
+                # Apply custom artwork with fallback to default
+                if art_data and isinstance(art_data, dict):
+                    self.art_manager.apply_art(list_item, art_data, fallback_icon='DefaultFolder.png')
+                else:
+                    self._apply_art(list_item, 'folder')
+            else:
+                # No custom art, use default folder icon
+                self._apply_art(list_item, 'folder')
 
             # Add context menu
             self._set_folder_context_menu(list_item, folder_data)

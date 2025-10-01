@@ -1883,7 +1883,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT 
-                    f.id, f.name, f.parent_id, f.created_at
+                    f.id, f.name, f.parent_id, f.created_at, f.art_data
                 FROM folders f
                 WHERE f.id = ?
             """, [int(folder_id)])
@@ -1893,7 +1893,8 @@ class QueryManager:
                     "id": str(result['id']),
                     "name": result['name'],
                     "parent_id": result['parent_id'],
-                    "created": result['created_at'][:10] if result['created_at'] else ''
+                    "created": result['created_at'][:10] if result['created_at'] else '',
+                    "art_data": result['art_data']
                 }
 
             return None
@@ -1909,7 +1910,7 @@ class QueryManager:
                 # Get top-level folders
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at
+                        f.id, f.name, f.created_at, f.art_data
                     FROM folders f
                     WHERE f.parent_id IS NULL
                     ORDER BY 
@@ -1920,7 +1921,7 @@ class QueryManager:
                 # Get subfolders of specified parent
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at
+                        f.id, f.name, f.created_at, f.art_data
                     FROM folders f
                     WHERE f.parent_id = ?
                     ORDER BY f.name
@@ -1931,7 +1932,8 @@ class QueryManager:
                 result.append({
                     "id": str(row['id']),
                     "name": row['name'],
-                    "created": row['created_at'][:10] if row['created_at'] else ''
+                    "created": row['created_at'][:10] if row['created_at'] else '',
+                    "art_data": row['art_data']
                 })
 
             if parent_id is None:
@@ -1954,14 +1956,14 @@ class QueryManager:
                 # For root level: get top-level folders and lists
                 results = self.connection_manager.execute_query("""
                     -- Get top-level subfolders (root level has no folder info)
-                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data
                     FROM folders f 
                     WHERE f.parent_id IS NULL
                     
                     UNION ALL
                     
                     -- Get top-level lists
-                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data
                     FROM lists l 
                     WHERE l.folder_id IS NULL
                     ORDER BY data_type, name
@@ -1970,21 +1972,21 @@ class QueryManager:
                 # Single batch query to get folder info, subfolders, and lists
                 results = self.connection_manager.execute_query("""
                     -- Get folder info
-                    SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data
                     FROM folders f 
                     WHERE f.id = ?
                     
                     UNION ALL
                     
                     -- Get subfolders in this folder
-                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data
                     FROM folders f 
                     WHERE f.parent_id = ?
                     
                     UNION ALL
                     
                     -- Get lists in this folder
-                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data
                     FROM lists l 
                     WHERE l.folder_id = ?
                     ORDER BY data_type, name
@@ -2002,13 +2004,15 @@ class QueryManager:
                     folder_info = {
                         "id": str(row['id']),
                         "name": row['name'],
-                        "created": row['created_at'][:10] if row['created_at'] else ''
+                        "created": row['created_at'][:10] if row['created_at'] else '',
+                        "art_data": row['art_data']
                     }
                 elif data_type == 'subfolder':
                     subfolders.append({
                         "id": str(row['id']),
                         "name": row['name'],
-                        "created": row['created_at'][:10] if row['created_at'] else ''
+                        "created": row['created_at'][:10] if row['created_at'] else '',
+                        "art_data": row['art_data']
                     })
                 elif data_type == 'list':
                     lists.append(dict(row))
