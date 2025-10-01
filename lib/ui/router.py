@@ -252,6 +252,42 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                 
                 return result if isinstance(result, bool) else True
+            elif action == 'import_file_media':
+                # Handle Import File Media action from context menu
+                source_url = context.get_param('source_url')
+                succeeded = False
+                
+                try:
+                    if not source_url:
+                        self.logger.error("Import file media: missing source_url parameter")
+                        import xbmcgui
+                        xbmcgui.Dialog().notification(
+                            "LibraryGenie",
+                            "Import failed: No folder path provided",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            3000
+                        )
+                    else:
+                        from lib.import_export.import_handler import ImportHandler
+                        from lib.data.storage_manager import get_storage
+                        
+                        storage = get_storage()
+                        import_handler = ImportHandler(storage)
+                        import_handler.import_from_source(source_url)
+                        succeeded = True
+                except Exception as e:
+                    self.logger.error("Import file media failed: %s", str(e))
+                    import xbmcgui
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"Import failed: {str(e)}",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                finally:
+                    # Always end directory for context menu actions
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=succeeded)
+                return True
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
