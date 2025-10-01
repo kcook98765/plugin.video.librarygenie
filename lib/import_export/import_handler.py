@@ -35,7 +35,8 @@ class ImportHandler:
         self,
         source_url: str,
         target_folder_id: Optional[int] = None,
-        progress_callback: Optional[Callable] = None
+        progress_callback: Optional[Callable] = None,
+        root_folder_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Import media from a source folder
@@ -44,6 +45,7 @@ class ImportHandler:
             source_url: URL/path to scan
             target_folder_id: Target LibraryGenie folder ID (None for root)
             progress_callback: Optional callback for progress updates
+            root_folder_name: Optional custom name for root import folder
         
         Returns:
             Dictionary with import results
@@ -58,8 +60,16 @@ class ImportHandler:
         }
         
         try:
+            # If root_folder_name is provided, create a wrapper folder
+            actual_target_folder_id = target_folder_id
+            if root_folder_name:
+                self.logger.debug("Creating root import folder: '%s'", root_folder_name)
+                actual_target_folder_id = self._create_or_get_folder(root_folder_name, target_folder_id)
+                self.logger.debug("Root import folder ID: %s", actual_target_folder_id)
+                results['folders_created'] += 1
+            
             # Create import source record
-            import_source_id = self._create_import_source(source_url, target_folder_id)
+            import_source_id = self._create_import_source(source_url, actual_target_folder_id)
             
             # Scan the source directory
             if progress_callback:
@@ -69,7 +79,9 @@ class ImportHandler:
             
             self.logger.debug("=== IMPORT FROM SOURCE ===")
             self.logger.debug("  Source URL: %s", source_url)
-            self.logger.debug("  Target folder ID: %s", target_folder_id)
+            self.logger.debug("  Original target folder ID: %s", target_folder_id)
+            self.logger.debug("  Root folder name: %s", root_folder_name if root_folder_name else "None (use source structure)")
+            self.logger.debug("  Actual target folder ID: %s", actual_target_folder_id)
             self.logger.debug("  Scan results: %d videos, %d NFOs, %d subdirs, %d art files",
                             len(scan_result['videos']), len(scan_result['nfos']), 
                             len(scan_result['subdirs']), len(scan_result['art']))
@@ -91,7 +103,7 @@ class ImportHandler:
                     source_url,
                     scan_result,
                     classification,
-                    target_folder_id,
+                    actual_target_folder_id,
                     progress_callback
                 )
                 results.update(folder_results)
@@ -101,7 +113,7 @@ class ImportHandler:
                     source_url,
                     scan_result,
                     classification,
-                    target_folder_id,
+                    actual_target_folder_id,
                     progress_callback
                 )
                 results.update(list_results)
@@ -111,7 +123,7 @@ class ImportHandler:
                     source_url,
                     scan_result,
                     classification,
-                    target_folder_id,
+                    actual_target_folder_id,
                     progress_callback
                 )
                 results.update(item_results)
@@ -121,7 +133,7 @@ class ImportHandler:
                     source_url,
                     scan_result,
                     classification,
-                    target_folder_id,
+                    actual_target_folder_id,
                     progress_callback
                 )
                 results.update(mixed_results)
