@@ -95,7 +95,8 @@ class ImportHandler:
             if progress_callback:
                 progress_callback("Scanning directory...")
             
-            scan_result = self.scanner.scan_directory(source_url, recursive=True)
+            # Disable ignore patterns during user-initiated imports - import everything found
+            scan_result = self.scanner.scan_directory(source_url, recursive=True, apply_ignore_patterns=False)
             
             self.logger.debug("=== IMPORT FROM SOURCE ===")
             self.logger.debug("  Source URL: %s", source_url)
