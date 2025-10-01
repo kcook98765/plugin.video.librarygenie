@@ -131,6 +131,7 @@ class NFOParser:
             'plot': self._get_text(ep_data, 'plot'),
             'aired': self._get_text(ep_data, 'aired'),
             'year': self._get_int(ep_data, 'year'),
+            'runtime': self._get_int(ep_data, 'runtime'),
             'rating': self._get_rating(ep_data),
             'votes': self._get_int(ep_data, 'votes'),
             'director': self._get_list(ep_data, 'director'),
@@ -155,6 +156,9 @@ class NFOParser:
         
         movie = nfo_data['movie']
         
+        # Extract uniqueids
+        uniqueid = self._get_uniqueid(movie)
+        
         metadata = {
             'title': self._get_text(movie, 'title'),
             'originaltitle': self._get_text(movie, 'originaltitle'),
@@ -170,7 +174,9 @@ class NFOParser:
             'runtime': self._get_int(movie, 'runtime'),
             'rating': self._get_rating(movie),
             'votes': self._get_int(movie, 'votes'),
-            'uniqueid': self._get_uniqueid(movie),
+            'uniqueid': uniqueid,
+            'imdbnumber': uniqueid.get('imdb') if uniqueid else None,
+            'tmdb_id': uniqueid.get('tmdb') if uniqueid else None,
             'set': self._get_text(movie, 'set'),
             'art': self._get_art(movie),
             'actor': self._get_actors(movie),

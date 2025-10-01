@@ -176,7 +176,7 @@ class ImportHandler:
                     cache = FolderCache()  # Use default cache directory
                     
                     # Recursively delete stale caches for the entire folder hierarchy
-                    invalidate_results = cache.invalidate_folder_hierarchy(results['root_folder_id'])
+                    invalidate_results = cache.invalidate_folder_hierarchy(str(results['root_folder_id']))
                     invalidated_count = sum(1 for success in invalidate_results.values() if success and success != "error")
                     affected_folders = [fid for fid in invalidate_results.keys() if fid != "error"]
                     self.logger.info("Invalidated %d folders in hierarchy for root folder %s: %s", 
@@ -768,9 +768,9 @@ class ImportHandler:
             'mpaa': movie_data.get('mpaa'),
             # Store genre and studio as comma-separated strings (matching library sync format)
             # Join lists, preserve strings as-is, keep None for missing values
-            'genre': ", ".join(movie_data.get('genre')) if isinstance(movie_data.get('genre'), list) else (str(movie_data.get('genre')) if movie_data.get('genre') else None),
+            'genre': (", ".join(movie_data['genre']) if isinstance(movie_data.get('genre'), list) and movie_data.get('genre') else (str(movie_data['genre']) if movie_data.get('genre') else None)),
             'director': json.dumps(movie_data.get('director')) if movie_data.get('director') else None,
-            'studio': ", ".join(movie_data.get('studio')) if isinstance(movie_data.get('studio'), list) else (str(movie_data.get('studio')) if movie_data.get('studio') else None),
+            'studio': (", ".join(movie_data['studio']) if isinstance(movie_data.get('studio'), list) and movie_data.get('studio') else (str(movie_data['studio']) if movie_data.get('studio') else None)),
             'writer': json.dumps(movie_data.get('writer')) if movie_data.get('writer') else None,
             'cast': json.dumps(movie_data.get('actor', [])) if movie_data.get('actor') else None,
             'updated_at': datetime.now().isoformat()
