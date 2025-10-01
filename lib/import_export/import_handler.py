@@ -387,30 +387,33 @@ class ImportHandler:
         self.logger.debug("  Path: %s", folder_path)
         self.logger.debug("  Classification: %s", classification)
         self.logger.debug("  Parent folder ID: %s", parent_folder_id)
-        self.logger.debug("  Scan results: %d videos, %d subdirs", len(scan_result['videos']), len(scan_result['subdirs']))
+        self.logger.debug("  Scan results: %d videos (direct), %d subdirs", len(scan_result['videos']), len(scan_result['subdirs']))
         
-        # Determine where to place content based on whether we have subdirs
+        # Get folder name
+        folder_name = os.path.basename(folder_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
+        
+        # Determine structure based on content
         folder_id_for_content = parent_folder_id
+        has_videos = len(scan_result['videos']) > 0
+        has_subdirs = len(scan_result['subdirs']) > 0
         
-        # If we have subdirectories, create a folder for this directory to organize content
-        if scan_result['subdirs']:
-            folder_name = os.path.basename(folder_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
+        # If we have subdirectories, always create a folder for organization
+        if has_subdirs:
             self.logger.debug("  Has subdirs - creating folder: '%s'", folder_name)
             folder_id_for_content = self._create_or_get_folder(folder_name, parent_folder_id)
             self.logger.debug("  Created/found folder ID: %s", folder_id_for_content)
             results['folders_created'] += 1
         
-        # Create a list for this folder's videos if any
-        if scan_result['videos']:
-            # Strip trailing slashes to get proper folder name
-            folder_name = os.path.basename(folder_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
-            self.logger.debug("  Creating list for videos with name: '%s'", folder_name)
+        # Only create a list if we have videos DIRECTLY in this folder
+        # (Scanner no longer merges subdir videos, so this is accurate)
+        if has_videos:
+            self.logger.debug("  Has %d direct videos - creating list: '%s'", len(scan_result['videos']), folder_name)
             list_id = self._create_or_get_list(folder_name, folder_id_for_content)
             self.logger.debug("  Created/found list ID: %s in folder: %s", list_id, folder_id_for_content)
             results['lists_created'] += 1
             
             # Import each video
-            self.logger.debug("  Processing %d video files in folder", len(scan_result['videos']))
+            self.logger.debug("  Processing %d video files", len(scan_result['videos']))
             for video_path in scan_result['videos']:
                 if self.cancel_requested:
                     break
