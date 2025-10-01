@@ -624,7 +624,11 @@ class ImportHandler:
         
         if not cursor.fetchone():
             # Not exists, add it
-            self.storage.add_item_to_list(list_id, media_item_id)
+            conn.execute(
+                "INSERT INTO list_items (list_id, media_item_id, position, created_at) VALUES (?, ?, ?, ?)",
+                (list_id, media_item_id, 0, datetime.now().isoformat())
+            )
+            conn.commit()
     
     def cancel(self):
         """Request cancellation of current import"""
