@@ -269,9 +269,9 @@ class Router:
                         )
                     else:
                         from lib.import_export.import_handler import ImportHandler
-                        from lib.data.storage_manager import get_storage
+                        from lib.data.storage_manager import get_storage_manager
                         
-                        storage = get_storage()
+                        storage = get_storage_manager()
                         import_handler = ImportHandler(storage)
                         import_handler.import_from_source(source_url)
                         succeeded = True
