@@ -231,7 +231,11 @@ class ImportHandler:
         
         # Determine season number and name
         season_number = classification.get('season_number', 0)
-        season_name = f"Season {season_number}" if season_number else os.path.basename(season_path)
+        if season_number:
+            season_name = f"Season {season_number}"
+        else:
+            # Strip trailing slashes to get proper folder name
+            season_name = os.path.basename(season_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Season"
         self.logger.debug("  Season name: %s (number: %s)", season_name, season_number)
         
         # Create season list
@@ -375,7 +379,8 @@ class ImportHandler:
         
         # Create a list for this folder's videos if any
         if scan_result['videos']:
-            folder_name = os.path.basename(folder_path)
+            # Strip trailing slashes to get proper folder name
+            folder_name = os.path.basename(folder_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "Imported Media"
             self.logger.debug("  Creating list for videos with name: '%s'", folder_name)
             list_id = self._create_or_get_list(folder_name, parent_folder_id)
             self.logger.debug("  Created/found list ID: %s", list_id)
@@ -454,7 +459,8 @@ class ImportHandler:
         """Get TV show title from NFO data or folder name"""
         if tvshow_data and 'title' in tvshow_data:
             return tvshow_data['title']
-        return os.path.basename(show_path)
+        # Strip trailing slashes to get proper folder name
+        return os.path.basename(show_path.rstrip(os.sep).rstrip('/').rstrip('\\')) or "TV Show"
     
     def _create_or_get_folder(
         self,
