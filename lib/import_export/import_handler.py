@@ -383,62 +383,58 @@ class ImportHandler:
         parent_id: Optional[int],
         art_data: Optional[Dict] = None
     ) -> int:
-        """Create or get existing folder"""
+        """Create or get existing folder using QueryManager"""
         # Check if folder exists
-        conn = self.connection_manager.get_connection()
-        
         if parent_id is None:
-            cursor = conn.execute(
+            existing = self.connection_manager.execute_single(
                 "SELECT id FROM folders WHERE name = ? AND parent_id IS NULL",
                 (name,)
             )
         else:
-            cursor = conn.execute(
+            existing = self.connection_manager.execute_single(
                 "SELECT id FROM folders WHERE name = ? AND parent_id = ?",
                 (name, parent_id)
             )
         
-        row = cursor.fetchone()
+        if existing:
+            return existing['id']
         
-        if row:
-            return row[0]
+        # Create new folder using QueryManager
+        result = self.query_manager.create_folder(name, parent_id)
         
-        # Create new folder
-        cursor = conn.execute(
-            "INSERT INTO folders (name, parent_id, created_at) VALUES (?, ?, ?)",
-            (name, parent_id, datetime.now().isoformat())
-        )
-        conn.commit()
-        return cursor.lastrowid
+        if result.get('success'):
+            return result['folder_id']
+        else:
+            # Handle error or duplicate (shouldn't happen due to check above)
+            self.logger.error("Failed to create folder '%s': %s", name, result.get('error'))
+            raise RuntimeError(f"Failed to create folder: {result.get('error')}")
     
     def _create_or_get_list(self, name: str, folder_id: Optional[int]) -> int:
-        """Create or get existing list"""
+        """Create or get existing list using QueryManager"""
         # Check if list exists
-        conn = self.connection_manager.get_connection()
-        
         if folder_id is None:
-            cursor = conn.execute(
+            existing = self.connection_manager.execute_single(
                 "SELECT id FROM lists WHERE name = ? AND folder_id IS NULL",
                 (name,)
             )
         else:
-            cursor = conn.execute(
+            existing = self.connection_manager.execute_single(
                 "SELECT id FROM lists WHERE name = ? AND folder_id = ?",
                 (name, folder_id)
             )
         
-        row = cursor.fetchone()
+        if existing:
+            return existing['id']
         
-        if row:
-            return row[0]
+        # Create new list using QueryManager
+        result = self.query_manager.create_list(name, folder_id=folder_id)
         
-        # Create new list
-        cursor = conn.execute(
-            "INSERT INTO lists (name, folder_id, created_at) VALUES (?, ?, ?)",
-            (name, folder_id, datetime.now().isoformat())
-        )
-        conn.commit()
-        return cursor.lastrowid
+        if 'id' in result:
+            return int(result['id'])
+        else:
+            # Handle error or duplicate (shouldn't happen due to check above)
+            self.logger.error("Failed to create list '%s': %s", name, result.get('error'))
+            raise RuntimeError(f"Failed to create list: {result.get('error')}")
     
     def _create_episode_item(
         self,
