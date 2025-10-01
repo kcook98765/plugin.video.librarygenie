@@ -139,6 +139,7 @@ class FileScanner:
                 elif entry.is_dir():
                     # Check if folder should be ignored
                     if entry_name not in IGNORE_FOLDERS:
+                        result['subdirs'].append(str(entry))
                         if recursive:
                             # Recursively scan subdirectory and merge results
                             subdir_result = self._scan_local_directory(str(entry), recursive=True)
@@ -146,7 +147,6 @@ class FileScanner:
                             result['nfos'].extend(subdir_result['nfos'])
                             result['art'].extend(subdir_result['art'])
                             result['subdirs'].extend(subdir_result['subdirs'])
-                        result['subdirs'].append(str(entry))
             
         except Exception as e:
             self.logger.error("Error scanning local directory %s: %s", path_str, e)
@@ -197,13 +197,35 @@ class FileScanner:
             file_paths = [f.get('file', '') for f in files]
             self._dir_cache[url] = file_paths
             
-            # Check for disc structure
-            file_names = [f.get('label', '').lower() for f in files]
-            if any(name in DISC_FOLDERS for name in file_names):
-                result['disc_structure'] = {
-                    'type': 'folder',
-                    'url': url
-                }
+            # Check for disc structure (folders and image files)
+            disc_found = None
+            for file_info in files:
+                file_label = file_info.get('label', '')
+                file_type = file_info.get('filetype', 'file')
+                
+                # Check for disc folders (VIDEO_TS, BDMV) - normalize casing
+                if file_type == 'directory' and file_label.upper() in DISC_FOLDERS:
+                    disc_found = {
+                        'type': 'folder',
+                        'path': file_info.get('file', ''),
+                        'name': file_label.upper()
+                    }
+                    break
+                
+                # Check for disc image files (.iso, .img)
+                if file_type == 'file':
+                    ext = os.path.splitext(file_label)[1].lower()
+                    if ext in DISC_EXTENSIONS:
+                        disc_found = {
+                            'type': 'file',
+                            'path': file_info.get('file', ''),
+                            'name': file_label
+                        }
+                        break
+            
+            # If disc structure found, return it (but only after checking all entries)
+            if disc_found:
+                result['disc_structure'] = disc_found
                 return result
             
             # Process files
@@ -230,6 +252,7 @@ class FileScanner:
                 
                 elif file_type == 'directory':
                     if file_label.lower() not in IGNORE_FOLDERS:
+                        result['subdirs'].append(file_path)
                         if recursive:
                             # Recursively scan subdirectory and merge results
                             subdir_result = self._scan_vfs_directory(file_path, recursive=True)
@@ -237,7 +260,6 @@ class FileScanner:
                             result['nfos'].extend(subdir_result['nfos'])
                             result['art'].extend(subdir_result['art'])
                             result['subdirs'].extend(subdir_result['subdirs'])
-                        result['subdirs'].append(file_path)
             
         except Exception as e:
             self.logger.error("Error scanning VFS directory %s: %s", url, e)
