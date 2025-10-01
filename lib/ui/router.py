@@ -413,6 +413,9 @@ class Router:
                                 # Check if import actually succeeded
                                 if results.get('success'):
                                     succeeded = True
+                                    # Navigate to plugin root to show imported content
+                                    import xbmc
+                                    xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.librarygenie/,return)')
                                 else:
                                     self.logger.error("Import failed: %s", results.get('errors'))
                                     error_msg = '; '.join(results.get('errors', ['Unknown error']))[:100]
