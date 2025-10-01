@@ -13,9 +13,13 @@ import xbmcaddon
 import xbmcgui
 import xbmc
 import xbmcplugin
+import xbmcvfs
 
 # Import shared utilities
 from lib.utils.kodi_log import log, log_info, log_error, log_warning
+
+# First run marker file path (lightweight check - no DB access)
+FIRST_RUN_MARKER = 'special://userdata/addon_data/plugin.video.librarygenie/.first_run_complete'
 
 # Heavy imports now lazy loaded in their respective functions for better startup performance
 # Type annotations only - no runtime imports
@@ -680,6 +684,24 @@ def main():
     log(f"Full sys.argv: {sys.argv}")
     
     try:
+        # STEP 0: Ultra-lightweight first run check (file existence only - no DB)
+        if _is_first_run():
+            log_info("First run detected - loading setup flow")
+            # Must load full architecture for first run setup
+            from lib.ui.plugin_context import PluginContext
+            context = PluginContext()
+            _ensure_startup_initialization(context)
+            _check_and_handle_fresh_install(context)
+            # After setup, continue to main menu
+            from lib.ui.router import Router
+            router = Router()
+            _register_all_handlers(router)
+            if not router.dispatch(context):
+                factory = _get_factory()
+                main_menu_handler = factory.get_main_menu_handler()
+                main_menu_handler.show_main_menu(context)
+            return
+        
         # STEP 1: Parse action with minimal imports (ultra-fast)
         action, params = _parse_action_minimal()
         log(f"Parsed action: '{action}' with minimal imports")
@@ -708,10 +730,6 @@ def main():
         # STEP 4: Always run initialization for fallback path
         log("Cache miss or failure - running full initialization for safety")
         _ensure_startup_initialization(context)
-        
-        # Check for fresh install and show setup modal if needed
-        fresh_install_handled = _check_and_handle_fresh_install(context)
-        # Continue to main menu even after fresh install setup
 
         router = Router()
         _register_all_handlers(router)
@@ -771,19 +789,38 @@ def _log_window_state(context: 'PluginContext'):
         log_warning(f"Failed to log window state at plugin entry: {e}")
 
 
+def _is_first_run() -> bool:
+    """Lightweight file-based first run check - no DB access"""
+    return not xbmcvfs.exists(FIRST_RUN_MARKER)
+
+def _mark_first_run_complete():
+    """Create marker file to indicate first run is complete"""
+    try:
+        # Ensure directory exists
+        marker_dir = 'special://userdata/addon_data/plugin.video.librarygenie/'
+        xbmcvfs.mkdirs(marker_dir)
+        
+        # Create marker file
+        f = xbmcvfs.File(FIRST_RUN_MARKER, 'w')
+        f.write('1')
+        f.close()
+        log_info("First run marker file created")
+    except Exception as e:
+        log_error(f"Failed to create first run marker: {e}")
+
 def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
     """Check for fresh install and show setup modal if needed. Returns True if handled."""
     try:
         from lib.library.sync_controller import SyncController
         from lib.ui.localization import L
         
-        sync_controller = SyncController()
-        
-        # Skip if first run already completed
-        if not sync_controller.is_first_run():
+        # Lightweight file check - no DB access
+        if not _is_first_run():
             return False
             
         log_info("First run detected - showing setup modal")
+        
+        sync_controller = SyncController()
         
         # Show welcome dialog first with explanation
         dialog = xbmcgui.Dialog()
@@ -812,32 +849,32 @@ def _check_and_handle_fresh_install(context: 'PluginContext') -> bool:
             log_info("User selected: Movies and TV Episodes")
             _show_setup_progress(L(30191))  # "Setting up Movies and TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=True)
-            # Force cache reload to prevent showing setup again
-            _get_cached_config().invalidate('first_run_completed')
+            # Create lightweight marker file
+            _mark_first_run_complete()
             _show_setup_complete(L(30194))  # "Setup complete! Both movies and TV episodes will be synced."
             
         elif selected == 1:  # Movies only
             log_info("User selected: Movies Only")
             _show_setup_progress(L(30192))  # "Setting up Movies sync..."
             sync_controller.complete_first_run_setup(sync_movies=True, sync_tv_episodes=False)
-            # Force cache reload to prevent showing setup again
-            _get_cached_config().invalidate('first_run_completed')
+            # Create lightweight marker file
+            _mark_first_run_complete()
             _show_setup_complete(L(30195))  # "Setup complete! Movies will be synced."
             
         elif selected == 2:  # TV Episodes only
             log_info("User selected: TV Episodes Only")
             _show_setup_progress(L(30193))  # "Setting up TV Episodes sync..."
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=True)
-            # Force cache reload to prevent showing setup again
-            _get_cached_config().invalidate('first_run_completed')
+            # Create lightweight marker file
+            _mark_first_run_complete()
             _show_setup_complete(L(30196))  # "Setup complete! TV episodes will be synced."
             
         elif selected == 3:  # Skip setup
             log_info("User selected: Skip Setup")
             # Mark first run complete but don't enable any syncing
             sync_controller.complete_first_run_setup(sync_movies=False, sync_tv_episodes=False)
-            # Force cache reload to prevent showing setup again
-            _get_cached_config().invalidate('first_run_completed')
+            # Create lightweight marker file
+            _mark_first_run_complete()
             xbmcgui.Dialog().notification(
                 L(30136),   # "LibraryGenie"
                 L(30531),   # "Setup skipped. Configure sync options in Settings."
