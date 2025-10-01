@@ -10,11 +10,7 @@ import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from lib.utils.kodi_log import get_kodi_logger
-
-try:
-    import xmltodict
-except ImportError:
-    xmltodict = None
+from lib import xmltodict
 
 
 class NFOParser:
@@ -22,8 +18,6 @@ class NFOParser:
     
     def __init__(self):
         self.logger = get_kodi_logger('lib.import_export.nfo_parser')
-        if not xmltodict:
-            self.logger.warning("xmltodict not available - NFO parsing will fail")
     
     def parse_nfo_file(self, nfo_path: Path) -> Optional[Dict[str, Any]]:
         """
@@ -35,10 +29,6 @@ class NFOParser:
         Returns:
             Dict containing NFO data, or None if parsing fails
         """
-        if not xmltodict:
-            self.logger.error("xmltodict not available for NFO parsing")
-            return None
-            
         try:
             with open(nfo_path, 'r', encoding='utf-8') as f:
                 content = f.read()
