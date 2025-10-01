@@ -626,6 +626,7 @@ class ListItemArtManager:
             from PIL import Image
             has_pil = True
         except ImportError:
+            Image = None  # type: ignore
             has_pil = False
             self.logger.debug("PIL not available, using filename-only art detection")
         
@@ -697,7 +698,7 @@ class ListItemArtManager:
                     # Type-specific file - use dimensions to determine usage (if PIL available)
                     if has_pil:
                         try:
-                            with Image.open(file_path) as img:
+                            with Image.open(file_path) as img:  # type: ignore
                                 width, height = img.size
                                 aspect_ratio = width / height if height > 0 else 1.0
                                 
