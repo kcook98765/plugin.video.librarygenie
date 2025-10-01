@@ -56,6 +56,11 @@ class ListItemMetadataManager:
         """Set metadata using InfoTagVideo method"""
         try:
             video_info_tag = list_item.getVideoInfoTag()
+            
+            # Set basic media type if this is a video item
+            if item_type in ["movie", "episode", "tvshow", "video"]:
+                video_info_tag.setMediaType(item_type if item_type != "video" else "movie")
+            
             video_info_tag.setTitle(title)
             if plot:
                 video_info_tag.setPlot(plot)
@@ -120,6 +125,10 @@ class ListItemMetadataManager:
         import json
         try:
             video_info_tag = list_item.getVideoInfoTag()
+            
+            # CRITICAL: Set media type FIRST - required for proper metadata display in v20+
+            media_type = item_data.get('media_type', 'movie')
+            video_info_tag.setMediaType(media_type)
             
             # Core fields
             video_info_tag.setTitle(title)
