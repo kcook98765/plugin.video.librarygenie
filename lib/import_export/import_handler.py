@@ -514,9 +514,9 @@ class ImportHandler:
             self.logger.debug("  Found existing folder ID: %s", existing['id'])
             return existing['id']
         
-        # Create new folder using QueryManager
-        self.logger.debug("  Creating new folder...")
-        result = self.query_manager.create_folder(name, parent_id)
+        # Create new folder using QueryManager with art_data
+        self.logger.debug("  Creating new folder with artwork...")
+        result = self.query_manager.create_folder(name, parent_id, art_data=art_data)
         
         if result.get('success'):
             self.logger.debug("  Successfully created folder ID: %s", result['folder_id'])
