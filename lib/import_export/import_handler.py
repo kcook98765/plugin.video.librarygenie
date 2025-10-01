@@ -579,6 +579,11 @@ class ImportHandler:
         )
         existing = cursor.fetchone()
         
+        # Fallback: use filename as title if no title from NFO
+        title = episode_data.get('title')
+        if not title:
+            title = os.path.splitext(os.path.basename(video_path))[0]
+        
         # Build media item data
         item_data = {
             'media_type': 'episode',
@@ -586,7 +591,7 @@ class ImportHandler:
             'play': video_path,
             'file_path': video_path,
             'art': json.dumps(art) if art else None,
-            'title': episode_data.get('title'),
+            'title': title,
             'plot': episode_data.get('plot'),
             'tvshowtitle': tvshow_data.get('title') if tvshow_data else None,
             'season': episode_data.get('season', season_number),
@@ -646,6 +651,11 @@ class ImportHandler:
         )
         existing = cursor.fetchone()
         
+        # Fallback: use filename as title if no title from NFO
+        title = movie_data.get('title')
+        if not title:
+            title = os.path.splitext(os.path.basename(video_path))[0]
+        
         # Build media item data
         item_data = {
             'media_type': 'movie',
@@ -653,7 +663,7 @@ class ImportHandler:
             'play': video_path,
             'file_path': video_path,
             'art': json.dumps(art) if art else None,
-            'title': movie_data.get('title'),
+            'title': title,
             'year': movie_data.get('year'),
             'plot': movie_data.get('plot'),
             'rating': movie_data.get('rating'),
