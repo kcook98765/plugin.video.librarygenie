@@ -582,6 +582,7 @@ class ImportHandler:
         # Build media item data
         item_data = {
             'media_type': 'episode',
+            'source': 'files',
             'play': video_path,
             'file_path': video_path,
             'art': json.dumps(art) if art else None,
@@ -648,6 +649,7 @@ class ImportHandler:
         # Build media item data
         item_data = {
             'media_type': 'movie',
+            'source': 'files',
             'play': video_path,
             'file_path': video_path,
             'art': json.dumps(art) if art else None,
