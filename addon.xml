@@ -10,7 +10,7 @@
     <provides>video</provides>
   </extension>
   <extension point="xbmc.service" library="service.py" start="login"/>
-  <extension point="xbmc.python.script" library="utilities.py"/>
+  <extension point="xbmc.python.library" library="utilities.py"/>
   <extension point="xbmc.python.script" library="search.py">
     <provides>executable</provides>
   </extension>
