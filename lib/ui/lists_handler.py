@@ -408,17 +408,22 @@ class ListsHandler:
                     # This prevents confusing dialogs when navigating back from deletions
                     menu_items = []
 
-                    # Add "Tools & Options" with breadcrumb context (breadcrumb helper handles None gracefully for 'lists' action)
-                    breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, None)
-                    description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, None)
+                    # Add "Tools & Options" with breadcrumb context (if user preference enabled)
+                    from lib.config.config_manager import get_config
+                    config = get_config()
+                    show_tools_item = config.get_bool('show_tools_menu_item', True)
+                    
+                    if show_tools_item:
+                        breadcrumb_text = self.breadcrumb_helper.get_breadcrumb_for_tools_label('lists', {}, None)
+                        description_prefix = self.breadcrumb_helper.get_breadcrumb_for_tools_description('lists', {}, None)
 
-                    menu_items.append({
-                        'label': f"{L(30212)} {breadcrumb_text}",
-                        'url': context.build_url('show_list_tools', list_type='lists_main'),
-                        'is_folder': True,
-                        'icon': "DefaultAddonProgram.png",
-                        'description': f"{description_prefix}{L(30218)}"  # Breadcrumb + "Access lists tools and options"
-                    })
+                        menu_items.append({
+                            'label': f"{L(30212)} {breadcrumb_text}",
+                            'url': context.build_url('show_list_tools', list_type='lists_main'),
+                            'is_folder': True,
+                            'icon': "DefaultAddonProgram.png",
+                            'description': f"{description_prefix}{L(30218)}"  # Breadcrumb + "Access lists tools and options"
+                        })
 
                     # Add "Create First List" option
                     menu_items.append({
@@ -488,28 +493,33 @@ class ListsHandler:
             # Build menu items for lists and folders
             menu_items = []
 
-            # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
-            if cache_used and cached_breadcrumbs:
-                tools_label = cached_breadcrumbs.get('tools_label', 'Lists')
-                tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
-            else:
-                breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
-                tools_label = breadcrumb_text or 'Lists'
-                tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
-
-            menu_items.append({
-                'label': f"Tools & Options • {tools_label}",
-                'url': tools_url,
-                'is_folder': True,
-                'icon': "DefaultAddonProgram.png",
-                'description': tools_description
-            })
-
-            # Search and other tools are now accessible via Tools & Options menu
-
-            # Check if favorites integration is enabled and ensure "Kodi Favorites" appears FIRST
+            # Check user preference for showing Tools & Options menu item
             from lib.config.config_manager import get_config
             config = get_config()
+            show_tools_item = config.get_bool('show_tools_menu_item', True)
+
+            # Add Tools & Options menu item if enabled
+            if show_tools_item:
+                # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
+                if cache_used and cached_breadcrumbs:
+                    tools_label = cached_breadcrumbs.get('tools_label', 'Lists')
+                    tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
+                else:
+                    breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
+                    tools_label = breadcrumb_text or 'Lists'
+                    tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
+
+                menu_items.append({
+                    'label': f"Tools & Options • {tools_label}",
+                    'url': tools_url,
+                    'is_folder': True,
+                    'icon': "DefaultAddonProgram.png",
+                    'description': tools_description
+                })
+
+            # Search and other tools are now accessible via Tools & Options menu (if enabled) or context menus
+
+            # Check if favorites integration is enabled and ensure "Kodi Favorites" appears FIRST
             favorites_enabled = config.get_bool('favorites_integration_enabled', False)
             kodi_favorites_item = None
 
@@ -930,8 +940,12 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Add Tools & Options for folders that support it
-            if self._folder_has_tools(folder_info):
+            # Add Tools & Options for folders that support it (if user preference enabled)
+            from lib.config.config_manager import get_config
+            config = get_config()
+            show_tools_item = config.get_bool('show_tools_menu_item', True)
+            
+            if show_tools_item and self._folder_has_tools(folder_info):
                 # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
                 if cache_used and cached_breadcrumbs:
                     breadcrumb_text = cached_breadcrumbs.get('tools_label', 'for folder')
@@ -1087,20 +1101,25 @@ class ListsHandler:
                 except Exception as e:
                     self.logger.debug("Could not set directory title: %s", e)
 
-            # Add Tools & Options with unified breadcrumb approach
-            breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
+            # Add Tools & Options with unified breadcrumb approach (if user preference enabled)
+            from lib.config.config_manager import get_config
+            config = get_config()
+            show_tools_item = config.get_bool('show_tools_menu_item', True)
+            
+            if show_tools_item:
+                breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
 
-            tools_item = xbmcgui.ListItem(label=f"{L(30212)} {breadcrumb_text}", offscreen=True)
-            self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
-            tools_item.setProperty('IsPlayable', 'false')
-            tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+                tools_item = xbmcgui.ListItem(label=f"{L(30212)} {breadcrumb_text}", offscreen=True)
+                self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
+                tools_item.setProperty('IsPlayable', 'false')
+                tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
 
-            xbmcplugin.addDirectoryItem(
-                context.addon_handle,
-                context.build_url('show_list_tools', list_type='user_list', list_id=list_id),
-                tools_item,
-                True
-            )
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    context.build_url('show_list_tools', list_type='user_list', list_id=list_id),
+                    tools_item,
+                    True
+                )
 
             # Handle empty lists using lightweight method to avoid loading full renderer
             if not list_items:
