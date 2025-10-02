@@ -11,6 +11,9 @@
   </extension>
   <extension point="xbmc.service" library="service.py" start="login"/>
   <extension point="xbmc.python.script" library="utilities.py"/>
+  <extension point="xbmc.python.script" library="search.py">
+    <provides>executable</provides>
+  </extension>
   <extension point="kodi.context.item">
     <menu id="kodi.core.main">
       <item library="context.py">
