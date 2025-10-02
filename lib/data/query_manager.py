@@ -1930,6 +1930,28 @@ class QueryManager:
             self.logger.error("Error getting lists in folder %s: %s", folder_id, e)
             return []
 
+    def folder_contains_file_bookmarks(self, folder_id: Optional[int]) -> bool:
+        """Check if a folder contains any file-type bookmarks"""
+        try:
+            if folder_id is None:
+                return False
+                
+            result = self.connection_manager.execute_single("""
+                SELECT COUNT(*) as count
+                FROM bookmarks
+                WHERE folder_id = ? AND bookmark_type = 'file'
+            """, [int(folder_id)])
+            
+            if result:
+                row_dict = self._row_to_dict(result)
+                return row_dict.get('count', 0) > 0
+                
+            return False
+            
+        except Exception as e:
+            self.logger.error("Failed to check file bookmarks in folder %s: %s", folder_id, e)
+            return False
+
     def get_folder_by_id(self, folder_id):
         """Get folder information by ID"""
         try:
