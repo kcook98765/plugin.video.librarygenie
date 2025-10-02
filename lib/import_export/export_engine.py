@@ -194,16 +194,20 @@ class ExportEngine:
         return lists_data, len(lists_data)
 
     def _collect_list_items_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
-        """Collect list items (membership) data with optional context filtering"""
+        """Collect list items (membership) data with optional context filtering
+        
+        NOTE: Only exports library items (source='lib') for sharing compatibility.
+        Manually added files and plugin items cannot be reliably matched across users.
+        """
         items_data = []
 
-        # Base query
+        # Base query - only export library items that can be matched via IMDb ID or title/year
         query = """
                 SELECT li.list_id, mi.kodi_id, mi.title, mi.year, mi.file_path,
                        mi.imdbnumber as imdb_id, mi.tmdb_id, mi.media_type
                 FROM list_items li
                 INNER JOIN media_items mi ON li.media_item_id = mi.id
-                WHERE mi.is_removed = 0
+                WHERE mi.is_removed = 0 AND mi.source = 'lib'
             """
         params = []
         
@@ -273,14 +277,17 @@ class ExportEngine:
 
 
     def _collect_library_snapshot_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
-        """Collect library snapshot data"""
+        """Collect library snapshot data
+        
+        NOTE: Only exports library items (source='lib') for sharing compatibility.
+        """
         library_data = []
 
         query = """
                 SELECT kodi_id, title, year, file_path, imdbnumber as imdb_id, tmdb_id,
                        media_type, created_at, updated_at
                 FROM media_items
-                WHERE is_removed = 0
+                WHERE is_removed = 0 AND source = 'lib'
                 ORDER BY title
             """
         params = () # Placeholder for potential future parameters
@@ -317,15 +324,19 @@ class ExportEngine:
         return library_data, len(library_data)
 
     def _collect_non_library_snapshot_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
-        """Collect non-library media items data (items not currently in Kodi library)"""
+        """Collect non-library media items data (manually added files and plugin items)
+        
+        NOTE: This exports items with source='file' or source='plugin' only.
+        These items are NOT shareable across users as they cannot be reliably matched.
+        """
         non_library_data = []
 
-        # Query for media items that are marked as removed or not in current library
+        # Query for manually added files and plugin items (not from Kodi library)
         query = """
                 SELECT kodi_id, title, year, file_path, imdbnumber as imdb_id, tmdb_id,
-                       media_type, created_at, updated_at
+                       media_type, source, created_at, updated_at
                 FROM media_items
-                WHERE is_removed = 1 OR kodi_id IS NULL OR kodi_id = 0
+                WHERE source != 'lib'
                 ORDER BY title
             """
         params = ()
@@ -345,8 +356,9 @@ class ExportEngine:
                     'imdb_id': item_row[4],
                     'tmdb_id': item_row[5],
                     'media_type': item_row[6],
-                    'added_at': item_row[7],
-                    'updated_at': item_row[8]
+                    'source': item_row[7],
+                    'added_at': item_row[8],
+                    'updated_at': item_row[9]
                 }
 
             # Add external IDs

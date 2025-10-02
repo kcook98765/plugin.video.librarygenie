@@ -1468,6 +1468,14 @@ class QueryManager:
             media_type = kodi_item.get('media_type', 'movie')
 
             self.logger.debug("Adding library item kodi_id=%s, media_type=%s to list %s", kodi_id, media_type, list_id)
+            
+            # Check if list contains file-sourced items
+            if self.list_contains_file_sourced_items(int(list_id)):
+                self.logger.warning("Cannot add library item to file-sourced list %s", list_id)
+                return {
+                    "error": "file_list_locked",
+                    "message": "Cannot add Kodi library items to file-based lists. File imports are kept separate from library items."
+                }
 
             with self.connection_manager.transaction() as conn:
                 # First check if this library item already exists in media_items
@@ -1930,6 +1938,50 @@ class QueryManager:
             self.logger.error("Error getting lists in folder %s: %s", folder_id, e)
             return []
 
+    def list_contains_file_sourced_items(self, list_id: int) -> bool:
+        """Check if a list contains any file-sourced media items"""
+        try:
+            result = self.connection_manager.execute_single("""
+                SELECT COUNT(*) as count
+                FROM list_items li
+                JOIN media_items mi ON li.media_item_id = mi.id
+                WHERE li.list_id = ? AND mi.source = 'file'
+            """, [int(list_id)])
+            
+            if result:
+                row_dict = self._row_to_dict(result)
+                return row_dict.get('count', 0) > 0
+                
+            return False
+            
+        except Exception as e:
+            self.logger.error("Failed to check file-sourced items in list %s: %s", list_id, e)
+            return False
+
+    def folder_contains_file_sourced_lists(self, folder_id: Optional[int]) -> bool:
+        """Check if a folder contains any lists with file-sourced items"""
+        try:
+            if folder_id is None:
+                return False
+                
+            result = self.connection_manager.execute_single("""
+                SELECT COUNT(DISTINCT l.id) as count
+                FROM lists l
+                JOIN list_items li ON l.id = li.list_id
+                JOIN media_items mi ON li.media_item_id = mi.id
+                WHERE l.folder_id = ? AND mi.source = 'file'
+            """, [int(folder_id)])
+            
+            if result:
+                row_dict = self._row_to_dict(result)
+                return row_dict.get('count', 0) > 0
+                
+            return False
+            
+        except Exception as e:
+            self.logger.error("Failed to check file-sourced lists in folder %s: %s", folder_id, e)
+            return False
+
     def get_folder_by_id(self, folder_id):
         """Get folder information by ID"""
         try:
@@ -2232,6 +2284,11 @@ class QueryManager:
                     if not folder_exists:
                         self.logger.error("Target folder %s not found", target_folder_id)
                         return {"error": "folder_not_found"}
+                    
+                    # Check if target folder contains file-sourced lists
+                    if self.folder_contains_file_sourced_lists(int(target_folder_id)):
+                        return {"error": "file_folder_locked", 
+                               "message": "Cannot add lists to file-based folders. File imports are kept separate from library items."}
 
                     self.logger.debug("Moving list '%s' to folder '%s'", list_exists['name'], folder_exists['name'])
                 else:
