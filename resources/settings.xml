@@ -587,6 +587,11 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="show_tools_menu_item" type="boolean" label="30620" help="30621">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
       </group>
     </category>
 
