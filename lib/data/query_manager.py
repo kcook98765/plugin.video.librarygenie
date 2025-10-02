@@ -1806,14 +1806,14 @@ class QueryManager:
 
             # Check if folder exists and get import status
             folder = self.connection_manager.execute_single("""
-                SELECT name, is_import_sourced FROM folders WHERE id = ?
+                SELECT name, is_import_sourced, parent_id FROM folders WHERE id = ?
             """, [folder_id])
 
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
             
             # Check if folder is import-sourced (locked)
-            if folder.get('is_import_sourced', 0) == 1:
+            if folder['is_import_sourced'] == 1:
                 return {"success": False, "error": "import_locked", 
                        "message": "Cannot delete import-sourced folder. Structure is locked to source."}
 
