@@ -39,7 +39,10 @@ class FolderToolsProvider(BaseToolsProvider):
             if not is_reserved and folder_name and folder_name.lower() == 'search history':
                 is_reserved = True
             
-            if is_reserved:
+            # Check if folder contains file-sourced lists (file imports should be protected)
+            is_file_folder = query_manager.folder_contains_file_sourced_lists(context.folder_id)
+            
+            if is_reserved or is_file_folder:
                 # Search History folder - limited operations
                 return [
                     self._create_action(

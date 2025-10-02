@@ -310,6 +310,13 @@ class ToolsHandler:
             query_manager = context.query_manager
             if not query_manager:
                 return DialogResponse(success=False, message=L(30104))  # "Database error"
+            
+            # Check if folder contains file-sourced lists
+            if query_manager.folder_contains_file_sourced_lists(int(folder_id)):
+                return DialogResponse(
+                    success=False, 
+                    message="Cannot create lists in file-based folders. File imports are kept separate from library items."
+                )
 
             self.logger.debug("TOOLS DEBUG: Creating list '%s' in folder_id: %s", new_name.strip(), folder_id)
 

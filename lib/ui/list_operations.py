@@ -469,11 +469,20 @@ class ListOperations:
                 )
                 return True
             else:
-                error_msg = result.get("error", "Unknown error") if result else "Query manager returned None"
-                if error_msg == "duplicate":
+                # Get user-friendly error message if available
+                error_msg = result.get("message") if result and result.get("message") else result.get("error", "Unknown error") if result else "Query manager returned None"
+                error_code = result.get("error") if result else None
+                
+                if error_code == "duplicate":
                     xbmcgui.Dialog().notification(
                         "LibraryGenie",
                         "Item already in list", # Localize this string
+                        xbmcgui.NOTIFICATION_WARNING
+                    )
+                elif error_code == "file_list_locked":
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        error_msg, # Use the detailed message
                         xbmcgui.NOTIFICATION_WARNING
                     )
                 else:
@@ -575,6 +584,15 @@ class ListOperations:
             context.logger.debug("Adding library item to list: kodi_id=%s, title='%s', media_type=%s", 
                                dbid, title, dbtype)
             context.logger.debug("FINAL target_list_id being used: %s", target_list_id)
+            
+            # Check if list contains file-sourced items
+            if query_manager.list_contains_file_sourced_items(int(target_list_id)):
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Cannot add library items to file-based lists. File imports are kept separate.",
+                    xbmcgui.NOTIFICATION_WARNING
+                )
+                return False
 
             # Direct database operations for library items (much simpler than search pipeline)
             with query_manager.connection_manager.transaction() as conn:
