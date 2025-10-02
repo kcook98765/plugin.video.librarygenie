@@ -1767,17 +1767,17 @@ class QueryManager:
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
             
-            # Check if folder is import-sourced and if it's from a non-file import (locked)
+            # Check if folder is from a file import (locked for file imports only)
             if folder['is_import_sourced'] == 1 and folder['import_source_id']:
                 import_source = self.connection_manager.execute_single("""
                     SELECT source_type FROM import_sources WHERE id = ?
                 """, [folder['import_source_id']])
                 
-                # Only block rename for non-file imports (like Kodi library)
-                # File-based imports can be renamed
-                if import_source and import_source['source_type'] != 'file':
+                # Block rename ONLY for file imports (to preserve imported structure)
+                # Other import types can be renamed
+                if import_source and import_source['source_type'] == 'file':
                     return {"success": False, "error": "import_locked", 
-                           "message": "Cannot rename import-sourced folder. Structure is locked to source."}
+                           "message": "Cannot rename file import folder. Structure is locked to source."}
 
             # Check for duplicate names in same parent
             existing = self.connection_manager.execute_single("""
@@ -1819,17 +1819,7 @@ class QueryManager:
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
             
-            # Check if folder is import-sourced and if it's from a non-file import (locked)
-            if folder['is_import_sourced'] == 1 and folder['import_source_id']:
-                import_source = self.connection_manager.execute_single("""
-                    SELECT source_type FROM import_sources WHERE id = ?
-                """, [folder['import_source_id']])
-                
-                # Only block deletion for non-file imports (like Kodi library)
-                # File-based imports can be deleted
-                if import_source and import_source['source_type'] != 'file':
-                    return {"success": False, "error": "import_locked", 
-                           "message": "Cannot delete import-sourced folder. Structure is locked to source."}
+            # Allow deletion for all import types - no lock check needed
 
             if force_delete_contents:
                 # Delete all lists in folder first
@@ -2348,7 +2338,7 @@ class QueryManager:
             if not existing_folder:
                 return {"success": False, "error": "folder_not_found"}
             
-            # Check if folder is import-sourced and if it's from a non-file import (locked)
+            # Check if folder is from a file import (locked for file imports only)
             if existing_folder['is_import_sourced'] == 1:
                 import_source_id = existing_folder['import_source_id']
                 if import_source_id:
@@ -2356,11 +2346,11 @@ class QueryManager:
                         SELECT source_type FROM import_sources WHERE id = ?
                     """, [import_source_id])
                     
-                    # Only block move for non-file imports (like Kodi library)
-                    # File-based imports can be moved
-                    if import_source and import_source['source_type'] != 'file':
+                    # Block move ONLY for file imports (to preserve imported structure)
+                    # Other import types can be moved
+                    if import_source and import_source['source_type'] == 'file':
                         return {"success": False, "error": "import_locked", 
-                               "message": "Cannot move import-sourced folder. Structure is locked to source."}
+                               "message": "Cannot move file import folder. Structure is locked to source."}
 
             # If target_folder_id is provided, verify the destination folder exists
             if target_folder_id is not None:
