@@ -148,9 +148,12 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(success=False, message=L(30104))  # "Database error"
 
-            # Get available folders (excluding Search History)
+            # Get available folders (excluding Search History and file-sourced folders)
             all_folders = query_manager.get_all_folders()
-            selectable_folders = [f for f in all_folders if f['name'] != 'Search History']
+            selectable_folders = []
+            for f in all_folders:
+                if f['name'] != 'Search History' and not query_manager.folder_contains_file_sourced_lists(f['id']):
+                    selectable_folders.append(f)
             folder_options = ["[Root Level]"] + [f['name'] for f in selectable_folders]
 
             # Show folder selection dialog
@@ -193,10 +196,22 @@ class ToolsHandler:
             query_manager = context.query_manager
             if not query_manager:
                 return DialogResponse(success=False, message=L(30104))  # "Database error"
+            
+            # Check if target is file-sourced
+            if query_manager.list_contains_file_sourced_items(int(target_list_id)):
+                return DialogResponse(
+                    success=False,
+                    message="Cannot merge into file-based lists. File imports are kept separate from library items."
+                )
 
-            # Get all lists except the target
+            # Get all lists except the target, excluding file-sourced lists
             all_lists = query_manager.get_all_lists_with_folders()
-            source_lists = [list_item for list_item in all_lists if str(list_item['id']) != str(target_list_id)]
+            source_lists = []
+            for list_item in all_lists:
+                # Exclude target list and file-sourced lists
+                if (str(list_item['id']) != str(target_list_id) and 
+                    not query_manager.list_contains_file_sourced_items(int(list_item['id']))):
+                    source_lists.append(list_item)
 
             if not source_lists:
                 return DialogResponse(success=False, message="No other lists available to merge")
@@ -243,13 +258,16 @@ class ToolsHandler:
             if not query_manager:
                 return DialogResponse(success=False, message=L(30104))  # "Database error"
 
-            # Get available destination folders (excluding self and children)
+            # Get available destination folders (excluding self, children, Search History, and file-sourced folders)
             all_folders = query_manager.get_all_folders()
             folder_options = ["[Root Level]"]
             folder_mapping = [None]  # None represents root level
 
             for f in all_folders:
-                if str(f['id']) != str(folder_id) and f['name'] != 'Search History':
+                # Exclude self, Search History, and file-sourced folders
+                if (str(f['id']) != str(folder_id) and 
+                    f['name'] != 'Search History' and 
+                    not query_manager.folder_contains_file_sourced_lists(f['id'])):
                     folder_options.append(f['name'])
                     folder_mapping.append(f['id'])
 
