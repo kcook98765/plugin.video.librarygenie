@@ -381,9 +381,12 @@ class FavoritesHandler:
                 )
 
             all_folders = query_manager.get_all_folders()
+            
+            # Filter out file-sourced folders
+            selectable_folders = [f for f in all_folders if not query_manager.folder_contains_file_sourced_lists(f['id'])]
 
             # Ask user if they want to place it in a folder
-            folder_names = [L(30303)] + [str(f["name"]) for f in all_folders]  # "[Root Level]"
+            folder_names = [L(30303)] + [str(f["name"]) for f in selectable_folders]  # "[Root Level]"
             selected_folder_index = self.dialog_service.select(L(30301), list(folder_names))  # "Select destination folder:"
 
             if selected_folder_index < 0:
@@ -392,7 +395,7 @@ class FavoritesHandler:
 
             folder_id = None
             if selected_folder_index > 0:  # Not root level
-                folder_id = all_folders[selected_folder_index - 1]["id"]
+                folder_id = selectable_folders[selected_folder_index - 1]["id"]
 
             # Create the list using QueryManager
             create_result = query_manager.create_list(new_list_name, "", folder_id)
