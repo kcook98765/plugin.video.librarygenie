@@ -3,7 +3,7 @@
 ## Overview
 LibraryGenie uses SQLite with WAL (Write-Ahead Logging) mode for improved concurrency and performance. The database schema includes tables for lists, folders, media items, Kodi favorites, search history, bookmarks, and various system preferences.
 
-## Current Schema Version: 6
+## Current Schema Version: 8
 
 ## Core Tables
 
@@ -103,6 +103,17 @@ Central table storing comprehensive lightweight metadata for all media.
 | `tvshow_kodi_id` | INTEGER | TV show's Kodi ID |
 | `created_at` | TEXT | Creation timestamp |
 | `updated_at` | TEXT | Last update timestamp |
+
+**Indexes:**
+- `idx_media_items_imdbnumber` on `imdbnumber`
+- `idx_media_items_media_type_kodi_id` on `media_type, kodi_id`
+- `idx_media_items_title` on `title` (case-insensitive)
+- `idx_media_items_year` on `year`
+- `idx_media_items_episode_match` on `tvshowtitle, season, episode`
+- `idx_media_items_tvshowtitle` on `tvshowtitle` (case-insensitive)
+- `idx_media_items_tvshow_episode` on `tvshow_kodi_id, season, episode`
+- `idx_media_items_lib_unique` on `media_type, source, kodi_id` (UNIQUE, for library items where source='lib')
+- `idx_media_items_imdb_unique` on `media_type, imdbnumber` (UNIQUE, for non-library items with IMDb IDs)
 
 ### list_items
 Junction table connecting lists to media items.
