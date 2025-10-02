@@ -79,7 +79,7 @@ class ConfigManager:
             "enable_automatic_backups": False,
             "backup_interval": "weekly",
             "backup_storage_type": "local",
-            "backup_local_path": "",
+            "backup_storage_location": "special://userdata/addon_data/plugin.video.librarygenie/backups/",
             "backup_enabled": False,
             "backup_retention_count": 5,
             "backup_retention_policy": "count",
@@ -626,15 +626,13 @@ class ConfigManager:
             logger = get_kodi_logger('lib.config.config_manager')
             logger.debug("CONFIG_DEBUG: Getting backup storage location")
             
-            storage_type = self.get('backup_storage_type', 'local')
-            logger.debug("CONFIG_DEBUG: backup_storage_type = '%s'", storage_type)
-
-            if storage_type == "custom":
-                # Use custom path set by user
-                custom_path = str(self.get('backup_local_path', ''))
-                logger.debug("CONFIG_DEBUG: custom backup path = '%s'", custom_path)
-                if custom_path and custom_path.strip():
-                    return custom_path.strip()
+            # Read the backup_storage_location setting directly
+            custom_path = str(self.get('backup_storage_location', ''))
+            logger.debug("CONFIG_DEBUG: backup_storage_location = '%s'", custom_path)
+            
+            if custom_path and custom_path.strip():
+                logger.debug("CONFIG_DEBUG: Using custom backup path: %s", custom_path)
+                return custom_path.strip()
 
             # Default to addon data directory
             default_path = "special://userdata/addon_data/plugin.video.librarygenie/backups/"

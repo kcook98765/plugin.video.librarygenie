@@ -277,13 +277,10 @@ class SettingsManager:
     def get_backup_storage_location(self) -> str:
         """Get backup storage location with safe fallbacks"""
         config = get_config()
-        storage_type = config.get('backup_storage_type', 'local')
-
-        if storage_type == "custom":
-            # Use custom path set by user
-            custom_path = config.get('backup_local_path', "")
-            if custom_path and custom_path.strip():
-                return custom_path.strip()
+        # Read the backup_storage_location setting directly
+        custom_path = config.get('backup_storage_location', "")
+        if custom_path and custom_path.strip():
+            return custom_path.strip()
 
         # Default to addon data directory
         return "special://userdata/addon_data/plugin.video.librarygenie/backups/"
