@@ -33,6 +33,28 @@ class ImportHandler:
         self.cancel_requested = False
         self.current_import_source_id = None  # Track current import for locking
     
+    def _strip_credentials(self, path: str) -> str:
+        """
+        Strip credentials from a path/URL.
+        Removes username:password@ prefix from URLs.
+        
+        Args:
+            path: Path or URL that may contain credentials
+            
+        Returns:
+            Path with credentials removed
+        """
+        import re
+        # Match pattern like protocol://username:password@rest or //username:password@rest
+        # Pattern: (protocol://)?(username:password@)
+        pattern = r'^((?:[a-zA-Z][a-zA-Z0-9+.-]*://)?)[^@/]+@'
+        match = re.match(pattern, path)
+        if match:
+            # Remove the username:password@ part but keep the protocol
+            protocol = match.group(1) or ''
+            return protocol + path[len(match.group(0)):]
+        return path
+    
     def import_from_source(
         self,
         source_url: str,
@@ -714,6 +736,14 @@ class ImportHandler:
         if not title:
             title = os.path.splitext(os.path.basename(video_path))[0]
         
+        # Build plot with appended path (strip credentials)
+        plot = episode_data.get('plot') or ''
+        sanitized_path = self._strip_credentials(video_path)
+        if plot:
+            plot = f"{plot}\n\n{sanitized_path}"
+        else:
+            plot = sanitized_path
+        
         # Build media item data
         item_data = {
             'media_type': 'episode',
@@ -722,7 +752,7 @@ class ImportHandler:
             'file_path': video_path,
             'art': json.dumps(art) if art else None,
             'title': title,
-            'plot': episode_data.get('plot'),
+            'plot': plot,
             'tvshowtitle': tvshow_data.get('title') if tvshow_data else None,
             'season': episode_data.get('season', season_number),
             'episode': episode_data.get('episode'),
@@ -786,6 +816,14 @@ class ImportHandler:
         if not title:
             title = os.path.splitext(os.path.basename(video_path))[0]
         
+        # Build plot with appended path (strip credentials)
+        plot = movie_data.get('plot') or ''
+        sanitized_path = self._strip_credentials(video_path)
+        if plot:
+            plot = f"{plot}\n\n{sanitized_path}"
+        else:
+            plot = sanitized_path
+        
         # Build media item data
         item_data = {
             'media_type': 'movie',
@@ -795,7 +833,7 @@ class ImportHandler:
             'art': json.dumps(art) if art else None,
             'title': title,
             'year': movie_data.get('year'),
-            'plot': movie_data.get('plot'),
+            'plot': plot,
             'rating': movie_data.get('rating'),
             'imdbnumber': movie_data.get('imdbnumber'),
             'tmdb_id': movie_data.get('tmdb_id'),
