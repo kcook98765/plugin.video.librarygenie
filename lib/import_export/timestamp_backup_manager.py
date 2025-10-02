@@ -3,13 +3,14 @@
 
 """
 LibraryGenie - Timestamp Backup Manager
-Handles timestamped backups with database tracking
+Handles timestamped backups using SQLite backup strategy
 """
 
 import os
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from lib.import_export.export_engine import get_export_engine
+from lib.import_export.sqlite_backup import get_sqlite_backup_manager
 from lib.data.storage_manager import get_storage_manager
 from lib.config import get_config
 from lib.data.connection_manager import get_connection_manager
@@ -17,17 +18,18 @@ from lib.utils.kodi_log import get_kodi_logger
 
 
 class TimestampBackupManager:
-    """Manages timestamped backups with database tracking"""
+    """Manages timestamped backups using SQLite backup strategy"""
 
     def __init__(self):
         self.logger = get_kodi_logger('lib.import_export.timestamp_backup_manager')
         self.export_engine = get_export_engine()
+        self.sqlite_backup_manager = get_sqlite_backup_manager()
         self.storage_manager = get_storage_manager()
         self.config = get_config()
         self.conn_manager = get_connection_manager()
 
     def list_backups(self) -> List[Dict[str, Any]]:
-        """List available backup files"""
+        """List available backup files (both SQLite and legacy JSON)"""
         try:
             backups = []
 
@@ -45,8 +47,17 @@ class TimestampBackupManager:
 
             # List backup files
             for filename in os.listdir(storage_path):
-                if filename.startswith('plugin.video.library.genie_') and filename.endswith('.json'):
-                    file_path = os.path.join(storage_path, filename)
+                file_path = os.path.join(storage_path, filename)
+                backup_type = None
+                
+                # Check for new SQLite ZIP backups
+                if filename.startswith('plugin.video.library.genie_') and filename.endswith('.zip'):
+                    backup_type = 'sqlite'
+                # Check for legacy JSON backups
+                elif filename.startswith('plugin.video.library.genie_') and filename.endswith('.json'):
+                    backup_type = 'legacy_json'
+                
+                if backup_type:
                     try:
                         file_stat = os.stat(file_path)
                         file_size = file_stat.st_size
@@ -58,11 +69,11 @@ class TimestampBackupManager:
                             'file_path': file_path,
                             'file_size': file_size,
                             'modified_time': modified_time.isoformat(),
-                            'age_days': age_days
+                            'age_days': age_days,
+                            'backup_type': backup_type
                         })
                     except (OSError, ValueError) as e:
                         self.logger.warning("Error getting stats for backup file %s: %s", filename, e)
-                continue
 
             # Sort by modification time, newest first
             backups.sort(key=lambda x: x['modified_time'], reverse=True)
@@ -75,9 +86,9 @@ class TimestampBackupManager:
             return []
 
     def run_automatic_backup(self) -> Dict[str, Any]:
-        """Run automatic timestamped backup"""
+        """Run automatic timestamped backup using SQLite backup"""
         try:
-            self.logger.info("Starting automatic timestamped backup")
+            self.logger.info("Starting automatic SQLite backup")
 
             # Check if backup is worthy
             worthiness = self._validate_backup_worthiness()
@@ -85,38 +96,22 @@ class TimestampBackupManager:
                 self.logger.info("Skipping backup: %s", worthiness['reason'])
                 return {"success": False, "reason": "not_worthy", "message": worthiness["reason"]}
 
-            # Determine what to backup based on settings
-            export_types = ["lists", "list_items"]
-            
-            # Check if external items should be included
-            if self.config.get_bool("backup_include_non_library", False):
-                export_types.append("non_library_snapshot")
-            
-            # Check if folders should be included  
-            if self.config.get_bool("backup_include_folders", True):
-                export_types.append("folders")
-                
-            result = self.export_engine.export_data(export_types, file_format="json")
-
-            if not result["success"]:
-                return {"success": False, "error": result.get("error", "Export failed")}
-
-            # Move to backup location
-            temp_file = result["file_path"]
-            backup_filename = os.path.basename(temp_file)
+            # Generate backup filename
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            backup_filename = f"plugin.video.library.genie_{timestamp}.zip"
             backup_path = self._get_backup_file_path(backup_filename)
 
             # Ensure backup directory exists
             backup_dir = os.path.dirname(backup_path)
             os.makedirs(backup_dir, exist_ok=True)
 
-            # Move file to backup location
-            import shutil
-            shutil.move(temp_file, backup_path)
+            # Create SQLite backup package (database + settings)
+            result = self.sqlite_backup_manager.create_backup_package(backup_path)
 
-            self.logger.info("Backup stored in settings location: %s", backup_path)
+            if not result["success"]:
+                return {"success": False, "error": result.get("error", "Backup failed")}
 
-            # Database logging removed to reduce storage overhead on user devices
+            self.logger.info("Backup stored: %s (%d bytes)", backup_path, result.get('file_size', 0))
 
             # Cleanup old backups
             self._cleanup_old_backups()
@@ -127,36 +122,61 @@ class TimestampBackupManager:
                 "success": True,
                 "filename": backup_filename,
                 "file_path": backup_path,
-                "items_exported": result.get("items_exported", 0)
+                "file_size": result.get("file_size", 0),
+                "backup_type": "sqlite"
             }
 
         except Exception as e:
             self.logger.error("Error in automatic backup: %s", e)
             return {"success": False, "error": str(e)}
 
-    def restore_backup(self, file_path: str, replace_mode: bool = False) -> Dict[str, Any]:
-        """Restore from backup file"""
+    def restore_backup(self, file_path: str, remap_kodi_ids: bool = True) -> Dict[str, Any]:
+        """
+        Restore from backup file (supports both SQLite ZIP and legacy JSON)
+        
+        Args:
+            file_path: Path to backup file
+            remap_kodi_ids: Whether to remap Kodi IDs to current library (SQLite backups only)
+        """
         try:
-            from lib.import_export.import_engine import get_import_engine
-            import_engine = get_import_engine()
+            # Detect backup type by file extension
+            if file_path.endswith('.zip'):
+                # New SQLite backup
+                self.logger.info("Restoring SQLite backup from: %s", file_path)
+                result = self.sqlite_backup_manager.restore_backup_package(file_path, remap_kodi_ids)
+                
+                if result["success"]:
+                    self.logger.info("SQLite backup restored successfully")
+                else:
+                    self.logger.error("SQLite backup restore failed: %s", result.get('error'))
+                
+                return result
+                
+            elif file_path.endswith('.json'):
+                # Legacy JSON backup
+                self.logger.info("Restoring legacy JSON backup from: %s", file_path)
+                from lib.import_export.import_engine import get_import_engine
+                import_engine = get_import_engine()
 
-            # Read backup file content
-            content = self.storage_manager.read_file_safe(file_path)
-            if content is None:
-                return {"success": False, "error": "Could not read backup file"}
+                # Read backup file content
+                content = self.storage_manager.read_file_safe(file_path)
+                if content is None:
+                    return {"success": False, "error": "Could not read backup file"}
 
-            # Extract filename from path for import
-            filename = os.path.basename(file_path)
+                # Extract filename from path for import
+                filename = os.path.basename(file_path)
 
-            # Restore the backup using import_from_content
-            result = import_engine.import_from_content(content, filename, replace_mode)
+                # Restore the backup using import_from_content
+                result = import_engine.import_from_content(content, filename, replace_mode=False)
 
-            if result["success"]:
-                self.logger.info("Backup restored successfully from %s", file_path)
+                if result["success"]:
+                    self.logger.info("Legacy backup restored successfully")
+                else:
+                    self.logger.error("Legacy backup restore failed: %s", result.get('errors', []))
+
+                return result
             else:
-                self.logger.error("Backup restore failed from %s: %s", file_path, result.get('errors', []))
-
-            return result
+                return {"success": False, "error": "Unknown backup file format"}
 
         except Exception as e:
             self.logger.error("Error restoring backup: %s", e)
