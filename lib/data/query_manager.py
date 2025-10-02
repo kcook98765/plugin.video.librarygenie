@@ -731,8 +731,8 @@ class QueryManager:
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['created_at'][:10] if result['created_at'] else '',
                     "folder_name": result['folder_name'],
-                    "is_import_sourced": result.get('is_import_sourced', 0),
-                    "import_source_id": result.get('import_source_id')
+                    "is_import_sourced": result['is_import_sourced'] if result['is_import_sourced'] is not None else 0,
+                    "import_source_id": result['import_source_id']
                 }
             return None
 
@@ -1768,7 +1768,7 @@ class QueryManager:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
             
             # Check if folder is import-sourced (locked)
-            if folder.get('is_import_sourced', 0) == 1:
+            if folder['is_import_sourced'] == 1:
                 return {"success": False, "error": "import_locked", 
                        "message": "Cannot rename import-sourced folder. Structure is locked to source."}
 
@@ -2333,7 +2333,7 @@ class QueryManager:
                 return {"success": False, "error": "folder_not_found"}
             
             # Check if folder is import-sourced (locked)
-            if existing_folder.get('is_import_sourced', 0) == 1:
+            if existing_folder['is_import_sourced'] == 1:
                 return {"success": False, "error": "import_locked", 
                        "message": "Cannot move import-sourced folder. Structure is locked to source."}
 
