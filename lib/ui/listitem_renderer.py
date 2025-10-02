@@ -222,10 +222,18 @@ class ListItemRenderer:
         """Build ListItem for a user list"""
         try:
             name = list_data.get('name', 'Unnamed List')
-            list_item = xbmcgui.ListItem(label=name, offscreen=True)
+            is_locked = list_data.get('is_import_sourced', 0) == 1
+            
+            # Add [L] prefix if locked
+            display_name = f"[L] {name}" if is_locked else name
+            list_item = xbmcgui.ListItem(label=display_name, offscreen=True)
+
+            # Set label2 for skins that support it
+            if is_locked:
+                list_item.setLabel2("Imported")
 
             # Set basic info - CONSOLIDATED
-            self.metadata_manager.set_basic_metadata(list_item, name, f"User list: {name}", "list")
+            self.metadata_manager.set_basic_metadata(list_item, display_name, f"User list: {name}", "list")
 
             # Set list playlist icon
             self._apply_art(list_item, 'list')
@@ -243,13 +251,38 @@ class ListItemRenderer:
         """Build ListItem for a folder"""
         try:
             name = folder_data.get('name', 'Unnamed Folder')
-            list_item = xbmcgui.ListItem(label=name, offscreen=True)
+            is_locked = folder_data.get('is_import_sourced', 0) == 1
+            
+            # Add [L] prefix if locked
+            display_name = f"[L] {name}" if is_locked else name
+            list_item = xbmcgui.ListItem(label=display_name, offscreen=True)
+
+            # Set label2 for skins that support it
+            if is_locked:
+                list_item.setLabel2("Imported")
 
             # Set basic info - CONSOLIDATED
-            self.metadata_manager.set_basic_metadata(list_item, name, f"Folder: {name}", "folder")
+            self.metadata_manager.set_basic_metadata(list_item, display_name, f"Folder: {name}", "folder")
 
-            # Set folder icon
-            self._apply_art(list_item, 'folder')
+            # Apply artwork - custom art_data if available, otherwise default folder icon
+            art_data = folder_data.get('art_data')
+            if art_data:
+                # Parse art_data if it's a JSON string
+                import json
+                if isinstance(art_data, str):
+                    try:
+                        art_data = json.loads(art_data)
+                    except (json.JSONDecodeError, ValueError):
+                        art_data = None
+                
+                # Apply custom artwork with fallback to default
+                if art_data and isinstance(art_data, dict):
+                    self.art_manager.apply_art(list_item, art_data, fallback_icon='DefaultFolder.png')
+                else:
+                    self._apply_art(list_item, 'folder')
+            else:
+                # No custom art, use default folder icon
+                self._apply_art(list_item, 'folder')
 
             # Add context menu
             self._set_folder_context_menu(list_item, folder_data)
@@ -263,16 +296,40 @@ class ListItemRenderer:
     def _set_list_context_menu(self, list_item: xbmcgui.ListItem, list_data: Dict[str, Any]):
         """Set context menu for list items - CONSOLIDATED"""
         list_id = list_data.get('id', '')
-        context_items = self.context_menu_builder.build_context_menu(list_id, 'list')
+        # Check if list is import-sourced (locked)
+        is_protected = list_data.get('is_import_sourced', 0) == 1
+        context_items = self.context_menu_builder.build_context_menu(list_id, 'list', is_protected=is_protected)
         list_item.addContextMenuItems(context_items)
 
     def _set_folder_context_menu(self, list_item: xbmcgui.ListItem, folder_data: Dict[str, Any]):
         """Set context menu for folder items - CONSOLIDATED"""
         folder_id = folder_data.get('id', '')
         folder_name = folder_data.get('name', '')
-        # Check if this is a protected folder (currently only "Search History")
-        is_protected = folder_name == "Search History"
-        context_items = self.context_menu_builder.build_context_menu(folder_id, 'folder', folder_name, is_protected)
+        # Check if folder is import-sourced (locked) or is a reserved folder like "Search History"
+        is_import_locked = folder_data.get('is_import_sourced', 0) == 1
+        is_reserved = folder_name == "Search History"
+        is_protected = is_import_locked or is_reserved
+        
+        # Only show refresh option if this is the ROOT folder of an import
+        # (i.e., import_source.folder_id points to this folder)
+        import_source_id = folder_data.get('import_source_id')
+        show_refresh = False
+        if import_source_id and self.query_manager:
+            try:
+                conn = self.query_manager.connection_manager.get_connection()
+                import_source = conn.execute(
+                    "SELECT folder_id FROM import_sources WHERE id = ?",
+                    (import_source_id,)
+                ).fetchone()
+                if import_source and str(import_source['folder_id']) == str(folder_id):
+                    show_refresh = True
+            except Exception as e:
+                self.logger.warning("Failed to check if folder is import root: %s", e)
+        
+        context_items = self.context_menu_builder.build_context_menu(
+            folder_id, 'folder', folder_name, is_protected, 
+            import_source_id if show_refresh else None
+        )
         list_item.addContextMenuItems(context_items)
 
     def create_simple_listitem(self, title: str, description: Optional[str] = None, action: Optional[str] = None, icon: Optional[str] = None) -> xbmcgui.ListItem:

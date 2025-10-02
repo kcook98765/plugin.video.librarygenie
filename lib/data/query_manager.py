@@ -369,7 +369,7 @@ class QueryManager:
 
             for row_idx, row in enumerate(rows):
                 # Convert row to dict
-                item = dict(row)
+                item = self._row_to_dict(row)
 
 
                 # Parse JSON data if present
@@ -435,8 +435,16 @@ class QueryManager:
             self.logger.error("Error getting list item count: %s", e)
             return 0
 
-    def create_list(self, name, description="", folder_id=None):
-        """Create a new list in unified lists table with proper validation"""
+    def create_list(self, name, description="", folder_id=None, is_import_sourced=0, import_source_id=None):
+        """Create a new list in unified lists table with proper validation
+        
+        Args:
+            name: List name
+            description: List description (legacy parameter, not stored)
+            folder_id: Parent folder ID
+            is_import_sourced: 1 if list is from import (locked), 0 otherwise
+            import_source_id: ID of the import source (for tracking and cascade delete)
+        """
         if not name or not name.strip():
             self.logger.warning("Attempted to create list with empty name")
             return {"error": "empty_name"}
@@ -444,12 +452,14 @@ class QueryManager:
         name = name.strip()
 
         try:
-            self.logger.debug("Creating list '%s' in folder %s", name, folder_id)
+            self.logger.debug("Creating list '%s' in folder %s (import_sourced: %s)", 
+                            name, folder_id, bool(is_import_sourced))
 
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO lists (name, folder_id) VALUES (?, ?)
-                """, [name, folder_id])
+                    INSERT INTO lists (name, folder_id, is_import_sourced, import_source_id) 
+                    VALUES (?, ?, ?, ?)
+                """, [name, folder_id, is_import_sourced, import_source_id])
 
                 list_id = cursor.lastrowid
 
@@ -604,13 +614,18 @@ class QueryManager:
             self.logger.debug("Renaming list %s to '%s'", list_id, new_name)
 
             with self.connection_manager.transaction() as conn:
-                # Check if list exists
+                # Check if list exists and get import status
                 existing = conn.execute(
-                    "SELECT name, folder_id FROM lists WHERE id = ?", [int(list_id)]
+                    "SELECT name, folder_id, is_import_sourced FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
                     return {"error": "list_not_found"}
+                
+                # Check if list is import-sourced (locked)
+                if existing['is_import_sourced'] == 1:
+                    return {"error": "import_locked", 
+                           "message": "Cannot rename import-sourced list. Structure is locked to source."}
 
                 # Update the list name
                 conn.execute("""
@@ -639,13 +654,18 @@ class QueryManager:
             self.logger.debug("Deleting list %s", list_id)
 
             with self.connection_manager.transaction() as conn:
-                # Check if list exists and get folder info for cache invalidation
+                # Check if list exists, get folder info and import status
                 existing = conn.execute(
-                    "SELECT name, folder_id FROM lists WHERE id = ?", [int(list_id)]
+                    "SELECT name, folder_id, is_import_sourced FROM lists WHERE id = ?", [int(list_id)]
                 ).fetchone()
 
                 if not existing:
                     return {"error": "list_not_found"}
+                
+                # Check if list is import-sourced (locked)
+                if existing['is_import_sourced'] == 1:
+                    return {"error": "import_locked", 
+                           "message": "Cannot delete import-sourced list. Structure is locked to source."}
 
                 # Delete list (items cascade automatically via foreign key)
                 conn.execute("DELETE FROM lists WHERE id = ?", [int(list_id)])
@@ -664,6 +684,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT l.id, l.name, l.folder_id, l.created_at,
+                       l.is_import_sourced, l.import_source_id,
                        f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
@@ -671,14 +692,17 @@ class QueryManager:
             """, [int(list_id)])
 
             if result:
-                folder_context = f" ({result['folder_name']})" if result['folder_name'] else ""
+                row_dict = self._row_to_dict(result)
+                folder_context = f" ({row_dict['folder_name']})" if row_dict['folder_name'] else ""
                 return {
-                    "id": str(result['id']),
-                    "name": result['name'],
+                    "id": str(row_dict['id']),
+                    "name": row_dict['name'],
                     "description": folder_context.lstrip(' ') if folder_context else '',
-                    "created": result['created_at'][:10] if result['created_at'] else '',
-                    "modified": result['created_at'][:10] if result['created_at'] else '',
-                    "folder_name": result['folder_name']
+                    "created": row_dict['created_at'][:10] if row_dict['created_at'] else '',
+                    "modified": row_dict['created_at'][:10] if row_dict['created_at'] else '',
+                    "folder_name": row_dict['folder_name'],
+                    "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                    "import_source_id": row_dict.get('import_source_id')
                 }
             return None
 
@@ -691,6 +715,7 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT l.id, l.name, l.folder_id, l.created_at,
+                       l.is_import_sourced, l.import_source_id,
                        f.name as folder_name
                 FROM lists l
                 LEFT JOIN folders f ON l.folder_id = f.id
@@ -705,7 +730,9 @@ class QueryManager:
                     "description": folder_context.lstrip(' ') if folder_context else '',
                     "created": result['created_at'][:10] if result['created_at'] else '',
                     "modified": result['created_at'][:10] if result['created_at'] else '',
-                    "folder_name": result['folder_name']
+                    "folder_name": result['folder_name'],
+                    "is_import_sourced": result['is_import_sourced'] if result['is_import_sourced'] is not None else 0,
+                    "import_source_id": result['import_source_id']
                 }
             return None
 
@@ -1070,7 +1097,7 @@ class QueryManager:
                 # Convert to list of dicts for easier handling
                 formatted_results = []
                 for row in lists:
-                    row_dict = dict(row)
+                    row_dict = self._row_to_dict(row)
                     # Ensure string conversion for compatibility
                     row_dict['id'] = str(row_dict['id'])
                     # Add description based on folder only
@@ -1660,8 +1687,16 @@ class QueryManager:
         else:
             return "movies"  # Only movies/external (or empty)
 
-    def create_folder(self, name, parent_id=None):
-        """Create a new folder"""
+    def create_folder(self, name, parent_id=None, art_data=None, is_import_sourced=0, import_source_id=None):
+        """Create a new folder
+        
+        Args:
+            name: Folder name
+            parent_id: Parent folder ID
+            art_data: Artwork dictionary
+            is_import_sourced: 1 if folder is from import (locked), 0 otherwise
+            import_source_id: ID of the import source (for tracking and cascade delete)
+        """
         try:
             # Validate name
             if not name or not name.strip():
@@ -1681,15 +1716,22 @@ class QueryManager:
             if existing:
                 return {"success": False, "error": "duplicate", "message": "Folder name already exists"}
 
+            # Serialize art_data if provided
+            art_json = None
+            if art_data:
+                import json
+                art_json = json.dumps(art_data)
+
             # Create folder
             with self.connection_manager.transaction() as conn:
                 cursor = conn.execute("""
-                    INSERT INTO folders (name, parent_id)
-                    VALUES (?, ?)
-                """, [name, parent_id])
+                    INSERT INTO folders (name, parent_id, art_data, is_import_sourced, import_source_id)
+                    VALUES (?, ?, ?, ?, ?)
+                """, [name, parent_id, art_json, is_import_sourced, import_source_id])
                 folder_id = cursor.lastrowid
 
-            self.logger.debug("Created folder '%s' with ID: %s", name, folder_id)
+            self.logger.debug("Created folder '%s' with ID: %s (with_art: %s, import_sourced: %s)", 
+                            name, folder_id, bool(art_data), bool(is_import_sourced))
             
             # Invalidate cache after successful folder creation
             self._invalidate_after_change("create_folder", parent_folder_id=parent_id)
@@ -1717,13 +1759,25 @@ class QueryManager:
             if new_name in self.RESERVED_FOLDERS:
                 return {"success": False, "error": "reserved_name", "message": "Folder name is reserved"}
 
-            # Get current folder info
+            # Get current folder info including import status
             folder = self.connection_manager.execute_single("""
-                SELECT name, parent_id FROM folders WHERE id = ?
+                SELECT name, parent_id, is_import_sourced, import_source_id FROM folders WHERE id = ?
             """, [folder_id])
 
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
+            
+            # Check if folder is from a file import (locked for file imports only)
+            if folder['is_import_sourced'] == 1 and folder['import_source_id']:
+                import_source = self.connection_manager.execute_single("""
+                    SELECT source_type FROM import_sources WHERE id = ?
+                """, [folder['import_source_id']])
+                
+                # Block rename ONLY for file imports (to preserve imported structure)
+                # Other import types can be renamed
+                if import_source and import_source['source_type'] == 'file':
+                    return {"success": False, "error": "import_locked", 
+                           "message": "Cannot rename file import folder. Structure is locked to source."}
 
             # Check for duplicate names in same parent
             existing = self.connection_manager.execute_single("""
@@ -1757,13 +1811,15 @@ class QueryManager:
             if self.is_reserved_folder(folder_id):
                 return {"success": False, "error": "reserved", "message": "Cannot delete reserved folder"}
 
-            # Check if folder exists
+            # Check if folder exists and get import status
             folder = self.connection_manager.execute_single("""
-                SELECT name FROM folders WHERE id = ?
+                SELECT name, is_import_sourced, parent_id, import_source_id FROM folders WHERE id = ?
             """, [folder_id])
 
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
+            
+            # Allow deletion for all import types - no lock check needed
 
             if force_delete_contents:
                 # Delete all lists in folder first
@@ -1784,9 +1840,11 @@ class QueryManager:
                     
                     for subfolder in subfolders:
                         # Recursive deletion of subfolders
-                        result = self.delete_folder(subfolder['id'], force_delete_contents=True)
+                        subfolder_id = subfolder['id']
+                        result = self.delete_folder(subfolder_id, force_delete_contents=True)
                         if not result.get("success"):
-                            raise Exception(f"Failed to delete subfolder {subfolder['id']}")
+                            error_msg = result.get("message", result.get("error", "Unknown error"))
+                            raise Exception(f"Failed to delete subfolder {subfolder_id}: {error_msg}")
                 
                 self.logger.debug("Deleted contents of folder %s", folder_id)
             else:
@@ -1859,7 +1917,7 @@ class QueryManager:
                     ORDER BY l.name
                 """, [int(folder_id)])
 
-            lists = [dict(row) for row in results]
+            lists = [self._row_to_dict(row) for row in results]
             self.logger.debug("Found %s lists in folder %s", len(lists), folder_id)
 
             # Log each list found for debugging
@@ -1877,17 +1935,22 @@ class QueryManager:
         try:
             result = self.connection_manager.execute_single("""
                 SELECT 
-                    f.id, f.name, f.parent_id, f.created_at
+                    f.id, f.name, f.parent_id, f.created_at, f.art_data,
+                    f.is_import_sourced, f.import_source_id
                 FROM folders f
                 WHERE f.id = ?
             """, [int(folder_id)])
 
             if result:
+                row_dict = self._row_to_dict(result)
                 return {
-                    "id": str(result['id']),
-                    "name": result['name'],
-                    "parent_id": result['parent_id'],
-                    "created": result['created_at'][:10] if result['created_at'] else ''
+                    "id": str(row_dict['id']),
+                    "name": row_dict['name'],
+                    "parent_id": row_dict['parent_id'],
+                    "created": row_dict['created_at'][:10] if row_dict['created_at'] else '',
+                    "art_data": row_dict['art_data'],
+                    "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                    "import_source_id": row_dict.get('import_source_id')
                 }
 
             return None
@@ -1903,7 +1966,8 @@ class QueryManager:
                 # Get top-level folders
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at
+                        f.id, f.name, f.created_at, f.art_data,
+                        f.is_import_sourced, f.import_source_id
                     FROM folders f
                     WHERE f.parent_id IS NULL
                     ORDER BY 
@@ -1914,7 +1978,8 @@ class QueryManager:
                 # Get subfolders of specified parent
                 folders = self.connection_manager.execute_query("""
                     SELECT 
-                        f.id, f.name, f.created_at
+                        f.id, f.name, f.created_at, f.art_data,
+                        f.is_import_sourced, f.import_source_id
                     FROM folders f
                     WHERE f.parent_id = ?
                     ORDER BY f.name
@@ -1922,10 +1987,15 @@ class QueryManager:
 
             result = []
             for row in folders or []:
+                # Convert Row to dict to safely access columns with .get()
+                row_dict = self._row_to_dict(row)
                 result.append({
-                    "id": str(row['id']),
-                    "name": row['name'],
-                    "created": row['created_at'][:10] if row['created_at'] else ''
+                    "id": str(row_dict['id']),
+                    "name": row_dict['name'],
+                    "created": row_dict['created_at'][:10] if row_dict.get('created_at') else '',
+                    "art_data": row_dict.get('art_data'),
+                    "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                    "import_source_id": row_dict.get('import_source_id')
                 })
 
             if parent_id is None:
@@ -1948,14 +2018,16 @@ class QueryManager:
                 # For root level: get top-level folders and lists
                 results = self.connection_manager.execute_query("""
                     -- Get top-level subfolders (root level has no folder info)
-                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data,
+                           f.is_import_sourced, f.import_source_id
                     FROM folders f 
                     WHERE f.parent_id IS NULL
                     
                     UNION ALL
                     
                     -- Get top-level lists
-                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data,
+                           l.is_import_sourced, l.import_source_id
                     FROM lists l 
                     WHERE l.folder_id IS NULL
                     ORDER BY data_type, name
@@ -1964,21 +2036,24 @@ class QueryManager:
                 # Single batch query to get folder info, subfolders, and lists
                 results = self.connection_manager.execute_query("""
                     -- Get folder info
-                    SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    SELECT 'folder_info' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data,
+                           f.is_import_sourced, f.import_source_id
                     FROM folders f 
                     WHERE f.id = ?
                     
                     UNION ALL
                     
                     -- Get subfolders in this folder
-                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id
+                    SELECT 'subfolder' as data_type, f.id, f.name, f.created_at, NULL as folder_id, f.art_data,
+                           f.is_import_sourced, f.import_source_id
                     FROM folders f 
                     WHERE f.parent_id = ?
                     
                     UNION ALL
                     
                     -- Get lists in this folder
-                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id
+                    SELECT 'list' as data_type, l.id, l.name, l.created_at, l.folder_id, NULL as art_data,
+                           l.is_import_sourced, l.import_source_id
                     FROM lists l 
                     WHERE l.folder_id = ?
                     ORDER BY data_type, name
@@ -1990,22 +2065,30 @@ class QueryManager:
             lists = []
             
             for row in results:
-                data_type = row['data_type']
+                # Convert Row to dict for safe .get() access
+                row_dict = self._row_to_dict(row)
+                data_type = row_dict['data_type']
                 
                 if data_type == 'folder_info':
                     folder_info = {
-                        "id": str(row['id']),
-                        "name": row['name'],
-                        "created": row['created_at'][:10] if row['created_at'] else ''
+                        "id": str(row_dict['id']),
+                        "name": row_dict['name'],
+                        "created": row_dict['created_at'][:10] if row_dict.get('created_at') else '',
+                        "art_data": row_dict.get('art_data'),
+                        "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                        "import_source_id": row_dict.get('import_source_id')
                     }
                 elif data_type == 'subfolder':
                     subfolders.append({
-                        "id": str(row['id']),
-                        "name": row['name'],
-                        "created": row['created_at'][:10] if row['created_at'] else ''
+                        "id": str(row_dict['id']),
+                        "name": row_dict['name'],
+                        "created": row_dict['created_at'][:10] if row_dict.get('created_at') else '',
+                        "art_data": row_dict.get('art_data'),
+                        "is_import_sourced": row_dict.get('is_import_sourced', 0),
+                        "import_source_id": row_dict.get('import_source_id')
                     })
                 elif data_type == 'list':
-                    lists.append(dict(row))
+                    lists.append(row_dict)
             
             # For root level, create a synthetic folder_info
             if folder_id is None:
@@ -2070,17 +2153,21 @@ class QueryManager:
         """Get information about a specific list"""
         try:
             result = self.connection_manager.execute_single("""
-                SELECT l.id, l.name, l.folder_id, l.created_at
+                SELECT l.id, l.name, l.folder_id, l.created_at,
+                       l.is_import_sourced, l.import_source_id
                 FROM lists l
                 WHERE l.id = ?
             """, [list_id])
 
             if result:
+                row_dict = self._row_to_dict(result)
                 return {
-                    'id': result['id'],
-                    'name': result['name'],
-                    'folder_id': result['folder_id'],
-                    'created_at': result['created_at']
+                    'id': row_dict['id'],
+                    'name': row_dict['name'],
+                    'folder_id': row_dict['folder_id'],
+                    'created_at': row_dict['created_at'],
+                    'is_import_sourced': row_dict.get('is_import_sourced', 0),
+                    'import_source_id': row_dict.get('import_source_id')
                 }
             return None
 
@@ -2092,17 +2179,21 @@ class QueryManager:
         """Get information about a specific folder"""
         try:
             result = self.connection_manager.execute_single("""
-                SELECT f.id, f.name, f.parent_id, f.created_at
+                SELECT f.id, f.name, f.parent_id, f.created_at,
+                       f.is_import_sourced, f.import_source_id
                 FROM folders f
                 WHERE f.id = ?
             """, [folder_id])
 
             if result:
+                row_dict = self._row_to_dict(result)
                 return {
-                    'id': result['id'],
-                    'name': result['name'],
-                    'parent_id': result['parent_id'],
-                    'created_at': result['created_at']
+                    'id': row_dict['id'],
+                    'name': row_dict['name'],
+                    'parent_id': row_dict['parent_id'],
+                    'created_at': row_dict['created_at'],
+                    'is_import_sourced': row_dict.get('is_import_sourced', 0),
+                    'import_source_id': row_dict.get('import_source_id')
                 }
             return None
 
@@ -2116,14 +2207,19 @@ class QueryManager:
             self.logger.debug("Moving list %s to folder %s", list_id, target_folder_id)
 
             with self.connection_manager.transaction() as conn:
-                # Verify the list exists and get current folder for cache invalidation
+                # Verify the list exists, get current folder and import status
                 list_exists = conn.execute("""
-                    SELECT id, name, folder_id FROM lists WHERE id = ?
+                    SELECT id, name, folder_id, is_import_sourced FROM lists WHERE id = ?
                 """, [int(list_id)]).fetchone()
 
                 if not list_exists:
                     self.logger.error("List %s not found", list_id)
                     return {"error": "list_not_found"}
+                
+                # Check if list is import-sourced (locked)
+                if list_exists['is_import_sourced'] == 1:
+                    return {"error": "import_locked", 
+                           "message": "Cannot move import-sourced list. Structure is locked to source."}
                     
                 source_folder_id = list_exists['folder_id']
 
@@ -2234,13 +2330,27 @@ class QueryManager:
         try:
             self.logger.debug("Moving folder %s to destination %s", folder_id, target_folder_id)
 
-            # Check if folder exists and get current parent for cache invalidation
+            # Check if folder exists, get current parent and import status
             existing_folder = self.connection_manager.execute_single("""
-                SELECT id, name, parent_id FROM folders WHERE id = ?
+                SELECT id, name, parent_id, is_import_sourced, import_source_id FROM folders WHERE id = ?
             """, [int(folder_id)])
 
             if not existing_folder:
                 return {"success": False, "error": "folder_not_found"}
+            
+            # Check if folder is from a file import (locked for file imports only)
+            if existing_folder['is_import_sourced'] == 1:
+                import_source_id = existing_folder['import_source_id']
+                if import_source_id:
+                    import_source = self.connection_manager.execute_single("""
+                        SELECT source_type FROM import_sources WHERE id = ?
+                    """, [import_source_id])
+                    
+                    # Block move ONLY for file imports (to preserve imported structure)
+                    # Other import types can be moved
+                    if import_source and import_source['source_type'] == 'file':
+                        return {"success": False, "error": "import_locked", 
+                               "message": "Cannot move file import folder. Structure is locked to source."}
 
             # If target_folder_id is provided, verify the destination folder exists
             if target_folder_id is not None:

@@ -10,7 +10,7 @@ import xbmcplugin
 import xbmcgui
 import time
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from lib.ui.plugin_context import PluginContext
 from lib.ui.response_types import DirectoryResponse, DialogResponse
 from lib.ui.localization import L
@@ -150,6 +150,22 @@ class ListsHandler:
         try:
             # Get the lazy-loaded renderer instance to use its art methods
             renderer = self.listitem_renderer
+
+            # Check if item has custom art_data (from imported folders)
+            art_data = item_data.get('art_data')
+            if art_data:
+                # Parse art_data if it's a JSON string
+                import json
+                if isinstance(art_data, str):
+                    try:
+                        art_data = json.loads(art_data)
+                    except (json.JSONDecodeError, ValueError):
+                        art_data = None
+                
+                # Apply custom artwork if valid
+                if art_data and isinstance(art_data, dict):
+                    renderer.art_manager.apply_art(list_item, art_data, fallback_icon='DefaultFolder.png')
+                    return
 
             # Determine if this is a list or folder based on the URL action
             url = item_data.get('url', '')
@@ -300,6 +316,9 @@ class ListsHandler:
                 cached_breadcrumbs = cached_data.get('breadcrumbs', {})
                 build_time = cached_data.get('_build_time_ms', 0)
                 processed_menu_items = cached_data.get('processed_items', [])
+                # Set to empty lists since we're using cached processed items
+                all_lists = []
+                all_folders = []
                 self.logger.debug("CACHE HIT: %d processed items (built in %d ms) - ZERO DB OVERHEAD", 
                                    len(processed_menu_items), build_time)
             else:
@@ -872,14 +891,22 @@ class ListsHandler:
                     (f"Delete '{subfolder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=subfolder_id)})")
                 ]
 
-                menu_items.append({
+                subfolder_item = {
                     'label': f"📁 {subfolder_name}",
                     'url': context.build_url('show_folder', folder_id=subfolder_id),
                     'is_folder': True,
                     'description': f"Subfolder",
                     'context_menu': context_menu,
                     'icon': "DefaultFolder.png"
-                })
+                }
+                
+                # Include art_data and import status if available
+                if 'art_data' in subfolder:
+                    subfolder_item['art_data'] = subfolder['art_data']
+                if 'is_import_sourced' in subfolder:
+                    subfolder_item['is_import_sourced'] = subfolder['is_import_sourced']
+                
+                menu_items.append(subfolder_item)
 
             # Add lists in this folder
             for list_item in lists_in_folder:
@@ -1656,6 +1683,39 @@ class ListsHandler:
             self.logger.warning("Error checking folder tools availability: %s", e)
             return False
     
+    def _compute_full_art_dict(self, item_info: Dict[str, Any], item_type: str) -> Optional[Dict[str, str]]:
+        """
+        Get custom artwork dictionary for cache. Resource fallbacks are NOT computed here
+        (they're computed at render time instead).
+        
+        Args:
+            item_info: Folder or list info dict from database
+            item_type: 'folder' or 'list'
+            
+        Returns:
+            Custom art dictionary if available, None otherwise
+        """
+        import json
+        
+        # Check if item has custom art_data (from import)
+        art_data = item_info.get('art_data')
+        if art_data:
+            # Parse if it's a JSON string
+            if isinstance(art_data, str):
+                try:
+                    art_data = json.loads(art_data)
+                except (json.JSONDecodeError, ValueError) as e:
+                    self.logger.error("Failed to parse art_data JSON for %s: %s", item_type, e)
+                    return None
+            
+            # If we have valid custom art, return it
+            if art_data and isinstance(art_data, dict):
+                self.logger.debug("Cached custom art_data for %s: %d art types", item_type, len(art_data))
+                return art_data
+        
+        # No custom art - return None so ultra-fast rendering can apply resource fallbacks
+        return None
+    
     def _build_processed_menu_items(self, context: 'PluginContext', all_lists: List[Dict], all_folders: List[Dict], query_manager=None) -> List[Dict[str, Any]]:
         """Build processed menu items with business logic applied - for schema v4 cache"""
         menu_items = []
@@ -1729,13 +1789,22 @@ class ListsHandler:
                 (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
             ]
 
-            menu_items.append({
+            folder_item = {
                 'label': folder_name,
                 'url': context.build_url('show_folder', folder_id=folder_id),
                 'is_folder': True,
                 'description': f"Folder",
                 'context_menu': context_menu
-            })
+            }
+            
+            # Compute and include full art dictionary (custom or resource fallbacks)
+            folder_item['art_data'] = self._compute_full_art_dict(folder_info, 'folder')
+            
+            # Include import status if available
+            if 'is_import_sourced' in folder_info:
+                folder_item['is_import_sourced'] = folder_info['is_import_sourced']
+            
+            menu_items.append(folder_item)
 
         # Add standalone lists (excluding Kodi Favorites as it's already added)
         standalone_lists = [item for item in all_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
@@ -1752,13 +1821,22 @@ class ListsHandler:
                 (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
             ]
 
-            menu_items.append({
+            list_cache_item = {
                 'label': name,
                 'url': context.build_url('show_list', list_id=list_id),
                 'is_folder': True,
                 'description': description,
                 'icon': "DefaultPlaylist.png",
                 'context_menu': context_menu
-            })
+            }
+            
+            # Compute and include full art dictionary (custom or resource fallbacks)
+            list_cache_item['art_data'] = self._compute_full_art_dict(list_item, 'list')
+            
+            # Include import status if available
+            if 'is_import_sourced' in list_item:
+                list_cache_item['is_import_sourced'] = list_item['is_import_sourced']
+            
+            menu_items.append(list_cache_item)
 
         return menu_items

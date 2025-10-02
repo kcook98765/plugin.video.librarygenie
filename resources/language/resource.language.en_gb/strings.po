@@ -1641,6 +1641,10 @@ msgctxt "#30393"
 msgid "[In List: %s]"
 msgstr ""
 
+msgctxt "#30394"
+msgid "LG Save Bookmark"
+msgstr ""
+
 # Remote Services Settings
 msgctxt "#30400"
 msgid "Remote Services"
@@ -1863,6 +1867,9 @@ msgctxt "#30540"
 msgid "Backup Actions"
 msgstr ""
 
+msgctxt "#30541"
+msgid "Device identifier for remote services"
+msgstr ""
 
 msgctxt "#30542"
 msgid "Manual Backup"
@@ -1928,6 +1935,14 @@ msgstr ""
 # Dialog Messages
 msgctxt "#30590"
 msgid "Enter list name"
+msgstr ""
+
+msgctxt "#30591"
+msgid "Welcome to LibraryGenie"
+msgstr ""
+
+msgctxt "#30592"
+msgid "LibraryGenie helps you organize your Kodi library with custom lists and folders. Let's get started by syncing your media library."
 msgstr ""
 
 # List View Messages

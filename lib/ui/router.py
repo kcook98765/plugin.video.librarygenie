@@ -116,6 +116,101 @@ class Router:
             from lib.ui.nav import push
             push(next_route)
 
+    def _handle_refresh_import(self, context: PluginContext, folder_id: str):
+        """Handle refresh import action"""
+        try:
+            # Get folder info to retrieve import_source_id
+            folder_info = context.query_manager.get_folder_info(int(folder_id))
+            if not folder_info:
+                self.dialog_service.ok("Error", "Folder not found.")
+                return
+            
+            import_source_id = folder_info.get('import_source_id')
+            if not import_source_id:
+                self.dialog_service.ok("Error", "This folder is not from an import.")
+                return
+            
+            # Get import source record to retrieve source_url
+            conn = context.query_manager.connection_manager.get_connection()
+            import_source = conn.execute(
+                "SELECT source_url, folder_id FROM import_sources WHERE id = ?",
+                (import_source_id,)
+            ).fetchone()
+            
+            if not import_source:
+                self.dialog_service.ok("Error", "Import source not found.")
+                return
+            
+            source_url = import_source['source_url']
+            root_folder_id = import_source['folder_id']
+            folder_name = folder_info.get('name')
+            
+            # Show confirmation dialog
+            if not self.dialog_service.yesno(
+                "Refresh Import",
+                f"Refresh content from:[CR]{source_url}[CR][CR]This will delete all imported content and re-scan the source."
+            ):
+                return
+            
+            # Show progress dialog
+            progress = xbmcgui.DialogProgressBG()
+            progress.create("Refreshing Import", "Preparing...")
+            
+            try:
+                # Delete the import source (cascade deletes all locked content)
+                progress.update(20, "Removing old content...")
+                conn.execute("DELETE FROM import_sources WHERE id = ?", (import_source_id,))
+                conn.commit()
+                
+                # Re-run the import
+                progress.update(40, "Re-scanning source...")
+                from lib.import_export.import_handler import ImportHandler
+                import_handler = ImportHandler(context.query_manager.connection_manager)
+                
+                def update_progress(message):
+                    progress.update(60, message)
+                
+                # This should always be the root wrapper folder
+                # Get its parent and name for re-import
+                parent_folder_id = folder_info.get('parent_id')
+                root_name = folder_name
+                
+                result = import_handler.import_from_source(
+                    source_url,
+                    target_folder_id=parent_folder_id,
+                    progress_callback=update_progress,
+                    root_folder_name=root_name
+                )
+                
+                progress.update(100, "Complete")
+                progress.close()
+                
+                # Show result
+                if result.get('success'):
+                    self.dialog_service.ok(
+                        "Import Refreshed",
+                        f"Successfully refreshed:[CR]" +
+                        f"Folders: {result.get('folders_created', 0)}[CR]" +
+                        f"Lists: {result.get('lists_created', 0)}[CR]" +
+                        f"Items: {result.get('items_imported', 0)}"
+                    )
+                    # Refresh the view
+                    import xbmc
+                    xbmc.executebuiltin('Container.Refresh')
+                else:
+                    errors = result.get('errors', [])
+                    error_msg = errors[0] if errors else "Unknown error"
+                    self.dialog_service.ok("Import Failed", f"Error: {error_msg}")
+            
+            except Exception as e:
+                progress.close()
+                self.logger.error("Error during refresh import: %s", e)
+                self.dialog_service.ok("Error", f"Failed to refresh import: {str(e)}")
+        
+        except Exception as e:
+            self.logger.error("Error in _handle_refresh_import: %s", e)
+            self.dialog_service.ok("Error", f"Failed to refresh import: {str(e)}")
+
     def dispatch(self, context: PluginContext) -> bool:
         """
         Dispatch request to appropriate handler based on context
@@ -252,6 +347,106 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                 
                 return result if isinstance(result, bool) else True
+            elif action == 'import_file_media':
+                # Handle Import File Media action from context menu
+                source_url = context.get_param('source_url')
+                succeeded = False
+                
+                try:
+                    if not source_url:
+                        self.logger.error("Import file media: missing source_url parameter")
+                        import xbmcgui
+                        xbmcgui.Dialog().notification(
+                            "LibraryGenie",
+                            "Import failed: No folder path provided",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            3000
+                        )
+                    else:
+                        # Get default folder name from source path (handle URLs and paths)
+                        import os
+                        import re
+                        
+                        # Strip scheme (smb://, nfs://, special://) if present
+                        path_without_scheme = source_url.split('://', 1)[-1] if '://' in source_url else source_url
+                        # Split on both forward and back slashes, take last non-empty segment
+                        segments = [s for s in re.split(r'[/\\]+', path_without_scheme) if s]
+                        default_name = segments[-1] if segments else "Imported Media"
+                        
+                        # Prompt user for folder name
+                        import xbmcgui
+                        folder_name = self.dialog_service.input(
+                            "Enter name for import folder:",
+                            default=default_name,
+                            input_type=xbmcgui.INPUT_ALPHANUM
+                        )
+                        
+                        # Check if user cancelled
+                        if not folder_name or not folder_name.strip():
+                            self.logger.debug("Import cancelled by user")
+                            succeeded = False
+                        else:
+                            # Sanitize folder name
+                            folder_name = folder_name.strip()
+                            # Remove forbidden characters and control characters
+                            folder_name = re.sub(r'[/\\:*?"<>|\x00-\x1f]', '', folder_name)
+                            folder_name = ' '.join(folder_name.split())  # Collapse whitespace
+                            
+                            if not folder_name:
+                                self.logger.error("Invalid folder name after sanitization")
+                                import xbmcgui
+                                xbmcgui.Dialog().notification(
+                                    "LibraryGenie",
+                                    "Import failed: Invalid folder name",
+                                    xbmcgui.NOTIFICATION_ERROR,
+                                    3000
+                                )
+                                succeeded = False
+                            else:
+                                from lib.import_export.import_handler import ImportHandler
+                                from lib.data.storage_manager import get_storage_manager
+                                
+                                storage = get_storage_manager()
+                                import_handler = ImportHandler(storage)
+                                results = import_handler.import_from_source(source_url, root_folder_name=folder_name)
+                                
+                                # Check if import actually succeeded
+                                if results.get('success'):
+                                    succeeded = True
+                                    # Navigate directly to the imported root folder
+                                    import xbmc
+                                    root_folder_id = results.get('root_folder_id')
+                                    if root_folder_id:
+                                        folder_url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={root_folder_id}"
+                                        xbmc.executebuiltin(f'ActivateWindow(Videos,{folder_url},return)')
+                                        self.logger.info("Navigating to imported folder: %s", root_folder_id)
+                                    else:
+                                        # Fallback to plugin root if no folder_id (shouldn't happen)
+                                        xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.librarygenie/,return)')
+                                else:
+                                    self.logger.error("Import failed: %s", results.get('errors'))
+                                    error_msg = '; '.join(results.get('errors', ['Unknown error']))[:100]
+                                    import xbmcgui
+                                    xbmcgui.Dialog().notification(
+                                        "LibraryGenie",
+                                        f"Import failed: {error_msg}",
+                                        xbmcgui.NOTIFICATION_ERROR,
+                                        5000
+                                    )
+                                    succeeded = False
+                except Exception as e:
+                    self.logger.error("Import file media failed: %s", str(e))
+                    import xbmcgui
+                    xbmcgui.Dialog().notification(
+                        "LibraryGenie",
+                        f"Import failed: {str(e)}",
+                        xbmcgui.NOTIFICATION_ERROR,
+                        3000
+                    )
+                finally:
+                    # Always end directory for context menu actions
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=succeeded)
+                return True
             elif action == 'add_to_list':
                 media_item_id = context.get_param('media_item_id')
                 dbtype = context.get_param('dbtype')
@@ -393,6 +588,17 @@ class Router:
                     return bool(success) if success is not None else True
                 else:
                     self.logger.error("Missing folder_id parameter for move_folder")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'refresh_import':
+                folder_id = params.get('folder_id')
+                if folder_id:
+                    # Handle refresh import action
+                    self._handle_refresh_import(context, str(folder_id))
+                    return True
+                else:
+                    self.logger.error("Missing folder_id parameter for refresh_import")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
 

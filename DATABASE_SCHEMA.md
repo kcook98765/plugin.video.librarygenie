@@ -3,7 +3,7 @@
 ## Overview
 LibraryGenie uses SQLite with WAL (Write-Ahead Logging) mode for improved concurrency and performance. The database schema includes tables for lists, folders, media items, Kodi favorites, search history, bookmarks, and various system preferences.
 
-## Current Schema Version: 4
+## Current Schema Version: 6
 
 ## Core Tables
 
@@ -59,6 +59,7 @@ Hierarchical folder structure for organizing lists and bookmarks.
 | `id` | INTEGER PK | Unique identifier |
 | `name` | TEXT NOT NULL | Folder name |
 | `parent_id` | INTEGER | Parent folder (FK to folders.id) |
+| `art_data` | TEXT | JSON artwork data (poster, fanart, etc.) |
 | `created_at` | TEXT | Creation timestamp |
 
 **Constraints:**

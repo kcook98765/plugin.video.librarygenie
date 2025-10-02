@@ -175,6 +175,16 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     is_folder = xbmc.getCondVisibility('ListItem.IsFolder')
     is_playable = xbmc.getCondVisibility('ListItem.IsPlayable')
     
+    # Add Import File Media option for folders (Files browser, network shares, etc.)
+    if is_folder and not is_librarygenie_context and not is_playable:
+        folder_path = item_info.get('file_path') or item_info.get('navigation_path')
+        if folder_path:
+            # Only exclude Kodi library paths - allow everything else
+            # Import handler will validate if it can handle the path
+            if not folder_path.startswith('library://'):
+                options.append("LG Import File Structure and Media")
+                actions.append(f"import_file_media&source_url={urllib.parse.quote(folder_path)}")
+    
     is_playable_item = (
         # Has valid library metadata for movies/episodes (exclude dbid '0')
         (item_info.get('dbtype') in ('movie', 'episode') and 
@@ -244,7 +254,7 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     # Only show for navigable folders/containers
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     if not _is_folder_context(container_path, item_info.get('file_path')):
-        bookmark_label = L(30400)  # "LG Save Bookmark"
+        bookmark_label = L(30394)  # "LG Save Bookmark"
         if not bookmark_label or bookmark_label.startswith('LocMiss_'):
             bookmark_label = "LG Save Bookmark"
         options.append(bookmark_label)
@@ -305,7 +315,7 @@ def _show_search_submenu(addon):
             actions.append("search_ai")
 
         # Search History
-        search_history_label = L(30387)  # "Search History"
+        search_history_label = L(30388)  # "Search History"
         if not search_history_label or search_history_label.startswith('LocMiss_'):
             search_history_label = "Search History"
         options.append(search_history_label)
@@ -576,6 +586,19 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Launch AI Movie Search - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=ai_search"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+        
+        elif action_with_params.startswith("import_file_media&"):
+            # Handle Import File Media action
+            params = {}
+            for param in action_with_params.split('&')[1:]:
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    params[key] = urllib.parse.unquote(value)
+            
+            source_url = params.get('source_url', '')
+            if source_url:
+                plugin_url = f"plugin://plugin.video.librarygenie/?action=import_file_media&source_url={urllib.parse.quote(source_url)}"
+                xbmc.executebuiltin(f"RunPlugin({plugin_url})")
 
         elif action_with_params == "search_history":
             # Show search history - PUSH semantics for navigation

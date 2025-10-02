@@ -56,6 +56,11 @@ class ListItemMetadataManager:
         """Set metadata using InfoTagVideo method"""
         try:
             video_info_tag = list_item.getVideoInfoTag()
+            
+            # Set basic media type if this is a video item
+            if item_type in ["movie", "episode", "tvshow", "video"]:
+                video_info_tag.setMediaType(item_type if item_type != "video" else "movie")
+            
             video_info_tag.setTitle(title)
             if plot:
                 video_info_tag.setPlot(plot)
@@ -121,6 +126,10 @@ class ListItemMetadataManager:
         try:
             video_info_tag = list_item.getVideoInfoTag()
             
+            # CRITICAL: Set media type FIRST - required for proper metadata display in v20+
+            media_type = item_data.get('media_type', 'movie')
+            video_info_tag.setMediaType(media_type)
+            
             # Core fields
             video_info_tag.setTitle(title)
             
@@ -144,16 +153,26 @@ class ListItemMetadataManager:
             
             if item_data.get('genre'):
                 try:
-                    # V20+ stores genre as JSON array, parse it back to list
-                    if isinstance(item_data['genre'], str) and item_data['genre'].startswith('['):
-                        genre_list = json.loads(item_data['genre'])
-                        video_info_tag.setGenres(genre_list if isinstance(genre_list, list) else [item_data['genre']])
+                    # Handle different genre formats
+                    if isinstance(item_data['genre'], list):
+                        # Already a list
+                        video_info_tag.setGenres(item_data['genre'])
+                    elif isinstance(item_data['genre'], str):
+                        if item_data['genre'].lstrip().startswith('['):
+                            # JSON array string - parse it
+                            genre_list = json.loads(item_data['genre'])
+                            video_info_tag.setGenres(genre_list if isinstance(genre_list, list) else [item_data['genre']])
+                        else:
+                            # Comma-separated string - split it
+                            genre_list = [g.strip() for g in item_data['genre'].split(',') if g.strip()]
+                            video_info_tag.setGenres(genre_list)
                     else:
-                        # Handle as string or already parsed list
-                        video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
-                except (json.JSONDecodeError, ValueError):
-                    # Fallback for malformed JSON or non-JSON strings
-                    video_info_tag.setGenres([item_data['genre']] if isinstance(item_data['genre'], str) else item_data['genre'])
+                        # Unknown format - convert to list
+                        video_info_tag.setGenres([str(item_data['genre'])])
+                except (json.JSONDecodeError, ValueError) as e:
+                    # Fallback for malformed data
+                    self.logger.warning("METADATA: Failed to parse genre '%s': %s", item_data.get('genre'), e)
+                    video_info_tag.setGenres([str(item_data['genre'])])
             
             if item_data.get('votes'):
                 try:
@@ -193,7 +212,27 @@ class ListItemMetadataManager:
                     video_info_tag.setDirectors([item_data['director']] if isinstance(item_data['director'], str) else item_data['director'])
                 
             if item_data.get('studio'):
-                video_info_tag.setStudios([item_data['studio']] if isinstance(item_data['studio'], str) else item_data['studio'])
+                try:
+                    # Handle different studio formats
+                    if isinstance(item_data['studio'], list):
+                        # Already a list
+                        video_info_tag.setStudios(item_data['studio'])
+                    elif isinstance(item_data['studio'], str):
+                        if item_data['studio'].lstrip().startswith('['):
+                            # JSON array string - parse it
+                            studio_list = json.loads(item_data['studio'])
+                            video_info_tag.setStudios(studio_list if isinstance(studio_list, list) else [item_data['studio']])
+                        else:
+                            # Comma-separated string - split it
+                            studio_list = [s.strip() for s in item_data['studio'].split(',') if s.strip()]
+                            video_info_tag.setStudios(studio_list)
+                    else:
+                        # Unknown format - convert to list
+                        video_info_tag.setStudios([str(item_data['studio'])])
+                except (json.JSONDecodeError, ValueError) as e:
+                    # Fallback for malformed data
+                    self.logger.warning("METADATA: Failed to parse studio '%s': %s", item_data.get('studio'), e)
+                    video_info_tag.setStudios([str(item_data['studio'])])
                 
             if item_data.get('country'):
                 video_info_tag.setCountries([item_data['country']] if isinstance(item_data['country'], str) else item_data['country'])
@@ -528,7 +567,8 @@ class ListItemArtManager:
     def apply_type_specific_art(self, list_item: xbmcgui.ListItem, item_type: str, 
                                resource_path_func: Optional[Callable[[str], str]] = None) -> bool:
         """
-        Apply type-specific artwork (list, folder, etc.) with resource path support.
+        Apply type-specific artwork (list, folder, etc.) with comprehensive resource fallbacks.
+        Uses dimensions and filename patterns to select best available resource artwork.
         
         Args:
             list_item: The ListItem to apply art to
@@ -539,46 +579,142 @@ class ListItemArtManager:
             bool: True if art was applied successfully
         """
         try:
-            art_mapping = {
-                'list': {
-                    'icon_name': 'list_playlist_icon.png',
-                    'thumb_name': 'list_playlist.jpg',
-                    'fallback': 'DefaultPlaylist.png'
-                },
-                'folder': {
-                    'icon_name': 'list_folder_icon.png', 
-                    'thumb_name': 'list_folder.jpg',
-                    'fallback': 'DefaultFolder.png'
-                }
+            # Define default fallbacks
+            default_fallbacks = {
+                'list': 'DefaultPlaylist.png',
+                'folder': 'DefaultFolder.png'
             }
             
-            if item_type not in art_mapping:
+            if item_type not in default_fallbacks:
                 return self._apply_fallback_art(list_item, 'DefaultFolder.png')
             
-            art_config = art_mapping[item_type]
+            # If no resource_path_func, use default fallback
+            if not resource_path_func:
+                return self._apply_fallback_art(list_item, default_fallbacks[item_type])
             
-            if resource_path_func:
-                try:
-                    icon = resource_path_func(art_config['icon_name'])
-                    thumb = resource_path_func(art_config['thumb_name'])
-                    
-                    list_item.setArt({
-                        'icon': icon,
-                        'thumb': thumb
-                    })
-                    self.logger.debug("ART: Applied resource art for %s type", item_type)
-                    return True
-                    
-                except Exception as e:
-                    self.logger.warning("ART: Resource art failed for %s: %s", item_type, e)
-                    # Fall through to fallback
+            # Build comprehensive art dict from resources
+            art_dict = self._build_resource_art_dict(item_type, resource_path_func)
             
-            # Use fallback art
-            return self._apply_fallback_art(list_item, art_config['fallback'])
+            if art_dict:
+                list_item.setArt(art_dict)
+                self.logger.debug("ART: Applied comprehensive resource art for %s with %d art types", 
+                                item_type, len(art_dict))
+                return True
+            else:
+                # No resources found, use default fallback
+                return self._apply_fallback_art(list_item, default_fallbacks[item_type])
             
         except Exception as e:
             self.logger.error("ART: Failed to apply type-specific art for %s: %s", item_type, e)
             return self._apply_fallback_art(list_item, 'DefaultFolder.png')
+    
+    def _build_resource_art_dict(self, item_type: str, resource_path_func: Callable[[str], str]) -> Dict[str, str]:
+        """
+        Build comprehensive artwork dictionary from resource files based on type and dimensions.
+        
+        Args:
+            item_type: Type of item ('list', 'folder', etc.)
+            resource_path_func: Function to get resource paths
+            
+        Returns:
+            Dictionary mapping art types to resource paths
+        """
+        import os
+        
+        art_dict = {}
+        
+        try:
+            # Define filename patterns for each item type
+            type_patterns = {
+                'folder': ['folder', 'list_folder'],
+                'list': ['playlist', 'list_playlist']
+            }
+            
+            patterns = type_patterns.get(item_type, [])
+            if not patterns:
+                return art_dict
+            
+            # Get all available resource files
+            available_files = [
+                'banner.jpg', 'clearart.jpg', 'clearlogo.png', 'fanart.jpg', 
+                'icon.jpg', 'landscape.jpg', 'thumb.jpg',
+                'list_folder.jpg', 'list_folder_icon.png',
+                'list_playlist.jpg', 'list_playlist_icon.png'
+            ]
+            
+            # Filter files matching the item type patterns
+            matching_files = []
+            for filename in available_files:
+                name_lower = filename.lower()
+                if any(pattern in name_lower for pattern in patterns):
+                    try:
+                        file_path = resource_path_func(filename)
+                        if os.path.exists(file_path):
+                            matching_files.append((filename, file_path))
+                    except:
+                        pass
+            
+            # Also check generic resource files for fallback art types
+            generic_files = ['banner.jpg', 'clearart.jpg', 'clearlogo.png', 
+                           'fanart.jpg', 'landscape.jpg', 'thumb.jpg', 'icon.jpg']
+            
+            for filename in generic_files:
+                try:
+                    file_path = resource_path_func(filename)
+                    if os.path.exists(file_path):
+                        matching_files.append((filename, file_path))
+                except:
+                    pass
+            
+            # Build art dictionary based on filenames and dimensions
+            for filename, file_path in matching_files:
+                name_lower = filename.lower()
+                
+                # Determine art type based on filename
+                if 'icon' in name_lower or name_lower == 'icon.jpg':
+                    art_dict['icon'] = file_path
+                elif 'banner' in name_lower:
+                    art_dict['banner'] = file_path
+                elif 'clearlogo' in name_lower or 'logo' in name_lower:
+                    art_dict['clearlogo'] = file_path
+                elif 'clearart' in name_lower:
+                    art_dict['clearart'] = file_path
+                elif 'fanart' in name_lower:
+                    art_dict['fanart'] = file_path
+                elif 'landscape' in name_lower:
+                    art_dict['landscape'] = file_path
+                elif 'thumb' in name_lower:
+                    art_dict['thumb'] = file_path
+                elif any(pattern in name_lower for pattern in patterns):
+                    # Type-specific file - use filename heuristics
+                    # .png files are typically icons, .jpg files are typically poster/thumb
+                    if filename.endswith('.png'):
+                        if 'icon' not in art_dict:
+                            art_dict['icon'] = file_path
+                    else:
+                        if 'poster' not in art_dict:
+                            art_dict['poster'] = file_path
+                        if 'thumb' not in art_dict:
+                            art_dict['thumb'] = file_path
+            
+            # Ensure minimum required art types
+            if art_dict:
+                # If we have poster but no thumb, use poster
+                if 'poster' in art_dict and 'thumb' not in art_dict:
+                    art_dict['thumb'] = art_dict['poster']
+                # If we have thumb but no icon, use thumb
+                if 'thumb' in art_dict and 'icon' not in art_dict:
+                    art_dict['icon'] = art_dict['thumb']
+                # If we only have icon, also use it for thumb
+                if 'icon' in art_dict and 'thumb' not in art_dict:
+                    art_dict['thumb'] = art_dict['icon']
+                    
+            self.logger.debug("Built resource art dict for %s: %s", item_type, list(art_dict.keys()))
+            return art_dict
+            
+        except Exception as e:
+            self.logger.error("Failed to build resource art dict: %s", e)
+            return {}
 
 class ContextMenuBuilder:
     """Unified context menu builder for consistent menu creation"""
@@ -589,6 +725,7 @@ class ContextMenuBuilder:
     
     def build_context_menu(self, item_id: str, item_type: str, item_name: str = "", 
                           is_protected: bool = False,
+                          import_source_id: Optional[int] = None,
                           custom_actions: Optional[List[Tuple[str, str]]] = None) -> List[Tuple[str, str]]:
         """
         Build a context menu for an item.
@@ -598,6 +735,7 @@ class ContextMenuBuilder:
             item_type: Type of item (list, folder, etc.)
             item_name: Name of the item (for logging/compatibility)
             is_protected: Whether the item is protected from rename/delete operations
+            import_source_id: Import source ID if this is an import-sourced root folder
             custom_actions: List of (label, action_url) tuples to add
             
         Returns:
@@ -608,24 +746,35 @@ class ContextMenuBuilder:
             
             # Standard actions based on type
             if item_type == 'list':
+                # Don't add rename/move/delete for protected lists (e.g. import-sourced)
+                if not is_protected:
+                    try:
+                        from lib.ui.localization import L
+                        context_items.extend([
+                            (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
+                            (L(30223).replace('%s', 'List'), f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),  # "Move List to Folder"
+                            (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
+                        ])
+                    except ImportError:
+                        # Fallback if localization not available
+                        context_items.extend([
+                            ("Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),
+                            ("Move to Folder", f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),
+                            ("Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),
+                        ])
+                
+                # Export is always available even for protected lists
                 try:
                     from lib.ui.localization import L
-                    context_items.extend([
-                        (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
-                        (L(30223).replace('%s', 'List'), f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),  # "Move List to Folder"
-                        (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
-                        (L(31022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")   # "Export"
-                    ])
+                    context_items.append((L(31022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))  # "Export"
                 except ImportError:
-                    # Fallback if localization not available
-                    context_items.extend([
-                        ("Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),
-                        ("Move to Folder", f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),
-                        ("Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),
-                        ("Export", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})")
-                    ])
+                    context_items.append(("Export", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))
                 
             elif item_type == 'folder':
+                # Add refresh option for import-sourced folders
+                if import_source_id is not None:
+                    context_items.append(("Refresh Import", f"RunPlugin(plugin://{self.addon_id}/?action=refresh_import&folder_id={item_id})"))
+                
                 # Don't add rename/delete for protected folders
                 if not is_protected:
                     try:

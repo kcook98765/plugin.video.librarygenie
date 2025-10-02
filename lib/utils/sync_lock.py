@@ -14,6 +14,7 @@ class GlobalSyncLock:
     """Cross-process lock to prevent duplicate library scans"""
     
     WINDOW_PROPERTY = 'librarygenie.sync.lock'
+    IMPORT_IN_PROGRESS_PROPERTY = 'librarygenie.import.in_progress'
     LOCK_FILE = 'special://temp/librarygenie_sync.lock'
     LOCK_TTL = 3600  # 1 hour TTL for stale locks
     
@@ -187,3 +188,62 @@ class GlobalSyncLock:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit"""
         self.release()
+
+
+# Module-level functions for import state tracking
+def set_import_in_progress(owner: str = "import") -> None:
+    """Set the import-in-progress flag to pause background cache operations"""
+    try:
+        import xbmcgui
+        window = xbmcgui.Window(10000)
+        import_info = {
+            'owner': owner,
+            'timestamp': time.time()
+        }
+        window.setProperty(GlobalSyncLock.IMPORT_IN_PROGRESS_PROPERTY, json.dumps(import_info))
+        logger = get_kodi_logger('lib.utils.sync_lock')
+        logger.info("Import-in-progress flag set by: %s", owner)
+    except Exception as e:
+        logger = get_kodi_logger('lib.utils.sync_lock')
+        logger.error("Failed to set import-in-progress flag: %s", e)
+
+
+def clear_import_in_progress() -> None:
+    """Clear the import-in-progress flag to resume background cache operations"""
+    try:
+        import xbmcgui
+        window = xbmcgui.Window(10000)
+        window.clearProperty(GlobalSyncLock.IMPORT_IN_PROGRESS_PROPERTY)
+        logger = get_kodi_logger('lib.utils.sync_lock')
+        logger.info("Import-in-progress flag cleared")
+    except Exception as e:
+        logger = get_kodi_logger('lib.utils.sync_lock')
+        logger.error("Failed to clear import-in-progress flag: %s", e)
+
+
+def is_import_in_progress() -> bool:
+    """Check if an import is currently in progress"""
+    try:
+        import xbmcgui
+        window = xbmcgui.Window(10000)
+        import_prop = window.getProperty(GlobalSyncLock.IMPORT_IN_PROGRESS_PROPERTY)
+        
+        if import_prop:
+            try:
+                import_info = json.loads(import_prop)
+                import_time = import_info.get('timestamp', 0)
+                # Clear stale imports (older than 10 minutes)
+                if time.time() - import_time > 600:
+                    logger = get_kodi_logger('lib.utils.sync_lock')
+                    logger.info("Stale import flag detected - clearing")
+                    clear_import_in_progress()
+                    return False
+                return True
+            except (json.JSONDecodeError, KeyError):
+                return False
+        
+        return False
+    except Exception as e:
+        logger = get_kodi_logger('lib.utils.sync_lock')
+        logger.error("Failed to check import-in-progress status: %s", e)
+        return False

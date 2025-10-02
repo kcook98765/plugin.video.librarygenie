@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 4
+TARGET_SCHEMA_VERSION = 7
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 4, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 7, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -132,8 +132,12 @@ class MigrationManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             parent_id INTEGER,
+            art_data TEXT,
+            is_import_sourced INTEGER DEFAULT 0,
+            import_source_id INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL
+            FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE SET NULL,
+            FOREIGN KEY (import_source_id) REFERENCES import_sources(id) ON DELETE CASCADE
         );
         
         CREATE UNIQUE INDEX idx_folders_name_parent ON folders (name, parent_id);
@@ -143,8 +147,11 @@ class MigrationManager:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             folder_id INTEGER,
+            is_import_sourced INTEGER DEFAULT 0,
+            import_source_id INTEGER,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
+            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL,
+            FOREIGN KEY (import_source_id) REFERENCES import_sources(id) ON DELETE CASCADE
         );
         
         CREATE UNIQUE INDEX idx_lists_name_folder ON lists (name, folder_id);
@@ -302,6 +309,21 @@ class MigrationManager:
         CREATE INDEX idx_sync_snapshot_media_type ON sync_snapshot (media_type);
         CREATE INDEX idx_sync_snapshot_media_type_kodi_id ON sync_snapshot (media_type, kodi_id);
         
+        -- Import sources table for tracking file-based media imports
+        CREATE TABLE IF NOT EXISTS import_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_url TEXT NOT NULL,
+            source_type TEXT NOT NULL,
+            folder_id INTEGER,
+            scan_policy TEXT,
+            last_scan TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+        );
+        
+        CREATE INDEX IF NOT EXISTS idx_import_sources_folder_id ON import_sources (folder_id);
+        CREATE INDEX IF NOT EXISTS idx_import_sources_source_url ON import_sources (source_url);
+        
         -- Insert default data
         INSERT INTO ui_preferences (id, ui_density, artwork_preference, show_secondary_label, show_plot_in_detailed)
         VALUES (1, 'compact', 'poster', 1, 1);
@@ -362,6 +384,40 @@ class MigrationManager:
     def _run_migrations(self, conn, current_version):
         """Run incremental migrations from current_version to TARGET_SCHEMA_VERSION"""
         try:
+            # Migration from version 4 to 5: Add import_sources table
+            if current_version < 5:
+                self.logger.info("Migrating from version 4 to 5: Adding import_sources table")
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS import_sources (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        source_url TEXT NOT NULL,
+                        source_type TEXT NOT NULL,
+                        folder_id INTEGER,
+                        scan_policy TEXT,
+                        last_scan TEXT,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+                    )
+                """)
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_import_sources_folder_id ON import_sources (folder_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_import_sources_source_url ON import_sources (source_url)")
+                self.logger.info("import_sources table created successfully")
+            
+            # Migration from version 5 to 6: Add art_data column to folders table
+            if current_version < 6:
+                self.logger.info("Migrating from version 5 to 6: Adding art_data column to folders table")
+                conn.execute("ALTER TABLE folders ADD COLUMN art_data TEXT")
+                self.logger.info("art_data column added to folders table successfully")
+            
+            # Migration from version 6 to 7: Add import locking columns
+            if current_version < 7:
+                self.logger.info("Migrating from version 6 to 7: Adding import locking columns")
+                conn.execute("ALTER TABLE folders ADD COLUMN is_import_sourced INTEGER DEFAULT 0")
+                conn.execute("ALTER TABLE folders ADD COLUMN import_source_id INTEGER REFERENCES import_sources(id) ON DELETE CASCADE")
+                conn.execute("ALTER TABLE lists ADD COLUMN is_import_sourced INTEGER DEFAULT 0")
+                conn.execute("ALTER TABLE lists ADD COLUMN import_source_id INTEGER REFERENCES import_sources(id) ON DELETE CASCADE")
+                self.logger.info("Import locking columns added successfully")
+            
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
             self.logger.info("Database migration completed successfully")
