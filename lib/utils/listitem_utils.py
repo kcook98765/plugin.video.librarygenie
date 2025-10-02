@@ -621,15 +621,6 @@ class ListItemArtManager:
         """
         import os
         
-        # Try to import PIL for dimension checking, but continue without it if not available
-        try:
-            from PIL import Image
-            has_pil = True
-        except ImportError:
-            Image = None  # type: ignore
-            has_pil = False
-            self.logger.debug("PIL not available, using filename-only art detection")
-        
         art_dict = {}
         
         try:
@@ -695,46 +686,16 @@ class ListItemArtManager:
                 elif 'thumb' in name_lower:
                     art_dict['thumb'] = file_path
                 elif any(pattern in name_lower for pattern in patterns):
-                    # Type-specific file - use dimensions to determine usage (if PIL available)
-                    if has_pil:
-                        try:
-                            with Image.open(file_path) as img:  # type: ignore
-                                width, height = img.size
-                                aspect_ratio = width / height if height > 0 else 1.0
-                                
-                                # Decide based on dimensions
-                                if width <= 256 or height <= 256:
-                                    # Small image - use as icon
-                                    if 'icon' not in art_dict:
-                                        art_dict['icon'] = file_path
-                                elif aspect_ratio > 1.5:
-                                    # Wide image - use as fanart/landscape
-                                    if 'fanart' not in art_dict:
-                                        art_dict['fanart'] = file_path
-                                    if 'landscape' not in art_dict:
-                                        art_dict['landscape'] = file_path
-                                else:
-                                    # Portrait/square - use as poster/thumb
-                                    if 'poster' not in art_dict:
-                                        art_dict['poster'] = file_path
-                                    if 'thumb' not in art_dict:
-                                        art_dict['thumb'] = file_path
-                        except Exception as e:
-                            self.logger.debug("Could not read dimensions for %s: %s", filename, e)
-                            # Fallback to thumb if no dimension check possible
-                            if 'thumb' not in art_dict:
-                                art_dict['thumb'] = file_path
+                    # Type-specific file - use filename heuristics
+                    # .png files are typically icons, .jpg files are typically poster/thumb
+                    if filename.endswith('.png'):
+                        if 'icon' not in art_dict:
+                            art_dict['icon'] = file_path
                     else:
-                        # No PIL - use filename heuristics
-                        # .png files are typically icons, .jpg files are typically poster/thumb
-                        if filename.endswith('.png'):
-                            if 'icon' not in art_dict:
-                                art_dict['icon'] = file_path
-                        else:
-                            if 'poster' not in art_dict:
-                                art_dict['poster'] = file_path
-                            if 'thumb' not in art_dict:
-                                art_dict['thumb'] = file_path
+                        if 'poster' not in art_dict:
+                            art_dict['poster'] = file_path
+                        if 'thumb' not in art_dict:
+                            art_dict['thumb'] = file_path
             
             # Ensure minimum required art types
             if art_dict:
