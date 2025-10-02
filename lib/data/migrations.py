@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 7
+TARGET_SCHEMA_VERSION = 8
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 7, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 8, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -200,6 +200,8 @@ class MigrationManager:
         CREATE INDEX idx_media_items_episode_match ON media_items (tvshowtitle, season, episode);
         CREATE INDEX idx_media_items_tvshowtitle ON media_items (tvshowtitle COLLATE NOCASE);
         CREATE INDEX idx_media_items_tvshow_episode ON media_items (tvshow_kodi_id, season, episode);
+        CREATE UNIQUE INDEX idx_media_items_lib_unique ON media_items (media_type, source, kodi_id) WHERE kodi_id IS NOT NULL AND source = 'lib';
+        CREATE UNIQUE INDEX idx_media_items_imdb_unique ON media_items (media_type, imdbnumber) WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL);
         
         CREATE TABLE list_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -417,6 +419,185 @@ class MigrationManager:
                 conn.execute("ALTER TABLE lists ADD COLUMN is_import_sourced INTEGER DEFAULT 0")
                 conn.execute("ALTER TABLE lists ADD COLUMN import_source_id INTEGER REFERENCES import_sources(id) ON DELETE CASCADE")
                 self.logger.info("Import locking columns added successfully")
+            
+            # Migration from version 7 to 8: Add unique constraints to prevent duplicate media items
+            if current_version < 8:
+                self.logger.info("Migrating from version 7 to 8: Adding unique constraints for media_items")
+                
+                # Step 1a: Remove duplicate list_items that would conflict after re-homing
+                self.logger.info("Removing duplicate list_items entries for library duplicates")
+                conn.execute("""
+                    DELETE FROM list_items
+                    WHERE id NOT IN (
+                        SELECT MIN(li.id)
+                        FROM list_items li
+                        INNER JOIN media_items mi ON li.media_item_id = mi.id
+                        WHERE mi.kodi_id IS NOT NULL AND mi.source = 'lib'
+                        GROUP BY li.list_id, mi.media_type, mi.source, mi.kodi_id
+                    )
+                    AND media_item_id IN (
+                        SELECT id FROM media_items
+                        WHERE kodi_id IS NOT NULL AND source = 'lib'
+                    )
+                """)
+                
+                # Step 1b: Migrate remaining list_items references for library duplicates
+                self.logger.info("Re-homing list_items references for duplicate library items")
+                conn.execute("""
+                    UPDATE list_items
+                    SET media_item_id = (
+                        SELECT MAX(id)
+                        FROM media_items AS m2
+                        WHERE m2.media_type = (SELECT media_type FROM media_items WHERE id = list_items.media_item_id)
+                          AND m2.source = (SELECT source FROM media_items WHERE id = list_items.media_item_id)
+                          AND m2.kodi_id = (SELECT kodi_id FROM media_items WHERE id = list_items.media_item_id)
+                          AND m2.kodi_id IS NOT NULL AND m2.source = 'lib'
+                    )
+                    WHERE media_item_id IN (
+                        SELECT id FROM media_items
+                        WHERE kodi_id IS NOT NULL AND source = 'lib'
+                          AND id NOT IN (
+                              SELECT MAX(id)
+                              FROM media_items
+                              WHERE kodi_id IS NOT NULL AND source = 'lib'
+                              GROUP BY media_type, source, kodi_id
+                          )
+                    )
+                """)
+                
+                # Step 1c: Migrate kodi_favorite references for library duplicates
+                self.logger.info("Re-homing kodi_favorite references for duplicate library items")
+                conn.execute("""
+                    UPDATE kodi_favorite
+                    SET media_item_id = (
+                        SELECT MAX(id)
+                        FROM media_items AS m2
+                        WHERE m2.media_type = (SELECT media_type FROM media_items WHERE id = kodi_favorite.media_item_id)
+                          AND m2.source = (SELECT source FROM media_items WHERE id = kodi_favorite.media_item_id)
+                          AND m2.kodi_id = (SELECT kodi_id FROM media_items WHERE id = kodi_favorite.media_item_id)
+                          AND m2.kodi_id IS NOT NULL AND m2.source = 'lib'
+                    )
+                    WHERE media_item_id IN (
+                        SELECT id FROM media_items
+                        WHERE kodi_id IS NOT NULL AND source = 'lib'
+                          AND id NOT IN (
+                              SELECT MAX(id)
+                              FROM media_items
+                              WHERE kodi_id IS NOT NULL AND source = 'lib'
+                              GROUP BY media_type, source, kodi_id
+                          )
+                    )
+                """)
+                
+                # Step 2: Remove duplicate library items (now safe - list_items updated)
+                self.logger.info("Removing duplicate library items (keeping most recent)")
+                conn.execute("""
+                    DELETE FROM media_items 
+                    WHERE id NOT IN (
+                        SELECT MAX(id) 
+                        FROM media_items 
+                        WHERE kodi_id IS NOT NULL AND source = 'lib'
+                        GROUP BY media_type, source, kodi_id
+                    ) 
+                    AND kodi_id IS NOT NULL AND source = 'lib'
+                """)
+                
+                # Step 3a: Remove duplicate list_items that would conflict after re-homing (IMDb duplicates)
+                self.logger.info("Removing duplicate list_items entries for non-library IMDb duplicates")
+                conn.execute("""
+                    DELETE FROM list_items
+                    WHERE id NOT IN (
+                        SELECT MIN(li.id)
+                        FROM list_items li
+                        INNER JOIN media_items mi ON li.media_item_id = mi.id
+                        WHERE mi.imdbnumber IS NOT NULL AND mi.imdbnumber != '' 
+                          AND (mi.source != 'lib' OR mi.source IS NULL)
+                        GROUP BY li.list_id, mi.media_type, mi.imdbnumber
+                    )
+                    AND media_item_id IN (
+                        SELECT id FROM media_items
+                        WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                    )
+                """)
+                
+                # Step 3b: Migrate remaining list_items references for IMDb duplicates (non-library items only)
+                self.logger.info("Re-homing list_items references for duplicate non-library items with IMDb IDs")
+                conn.execute("""
+                    UPDATE list_items
+                    SET media_item_id = (
+                        SELECT MAX(id)
+                        FROM media_items AS m2
+                        WHERE m2.media_type = (SELECT media_type FROM media_items WHERE id = list_items.media_item_id)
+                          AND m2.imdbnumber = (SELECT imdbnumber FROM media_items WHERE id = list_items.media_item_id)
+                          AND m2.imdbnumber IS NOT NULL AND m2.imdbnumber != ''
+                          AND (m2.source != 'lib' OR m2.source IS NULL)
+                    )
+                    WHERE media_item_id IN (
+                        SELECT id FROM media_items
+                        WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                          AND id NOT IN (
+                              SELECT MAX(id)
+                              FROM media_items
+                              WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                              GROUP BY media_type, imdbnumber
+                          )
+                    )
+                """)
+                
+                # Step 3c: Migrate kodi_favorite references for IMDb duplicates (non-library items only)
+                self.logger.info("Re-homing kodi_favorite references for duplicate non-library items with IMDb IDs")
+                conn.execute("""
+                    UPDATE kodi_favorite
+                    SET media_item_id = (
+                        SELECT MAX(id)
+                        FROM media_items AS m2
+                        WHERE m2.media_type = (SELECT media_type FROM media_items WHERE id = kodi_favorite.media_item_id)
+                          AND m2.imdbnumber = (SELECT imdbnumber FROM media_items WHERE id = kodi_favorite.media_item_id)
+                          AND m2.imdbnumber IS NOT NULL AND m2.imdbnumber != ''
+                          AND (m2.source != 'lib' OR m2.source IS NULL)
+                    )
+                    WHERE media_item_id IN (
+                        SELECT id FROM media_items
+                        WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                          AND id NOT IN (
+                              SELECT MAX(id)
+                              FROM media_items
+                              WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                              GROUP BY media_type, imdbnumber
+                          )
+                    )
+                """)
+                
+                # Step 4: Remove duplicate non-library items with IMDb IDs (now safe - list_items updated)
+                self.logger.info("Removing duplicate non-library items with IMDb IDs (keeping most recent)")
+                conn.execute("""
+                    DELETE FROM media_items 
+                    WHERE id NOT IN (
+                        SELECT MAX(id) 
+                        FROM media_items 
+                        WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                        GROUP BY media_type, imdbnumber
+                    ) 
+                    AND imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                """)
+                
+                # Step 5: Create unique index for library items (source = 'lib' with kodi_id)
+                # This prevents duplicate library items during sync
+                conn.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_media_items_lib_unique 
+                    ON media_items (media_type, source, kodi_id) 
+                    WHERE kodi_id IS NOT NULL AND source = 'lib'
+                """)
+                
+                # Step 6: Create unique index for items with IMDb IDs (excluding library items)
+                # This prevents duplicate non-library items while preserving library items
+                conn.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_media_items_imdb_unique 
+                    ON media_items (media_type, imdbnumber) 
+                    WHERE imdbnumber IS NOT NULL AND imdbnumber != '' AND (source != 'lib' OR source IS NULL)
+                """)
+                
+                self.logger.info("Unique constraints for media_items added successfully")
             
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
