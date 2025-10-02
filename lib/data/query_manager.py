@@ -1836,9 +1836,11 @@ class QueryManager:
                     
                     for subfolder in subfolders:
                         # Recursive deletion of subfolders
-                        result = self.delete_folder(subfolder['id'], force_delete_contents=True)
+                        subfolder_id = subfolder['id']
+                        result = self.delete_folder(subfolder_id, force_delete_contents=True)
                         if not result.get("success"):
-                            raise Exception(f"Failed to delete subfolder {subfolder['id']}")
+                            error_msg = result.get("message", result.get("error", "Unknown error"))
+                            raise Exception(f"Failed to delete subfolder {subfolder_id}: {error_msg}")
                 
                 self.logger.debug("Deleted contents of folder %s", folder_id)
             else:
