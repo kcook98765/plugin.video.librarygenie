@@ -1761,16 +1761,23 @@ class QueryManager:
 
             # Get current folder info including import status
             folder = self.connection_manager.execute_single("""
-                SELECT name, parent_id, is_import_sourced FROM folders WHERE id = ?
+                SELECT name, parent_id, is_import_sourced, import_source_id FROM folders WHERE id = ?
             """, [folder_id])
 
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
             
-            # Check if folder is import-sourced (locked)
-            if folder['is_import_sourced'] == 1:
-                return {"success": False, "error": "import_locked", 
-                       "message": "Cannot rename import-sourced folder. Structure is locked to source."}
+            # Check if folder is import-sourced and if it's from a non-file import (locked)
+            if folder['is_import_sourced'] == 1 and folder['import_source_id']:
+                import_source = self.connection_manager.execute_single("""
+                    SELECT source_type FROM import_sources WHERE id = ?
+                """, [folder['import_source_id']])
+                
+                # Only block rename for non-file imports (like Kodi library)
+                # File-based imports can be renamed
+                if import_source and import_source['source_type'] != 'file':
+                    return {"success": False, "error": "import_locked", 
+                           "message": "Cannot rename import-sourced folder. Structure is locked to source."}
 
             # Check for duplicate names in same parent
             existing = self.connection_manager.execute_single("""
@@ -1806,16 +1813,23 @@ class QueryManager:
 
             # Check if folder exists and get import status
             folder = self.connection_manager.execute_single("""
-                SELECT name, is_import_sourced, parent_id FROM folders WHERE id = ?
+                SELECT name, is_import_sourced, parent_id, import_source_id FROM folders WHERE id = ?
             """, [folder_id])
 
             if not folder:
                 return {"success": False, "error": "not_found", "message": "Folder not found"}
             
-            # Check if folder is import-sourced (locked)
-            if folder['is_import_sourced'] == 1:
-                return {"success": False, "error": "import_locked", 
-                       "message": "Cannot delete import-sourced folder. Structure is locked to source."}
+            # Check if folder is import-sourced and if it's from a non-file import (locked)
+            if folder['is_import_sourced'] == 1 and folder['import_source_id']:
+                import_source = self.connection_manager.execute_single("""
+                    SELECT source_type FROM import_sources WHERE id = ?
+                """, [folder['import_source_id']])
+                
+                # Only block deletion for non-file imports (like Kodi library)
+                # File-based imports can be deleted
+                if import_source and import_source['source_type'] != 'file':
+                    return {"success": False, "error": "import_locked", 
+                           "message": "Cannot delete import-sourced folder. Structure is locked to source."}
 
             if force_delete_contents:
                 # Delete all lists in folder first
@@ -2328,16 +2342,25 @@ class QueryManager:
 
             # Check if folder exists, get current parent and import status
             existing_folder = self.connection_manager.execute_single("""
-                SELECT id, name, parent_id, is_import_sourced FROM folders WHERE id = ?
+                SELECT id, name, parent_id, is_import_sourced, import_source_id FROM folders WHERE id = ?
             """, [int(folder_id)])
 
             if not existing_folder:
                 return {"success": False, "error": "folder_not_found"}
             
-            # Check if folder is import-sourced (locked)
+            # Check if folder is import-sourced and if it's from a non-file import (locked)
             if existing_folder['is_import_sourced'] == 1:
-                return {"success": False, "error": "import_locked", 
-                       "message": "Cannot move import-sourced folder. Structure is locked to source."}
+                import_source_id = existing_folder['import_source_id']
+                if import_source_id:
+                    import_source = self.connection_manager.execute_single("""
+                        SELECT source_type FROM import_sources WHERE id = ?
+                    """, [import_source_id])
+                    
+                    # Only block move for non-file imports (like Kodi library)
+                    # File-based imports can be moved
+                    if import_source and import_source['source_type'] != 'file':
+                        return {"success": False, "error": "import_locked", 
+                               "message": "Cannot move import-sourced folder. Structure is locked to source."}
 
             # If target_folder_id is provided, verify the destination folder exists
             if target_folder_id is not None:
