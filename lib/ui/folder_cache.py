@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
-CACHE_SCHEMA_VERSION = 5
+CACHE_SCHEMA_VERSION = 6
 
 
 class FolderCache:
@@ -240,6 +240,18 @@ class FolderCache:
                 self.delete(folder_id)
                 return None
             
+            # Check if show_tools_menu_item setting matches cached value
+            from lib.config.config_manager import get_config
+            config = get_config()
+            current_show_tools = config.get_bool('show_tools_menu_item', True)
+            cached_show_tools = payload.get('_show_tools')
+            
+            if cached_show_tools is not None and cached_show_tools != current_show_tools:
+                self.logger.debug("Cache invalidated for folder %s - show_tools setting changed from %s to %s",
+                                folder_id, cached_show_tools, current_show_tools)
+                self.delete(folder_id)
+                return None
+            
             # Validate folder ID matches to prevent serving wrong cache due to filename collisions
             cached_folder_id = payload.get('_folder_id')
             
@@ -350,12 +362,18 @@ class FolderCache:
                     folder_id
                 )
             
+            # Get current show_tools_menu_item setting for cache dependency tracking
+            from lib.config.config_manager import get_config
+            config = get_config()
+            current_show_tools = config.get_bool('show_tools_menu_item', True)
+            
             # Augment payload with cache metadata
             cache_payload = {
                 **payload,
                 '_built_at': datetime.now().isoformat(),
                 '_folder_id': folder_id,
-                '_schema': self.schema_version
+                '_schema': self.schema_version,
+                '_show_tools': current_show_tools  # Track setting for cache invalidation
             }
             
             if build_time_ms is not None:
