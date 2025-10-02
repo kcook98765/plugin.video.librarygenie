@@ -154,9 +154,10 @@ class FolderOperations:
             result = self.query_manager.delete_folder(folder_id, force_delete_contents=force_delete_contents)
 
             if result.get("error"):
+                error_message = result.get("message", "Failed to delete folder")
                 return DialogResponse(
                     success=False,
-                    message="Failed to delete folder" # This string should also be localized
+                    message=error_message # This string should also be localized
                 )
             else:
                 context.logger.info("Successfully deleted folder: %s", folder_name)
