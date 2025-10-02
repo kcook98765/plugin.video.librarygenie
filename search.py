@@ -8,6 +8,6 @@ Launches the LibraryGenie search directly when run from Kodi's Programs menu
 
 import xbmc
 
-# Launch search menu action via plugin URL
-# This provides a direct entry point for users to access search from Programs
-xbmc.executebuiltin('RunPlugin(plugin://plugin.video.librarygenie/?action=search_menu)')
+# Launch search by opening Videos window with plugin URL
+# ActivateWindow creates proper plugin context (unlike RunPlugin from Programs)
+xbmc.executebuiltin('ActivateWindow(videos,plugin://plugin.video.librarygenie/?action=prompt_and_search,return)')
