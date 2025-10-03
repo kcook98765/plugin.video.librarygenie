@@ -410,11 +410,18 @@ class ListItemBuilder:
                     list_id=str(list_id)
                 )
             elif media_type and kodi_id is not None:
-                # Kodi library items without media_item_id: Add basic remove action
+                # Kodi library items without media_item_id: Add basic remove action + toggle
                 from lib.ui.localization import L
                 remove_label = L(31010) if L(31010) else "Remove from List"
                 remove_url = f"RunPlugin(plugin://{self.addon_id}/?action=remove_library_item_from_list&list_id={list_id}&dbtype={media_type}&dbid={kodi_id}&title={title})"
                 context_items.append((remove_label, remove_url))
+                
+                # Add Tools & Options visibility toggle
+                from lib.config.config_manager import get_config
+                config = get_config()
+                is_visible = config.get_bool('show_tools_menu_item', True)
+                toggle_label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+                context_items.append((toggle_label, f"RunPlugin(plugin://{self.addon_id}/?action=toggle_tools_menu_item)"))
             else:
                 # No valid identifiers available
                 return
