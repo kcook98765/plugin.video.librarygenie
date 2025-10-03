@@ -211,6 +211,139 @@ class Router:
             self.logger.error("Error in _handle_refresh_import: %s", e)
             self.dialog_service.ok("Error", f"Failed to refresh import: {str(e)}")
 
+    def _handle_delete_files_import(self, context: PluginContext, import_source_id: int):
+        """Handle delete files import action"""
+        try:
+            # Show confirmation dialog with warning
+            if not self.dialog_service.yesno(
+                "Delete Files Import",
+                "This will remove the entire file structure from the top parent folder down, including all folders and lists. This cannot be undone."
+            ):
+                return
+            
+            # Delete the import_source record (cascades to delete all related folders and lists)
+            conn = context.query_manager.connection_manager.get_connection()
+            conn.execute("DELETE FROM import_sources WHERE id = ?", (import_source_id,))
+            conn.commit()
+            
+            # Show success notification
+            import xbmc
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Files import deleted successfully",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            
+            # Refresh container
+            xbmc.executebuiltin('Container.Refresh')
+            
+        except Exception as e:
+            self.logger.error("Error in _handle_delete_files_import: %s", e)
+            self.dialog_service.ok("Error", f"Failed to delete import: {str(e)}")
+
+    def _handle_export_folder_and_lists(self, context: PluginContext, folder_id: str):
+        """Handle export folder and lists action"""
+        try:
+            # Get folder info
+            folder_info = context.query_manager.get_folder_info(int(folder_id))
+            if not folder_info:
+                self.dialog_service.ok("Error", "Folder not found.")
+                return
+            
+            # Use ExportEngine to export the folder and all its lists
+            from lib.import_export.export_engine import ExportEngine
+            export_engine = ExportEngine()
+            
+            # Export lists and folders for this folder (including subfolders)
+            context_filter = {
+                'folder_id': int(folder_id),
+                'include_subfolders': True
+            }
+            
+            result = export_engine.export_data(
+                export_types=['lists', 'list_items', 'folders'],
+                context_filter=context_filter
+            )
+            
+            # Show result dialog
+            if result.get('success'):
+                self.dialog_service.ok(
+                    "Export Successful",
+                    f"Exported to:[CR]{result.get('file_path', 'unknown')}[CR][CR]" +
+                    f"Total items: {result.get('total_items', 0)}"
+                )
+            else:
+                error_msg = result.get('error', 'Unknown error')
+                self.dialog_service.ok("Export Failed", f"Error: {error_msg}")
+                
+        except Exception as e:
+            self.logger.error("Error in _handle_export_folder_and_lists: %s", e)
+            self.dialog_service.ok("Error", f"Failed to export: {str(e)}")
+
+    def _handle_show_context_more_menu(self, context: PluginContext):
+        """Handle show context more menu action"""
+        try:
+            # Get parameters
+            item_type = context.get_param('item_type', 'folder')
+            item_id = context.get_param('item_id')
+            is_files_source = int(context.get_param('is_files_source', '0'))
+            
+            # Build options list
+            options = ["Search", "Settings"]
+            
+            # Only add "Add Folder" and "Add List" if is_files_source == 0
+            if is_files_source == 0:
+                options.append("Add Folder")
+                options.append("Add List")
+            
+            # Show dialog
+            import xbmcgui
+            selected_index = xbmcgui.Dialog().select("More Options", list(options))
+            
+            if selected_index < 0:
+                return
+            
+            selected_option = options[selected_index]
+            
+            # Execute selected action
+            if selected_option == "Search":
+                # Navigate to search menu
+                import xbmc
+                xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.librarygenie/?action=prompt_and_search,return)')
+            elif selected_option == "Settings":
+                # Open addon settings
+                import xbmc
+                xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')
+            elif selected_option == "Add Folder":
+                # Call tools_handler._create_subfolder
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                result = tools_handler._create_subfolder(context, str(item_id))
+                
+                # Handle response
+                from lib.ui.response_handler import get_response_handler
+                response_handler = get_response_handler()
+                response_handler.handle_dialog_response(result, context)
+            elif selected_option == "Add List":
+                # Call tools_handler._create_list_in_folder
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                result = tools_handler._create_list_in_folder(context, str(item_id))
+                
+                # Handle response
+                from lib.ui.response_handler import get_response_handler
+                response_handler = get_response_handler()
+                response_handler.handle_dialog_response(result, context)
+                
+        except Exception as e:
+            self.logger.error("Error in _handle_show_context_more_menu: %s", e)
+            self.dialog_service.ok("Error", f"Failed to show menu: {str(e)}")
+
     def dispatch(self, context: PluginContext) -> bool:
         """
         Dispatch request to appropriate handler based on context
@@ -309,8 +442,9 @@ class Router:
                         return True
                 else:
                     # Fallback for non-DialogResponse
-                    finish_directory(context.addon_handle, succeeded=result, update=False)
-                    return result
+                    succeeded = bool(result) if result is not None else True
+                    finish_directory(context.addon_handle, succeeded=succeeded, update=False)
+                    return succeeded
             elif action == 'save_bookmark_from_context' or action == 'save_bookmark':
                 # Redirect old bookmark actions to the new integrated approach
                 from lib.ui.handler_factory import get_handler_factory
@@ -601,6 +735,41 @@ class Router:
                     self.logger.error("Missing folder_id parameter for refresh_import")
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
+
+            elif action == 'delete_files_import':
+                import_source_id = params.get('import_source_id')
+                if import_source_id:
+                    self._handle_delete_files_import(context, int(import_source_id))
+                    return True
+                else:
+                    self.logger.error("Missing import_source_id parameter for delete_files_import")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'export_folder_and_lists':
+                folder_id = params.get('folder_id')
+                if folder_id:
+                    self._handle_export_folder_and_lists(context, str(folder_id))
+                    return True
+                else:
+                    self.logger.error("Missing folder_id parameter for export_folder_and_lists")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'refresh_files_import':
+                folder_id = params.get('folder_id')
+                if folder_id:
+                    # Reuse existing _handle_refresh_import
+                    self._handle_refresh_import(context, str(folder_id))
+                    return True
+                else:
+                    self.logger.error("Missing folder_id parameter for refresh_files_import")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'show_context_more_menu':
+                self._handle_show_context_more_menu(context)
+                return True
 
             elif action == 'move_list_to_folder':
                 list_id = params.get('list_id')
