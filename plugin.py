@@ -347,6 +347,13 @@ def _render_cached_items_direct(cached_data, addon_handle):
                     
                     # Apply the art dictionary if valid
                     if art_data and isinstance(art_data, dict):
+                        # Debug logging for cache-served artwork
+                        item_label = item_data.get('label', 'Unknown')
+                        art_types = list(art_data.keys())
+                        log(f"CACHE LISTITEM ART: Applying artwork to '{item_label}' with {len(art_types)} types: {art_types}")
+                        for art_type, art_path in art_data.items():
+                            log(f"  - {art_type}: {art_path}")
+                        
                         listitem.setArt(art_data)
                         art_applied = True
                 except Exception as e:
@@ -354,6 +361,9 @@ def _render_cached_items_direct(cached_data, addon_handle):
             
             # Fallback: compute resource art based on item type
             if not art_applied:
+                item_label = item_data.get('label', 'Unknown')
+                log(f"CACHE LISTITEM ART: No custom art_data for '{item_label}' - using fallback")
+                
                 # Determine item type from URL
                 url = item_data.get('url', '')
                 if 'action=show_folder' in url:
