@@ -1115,6 +1115,15 @@ class Router:
             config.invalidate()
             self.logger.debug("ConfigManager cache invalidated after toggling Tools & Options visibility")
             
+            # CRITICAL: Clear folder cache to force rebuild with new visibility setting
+            try:
+                from lib.ui.folder_cache import get_folder_cache
+                folder_cache = get_folder_cache()
+                folder_cache.clear_all()
+                self.logger.debug("Folder cache cleared after toggling Tools & Options visibility")
+            except Exception as cache_error:
+                self.logger.warning("Failed to clear folder cache: %s", cache_error)
+            
             self.logger.info("Toggled Tools & Options visibility: %s -> %s", current_value, new_value)
             
             # Refresh the current container to show the change immediately
