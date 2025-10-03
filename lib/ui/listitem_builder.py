@@ -727,6 +727,16 @@ class ListItemBuilder:
                 f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item.get('id','')})"
             ))
         
+        # Add Tools & Options visibility toggle for all external items/bookmarks
+        from lib.config.config_manager import get_config
+        config = get_config()
+        is_visible = config.get_bool('show_tools_menu_item', True)
+        toggle_label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+        cm.append((
+            toggle_label,
+            f"RunPlugin(plugin://{self.addon_id}/?action=toggle_tools_menu_item)"
+        ))
+        
         list_item.addContextMenuItems(cm)
 
     def _set_enhanced_episode_formatting(self, li: xbmcgui.ListItem, item: Dict[str, Any], display_label: str, is_episode: bool):
