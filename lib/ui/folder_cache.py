@@ -19,7 +19,7 @@ from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
 # v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
-CACHE_SCHEMA_VERSION = 10  # v10: Rebuild caches with correct folder names in breadcrumb tools_label (fixes "Unknown Folder" in Tools & Options)
+CACHE_SCHEMA_VERSION = 11  # v11: Fixed duplicate Tools & Options by removing from Kodi Favorites cached context menu
 
 
 class FolderCache:
@@ -769,10 +769,9 @@ class FolderCache:
             name = kodi_favorites_item.get('name', 'Kodi Favorites')
             description = kodi_favorites_item.get('description', '')
             list_url = f"{base_url}?action=show_list&list_id={list_id}"
-            tools_context_url = f"{base_url}?action=show_list_tools&list_type=user_list&list_id={list_id}"
 
+            # NOTE: Don't add "Tools & Options" here - it's added dynamically by lists_handler
             context_menu = [
-                (f"Tools & Options for '{name}'", f"RunPlugin({tools_context_url})"),
                 self._get_tools_toggle_entry(base_url)
             ]
 

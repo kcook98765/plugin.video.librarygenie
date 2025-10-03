@@ -1111,6 +1111,10 @@ class Router:
             new_value = not current_value
             context.addon.setSettingBool('show_tools_menu_item', new_value)
             
+            # CRITICAL: Invalidate ConfigManager cache so new value is read immediately
+            config.invalidate()
+            self.logger.debug("ConfigManager cache invalidated after toggling Tools & Options visibility")
+            
             self.logger.info("Toggled Tools & Options visibility: %s -> %s", current_value, new_value)
             
             # Refresh the current container to show the change immediately
