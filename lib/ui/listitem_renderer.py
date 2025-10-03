@@ -296,25 +296,29 @@ class ListItemRenderer:
     def _set_list_context_menu(self, list_item: xbmcgui.ListItem, list_data: Dict[str, Any]):
         """Set context menu for list items - CONSOLIDATED"""
         list_id = list_data.get('id', '')
-        # Check if list is import-sourced (locked)
-        is_protected = list_data.get('is_import_sourced', 0) == 1
-        context_items = self.context_menu_builder.build_context_menu(list_id, 'list', is_protected=is_protected)
+        # Check if list is import-sourced (from file import)
+        is_files_source = list_data.get('is_import_sourced', 0) == 1
+        import_source_id = list_data.get('import_source_id')
+        context_items = self.context_menu_builder.build_context_menu(
+            list_id, 'list', 
+            is_files_source=is_files_source,
+            import_source_id=import_source_id
+        )
         list_item.addContextMenuItems(context_items)
 
     def _set_folder_context_menu(self, list_item: xbmcgui.ListItem, folder_data: Dict[str, Any]):
         """Set context menu for folder items - CONSOLIDATED"""
         folder_id = folder_data.get('id', '')
         folder_name = folder_data.get('name', '')
-        # Check if folder is import-sourced (locked) or is a reserved folder like "Search History"
+        # Check if folder is import-sourced (from file import) or is a reserved folder like "Search History"
         is_import_locked = folder_data.get('is_import_sourced', 0) == 1
         is_reserved = folder_name == "Search History"
-        is_protected = is_import_locked or is_reserved
         
-        # Only show refresh option if this is the ROOT folder of an import
-        # (i.e., import_source.folder_id points to this folder)
+        # Check if this is the ROOT folder of an import (not a subfolder)
+        # Only the root folder should show refresh/delete import options
+        is_import_root = False
         import_source_id = folder_data.get('import_source_id')
-        show_refresh = False
-        if import_source_id and self.query_manager:
+        if import_source_id and is_import_locked and not is_reserved and self.query_manager:
             try:
                 conn = self.query_manager.connection_manager.get_connection()
                 import_source = conn.execute(
@@ -322,13 +326,21 @@ class ListItemRenderer:
                     (import_source_id,)
                 ).fetchone()
                 if import_source and str(import_source['folder_id']) == str(folder_id):
-                    show_refresh = True
+                    is_import_root = True
             except Exception as e:
                 self.logger.warning("Failed to check if folder is import root: %s", e)
         
+        # Files source means it's the root of a file import (not subfolders)
+        is_files_source = is_import_root
+        
+        # Only pass import_source_id if this is the root folder
+        import_source_id_to_pass = import_source_id if is_import_root else None
+        
         context_items = self.context_menu_builder.build_context_menu(
-            folder_id, 'folder', folder_name, is_protected, 
-            import_source_id if show_refresh else None
+            folder_id, 'folder', folder_name, 
+            is_files_source=is_files_source,
+            is_reserved=is_reserved,
+            import_source_id=import_source_id_to_pass
         )
         list_item.addContextMenuItems(context_items)
 

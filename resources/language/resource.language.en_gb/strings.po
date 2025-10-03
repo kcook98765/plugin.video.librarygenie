@@ -2120,6 +2120,30 @@ msgctxt "#31022"
 msgid "Export"
 msgstr ""
 
+msgctxt "#31023"
+msgid "Move Folder"
+msgstr ""
+
+msgctxt "#31024"
+msgid "Export Folder and Lists"
+msgstr ""
+
+msgctxt "#31025"
+msgid "Export List"
+msgstr ""
+
+msgctxt "#31026"
+msgid "Delete Files Import"
+msgstr ""
+
+msgctxt "#31027"
+msgid "Refresh Import"
+msgstr ""
+
+msgctxt "#31028"
+msgid "More..."
+msgstr ""
+
 # Library-List Operation Messages
 msgctxt "#31100"
 msgid "Select a list"
