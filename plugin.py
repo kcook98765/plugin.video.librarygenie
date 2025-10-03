@@ -261,17 +261,20 @@ def _render_cached_items_direct(cached_data, addon_handle):
             # Determine if this is root or folder
             base_url = 'plugin://plugin.video.librarygenie/'
             if cached_breadcrumbs.get('folder_id'):
-                # Folder view - prepend "Tools & Options" to breadcrumb
+                # Folder view
                 folder_id = cached_breadcrumbs.get('folder_id')
                 tools_url = f"{base_url}?action=show_list_tools&list_type=folder&folder_id={folder_id}"
                 icon = "DefaultAddonProgram.png"
-                # For folders, breadcrumb_text is like "for 'FolderName'" - prepend the prefix
-                tools_label = f"Tools & Options {breadcrumb_text}" if breadcrumb_text else "Tools & Options"
             else:
-                # Root view - use breadcrumb as-is (already includes "Tools & Options")
+                # Root view
                 tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
                 icon = "DefaultAddonProgram.png"
-                tools_label = breadcrumb_text if breadcrumb_text else "Tools & Options"
+            
+            # Always prepend "Tools & Options" to the breadcrumb (cache only stores breadcrumb part)
+            if breadcrumb_text:
+                tools_label = f"Tools & Options • {breadcrumb_text}"
+            else:
+                tools_label = "Tools & Options"
             
             # Create Tools & Options menu item
             tools_item = {
