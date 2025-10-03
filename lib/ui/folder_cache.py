@@ -732,17 +732,24 @@ class FolderCache:
         """Build processed menu items for root folder with business logic applied"""
         menu_items = []
         
-        # Add Tools & Options first (simplified for pre-warming)
+        # Add Tools & Options first using centralized builder with visibility check
         base_url = "plugin://plugin.video.librarygenie/"
-        tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
         
-        menu_items.append({
-            'label': "Tools & Options • Lists",
-            'url': tools_url,
-            'is_folder': True,
-            'icon': "DefaultAddonProgram.png",
-            'description': "Search, Favorites, Import/Export & Settings"
-        })
+        try:
+            from lib.ui.breadcrumb_helper import get_breadcrumb_helper
+            breadcrumb_helper = get_breadcrumb_helper()
+            
+            tools_item = breadcrumb_helper.build_tools_menu_item(
+                base_url=base_url,
+                list_type='lists_main',
+                breadcrumb_text='• Lists',
+                description_text='Lists • '
+            )
+            
+            if tools_item:
+                menu_items.append(tools_item)
+        except Exception as e:
+            self.logger.error("Error building Tools & Options for root: %s", e)
 
         # Handle Kodi Favorites integration
         try:
@@ -836,21 +843,26 @@ class FolderCache:
         base_url = "plugin://plugin.video.librarygenie/"
         
         try:
-            # Add Tools & Options first (simplified to avoid errors)
+            # Add Tools & Options first using centralized builder with visibility check
             if folder_info and folder_info.get('id'):
                 folder_id = folder_info.get('id')
                 folder_name = folder_info.get('name', 'Unknown Folder')
                 
-                tools_url = f"{base_url}?action=show_list_tools&list_type=folder&list_id={folder_id}"
+                from lib.ui.breadcrumb_helper import get_breadcrumb_helper
+                breadcrumb_helper = get_breadcrumb_helper()
                 
-                menu_items.append({
-                    'label': f"⚙️ Tools & Options for '{folder_name}'",
-                    'url': tools_url,
-                    'is_folder': True,
-                    'description': "Tools and options for this folder",
-                    'icon': "DefaultAddonProgram.png",
-                    'context_menu': []
-                })
+                tools_item = breadcrumb_helper.build_tools_menu_item(
+                    base_url=base_url,
+                    list_type='folder',
+                    breadcrumb_text=f"for '{folder_name}'",
+                    description_text="Tools and options for this folder",
+                    folder_id=folder_id,
+                    icon_prefix="⚙️ "
+                )
+                
+                if tools_item:
+                    tools_item['context_menu'] = []  # Add empty context menu as before
+                    menu_items.append(tools_item)
             
             # Add subfolders in this folder
             if subfolders:
