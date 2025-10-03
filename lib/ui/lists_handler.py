@@ -298,25 +298,32 @@ class ListsHandler:
     # DISPLAY/UI METHODS (kept in main handler)
     # =================================
 
-    def show_lists_menu(self, context: PluginContext) -> DirectoryResponse:
-        """Show main lists menu with folders and lists"""
+    def show_lists_menu(self, context: PluginContext, force_main_menu: bool = False) -> DirectoryResponse:
+        """Show main lists menu with folders and lists
+        
+        Args:
+            context: Plugin context
+            force_main_menu: If True, skip startup folder redirect (for "Back to Main Menu")
+        """
         try:
             show_lists_start = time.time()
-            self.logger.debug("Displaying lists menu")
+            self.logger.debug("Displaying lists menu (force_main_menu=%s)", force_main_menu)
 
             # Check for startup folder redirect (before cache or any other operations)
-            from lib.config.config_manager import get_config
-            config = get_config()
-            startup_folder_id = config.get('startup_folder_id', None)
-            
-            if startup_folder_id and startup_folder_id.strip():
-                self.logger.info("Startup folder configured (%s) - redirecting to folder", startup_folder_id)
-                # Navigate to the startup folder with special flag
-                from lib.ui.nav import push
-                url = context.build_url('show_folder', folder_id=startup_folder_id, is_startup_folder='true')
-                push(url)
-                # Return empty response since navigation is handled
-                return DirectoryResponse(items=[], success=True)
+            # Skip if force_main_menu is True (from "Back to Main Menu" button)
+            if not force_main_menu:
+                from lib.config.config_manager import get_config
+                config = get_config()
+                startup_folder_id = config.get('startup_folder_id', None)
+                
+                if startup_folder_id and startup_folder_id.strip():
+                    self.logger.info("Startup folder configured (%s) - redirecting to folder", startup_folder_id)
+                    # Navigate to the startup folder with special flag
+                    from lib.ui.nav import push
+                    url = context.build_url('show_folder', folder_id=startup_folder_id, is_startup_folder='true')
+                    push(url)
+                    # Return empty response since navigation is handled
+                    return DirectoryResponse(items=[], success=True)
 
             # CACHE-FIRST: Check cache before ANY database operations (zero-DB overhead on HIT)
             folder_cache = get_folder_cache()
