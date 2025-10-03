@@ -247,6 +247,42 @@ def _render_cached_items_direct(cached_data, addon_handle):
     try:
         # Use pre-processed menu items from V4 cache
         processed_items = cached_data.get('processed_items', [])
+        
+        # Add Tools & Options dynamically (not cached, respects user visibility setting)
+        addon = xbmcaddon.Addon()
+        show_tools_item = addon.getSettingBool('show_tools_menu_item') if hasattr(addon, 'getSettingBool') else addon.getSetting('show_tools_menu_item') == 'true'
+        
+        if show_tools_item:
+            # Get breadcrumbs from cache for Tools & Options label
+            cached_breadcrumbs = cached_data.get('breadcrumbs', {})
+            tools_label = cached_breadcrumbs.get('tools_label', 'Tools & Options')
+            tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
+            
+            # Determine if this is root or folder
+            base_url = 'plugin://plugin.video.librarygenie/'
+            if cached_breadcrumbs.get('folder_id'):
+                # Folder view
+                folder_id = cached_breadcrumbs.get('folder_id')
+                tools_url = f"{base_url}?action=show_list_tools&list_type=folder&folder_id={folder_id}"
+                icon = "DefaultAddonProgram.png"
+            else:
+                # Root view
+                tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+                icon = "DefaultAddonProgram.png"
+            
+            # Create Tools & Options menu item
+            tools_item = {
+                'label': tools_label,
+                'url': tools_url,
+                'is_folder': True,
+                'description': tools_description,
+                'icon': icon,
+                'context_menu': []
+            }
+            
+            # Insert at beginning
+            processed_items = [tools_item] + processed_items
+        
         total_items = 0
         
         for item_data in processed_items:
