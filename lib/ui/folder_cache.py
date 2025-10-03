@@ -829,12 +829,8 @@ class FolderCache:
             }
             
             # Add art_data if folder has custom artwork
-            art_data_value = folder_info.get('art_data')
-            if art_data_value:
-                self.logger.debug(f"FOLDER CACHE BUILD: Folder '{folder_name}' (ID {folder_id}) has art_data: {art_data_value}")
-                folder_item['art_data'] = art_data_value
-            else:
-                self.logger.debug(f"FOLDER CACHE BUILD: Folder '{folder_name}' (ID {folder_id}) has NO art_data (value: {repr(art_data_value)})")
+            if folder_info.get('art_data'):
+                folder_item['art_data'] = folder_info['art_data']
             
             menu_items.append(folder_item)
 
@@ -915,12 +911,8 @@ class FolderCache:
                 }
                 
                 # Add art_data if subfolder has custom artwork
-                art_data_value = subfolder.get('art_data')
-                if art_data_value:
-                    self.logger.debug(f"FOLDER CACHE BUILD: Subfolder '{subfolder_name}' (ID {subfolder_id}) has art_data: {art_data_value}")
-                    subfolder_item['art_data'] = art_data_value
-                else:
-                    self.logger.debug(f"FOLDER CACHE BUILD: Subfolder '{subfolder_name}' (ID {subfolder_id}) has NO art_data (value: {repr(art_data_value)})")
+                if subfolder.get('art_data'):
+                    subfolder_item['art_data'] = subfolder['art_data']
                 
                 menu_items.append(subfolder_item)
         
