@@ -284,18 +284,43 @@ class Router:
     def _handle_show_context_more_menu(self, context: PluginContext):
         """Handle show context more menu action"""
         try:
+            from lib.ui.localization import L
+            
             # Get parameters
             item_type = context.get_param('item_type', 'folder')
             item_id = context.get_param('item_id')
             is_files_source = int(context.get_param('is_files_source', '0'))
+            is_reserved = int(context.get_param('is_reserved', '0'))
             
-            # Build options list
-            options = ["Search", "Settings"]
+            # Build options list with actions
+            options = []
+            actions = []
             
-            # Only add "Add Folder" and "Add List" if is_files_source == 0
+            # Add Move and Export options for user-created items (not file-sourced, not reserved)
+            if is_files_source == 0 and is_reserved == 0:
+                if item_type == 'folder':
+                    options.append(L(31023) or "Move Folder")
+                    actions.append('move_folder')
+                    options.append(L(31024) or "Export Folder and Lists")
+                    actions.append('export_folder')
+                elif item_type == 'list':
+                    options.append(L(30223).replace('%s', 'List') if L(30223) else "Move to Folder")
+                    actions.append('move_list')
+                    options.append(L(31025) or "Export List")
+                    actions.append('export_list')
+            
+            # Add common options
+            options.append("Search")
+            actions.append('search')
+            options.append("Settings")
+            actions.append('settings')
+            
+            # Only add "Add Folder" and "Add List" if not file-sourced
             if is_files_source == 0:
                 options.append("Add Folder")
+                actions.append('add_folder')
                 options.append("Add List")
+                actions.append('add_list')
             
             # Show dialog
             import xbmcgui
@@ -304,18 +329,34 @@ class Router:
             if selected_index < 0:
                 return
             
-            selected_option = options[selected_index]
+            selected_action = actions[selected_index]
             
             # Execute selected action
-            if selected_option == "Search":
+            if selected_action == 'move_folder':
+                # Navigate to move folder action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={item_id})')
+            elif selected_action == 'export_folder':
+                # Navigate to export folder action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=export_folder_and_lists&folder_id={item_id})')
+            elif selected_action == 'move_list':
+                # Navigate to move list action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={item_id})')
+            elif selected_action == 'export_list':
+                # Navigate to export list action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={item_id})')
+            elif selected_action == 'search':
                 # Navigate to search menu
                 import xbmc
                 xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.librarygenie/?action=prompt_and_search,return)')
-            elif selected_option == "Settings":
+            elif selected_action == 'settings':
                 # Open addon settings
                 import xbmc
                 xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')
-            elif selected_option == "Add Folder":
+            elif selected_action == 'add_folder':
                 # Call tools_handler._create_subfolder
                 from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
@@ -327,7 +368,7 @@ class Router:
                 from lib.ui.response_handler import get_response_handler
                 response_handler = get_response_handler()
                 response_handler.handle_dialog_response(result, context)
-            elif selected_option == "Add List":
+            elif selected_action == 'add_list':
                 # Call tools_handler._create_list_in_folder
                 from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
