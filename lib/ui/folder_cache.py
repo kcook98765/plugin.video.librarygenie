@@ -19,7 +19,7 @@ from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
 # v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
-CACHE_SCHEMA_VERSION = 7
+CACHE_SCHEMA_VERSION = 8  # v8: Added startup folder context menu options
 
 
 class FolderCache:
