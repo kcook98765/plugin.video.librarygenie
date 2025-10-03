@@ -276,7 +276,7 @@ class BreadcrumbHelper:
         pass
 
     def build_tools_menu_item(self, base_url: str, list_type: str, breadcrumb_text: str = "", 
-                              description_text: str = "", list_id: str = None, folder_id: str = None,
+                              description_text: str = "", list_id: Optional[str] = None, folder_id: Optional[str] = None,
                               icon_prefix: str = "") -> Optional[dict]:
         """
         Build a Tools & Options menu item dict with visibility setting check.
