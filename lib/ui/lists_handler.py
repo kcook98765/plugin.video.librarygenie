@@ -493,33 +493,34 @@ class ListsHandler:
             # Build menu items for lists and folders
             menu_items = []
 
-            # Check user preference for showing Tools & Options menu item
-            from lib.config.config_manager import get_config
-            config = get_config()
-            show_tools_item = config.get_bool('show_tools_menu_item', True)
-
-            # Add Tools & Options menu item if enabled
-            if show_tools_item:
-                # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
-                if cache_used and cached_breadcrumbs:
-                    tools_label = cached_breadcrumbs.get('tools_label', 'Lists')
-                    tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
-                else:
-                    breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
-                    tools_label = breadcrumb_text or 'Lists'
-                    tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
-
-                menu_items.append({
-                    'label': f"Tools & Options • {tools_label}",
-                    'url': tools_url,
-                    'is_folder': True,
-                    'icon': "DefaultAddonProgram.png",
-                    'description': tools_description
-                })
+            # Add Tools & Options menu item using centralized builder with visibility check
+            # Use cached breadcrumb data when available (ZERO DB overhead)
+            if cache_used and cached_breadcrumbs:
+                tools_label = cached_breadcrumbs.get('tools_label', 'Lists')
+                tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
+            else:
+                breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
+                tools_label = breadcrumb_text or 'Lists'
+                tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
+            
+            # For lists_main handler, always use 'lists_main' type
+            # If viewing a folder within lists_main, the folder_id parameter provides context
+            tools_item = self.breadcrumb_helper.build_tools_menu_item(
+                base_url=context.base_url,
+                list_type='lists_main',
+                breadcrumb_text=tools_label,
+                description_text=tools_description,
+                folder_id=current_folder_id if current_folder_id else None
+            )
+            
+            if tools_item:
+                menu_items.append(tools_item)
 
             # Search and other tools are now accessible via Tools & Options menu (if enabled) or context menus
 
             # Check if favorites integration is enabled and ensure "Kodi Favorites" appears FIRST
+            from lib.config.config_manager import get_config
+            config = get_config()
             favorites_enabled = config.get_bool('favorites_integration_enabled', False)
             kodi_favorites_item = None
 
@@ -940,12 +941,8 @@ class ListsHandler:
                     'context_menu': context_menu
                 })
 
-            # Add Tools & Options for folders that support it (if user preference enabled)
-            from lib.config.config_manager import get_config
-            config = get_config()
-            show_tools_item = config.get_bool('show_tools_menu_item', True)
-            
-            if show_tools_item and self._folder_has_tools(folder_info):
+            # Add Tools & Options for folders that support it (using centralized builder with visibility check)
+            if self._folder_has_tools(folder_info):
                 # Use cached breadcrumb data for Tools & Options (ZERO DB overhead)
                 if cache_used and cached_breadcrumbs:
                     breadcrumb_text = cached_breadcrumbs.get('tools_label', 'for folder')
@@ -963,16 +960,20 @@ class ListsHandler:
                         breadcrumb_query_manager
                     )
                 
-                tools_menu_item = {
-                    'label': f"⚙️ Tools & Options {breadcrumb_text}",
-                    'url': context.build_url('show_list_tools', list_type='folder', list_id=folder_id),
-                    'is_folder': True,
-                    'description': f"{description_text}Tools and options for this folder",
-                    'icon': "DefaultAddonProgram.png",
-                    'context_menu': []  # No context menu for tools item itself
-                }
-                # Insert at the beginning of the menu for visibility
-                menu_items.insert(0, tools_menu_item)
+                tools_menu_item = self.breadcrumb_helper.build_tools_menu_item(
+                    base_url=context.base_url,
+                    list_type='folder',
+                    breadcrumb_text=breadcrumb_text,
+                    description_text=f"{description_text}Tools and options for this folder",
+                    folder_id=folder_id,
+                    icon_prefix="⚙️ "
+                )
+                
+                # Only add if visibility setting allows it
+                if tools_menu_item:
+                    tools_menu_item['context_menu'] = []  # No context menu for tools item itself
+                    # Insert at the beginning of the menu for visibility
+                    menu_items.insert(0, tools_menu_item)
 
             # If folder is empty, show message using lightweight method to avoid loading full renderer
             if not lists_in_folder and not subfolders: # Also check for subfolders being empty
@@ -1101,24 +1102,29 @@ class ListsHandler:
                 except Exception as e:
                     self.logger.debug("Could not set directory title: %s", e)
 
-            # Add Tools & Options with unified breadcrumb approach (if user preference enabled)
-            from lib.config.config_manager import get_config
-            config = get_config()
-            show_tools_item = config.get_bool('show_tools_menu_item', True)
+            # Add Tools & Options using centralized builder with visibility check
+            breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
             
-            if show_tools_item:
-                breadcrumb_text, description_text = self.breadcrumb_helper.get_tools_breadcrumb_formatted("show_list", {"list_id": list_id}, query_manager)
-
-                tools_item = xbmcgui.ListItem(label=f"{L(30212)} {breadcrumb_text}", offscreen=True)
-                self._set_listitem_plot(tools_item, description_text + "Tools and options for this list")
+            tools_menu_dict = self.breadcrumb_helper.build_tools_menu_item(
+                base_url=context.base_url,
+                list_type='user_list',
+                breadcrumb_text=breadcrumb_text,
+                description_text=description_prefix + "Tools and options for this list",
+                list_id=list_id
+            )
+            
+            # Only add if visibility setting allows it
+            if tools_menu_dict:
+                tools_item = xbmcgui.ListItem(label=tools_menu_dict['label'], offscreen=True)
+                self._set_listitem_plot(tools_item, tools_menu_dict.get('description', ''))
                 tools_item.setProperty('IsPlayable', 'false')
-                tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+                tools_item.setArt({'icon': tools_menu_dict['icon'], 'thumb': tools_menu_dict['icon']})
 
                 xbmcplugin.addDirectoryItem(
                     context.addon_handle,
-                    context.build_url('show_list_tools', list_type='user_list', list_id=list_id),
+                    tools_menu_dict['url'],
                     tools_item,
-                    True
+                    tools_menu_dict['is_folder']
                 )
 
             # Handle empty lists using lightweight method to avoid loading full renderer
