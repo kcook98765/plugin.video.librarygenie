@@ -19,7 +19,7 @@ from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
 # v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
-CACHE_SCHEMA_VERSION = 11  # v11: Fixed duplicate Tools & Options by removing from Kodi Favorites cached context menu
+CACHE_SCHEMA_VERSION = 12  # v12: Fixed subfolder caching to use v4 format with processed_items (was using old raw data format)
 
 
 class FolderCache:
@@ -63,12 +63,17 @@ class FolderCache:
     
     def _get_tools_toggle_entry(self, base_url: str):
         """Get the Tools & Options visibility toggle context menu entry for cache building"""
-        from lib.config.config_manager import get_config
-        config = get_config()
-        is_visible = config.get_bool('show_tools_menu_item', True)
-        
-        label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
-        return (label, f"RunPlugin({base_url}?action=toggle_tools_menu_item)")
+        try:
+            from lib.config.config_manager import get_config
+            config = get_config()
+            is_visible = config.get_bool('show_tools_menu_item', True)
+            
+            label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+            return (label, f"RunPlugin({base_url}?action=toggle_tools_menu_item)")
+        except Exception as e:
+            self.logger.error("Error getting tools toggle entry: %s - using default", e)
+            # Return a safe default if there's an error
+            return ("Hide Tools & Options Menu Item", f"RunPlugin({base_url}?action=toggle_tools_menu_item)")
     
     def _load_configuration(self):
         """Load cache configuration from settings"""
