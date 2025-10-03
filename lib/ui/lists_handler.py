@@ -695,7 +695,7 @@ class ListsHandler:
             # Check if using modern processed cache format (V4+)
             schema_version = cached_data.get('_schema') if cached_data else None
             
-            if cached_data and schema_version in [4, 6, 7]:
+            if cached_data and schema_version in [4, 6, 7, 8]:
                 # V4 CACHE HIT: Use pre-built processed menu items (ultra-fast)
                 cache_used = True
                 processed_items = cached_data.get('processed_items', [])
