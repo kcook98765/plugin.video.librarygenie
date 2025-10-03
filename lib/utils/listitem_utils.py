@@ -758,21 +758,16 @@ class ContextMenuBuilder:
                         (L(31026) or "Delete Files Import", f"RunPlugin(plugin://{self.addon_id}/?action=delete_files_import&import_source_id={import_source_id})"),
                     ])
                 else:
-                    # User-created lists: Rename, Move to Folder, Export List, Delete, More...
-                    # Protected lists (reserved) only get Export and More... options
+                    # User-created lists: Rename, Delete, More... (Move and Export in More... submenu)
+                    # Protected lists (reserved) only get More... option
                     if not is_reserved:
                         context_items.extend([
                             (L(31020) or "Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),
-                            (L(30223).replace('%s', 'List') if L(30223) else "Move to Folder", f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),
-                            (L(31025) or "Export List", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"),
                             (L(31021) or "Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),
                         ])
-                    else:
-                        # Reserved lists: only Export
-                        context_items.append((L(31025) or "Export List", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))
                 
-                # More... option (always available)
-                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=list&item_id={item_id}&is_files_source={int(is_files_source)})"))
+                # More... option (always available, includes Move and Export options)
+                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=list&item_id={item_id}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
                 
             elif item_type == 'folder':
                 if is_files_source:
@@ -782,21 +777,16 @@ class ContextMenuBuilder:
                         (L(31026) or "Delete Files Import", f"RunPlugin(plugin://{self.addon_id}/?action=delete_files_import&import_source_id={import_source_id})"),
                     ])
                 else:
-                    # User-created folders: Rename, Move Folder, Export Folder and Lists, Delete, More...
-                    # Reserved folders (like "Search History") only get Export and More... options
+                    # User-created folders: Rename, Delete, More... (Move and Export in More... submenu)
+                    # Reserved folders (like "Search History") only get More... option
                     if not is_reserved:
                         context_items.extend([
                             (L(31020) or "Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),
-                            (L(31023) or "Move Folder", f"RunPlugin(plugin://{self.addon_id}/?action=move_folder&folder_id={item_id})"),
-                            (L(31024) or "Export Folder and Lists", f"RunPlugin(plugin://{self.addon_id}/?action=export_folder_and_lists&folder_id={item_id})"),
                             (L(31021) or "Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})"),
                         ])
-                    else:
-                        # Reserved folders: only Export
-                        context_items.append((L(31024) or "Export Folder and Lists", f"RunPlugin(plugin://{self.addon_id}/?action=export_folder_and_lists&folder_id={item_id})"))
                 
-                # More... option (always available)
-                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=folder&item_id={item_id}&is_files_source={int(is_files_source)})"))
+                # More... option (always available, includes Move and Export options)
+                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=folder&item_id={item_id}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
                 
             elif item_type == 'media_item':
                 if is_files_source:
