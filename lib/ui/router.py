@@ -452,6 +452,8 @@ class Router:
                     return True  # Always return True to prevent fallthrough to main menu
             elif action == "noop":
                 return self._handle_noop(context)
+            elif action == "toggle_tools_menu_item":
+                return self._handle_toggle_tools_menu_item(context)
             elif action == 'lists' or action == 'show_lists_menu':
                 from lib.ui.handler_factory import get_handler_factory
                 from lib.ui.response_handler import get_response_handler
@@ -1082,6 +1084,33 @@ class Router:
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
 
+    def _handle_toggle_tools_menu_item(self, context: PluginContext) -> bool:
+        """Toggle the Tools & Options menu item visibility setting and refresh view"""
+        try:
+            import xbmc
+            from lib.config.config_manager import get_config
+            
+            # Get current setting value
+            config = get_config()
+            current_value = config.get_bool('show_tools_menu_item', True)
+            
+            # Toggle the setting
+            new_value = not current_value
+            context.addon.setSettingBool('show_tools_menu_item', new_value)
+            
+            self.logger.info("Toggled Tools & Options visibility: %s -> %s", current_value, new_value)
+            
+            # Refresh the current container to show the change immediately
+            xbmc.executebuiltin('Container.Refresh')
+            
+            # End directory for context menu invocation
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+            return True
+            
+        except Exception as e:
+            self.logger.error("Error toggling tools menu item visibility: %s", e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
 
     def _handle_remove_from_list(self, context: PluginContext, lists_handler) -> bool:
         """Handles the remove_from_list action, including fallback logic."""
