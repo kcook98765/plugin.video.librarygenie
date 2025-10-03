@@ -1753,6 +1753,12 @@ class Router:
                         # Build menu items (data only, no Kodi UI calls)
                         menu_items = []
                         
+                        # Get toggle entry once for both folders and lists
+                        from lib.config.config_manager import get_config
+                        config = get_config()
+                        is_visible = config.get_bool('show_tools_menu_item', True)
+                        toggle_label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+                        
                         # Add subfolders
                         for subfolder in subfolders:
                             subfolder_id = subfolder.get('id')
@@ -1760,10 +1766,12 @@ class Router:
                             
                             # Build URL and context menu data
                             url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder_id}"
+                            
                             context_menu = [
                                 (f"Rename '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={subfolder_id})"),
                                 (f"Move '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={subfolder_id})"),
-                                (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})")
+                                (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})"),
+                                (toggle_label, f"RunPlugin(plugin://plugin.video.librarygenie/?action=toggle_tools_menu_item)")
                             ]
                             
                             menu_items.append({
@@ -1782,11 +1790,14 @@ class Router:
                             description = list_item.get('description', '')
                             
                             url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+                            
+                            # Get toggle entry (reuse config from subfolder loop above)
                             context_menu = [
                                 (f"Rename '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
                                 (f"Move '{name}' to Folder", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={list_id})"),
                                 (f"Export '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={list_id})"),
-                                (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
+                                (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})"),
+                                (toggle_label, f"RunPlugin(plugin://plugin.video.librarygenie/?action=toggle_tools_menu_item)")
                             ]
                             
                             menu_items.append({

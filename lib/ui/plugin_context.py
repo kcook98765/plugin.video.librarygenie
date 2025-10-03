@@ -235,6 +235,13 @@ class PluginContext:
 
             # Build menu items
             menu_items = []
+            
+            # Get toggle entry for context menus
+            from lib.config.config_manager import get_config
+            config = get_config()
+            is_visible = config.get_bool('show_tools_menu_item', True)
+            toggle_label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+            toggle_url = self.build_url('toggle_tools_menu_item')
 
             # Add subfolders
             for subfolder in subfolders:
@@ -242,7 +249,8 @@ class PluginContext:
                 subfolder_name = subfolder['name']
 
                 context_menu = [
-                    (f"Tools & Options for '{subfolder_name}'", f"RunPlugin({self.build_url('show_tools', list_type='folder', list_id=subfolder_id)})")
+                    (f"Tools & Options for '{subfolder_name}'", f"RunPlugin({self.build_url('show_tools', list_type='folder', list_id=subfolder_id)})"),
+                    (toggle_label, f"RunPlugin({toggle_url})")
                 ]
 
                 menu_items.append({
@@ -260,7 +268,8 @@ class PluginContext:
                 description = list_item.get('description', '')
 
                 context_menu = [
-                    (f"Tools & Options for '{name}'", f"RunPlugin({self.build_url('show_tools', list_type='user_list', list_id=list_id)})")
+                    (f"Tools & Options for '{name}'", f"RunPlugin({self.build_url('show_tools', list_type='user_list', list_id=list_id)})"),
+                    (toggle_label, f"RunPlugin({toggle_url})")
                 ]
 
                 menu_items.append({
