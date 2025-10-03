@@ -1111,6 +1111,7 @@ def _register_all_handlers(router: 'Router'):
     router.register_handler('search', lambda ctx: _get_factory().get_search_handler().prompt_and_search(ctx))
     router.register_handler('ai_search_prompt', lambda ctx: _get_factory().get_search_handler().ai_search_prompt(ctx))
     router.register_handler('lists', lambda ctx: _get_factory().get_lists_handler().show_lists_menu(ctx))
+    router.register_handler('show_main_menu_force', lambda ctx: _get_factory().get_lists_handler().show_lists_menu(ctx))
     router.register_handler('kodi_favorites', lambda ctx: _handle_directory_response(ctx, _get_factory().get_favorites_handler().show_favorites_menu(ctx)))
 
     # Register ListsHandler methods that expect specific parameters
