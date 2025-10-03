@@ -26,6 +26,7 @@ class ConfigManager:
             # General settings
             "confirm_destructive_actions": True,
             "default_list_id": "",
+            "startup_folder_id": "",  # Folder ID to show on plugin startup
             "quick_add_enabled": False,
             "show_missing_indicators": True,
             "show_unmapped_favorites": False,
@@ -444,7 +445,7 @@ class ConfigManager:
         # String settings
         string_settings = [
             # General settings
-            "default_list_id", "default_list_display", "device_name", "export_location",
+            "default_list_id", "startup_folder_id", "default_list_display", "device_name", "export_location",
             # Remote settings  
             "remote_server_url",
             # Backup settings
