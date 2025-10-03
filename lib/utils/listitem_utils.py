@@ -724,78 +724,122 @@ class ContextMenuBuilder:
         self.logger = logger
     
     def build_context_menu(self, item_id: str, item_type: str, item_name: str = "", 
-                          is_protected: bool = False,
+                          is_files_source: bool = False,
+                          is_reserved: bool = False,
                           import_source_id: Optional[int] = None,
+                          list_id: Optional[str] = None,
+                          parent_folder_id: Optional[str] = None,
                           custom_actions: Optional[List[Tuple[str, str]]] = None) -> List[Tuple[str, str]]:
         """
-        Build a context menu for an item.
+        Build a context menu for an item based on type and source.
         
         Args:
             item_id: ID of the item
-            item_type: Type of item (list, folder, etc.)
+            item_type: Type of item ('list', 'folder', 'media_item', 'external', 'bookmark')
             item_name: Name of the item (for logging/compatibility)
-            is_protected: Whether the item is protected from rename/delete operations
-            import_source_id: Import source ID if this is an import-sourced root folder
+            is_files_source: Whether the item originates from file import
+            is_reserved: Whether the item is a reserved folder (like "Search History")
+            import_source_id: Import source ID for file-sourced items
+            list_id: List ID (for media items)
+            parent_folder_id: Parent folder ID (for folders and lists, used for Add operations)
             custom_actions: List of (label, action_url) tuples to add
             
         Returns:
             List of (label, action_url) tuples for the context menu
         """
         try:
+            from lib.ui.localization import L
             context_items = []
             
-            # Standard actions based on type
+            # Build menus based on item type and source
             if item_type == 'list':
-                # Don't add rename/move/delete for protected lists (e.g. import-sourced)
-                if not is_protected:
-                    try:
-                        from lib.ui.localization import L
+                if is_files_source:
+                    # Lists from file import: Refresh Import, Delete Files Import, More...
+                    context_items.extend([
+                        (L(31027) or "Refresh Import", f"RunPlugin(plugin://{self.addon_id}/?action=refresh_files_import&import_source_id={import_source_id}&item_type=list&item_id={item_id})"),
+                        (L(31026) or "Delete Files Import", f"RunPlugin(plugin://{self.addon_id}/?action=delete_files_import&import_source_id={import_source_id})"),
+                    ])
+                else:
+                    # User-created lists: Rename, Delete, More... (Move and Export in More... submenu)
+                    # Protected lists (reserved) only get More... option
+                    if not is_reserved:
                         context_items.extend([
-                            (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),  # "Rename"
-                            (L(30223).replace('%s', 'List'), f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),  # "Move List to Folder"
-                            (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),  # "Delete"
-                        ])
-                    except ImportError:
-                        # Fallback if localization not available
-                        context_items.extend([
-                            ("Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),
-                            ("Move to Folder", f"RunPlugin(plugin://{self.addon_id}/?action=move_list_to_folder&list_id={item_id})"),
-                            ("Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),
+                            (L(31020) or "Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_list&list_id={item_id})"),
+                            (L(31021) or "Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_list&list_id={item_id})"),
                         ])
                 
-                # Export is always available even for protected lists
-                try:
-                    from lib.ui.localization import L
-                    context_items.append((L(31022), f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))  # "Export"
-                except ImportError:
-                    context_items.append(("Export", f"RunPlugin(plugin://{self.addon_id}/?action=export_list&list_id={item_id})"))
+                # More... option (always available, includes Move and Export options)
+                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=list&item_id={item_id}&parent_folder_id={parent_folder_id or ''}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
                 
             elif item_type == 'folder':
-                # Add refresh option for import-sourced folders
-                if import_source_id is not None:
-                    context_items.append(("Refresh Import", f"RunPlugin(plugin://{self.addon_id}/?action=refresh_import&folder_id={item_id})"))
+                if is_files_source:
+                    # Folders from file import: Refresh Import, Delete Files Import, More...
+                    context_items.extend([
+                        (L(31027) or "Refresh Import", f"RunPlugin(plugin://{self.addon_id}/?action=refresh_files_import&import_source_id={import_source_id}&item_type=folder&item_id={item_id})"),
+                        (L(31026) or "Delete Files Import", f"RunPlugin(plugin://{self.addon_id}/?action=delete_files_import&import_source_id={import_source_id})"),
+                    ])
+                else:
+                    # User-created folders: Rename, Delete, More... (Move and Export in More... submenu)
+                    # Reserved folders (like "Search History") only get More... option
+                    if not is_reserved:
+                        context_items.extend([
+                            (L(31020) or "Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),
+                            (L(31021) or "Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})"),
+                        ])
                 
-                # Don't add rename/delete for protected folders
-                if not is_protected:
-                    try:
-                        from lib.ui.localization import L
-                        context_items.extend([
-                            (L(31020), f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),  # "Rename"
-                            (L(31021), f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})")   # "Delete"
-                        ])
-                    except ImportError:
-                        # Fallback if localization not available
-                        context_items.extend([
-                            ("Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_folder&folder_id={item_id})"),
-                            ("Delete", f"RunPlugin(plugin://{self.addon_id}/?action=delete_folder&folder_id={item_id})")
-                        ])
+                # More... option (always available, includes Move and Export options)
+                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=folder&item_id={item_id}&parent_folder_id={parent_folder_id or ''}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
+                
+            elif item_type == 'media_item':
+                if is_files_source:
+                    # Media items in file-sourced lists: Refresh Import, Delete Files Import
+                    context_items.extend([
+                        (L(31027) or "Refresh Import", f"RunPlugin(plugin://{self.addon_id}/?action=refresh_files_import&import_source_id={import_source_id}&item_type=media_item&item_id={item_id})"),
+                        (L(31026) or "Delete Files Import", f"RunPlugin(plugin://{self.addon_id}/?action=delete_files_import&import_source_id={import_source_id})"),
+                    ])
+                else:
+                    # User-managed media items: context-dependent actions
+                    if list_id:
+                        # Inside a list: show Remove from List
+                        context_items.append((L(31010) or "Remove from List", f"RunPlugin(plugin://{self.addon_id}/?action=remove_from_list&list_id={list_id}&item_id={item_id})"))
+                    else:
+                        # Outside a list: show Add to List
+                        context_items.append(("Add to List", f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&media_item_id={item_id})"))
+                
+            elif item_type == 'external':
+                # External items: Remove, Add to List, More...
+                if list_id:
+                    context_items.append(("Remove", f"RunPlugin(plugin://{self.addon_id}/?action=remove_from_list&list_id={list_id}&item_id={item_id})"))
+                context_items.append(("Add to List", f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&item_id={item_id})"))
+                context_items.append(("More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=external&item_id={item_id}&list_id={list_id or ''})"))
+                
+            elif item_type == 'bookmark':
+                # Bookmarks: Rename, Remove, Add to List, More...
+                context_items.extend([
+                    ("Rename", f"RunPlugin(plugin://{self.addon_id}/?action=rename_bookmark&bookmark_id={item_id})"),
+                    ("Remove", f"RunPlugin(plugin://{self.addon_id}/?action=remove_bookmark&bookmark_id={item_id})"),
+                    ("Add to List", f"RunPlugin(plugin://{self.addon_id}/?action=add_bookmark_to_list&bookmark_id={item_id})"),
+                    ("More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=bookmark&item_id={item_id})"),
+                ])
+            
+            # Add universal "Hide/Show Tools & Options" toggle entry
+            from lib.config.config_manager import get_config
+            config = get_config()
+            show_tools_item = config.get_bool('show_tools_menu_item', True)
+            
+            if show_tools_item:
+                toggle_label = "Hide Tools & Options Menu Item"
+            else:
+                toggle_label = "Show Tools & Options Menu Item"
+            
+            context_items.append((toggle_label, f"RunPlugin(plugin://{self.addon_id}/?action=toggle_tools_menu_item)"))
             
             # Add custom actions
             if custom_actions:
                 context_items.extend(custom_actions)
             
-            self.logger.debug("CONTEXT: Built context menu for %s '%s' with %d items", 
-                            item_type, item_id, len(context_items))
+            self.logger.debug("CONTEXT: Built context menu for %s '%s' (files_source=%s) with %d items", 
+                            item_type, item_id, is_files_source, len(context_items))
             return context_items
             
         except Exception as e:

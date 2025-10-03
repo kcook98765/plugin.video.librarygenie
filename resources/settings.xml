@@ -587,6 +587,21 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="show_tools_menu_item" type="boolean" label="30620" help="30621">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
+        <setting id="startup_folder_id" type="string" label="Startup Folder (Advanced)" help="Set via context menu on folders. Leave empty to show main menu on startup.">
+          <level>2</level>
+          <default></default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string">
+            <heading>Startup Folder ID</heading>
+          </control>
+        </setting>
       </group>
     </category>
 

@@ -211,6 +211,182 @@ class Router:
             self.logger.error("Error in _handle_refresh_import: %s", e)
             self.dialog_service.ok("Error", f"Failed to refresh import: {str(e)}")
 
+    def _handle_delete_files_import(self, context: PluginContext, import_source_id: int):
+        """Handle delete files import action"""
+        try:
+            # Show confirmation dialog with warning
+            if not self.dialog_service.yesno(
+                "Delete Files Import",
+                "This will remove the entire file structure from the top parent folder down, including all folders and lists. This cannot be undone."
+            ):
+                return
+            
+            # Delete the import_source record (cascades to delete all related folders and lists)
+            conn = context.query_manager.connection_manager.get_connection()
+            conn.execute("DELETE FROM import_sources WHERE id = ?", (import_source_id,))
+            conn.commit()
+            
+            # Show success notification
+            import xbmc
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Files import deleted successfully",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            
+            # Refresh container
+            xbmc.executebuiltin('Container.Refresh')
+            
+        except Exception as e:
+            self.logger.error("Error in _handle_delete_files_import: %s", e)
+            self.dialog_service.ok("Error", f"Failed to delete import: {str(e)}")
+
+    def _handle_export_folder_and_lists(self, context: PluginContext, folder_id: str):
+        """Handle export folder and lists action"""
+        try:
+            # Get folder info
+            folder_info = context.query_manager.get_folder_info(int(folder_id))
+            if not folder_info:
+                self.dialog_service.ok("Error", "Folder not found.")
+                return
+            
+            # Use ExportEngine to export the folder and all its lists
+            from lib.import_export.export_engine import ExportEngine
+            export_engine = ExportEngine()
+            
+            # Export lists and folders for this folder (including subfolders)
+            context_filter = {
+                'folder_id': int(folder_id),
+                'include_subfolders': True
+            }
+            
+            result = export_engine.export_data(
+                export_types=['lists', 'list_items', 'folders'],
+                context_filter=context_filter
+            )
+            
+            # Show result dialog
+            if result.get('success'):
+                self.dialog_service.ok(
+                    "Export Successful",
+                    f"Exported to:[CR]{result.get('file_path', 'unknown')}[CR][CR]" +
+                    f"Total items: {result.get('total_items', 0)}"
+                )
+            else:
+                error_msg = result.get('error', 'Unknown error')
+                self.dialog_service.ok("Export Failed", f"Error: {error_msg}")
+                
+        except Exception as e:
+            self.logger.error("Error in _handle_export_folder_and_lists: %s", e)
+            self.dialog_service.ok("Error", f"Failed to export: {str(e)}")
+
+    def _handle_show_context_more_menu(self, context: PluginContext):
+        """Handle show context more menu action"""
+        try:
+            from lib.ui.localization import L
+            
+            # Get parameters
+            item_type = context.get_param('item_type', 'folder')
+            item_id = context.get_param('item_id')
+            parent_folder_id = context.get_param('parent_folder_id', '')
+            is_files_source = int(context.get_param('is_files_source', '0'))
+            is_reserved = int(context.get_param('is_reserved', '0'))
+            
+            # Build options list with actions
+            options = []
+            actions = []
+            
+            # Add Move and Export options for user-created items (not file-sourced, not reserved)
+            if is_files_source == 0 and is_reserved == 0:
+                if item_type == 'folder':
+                    options.append(L(31023) or "Move Folder")
+                    actions.append('move_folder')
+                    options.append(L(31024) or "Export Folder and Lists")
+                    actions.append('export_folder')
+                elif item_type == 'list':
+                    options.append(L(30223).replace('%s', 'List') if L(30223) else "Move to Folder")
+                    actions.append('move_list')
+                    options.append(L(31025) or "Export List")
+                    actions.append('export_list')
+            
+            # Add common options
+            options.append("Search")
+            actions.append('search')
+            options.append("Settings")
+            actions.append('settings')
+            
+            # Only add "Add Folder" and "Add List" for folders (not lists, not file-sourced, not reserved)
+            # These operations need parent_folder_id context
+            if item_type == 'folder' and is_files_source == 0 and is_reserved == 0:
+                options.append("Add Folder")
+                actions.append('add_folder')
+                options.append("Add List")
+                actions.append('add_list')
+            
+            # Show dialog
+            import xbmcgui
+            selected_index = xbmcgui.Dialog().select("More Options", list(options))
+            
+            if selected_index < 0:
+                return
+            
+            selected_action = actions[selected_index]
+            
+            # Execute selected action
+            if selected_action == 'move_folder':
+                # Navigate to move folder action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={item_id})')
+            elif selected_action == 'export_folder':
+                # Navigate to export folder action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=export_folder_and_lists&folder_id={item_id})')
+            elif selected_action == 'move_list':
+                # Navigate to move list action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={item_id})')
+            elif selected_action == 'export_list':
+                # Navigate to export list action
+                import xbmc
+                xbmc.executebuiltin(f'RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={item_id})')
+            elif selected_action == 'search':
+                # Navigate to search menu
+                import xbmc
+                xbmc.executebuiltin('ActivateWindow(Videos,plugin://plugin.video.librarygenie/?action=prompt_and_search,return)')
+            elif selected_action == 'settings':
+                # Open addon settings
+                import xbmc
+                xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')
+            elif selected_action == 'add_folder':
+                # Add subfolder using the current folder as parent (item_id is the folder to add to)
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                result = tools_handler._create_subfolder(context, str(item_id))
+                
+                # Handle response
+                from lib.ui.response_handler import get_response_handler
+                response_handler = get_response_handler()
+                response_handler.handle_dialog_response(result, context)
+            elif selected_action == 'add_list':
+                # Add list to the current folder (item_id is the folder to add to)
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                tools_handler = factory.get_tools_handler()
+                result = tools_handler._create_list_in_folder(context, str(item_id))
+                
+                # Handle response
+                from lib.ui.response_handler import get_response_handler
+                response_handler = get_response_handler()
+                response_handler.handle_dialog_response(result, context)
+                
+        except Exception as e:
+            self.logger.error("Error in _handle_show_context_more_menu: %s", e)
+            self.dialog_service.ok("Error", f"Failed to show menu: {str(e)}")
+
     def dispatch(self, context: PluginContext) -> bool:
         """
         Dispatch request to appropriate handler based on context
@@ -276,6 +452,12 @@ class Router:
                     return True  # Always return True to prevent fallthrough to main menu
             elif action == "noop":
                 return self._handle_noop(context)
+            elif action == "toggle_tools_menu_item":
+                return self._handle_toggle_tools_menu_item(context)
+            elif action == "set_startup_folder":
+                return self._handle_set_startup_folder(context)
+            elif action == "clear_startup_folder":
+                return self._handle_clear_startup_folder(context)
             elif action == 'lists' or action == 'show_lists_menu':
                 from lib.ui.handler_factory import get_handler_factory
                 from lib.ui.response_handler import get_response_handler
@@ -284,6 +466,15 @@ class Router:
                 lists_handler = factory.get_lists_handler()
                 response_handler = get_response_handler()
                 response = lists_handler.show_lists_menu(context)
+                return response_handler.handle_directory_response(response, context)
+            elif action == 'show_main_menu_force':
+                from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                response_handler = get_response_handler()
+                response = lists_handler.show_lists_menu(context, force_main_menu=True)
                 return response_handler.handle_directory_response(response, context)
             elif action == 'prompt_and_search':
                 from lib.ui.handler_factory import get_handler_factory
@@ -309,8 +500,9 @@ class Router:
                         return True
                 else:
                     # Fallback for non-DialogResponse
-                    finish_directory(context.addon_handle, succeeded=result, update=False)
-                    return result
+                    succeeded = bool(result) if result is not None else True
+                    finish_directory(context.addon_handle, succeeded=succeeded, update=False)
+                    return succeeded
             elif action == 'save_bookmark_from_context' or action == 'save_bookmark':
                 # Redirect old bookmark actions to the new integrated approach
                 from lib.ui.handler_factory import get_handler_factory
@@ -602,6 +794,41 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
 
+            elif action == 'delete_files_import':
+                import_source_id = params.get('import_source_id')
+                if import_source_id:
+                    self._handle_delete_files_import(context, int(import_source_id))
+                    return True
+                else:
+                    self.logger.error("Missing import_source_id parameter for delete_files_import")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'export_folder_and_lists':
+                folder_id = params.get('folder_id')
+                if folder_id:
+                    self._handle_export_folder_and_lists(context, str(folder_id))
+                    return True
+                else:
+                    self.logger.error("Missing folder_id parameter for export_folder_and_lists")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'refresh_files_import':
+                folder_id = params.get('folder_id')
+                if folder_id:
+                    # Reuse existing _handle_refresh_import
+                    self._handle_refresh_import(context, str(folder_id))
+                    return True
+                else:
+                    self.logger.error("Missing folder_id parameter for refresh_files_import")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+
+            elif action == 'show_context_more_menu':
+                self._handle_show_context_more_menu(context)
+                return True
+
             elif action == 'move_list_to_folder':
                 list_id = params.get('list_id')
                 if list_id:
@@ -870,6 +1097,114 @@ class Router:
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
 
+    def _handle_toggle_tools_menu_item(self, context: PluginContext) -> bool:
+        """Toggle the Tools & Options menu item visibility setting and refresh view"""
+        try:
+            import xbmc
+            from lib.config.config_manager import get_config
+            
+            # Get current setting value
+            config = get_config()
+            current_value = config.get_bool('show_tools_menu_item', True)
+            
+            # Toggle the setting
+            new_value = not current_value
+            context.addon.setSettingBool('show_tools_menu_item', new_value)
+            
+            # CRITICAL: Invalidate ConfigManager cache so new value is read immediately
+            config.invalidate()
+            self.logger.debug("ConfigManager cache invalidated after toggling Tools & Options visibility")
+            
+            self.logger.info("Toggled Tools & Options visibility: %s -> %s", current_value, new_value)
+            
+            # Refresh the current container to show the change immediately
+            xbmc.executebuiltin('Container.Refresh')
+            
+            # End directory for context menu invocation
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+            return True
+            
+        except Exception as e:
+            self.logger.error("Error toggling tools menu item visibility: %s", e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+    def _handle_set_startup_folder(self, context: PluginContext) -> bool:
+        """Set a folder as the startup folder"""
+        try:
+            import xbmc
+            from lib.config.config_manager import get_config
+            
+            folder_id = context.get_param('folder_id')
+            
+            if not folder_id:
+                self.logger.error("No folder_id provided for set_startup_folder")
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Set the startup folder setting
+            context.addon.setSettingString('startup_folder_id', str(folder_id))
+            
+            # Invalidate ConfigManager cache so new value is immediately visible
+            config = get_config()
+            config.invalidate('startup_folder_id')
+            
+            self.logger.info("Set startup folder to: %s", folder_id)
+            
+            # Show notification
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Startup folder set successfully",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            
+            # Refresh the current container
+            xbmc.executebuiltin('Container.Refresh')
+            
+            # End directory for context menu invocation
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+            return True
+            
+        except Exception as e:
+            self.logger.error("Error setting startup folder: %s", e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+    def _handle_clear_startup_folder(self, context: PluginContext) -> bool:
+        """Clear the startup folder setting"""
+        try:
+            import xbmc
+            from lib.config.config_manager import get_config
+            
+            # Clear the startup folder setting (set to empty string)
+            context.addon.setSettingString('startup_folder_id', '')
+            
+            # Invalidate ConfigManager cache so cleared value is immediately visible
+            config = get_config()
+            config.invalidate('startup_folder_id')
+            
+            self.logger.info("Cleared startup folder setting")
+            
+            # Show notification
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Startup folder cleared",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            
+            # Refresh the current container
+            xbmc.executebuiltin('Container.Refresh')
+            
+            # End directory for context menu invocation
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+            return True
+            
+        except Exception as e:
+            self.logger.error("Error clearing startup folder: %s", e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
 
     def _handle_remove_from_list(self, context: PluginContext, lists_handler) -> bool:
         """Handles the remove_from_list action, including fallback logic."""
@@ -1512,6 +1847,12 @@ class Router:
                         # Build menu items (data only, no Kodi UI calls)
                         menu_items = []
                         
+                        # Get toggle entry once for both folders and lists
+                        from lib.config.config_manager import get_config
+                        config = get_config()
+                        is_visible = config.get_bool('show_tools_menu_item', True)
+                        toggle_label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+                        
                         # Add subfolders
                         for subfolder in subfolders:
                             subfolder_id = subfolder.get('id')
@@ -1519,10 +1860,12 @@ class Router:
                             
                             # Build URL and context menu data
                             url = f"plugin://plugin.video.librarygenie/?action=show_folder&folder_id={subfolder_id}"
+                            
                             context_menu = [
                                 (f"Rename '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_folder&folder_id={subfolder_id})"),
                                 (f"Move '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_folder&folder_id={subfolder_id})"),
-                                (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})")
+                                (f"Delete '{subfolder_name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_folder&folder_id={subfolder_id})"),
+                                (toggle_label, f"RunPlugin(plugin://plugin.video.librarygenie/?action=toggle_tools_menu_item)")
                             ]
                             
                             menu_items.append({
@@ -1541,11 +1884,14 @@ class Router:
                             description = list_item.get('description', '')
                             
                             url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+                            
+                            # Get toggle entry (reuse config from subfolder loop above)
                             context_menu = [
                                 (f"Rename '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=rename_list&list_id={list_id})"),
                                 (f"Move '{name}' to Folder", f"RunPlugin(plugin://plugin.video.librarygenie/?action=move_list_to_folder&list_id={list_id})"),
                                 (f"Export '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=export_list&list_id={list_id})"),
-                                (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})")
+                                (f"Delete '{name}'", f"RunPlugin(plugin://plugin.video.librarygenie/?action=delete_list&list_id={list_id})"),
+                                (toggle_label, f"RunPlugin(plugin://plugin.video.librarygenie/?action=toggle_tools_menu_item)")
                             ]
                             
                             menu_items.append({

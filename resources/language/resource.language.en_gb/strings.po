@@ -1991,6 +1991,14 @@ msgctxt "#30617"
 msgid "Clear Folder Cache"
 msgstr ""
 
+msgctxt "#30620"
+msgid "Show Tools & Options menu item"
+msgstr ""
+
+msgctxt "#30621"
+msgid "Display the Tools & Options item in the main lists view for quick access to search, favorites, import/export and settings"
+msgstr ""
+
 # Library Management Actions  
 msgctxt "#30700"
 msgid "Browse Library"
@@ -2110,6 +2118,30 @@ msgstr ""
 
 msgctxt "#31022"
 msgid "Export"
+msgstr ""
+
+msgctxt "#31023"
+msgid "Move Folder"
+msgstr ""
+
+msgctxt "#31024"
+msgid "Export Folder and Lists"
+msgstr ""
+
+msgctxt "#31025"
+msgid "Export List"
+msgstr ""
+
+msgctxt "#31026"
+msgid "Delete Files Import"
+msgstr ""
+
+msgctxt "#31027"
+msgid "Refresh Import"
+msgstr ""
+
+msgctxt "#31028"
+msgid "More..."
 msgstr ""
 
 # Library-List Operation Messages

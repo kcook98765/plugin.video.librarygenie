@@ -288,8 +288,13 @@ class ImportHandler:
             scan_result['art'],
             tvshow_data
         )
-        self.logger.debug("  Show artwork extracted: %s", json.dumps(show_art, indent=2) if show_art else "None")
-        self.logger.debug("  Available art files in scan: %s", scan_result['art'])
+        if show_art:
+            self.logger.info("  FOLDER ART STORAGE: Show artwork extracted with %d types: %s", 
+                           len(show_art), list(show_art.keys()))
+            for art_type, art_path in show_art.items():
+                self.logger.debug("    - %s: %s", art_type, os.path.basename(art_path) if art_path and not art_path.startswith('http') else art_path)
+        else:
+            self.logger.debug("  FOLDER ART STORAGE: No show artwork found")
         
         # Create show folder (mark as import-sourced)
         show_folder_id = self._create_or_get_folder(
@@ -298,7 +303,8 @@ class ImportHandler:
             art_data=show_art,
             mark_as_import=True
         )
-        self.logger.debug("  Created/found show folder ID: %s", show_folder_id)
+        self.logger.info("  FOLDER ART STORAGE: Created/found show folder ID %s with art_data containing %d types", 
+                        show_folder_id, len(show_art) if show_art else 0)
         results['folders_created'] += 1
         
         # Process subdirectories (seasons)
@@ -643,6 +649,18 @@ class ImportHandler:
         
         if existing:
             self.logger.debug("  Found existing folder ID: %s", existing['id'])
+            
+            # Update art_data if provided (folders may have been created without art)
+            if art_data:
+                import json
+                art_json = json.dumps(art_data)
+                self.connection_manager.execute_write(
+                    "UPDATE folders SET art_data = ? WHERE id = ?",
+                    (art_json, existing['id'])
+                )
+                self.logger.debug("  Updated folder ID %s with art_data containing %d types", 
+                                existing['id'], len(art_data))
+            
             return existing['id']
         
         # Create new folder using QueryManager with art_data and import locking

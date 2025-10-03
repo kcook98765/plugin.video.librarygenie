@@ -150,6 +150,21 @@ def _can_serve_from_cache_only(action, params=None):
     """Check if request can be served entirely from cache"""
     # Root actions can use V4 cache with processed items
     if action in ['', 'main_menu', 'show_lists_menu']:
+        # Check if startup folder is configured - if so, skip cache and use full routing
+        try:
+            addon = xbmcaddon.Addon()
+            startup_folder_id = addon.getSettingString('startup_folder_id')
+            log(f"Startup folder check: startup_folder_id='{startup_folder_id}', type={type(startup_folder_id)}")
+            if startup_folder_id and startup_folder_id.strip():  # Check for non-empty string
+                # Startup folder configured - must use full routing to redirect
+                log(f"Startup folder configured ({startup_folder_id}) - skipping cache to enable redirect")
+                return False
+            else:
+                log("No startup folder configured - cache serving allowed")
+        except Exception as e:
+            log_error(f"Error checking startup folder setting: {e}")
+            pass  # If check fails, continue with normal cache logic
+        
         cache_file = _get_cache_file_direct(None)  # Root folder
         return cache_file and _is_cache_fresh_direct(cache_file)
     
@@ -159,6 +174,17 @@ def _can_serve_from_cache_only(action, params=None):
         # Prevent root bypass - always use full pipeline for root folder
         if folder_id in [None, '', 'root']:
             return False
+        
+        # Check if this is the startup folder - if so, use full routing to add "Back to Main Menu"
+        try:
+            addon = xbmcaddon.Addon()
+            startup_folder_id = addon.getSettingString('startup_folder_id')
+            if startup_folder_id and str(folder_id) == str(startup_folder_id):
+                # This is the startup folder - must use full routing to add "Back to Main Menu"
+                return False
+        except Exception:
+            pass  # If check fails, continue with normal cache logic
+        
         if folder_id:
             cache_file = _get_cache_file_direct(folder_id)
             return cache_file and _is_cache_fresh_direct(cache_file)
@@ -189,6 +215,13 @@ def _serve_from_cache_ultra_fast(action, params=None):
         cached_data = _load_cache_direct(cache_file)
         if not cached_data:
             log("Failed to load cache data")
+            return False
+        
+        # CRITICAL: Check schema version - reject old cache files
+        from lib.ui.folder_cache import CACHE_SCHEMA_VERSION
+        cached_schema = cached_data.get('_schema')
+        if cached_schema != CACHE_SCHEMA_VERSION:
+            log(f"Cache schema mismatch: cached={cached_schema}, current={CACHE_SCHEMA_VERSION} - rejecting cache")
             return False
             
         log(f"Serving from cache: {cache_file}")
@@ -247,6 +280,48 @@ def _render_cached_items_direct(cached_data, addon_handle):
     try:
         # Use pre-processed menu items from V4 cache
         processed_items = cached_data.get('processed_items', [])
+        
+        # Add Tools & Options dynamically (not cached, respects user visibility setting)
+        addon = xbmcaddon.Addon()
+        show_tools_item = addon.getSettingBool('show_tools_menu_item') if hasattr(addon, 'getSettingBool') else addon.getSetting('show_tools_menu_item') == 'true'
+        
+        if show_tools_item:
+            # Get breadcrumbs from cache for Tools & Options label
+            cached_breadcrumbs = cached_data.get('breadcrumbs', {})
+            breadcrumb_text = cached_breadcrumbs.get('tools_label', '')
+            tools_description = cached_breadcrumbs.get('tools_description', 'Search, Favorites, Import/Export & Settings')
+            
+            # Determine if this is root or folder
+            base_url = 'plugin://plugin.video.librarygenie/'
+            if cached_breadcrumbs.get('folder_id'):
+                # Folder view
+                folder_id = cached_breadcrumbs.get('folder_id')
+                tools_url = f"{base_url}?action=show_list_tools&list_type=folder&folder_id={folder_id}"
+                icon = "DefaultAddonProgram.png"
+            else:
+                # Root view
+                tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+                icon = "DefaultAddonProgram.png"
+            
+            # Always prepend "Tools & Options" to the breadcrumb (cache only stores breadcrumb part)
+            if breadcrumb_text:
+                tools_label = f"Tools & Options • {breadcrumb_text}"
+            else:
+                tools_label = "Tools & Options"
+            
+            # Create Tools & Options menu item
+            tools_item = {
+                'label': tools_label,
+                'url': tools_url,
+                'is_folder': True,
+                'description': tools_description,
+                'icon': icon,
+                'context_menu': []
+            }
+            
+            # Insert at beginning
+            processed_items = [tools_item] + processed_items
+        
         total_items = 0
         
         for item_data in processed_items:
@@ -272,6 +347,13 @@ def _render_cached_items_direct(cached_data, addon_handle):
                     
                     # Apply the art dictionary if valid
                     if art_data and isinstance(art_data, dict):
+                        # Debug logging for cache-served artwork
+                        item_label = item_data.get('label', 'Unknown')
+                        art_types = list(art_data.keys())
+                        log(f"CACHE LISTITEM ART: Applying artwork to '{item_label}' with {len(art_types)} types: {art_types}")
+                        for art_type, art_path in art_data.items():
+                            log(f"  - {art_type}: {art_path}")
+                        
                         listitem.setArt(art_data)
                         art_applied = True
                 except Exception as e:
@@ -279,6 +361,9 @@ def _render_cached_items_direct(cached_data, addon_handle):
             
             # Fallback: compute resource art based on item type
             if not art_applied:
+                item_label = item_data.get('label', 'Unknown')
+                log(f"CACHE LISTITEM ART: No custom art_data for '{item_label}' - using fallback")
+                
                 # Determine item type from URL
                 url = item_data.get('url', '')
                 if 'action=show_folder' in url:

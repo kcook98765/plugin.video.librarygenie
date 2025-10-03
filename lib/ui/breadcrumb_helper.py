@@ -275,6 +275,68 @@ class BreadcrumbHelper:
         self.logger.debug("BREADCRUMB: Notification display disabled - using Tools integration instead")
         pass
 
+    def build_tools_menu_item(self, base_url: str, list_type: str, breadcrumb_text: str = "", 
+                              description_text: str = "", list_id: Optional[str] = None, folder_id: Optional[str] = None,
+                              icon_prefix: str = "") -> Optional[dict]:
+        """
+        Build a Tools & Options menu item dict with visibility setting check.
+        
+        Args:
+            base_url: Base plugin URL for building the tools URL
+            list_type: Type of list context ('favorites', 'user_list', 'folder', 'lists_main')
+            breadcrumb_text: Breadcrumb text for label (e.g., '• Lists')
+            description_text: Breadcrumb text for description (e.g., 'Lists • ')
+            list_id: Optional list ID for context
+            folder_id: Optional folder ID for context
+            icon_prefix: Optional emoji/icon prefix (e.g., '⚙️ ')
+            
+        Returns:
+            Dict with label, url, is_folder, icon, description if setting enabled, None otherwise
+        """
+        try:
+            from lib.config.config_manager import get_config
+            from lib.ui.localization import L
+            
+            config = get_config()
+            show_tools_item = config.get_bool('show_tools_menu_item', True)
+            
+            if not show_tools_item:
+                self.logger.debug("Tools & Options menu item disabled by user preference")
+                return None
+            
+            # Build the tools URL with appropriate parameters
+            if list_type == 'favorites':
+                tools_url = f"{base_url}?action=show_list_tools&list_type=favorites"
+            elif list_type == 'user_list' and list_id:
+                tools_url = f"{base_url}?action=show_list_tools&list_type=user_list&list_id={list_id}"
+            elif list_type == 'folder' and folder_id:
+                tools_url = f"{base_url}?action=show_list_tools&list_type=folder&list_id={folder_id}"
+            elif list_type == 'lists_main':
+                if folder_id:
+                    tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main&folder_id={folder_id}"
+                else:
+                    tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+            else:
+                tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
+            
+            # Build label with breadcrumb
+            label = f"{icon_prefix}{L(30212)} {breadcrumb_text}" if breadcrumb_text else f"{icon_prefix}{L(30212)}"
+            
+            # Build description
+            description = f"{description_text}{L(30218)}" if description_text else L(30218)
+            
+            return {
+                'label': label,
+                'url': tools_url,
+                'is_folder': True,
+                'icon': "DefaultAddonProgram.png",
+                'description': description
+            }
+            
+        except Exception as e:
+            self.logger.error("Error building tools menu item: %s", e)
+            return None
+
 
 # Global instance
 _breadcrumb_helper = None

@@ -149,18 +149,30 @@ class FolderOperations:
                 context.logger.info("User cancelled folder deletion")
                 return DialogResponse(success=False, message="")
 
+            # Check if this folder is set as the startup folder before deleting
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get('startup_folder_id', '')
+            is_startup_folder = str(folder_id) == str(startup_folder_id)
+            
             # Delete the folder (with contents if user confirmed and folder is not empty)
             force_delete_contents = bool(lists_in_folder or subfolders)
             result = self.query_manager.delete_folder(folder_id, force_delete_contents=force_delete_contents)
 
             if result.get("error"):
-                error_message = result.get("message", "Failed to delete folder")
+                error_message = str(result.get("message", "Failed to delete folder"))
                 return DialogResponse(
                     success=False,
                     message=error_message # This string should also be localized
                 )
             else:
                 context.logger.info("Successfully deleted folder: %s", folder_name)
+                
+                # If the deleted folder was the startup folder, clear the startup folder setting
+                if is_startup_folder:
+                    context.logger.info("Deleted folder was set as startup folder - clearing startup folder setting")
+                    config.set('startup_folder_id', '')
+                    context.logger.info("Startup folder setting reset to root")
                 
                 # Invalidate folder cache after successful deletion
                 try:

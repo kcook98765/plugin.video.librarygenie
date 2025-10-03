@@ -18,7 +18,8 @@ from contextlib import contextmanager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
-CACHE_SCHEMA_VERSION = 5
+# v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
+CACHE_SCHEMA_VERSION = 12  # v12: Fixed subfolder caching to use v4 format with processed_items (was using old raw data format)
 
 
 class FolderCache:
@@ -59,6 +60,20 @@ class FolderCache:
         
         self.logger.debug("FolderCache initialized - dir: %s, schema: v%d, cache_enabled: %s", 
                           cache_dir, schema_version, self.cache_enabled)
+    
+    def _get_tools_toggle_entry(self, base_url: str):
+        """Get the Tools & Options visibility toggle context menu entry for cache building"""
+        try:
+            from lib.config.config_manager import get_config
+            config = get_config()
+            is_visible = config.get_bool('show_tools_menu_item', True)
+            
+            label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+            return (label, f"RunPlugin({base_url}?action=toggle_tools_menu_item)")
+        except Exception as e:
+            self.logger.error("Error getting tools toggle entry: %s - using default", e)
+            # Return a safe default if there's an error
+            return ("Hide Tools & Options Menu Item", f"RunPlugin({base_url}?action=toggle_tools_menu_item)")
     
     def _load_configuration(self):
         """Load cache configuration from settings"""
@@ -240,6 +255,18 @@ class FolderCache:
                 self.delete(folder_id)
                 return None
             
+            # Check if show_tools_menu_item setting matches cached value
+            from lib.config.config_manager import get_config
+            config = get_config()
+            current_show_tools = config.get_bool('show_tools_menu_item', True)
+            cached_show_tools = payload.get('_show_tools')
+            
+            if cached_show_tools is not None and cached_show_tools != current_show_tools:
+                self.logger.debug("Cache invalidated for folder %s - show_tools setting changed from %s to %s",
+                                folder_id, cached_show_tools, current_show_tools)
+                self.delete(folder_id)
+                return None
+            
             # Validate folder ID matches to prevent serving wrong cache due to filename collisions
             cached_folder_id = payload.get('_folder_id')
             
@@ -350,12 +377,18 @@ class FolderCache:
                     folder_id
                 )
             
+            # Get current show_tools_menu_item setting for cache dependency tracking
+            from lib.config.config_manager import get_config
+            config = get_config()
+            current_show_tools = config.get_bool('show_tools_menu_item', True)
+            
             # Augment payload with cache metadata
             cache_payload = {
                 **payload,
                 '_built_at': datetime.now().isoformat(),
                 '_folder_id': folder_id,
-                '_schema': self.schema_version
+                '_schema': self.schema_version,
+                '_show_tools': current_show_tools  # Track setting for cache invalidation
             }
             
             if build_time_ms is not None:
@@ -711,20 +744,15 @@ class FolderCache:
             return False
     
     def _build_root_processed_items(self, all_lists, all_folders):
-        """Build processed menu items for root folder with business logic applied"""
+        """Build processed menu items for root folder with business logic applied
+        
+        NOTE: Tools & Options is NOT cached - it's added dynamically by lists_handler 
+        based on user visibility setting which can change without cache invalidation.
+        """
         menu_items = []
-        
-        # Add Tools & Options first (simplified for pre-warming)
         base_url = "plugin://plugin.video.librarygenie/"
-        tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
         
-        menu_items.append({
-            'label': "Tools & Options • Lists",
-            'url': tools_url,
-            'is_folder': True,
-            'icon': "DefaultAddonProgram.png",
-            'description': "Search, Favorites, Import/Export & Settings"
-        })
+        # Tools & Options is added dynamically by lists_handler, not cached
 
         # Handle Kodi Favorites integration
         try:
@@ -746,10 +774,10 @@ class FolderCache:
             name = kodi_favorites_item.get('name', 'Kodi Favorites')
             description = kodi_favorites_item.get('description', '')
             list_url = f"{base_url}?action=show_list&list_id={list_id}"
-            tools_context_url = f"{base_url}?action=show_list_tools&list_type=user_list&list_id={list_id}"
 
+            # NOTE: Don't add "Tools & Options" here - it's added dynamically by lists_handler
             context_menu = [
-                (f"Tools & Options for '{name}'", f"RunPlugin({tools_context_url})")
+                self._get_tools_toggle_entry(base_url)
             ]
 
             menu_items.append({
@@ -771,19 +799,40 @@ class FolderCache:
                 continue
 
             folder_url = f"{base_url}?action=show_folder&folder_id={folder_id}"
+            
+            # Build context menu with startup folder option
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get('startup_folder_id', None)
+            
             context_menu = [
                 (f"Rename '{folder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={folder_id})"),
                 (f"Move '{folder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={folder_id})"),
-                (f"Delete '{folder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={folder_id})")
+                (f"Delete '{folder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={folder_id})"),
             ]
+            
+            # Add startup folder option
+            if str(folder_id) == str(startup_folder_id):
+                context_menu.append((f"Clear Startup Folder", f"RunPlugin({base_url}?action=clear_startup_folder)"))
+            else:
+                context_menu.append((f"Set as Startup Folder", f"RunPlugin({base_url}?action=set_startup_folder&folder_id={folder_id})"))
+            
+            context_menu.append(self._get_tools_toggle_entry(base_url))
 
-            menu_items.append({
+            # Include art_data if folder has custom artwork
+            folder_item = {
                 'label': folder_name,
                 'url': folder_url,
                 'is_folder': True,
                 'description': "Folder",
                 'context_menu': context_menu
-            })
+            }
+            
+            # Add art_data if folder has custom artwork
+            if folder_info.get('art_data'):
+                folder_item['art_data'] = folder_info['art_data']
+            
+            menu_items.append(folder_item)
 
         # Add standalone lists (excluding Kodi Favorites as it's already added)
         standalone_lists = [item for item in all_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
@@ -798,7 +847,8 @@ class FolderCache:
                 (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
                 (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
                 (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
-                (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
+                (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})"),
+                self._get_tools_toggle_entry(base_url)
             ]
 
             menu_items.append({
@@ -813,77 +863,83 @@ class FolderCache:
         return menu_items
     
     def _build_subfolder_processed_items(self, folder_info, subfolders, lists_in_folder):
-        """Build processed menu items for subfolder with business logic applied"""
+        """Build processed menu items for subfolder with business logic applied
+        
+        NOTE: Tools & Options is NOT cached - it's added dynamically by lists_handler 
+        based on user visibility setting which can change without cache invalidation.
+        """
         menu_items = []
         base_url = "plugin://plugin.video.librarygenie/"
         
-        try:
-            # Add Tools & Options first (simplified to avoid errors)
-            if folder_info and folder_info.get('id'):
-                folder_id = folder_info.get('id')
-                folder_name = folder_info.get('name', 'Unknown Folder')
+        # Tools & Options is added dynamically by show_folder handler, not cached
+        
+        # Add subfolders in this folder
+        if subfolders:
+            for subfolder in subfolders:
+                subfolder_id = subfolder.get('id')
+                subfolder_name = subfolder.get('name', 'Unnamed Folder')
                 
-                tools_url = f"{base_url}?action=show_list_tools&list_type=folder&list_id={folder_id}"
+                subfolder_url = f"{base_url}?action=show_folder&folder_id={subfolder_id}"
+                
+                # Build context menu with startup folder option
+                from lib.config.config_manager import get_config
+                config = get_config()
+                startup_folder_id = config.get('startup_folder_id', None)
+                
+                context_menu = [
+                    (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
+                    (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
+                    (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})"),
+                ]
+                
+                # Add startup folder option
+                if str(subfolder_id) == str(startup_folder_id):
+                    context_menu.append((f"Clear Startup Folder", f"RunPlugin({base_url}?action=clear_startup_folder)"))
+                else:
+                    context_menu.append((f"Set as Startup Folder", f"RunPlugin({base_url}?action=set_startup_folder&folder_id={subfolder_id})"))
+                
+                context_menu.append(self._get_tools_toggle_entry(base_url))
+                
+                # Build subfolder item
+                subfolder_item = {
+                    'label': f"📁 {subfolder_name}",
+                    'url': subfolder_url,
+                    'is_folder': True,
+                    'description': "Subfolder",
+                    'context_menu': context_menu,
+                    'icon': "DefaultFolder.png"
+                }
+                
+                # Add art_data if subfolder has custom artwork
+                if subfolder.get('art_data'):
+                    subfolder_item['art_data'] = subfolder['art_data']
+                
+                menu_items.append(subfolder_item)
+        
+        # Add lists in this folder
+        if lists_in_folder:
+            for list_item in lists_in_folder:
+                list_id = list_item.get('id')
+                name = list_item.get('name', 'Unnamed List')
+                description = list_item.get('description', '')
+                
+                list_url = f"{base_url}?action=show_list&list_id={list_id}"
+                context_menu = [
+                    (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
+                    (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
+                    (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
+                    (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})"),
+                    self._get_tools_toggle_entry(base_url)
+                ]
                 
                 menu_items.append({
-                    'label': f"⚙️ Tools & Options for '{folder_name}'",
-                    'url': tools_url,
+                    'label': name,
+                    'url': list_url,
                     'is_folder': True,
-                    'description': "Tools and options for this folder",
-                    'icon': "DefaultAddonProgram.png",
-                    'context_menu': []
+                    'description': description,
+                    'icon': "DefaultPlaylist.png",
+                    'context_menu': context_menu
                 })
-            
-            # Add subfolders in this folder
-            if subfolders:
-                for subfolder in subfolders:
-                    subfolder_id = subfolder.get('id')
-                    subfolder_name = subfolder.get('name', 'Unnamed Folder')
-                    
-                    subfolder_url = f"{base_url}?action=show_folder&folder_id={subfolder_id}"
-                    context_menu = [
-                        (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
-                        (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
-                        (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})")
-                    ]
-                    
-                    menu_items.append({
-                        'label': f"📁 {subfolder_name}",
-                        'url': subfolder_url,
-                        'is_folder': True,
-                        'description': "Subfolder",
-                        'context_menu': context_menu,
-                        'icon': "DefaultFolder.png"
-                    })
-            
-            # Add lists in this folder
-            if lists_in_folder:
-                for list_item in lists_in_folder:
-                    list_id = list_item.get('id')
-                    name = list_item.get('name', 'Unnamed List')
-                    description = list_item.get('description', '')
-                    
-                    list_url = f"{base_url}?action=show_list&list_id={list_id}"
-                    context_menu = [
-                        (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
-                        (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
-                        (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
-                        (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
-                    ]
-                    
-                    menu_items.append({
-                        'label': name,
-                        'url': list_url,
-                        'is_folder': True,
-                        'description': description,
-                        'icon': "DefaultPlaylist.png",
-                        'context_menu': context_menu
-                    })
-        
-        except Exception as e:
-            # Log error but return empty list to prevent cache failure
-            self.logger.error("Error building subfolder processed items: %s", e)
-            return []
         
         return menu_items
     
@@ -933,8 +989,19 @@ class FolderCache:
             # Always include root folder (use None for root level)
             common_folders.append(None)
             
+            # Add startup folder if configured (high priority)
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get('startup_folder_id', None)
+            if startup_folder_id:
+                # Add to beginning after root for high priority
+                common_folders.append(str(startup_folder_id))
+                self.logger.debug("Pre-warm: included startup folder %s", startup_folder_id)
+            
             # Get root-level subfolders (most commonly accessed)
             try:
+                # Adjust limit to account for root and startup folder
+                folders_remaining = max_folders - len(common_folders)
                 with query_manager.connection_manager.transaction() as conn:
                     root_subfolders = conn.execute("""
                         SELECT id, name
@@ -942,14 +1009,17 @@ class FolderCache:
                         WHERE parent_id IS NULL OR parent_id = ''
                         ORDER BY name
                         LIMIT ?
-                    """, [max_folders - 1]).fetchall()  # -1 for root folder
+                    """, [folders_remaining]).fetchall()
                     
                     for subfolder in root_subfolders:
-                        common_folders.append(str(subfolder['id']))
+                        folder_id = str(subfolder['id'])
+                        # Skip startup folder if already added
+                        if folder_id != startup_folder_id:
+                            common_folders.append(folder_id)
                         
             except Exception as e:
                 self.logger.warning("Pre-warm: failed to get root subfolders: %s", e)
-                # Continue with just root folder
+                # Continue with root and startup folders
             
             # Pre-warm folders
             results = {
