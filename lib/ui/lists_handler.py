@@ -865,6 +865,11 @@ class ListsHandler:
                     'tools_description': f"Tools and options for this folder"
                 }
                 
+                # Build processed menu items with business logic applied (v4 cache format)
+                processed_menu_items = self._build_processed_menu_items(
+                    context, lists_in_folder, subfolders, query_manager
+                )
+                
                 # VALIDATION: Check for empty data before caching
                 total_items = len(subfolders) + len(lists_in_folder)
                 if total_items == 0:
@@ -873,18 +878,17 @@ class ListsHandler:
                         folder_id, folder_name
                     )
                 
-                # Cache the result including breadcrumbs for future navigation
+                # Cache the v4 format with processed items
                 cache_payload = {
-                    'folder_info': folder_info,
-                    'subfolders': subfolders,
-                    'lists': lists_in_folder,
-                    'breadcrumbs': cached_breadcrumbs
+                    'processed_items': processed_menu_items,  # V4: Store processed menu items
+                    'breadcrumbs': cached_breadcrumbs,
+                    'content_type': 'files'
                 }
                 
                 # Log what we're about to cache for debugging
                 self.logger.debug(
-                    "CACHE UPDATE: About to cache folder %s with %d subfolders, %d lists, folder_info=%s",
-                    folder_id, len(subfolders), len(lists_in_folder), folder_info is not None
+                    "CACHE UPDATE: About to cache folder %s with %d processed items (%d subfolders, %d lists), folder_info=%s",
+                    folder_id, len(processed_menu_items), len(subfolders), len(lists_in_folder), folder_info is not None
                 )
                 
                 cache_success = folder_cache.set(folder_id, cache_payload, int(db_query_time))
