@@ -390,9 +390,9 @@ class ListsHandler:
             
             # Handle cached processed items vs building from raw data
             if cache_used:
-                # Use pre-processed items directly from cache
+                # Use pre-processed items directly from cache (without Tools & Options)
                 menu_items = processed_menu_items if processed_menu_items else []
-                self.logger.debug("Using %d pre-processed menu items from cache", len(menu_items))
+                self.logger.debug("Using %d pre-processed menu items from cache (Tools & Options will be added dynamically)", len(menu_items))
             else:
                 # Cache miss: Build menu items from database data
                 user_lists = all_lists
@@ -490,10 +490,7 @@ class ListsHandler:
                 except Exception as e:
                     self.logger.debug("Could not set directory title: %s", e)
 
-            # Build menu items for lists and folders
-            menu_items = []
-
-            # Add Tools & Options menu item using centralized builder with visibility check
+            # Add Tools & Options dynamically at the beginning (not cached, respects user visibility setting)
             # Use cached breadcrumb data when available (ZERO DB overhead)
             if cache_used and cached_breadcrumbs:
                 tools_label = cached_breadcrumbs.get('tools_label', 'Lists')
@@ -513,124 +510,127 @@ class ListsHandler:
                 folder_id=current_folder_id if current_folder_id else None
             )
             
+            # Insert Tools & Options at the beginning if enabled (visibility check is in build_tools_menu_item)
             if tools_item:
-                menu_items.append(tools_item)
+                menu_items.insert(0, tools_item)
 
             # Search and other tools are now accessible via Tools & Options menu (if enabled) or context menus
 
-            # Check if favorites integration is enabled and ensure "Kodi Favorites" appears FIRST
+            # Initialize favorites variables (needed for both cached and non-cached paths)
             from lib.config.config_manager import get_config
             config = get_config()
             favorites_enabled = config.get_bool('favorites_integration_enabled', False)
             kodi_favorites_item = None
 
-            # Find existing Kodi Favorites or create if needed
-            for item in user_lists:
-                if item.get('name') == 'Kodi Favorites':
-                    kodi_favorites_item = item
-                    break
+            # When using cached items, skip the rebuild logic below (cached items already have everything)
+            if not cache_used:
+                # Find existing Kodi Favorites or create if needed
+                for item in user_lists:
+                    if item.get('name') == 'Kodi Favorites':
+                        kodi_favorites_item = item
+                        break
 
-            if favorites_enabled and not kodi_favorites_item:
-                # Create "Kodi Favorites" list if it doesn't exist but setting is enabled
-                self.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating it")
-                try:
-                    from lib.config.favorites_helper import on_favorites_integration_enabled
-                    on_favorites_integration_enabled()  # This will create the list if it doesn't exist
+                if favorites_enabled and not kodi_favorites_item:
+                    # Create "Kodi Favorites" list if it doesn't exist but setting is enabled
+                    self.logger.info("LISTS HANDLER: Favorites integration enabled but 'Kodi Favorites' list not found, creating it")
+                    try:
+                        from lib.config.favorites_helper import on_favorites_integration_enabled
+                        on_favorites_integration_enabled()  # This will create the list if it doesn't exist
 
-                    # Refresh the lists to include the newly created "Kodi Favorites"
-                    if query_manager is not None:
-                        all_lists = query_manager.get_all_lists_with_folders()
-                    else:
-                        all_lists = []
-                    user_lists = all_lists
+                        # Refresh the lists to include the newly created "Kodi Favorites"
+                        if query_manager is not None:
+                            all_lists = query_manager.get_all_lists_with_folders()
+                        else:
+                            all_lists = []
+                        user_lists = all_lists
 
-                    # Find the newly created Kodi Favorites
-                    for item in user_lists:
-                        if item.get('name') == 'Kodi Favorites':
-                            kodi_favorites_item = item
-                            break
+                        # Find the newly created Kodi Favorites
+                        for item in user_lists:
+                            if item.get('name') == 'Kodi Favorites':
+                                kodi_favorites_item = item
+                                break
 
-                    self.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
-                except Exception as e:
-                    self.logger.error("LISTS HANDLER: Error ensuring Kodi Favorites list exists: %s", e)
+                        self.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
+                    except Exception as e:
+                        self.logger.error("LISTS HANDLER: Error ensuring Kodi Favorites list exists: %s", e)
 
-            # ADD KODI FAVORITES FIRST (before any folders or other lists)
-            if favorites_enabled and kodi_favorites_item:
-                list_id = kodi_favorites_item.get('id')
-                name = kodi_favorites_item.get('name', 'Kodi Favorites')
-                description = kodi_favorites_item.get('description', '')
+                # ADD KODI FAVORITES FIRST (before any folders or other lists)
+                if favorites_enabled and kodi_favorites_item:
+                    list_id = kodi_favorites_item.get('id')
+                    name = kodi_favorites_item.get('name', 'Kodi Favorites')
+                    description = kodi_favorites_item.get('description', '')
 
-                context_menu = [
-                    (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})")
-                ]
-
-                menu_items.append({
-                    'label': name,
-                    'url': context.build_url('show_list', list_id=list_id),
-                    'is_folder': True,
-                    'description': description,
-                    'icon': "DefaultPlaylist.png",
-                    'context_menu': context_menu
-                })
-
-            # Use cached or fetched folder data
-            self.logger.debug("CACHE: Using folder data (%d folders) %s", len(all_folders), 
-                               "- ZERO DB OVERHEAD" if cache_used else "from database")
-
-            # Add folders as navigable items (excluding Search History which is now at root level)
-            for folder_info in all_folders:
-                folder_id = folder_info['id']
-                folder_name = folder_info['name']
-
-                # Skip the reserved "Search History" folder since it's now shown at root level
-                if folder_name == 'Search History':
-                    continue
-
-                # Folder context menu with proper actions (no Tools & Options)
-                context_menu = [
-                    (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
-                    (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
-                    (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
-                ]
-
-                menu_items.append({
-                    'label': folder_name,
-                    'url': context.build_url('show_folder', folder_id=folder_id),
-                    'is_folder': True,
-                    'description': f"Folder",
-                    'context_menu': context_menu
-                })
-
-            # Separate standalone lists (not in any folder) - EXCLUDE "Kodi Favorites" since it's already added first
-            standalone_lists = [item for item in user_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
-
-            # Add standalone lists (not in any folder) - Kodi Favorites already added above
-            for list_item in standalone_lists:
-                list_id = list_item.get('id')
-                name = list_item.get('name', 'Unnamed List')
-                description = list_item.get('description', '')
-
-                # Special handling for Kodi Favorites - limited context menu
-                if name == 'Kodi Favorites':
                     context_menu = [
                         (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})")
                     ]
-                else:
+
+                    menu_items.append({
+                        'label': name,
+                        'url': context.build_url('show_list', list_id=list_id),
+                        'is_folder': True,
+                        'description': description,
+                        'icon': "DefaultPlaylist.png",
+                        'context_menu': context_menu
+                    })
+
+                # Use cached or fetched folder data
+                self.logger.debug("CACHE: Using folder data (%d folders) %s", len(all_folders), 
+                                   "- ZERO DB OVERHEAD" if cache_used else "from database")
+
+                # Add folders as navigable items (excluding Search History which is now at root level)
+                for folder_info in all_folders:
+                    folder_id = folder_info['id']
+                    folder_name = folder_info['name']
+
+                    # Skip the reserved "Search History" folder since it's now shown at root level
+                    if folder_name == 'Search History':
+                        continue
+
+                    # Folder context menu with proper actions (no Tools & Options)
                     context_menu = [
-                        (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                        (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
-                        (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
-                        (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
+                        (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
+                        (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
+                        (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})")
                     ]
 
-                menu_items.append({
-                    'label': name,
-                    'url': context.build_url('show_list', list_id=list_id),
-                    'is_folder': True,
-                    'description': description,
-                    'icon': "DefaultPlaylist.png",
-                    'context_menu': context_menu
-                })
+                    menu_items.append({
+                        'label': folder_name,
+                        'url': context.build_url('show_folder', folder_id=folder_id),
+                        'is_folder': True,
+                        'description': f"Folder",
+                        'context_menu': context_menu
+                    })
+
+                # Separate standalone lists (not in any folder) - EXCLUDE "Kodi Favorites" since it's already added first
+                standalone_lists = [item for item in user_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
+
+                # Add standalone lists (not in any folder) - Kodi Favorites already added above
+                for list_item in standalone_lists:
+                    list_id = list_item.get('id')
+                    name = list_item.get('name', 'Unnamed List')
+                    description = list_item.get('description', '')
+
+                    # Special handling for Kodi Favorites - limited context menu
+                    if name == 'Kodi Favorites':
+                        context_menu = [
+                            (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})")
+                        ]
+                    else:
+                        context_menu = [
+                            (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
+                            (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
+                            (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
+                            (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})")
+                        ]
+
+                    menu_items.append({
+                        'label': name,
+                        'url': context.build_url('show_list', list_id=list_id),
+                        'is_folder': True,
+                        'description': description,
+                        'icon': "DefaultPlaylist.png",
+                        'context_menu': context_menu
+                    })
 
             # Breadcrumb context now integrated into Tools & Options labels
 
@@ -699,10 +699,10 @@ class ListsHandler:
             folder_cache = get_folder_cache()
             cached_data = folder_cache.get(folder_id)
             
-            # Check if using V4 processed cache format
+            # Check if using modern processed cache format (V4+)
             schema_version = cached_data.get('_schema') if cached_data else None
             
-            if cached_data and schema_version == 4:
+            if cached_data and schema_version in [4, 6, 7]:
                 # V4 CACHE HIT: Use pre-built processed menu items (ultra-fast)
                 cache_used = True
                 processed_items = cached_data.get('processed_items', [])
@@ -710,6 +710,21 @@ class ListsHandler:
                 build_time = cached_data.get('_build_time_ms', 0)
                 self.logger.debug("V4 CACHE HIT: Folder %s with %d processed items, breadcrumbs (built in %d ms) - ZERO DB OVERHEAD", 
                                    folder_id, len(processed_items), build_time)
+                
+                # Add Tools & Options dynamically (not cached, respects user visibility setting)
+                folder_name = cached_breadcrumbs.get('folder_name', 'Unknown Folder')
+                tools_item = self.breadcrumb_helper.build_tools_menu_item(
+                    base_url=context.base_url,
+                    list_type='folder',
+                    breadcrumb_text=f"for '{folder_name}'",
+                    description_text="Tools and options for this folder",
+                    folder_id=folder_id,
+                    icon_prefix="⚙️ "
+                )
+                
+                if tools_item:
+                    # Insert at beginning of processed items before rendering
+                    processed_items.insert(0, tools_item)
                 
                 # Convert processed items directly to ListItems for ultra-fast rendering
                 gui_build_start = time.time()

@@ -18,7 +18,8 @@ from contextlib import contextmanager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
-CACHE_SCHEMA_VERSION = 6
+# v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
+CACHE_SCHEMA_VERSION = 7
 
 
 class FolderCache:
