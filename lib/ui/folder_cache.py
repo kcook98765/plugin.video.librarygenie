@@ -19,7 +19,7 @@ from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
 # v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
-CACHE_SCHEMA_VERSION = 8  # v8: Added startup folder context menu options
+CACHE_SCHEMA_VERSION = 9  # v9: Fixed startup folder context menu options in cache builder
 
 
 class FolderCache:
@@ -795,12 +795,25 @@ class FolderCache:
                 continue
 
             folder_url = f"{base_url}?action=show_folder&folder_id={folder_id}"
+            
+            # Build context menu with startup folder option
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get('startup_folder_id', None)
+            
             context_menu = [
                 (f"Rename '{folder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={folder_id})"),
                 (f"Move '{folder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={folder_id})"),
                 (f"Delete '{folder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={folder_id})"),
-                self._get_tools_toggle_entry(base_url)
             ]
+            
+            # Add startup folder option
+            if str(folder_id) == str(startup_folder_id):
+                context_menu.append((f"Clear Startup Folder", f"RunPlugin({base_url}?action=clear_startup_folder)"))
+            else:
+                context_menu.append((f"Set as Startup Folder", f"RunPlugin({base_url}?action=set_startup_folder&folder_id={folder_id})"))
+            
+            context_menu.append(self._get_tools_toggle_entry(base_url))
 
             menu_items.append({
                 'label': folder_name,
@@ -856,12 +869,25 @@ class FolderCache:
                 subfolder_name = subfolder.get('name', 'Unnamed Folder')
                 
                 subfolder_url = f"{base_url}?action=show_folder&folder_id={subfolder_id}"
+                
+                # Build context menu with startup folder option
+                from lib.config.config_manager import get_config
+                config = get_config()
+                startup_folder_id = config.get('startup_folder_id', None)
+                
                 context_menu = [
                     (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
                     (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
                     (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})"),
-                    self._get_tools_toggle_entry(base_url)
                 ]
+                
+                # Add startup folder option
+                if str(subfolder_id) == str(startup_folder_id):
+                    context_menu.append((f"Clear Startup Folder", f"RunPlugin({base_url}?action=clear_startup_folder)"))
+                else:
+                    context_menu.append((f"Set as Startup Folder", f"RunPlugin({base_url}?action=set_startup_folder&folder_id={subfolder_id})"))
+                
+                context_menu.append(self._get_tools_toggle_entry(base_url))
                 
                 menu_items.append({
                     'label': f"📁 {subfolder_name}",
