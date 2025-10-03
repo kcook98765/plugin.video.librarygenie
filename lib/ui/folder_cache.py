@@ -19,7 +19,7 @@ from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
 # v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
-CACHE_SCHEMA_VERSION = 9  # v9: Fixed startup folder context menu options in cache builder
+CACHE_SCHEMA_VERSION = 10  # v10: Rebuild caches with correct folder names in breadcrumb tools_label (fixes "Unknown Folder" in Tools & Options)
 
 
 class FolderCache:
