@@ -560,6 +560,38 @@ class FolderCache:
         # No cache available at all
         return None
     
+    def clear_all(self) -> int:
+        """
+        Clear all folder cache files (force full rebuild)
+        
+        Returns:
+            int: Number of files cleared
+        """
+        cleared_count = 0
+        try:
+            if not os.path.exists(self.cache_dir):
+                return 0
+            
+            for filename in os.listdir(self.cache_dir):
+                if not filename.startswith('folder_') or not filename.endswith('.json'):
+                    continue
+                
+                file_path = os.path.join(self.cache_dir, filename)
+                try:
+                    os.remove(file_path)
+                    cleared_count += 1
+                    self.logger.debug("Cleared cache file: %s", filename)
+                except Exception as e:
+                    self.logger.warning("Error clearing cache file %s: %s", filename, e)
+            
+            if cleared_count > 0:
+                self.logger.info("Cleared all folder cache - removed %d files", cleared_count)
+            
+        except Exception as e:
+            self.logger.error("Error clearing all cache: %s", e)
+        
+        return cleared_count
+    
     def cleanup(self) -> int:
         """
         Full cache cleanup - removes expired files and old schema versions
