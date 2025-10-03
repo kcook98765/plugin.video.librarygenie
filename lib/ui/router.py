@@ -467,6 +467,15 @@ class Router:
                 response_handler = get_response_handler()
                 response = lists_handler.show_lists_menu(context)
                 return response_handler.handle_directory_response(response, context)
+            elif action == 'show_main_menu_force':
+                from lib.ui.handler_factory import get_handler_factory
+                from lib.ui.response_handler import get_response_handler
+                factory = get_handler_factory()
+                factory.context = context  # Set context before using factory
+                lists_handler = factory.get_lists_handler()
+                response_handler = get_response_handler()
+                response = lists_handler.show_lists_menu(context, force_main_menu=True)
+                return response_handler.handle_directory_response(response, context)
             elif action == 'prompt_and_search':
                 from lib.ui.handler_factory import get_handler_factory
                 from lib.ui.response_handler import get_response_handler
