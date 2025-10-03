@@ -819,13 +819,20 @@ class FolderCache:
             
             context_menu.append(self._get_tools_toggle_entry(base_url))
 
-            menu_items.append({
+            # Include art_data if folder has custom artwork
+            folder_item = {
                 'label': folder_name,
                 'url': folder_url,
                 'is_folder': True,
                 'description': "Folder",
                 'context_menu': context_menu
-            })
+            }
+            
+            # Add art_data if folder has custom artwork
+            if folder_info.get('art_data'):
+                folder_item['art_data'] = folder_info['art_data']
+            
+            menu_items.append(folder_item)
 
         # Add standalone lists (excluding Kodi Favorites as it's already added)
         standalone_lists = [item for item in all_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
@@ -893,14 +900,21 @@ class FolderCache:
                 
                 context_menu.append(self._get_tools_toggle_entry(base_url))
                 
-                menu_items.append({
+                # Build subfolder item
+                subfolder_item = {
                     'label': f"📁 {subfolder_name}",
                     'url': subfolder_url,
                     'is_folder': True,
                     'description': "Subfolder",
                     'context_menu': context_menu,
                     'icon': "DefaultFolder.png"
-                })
+                }
+                
+                # Add art_data if subfolder has custom artwork
+                if subfolder.get('art_data'):
+                    subfolder_item['art_data'] = subfolder['art_data']
+                
+                menu_items.append(subfolder_item)
         
         # Add lists in this folder
         if lists_in_folder:
