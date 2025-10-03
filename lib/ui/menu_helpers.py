@@ -41,12 +41,25 @@ def build_folder_context_menu(context, folder_id: Any, folder_name: str) -> List
     Returns:
         List of context menu items as (label, action) tuples
     """
-    return [
+    from lib.config.config_manager import get_config
+    config = get_config()
+    current_startup_folder = config.get('startup_folder_id', None)
+    
+    menu = [
         (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
         (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
         (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})"),
-        get_tools_visibility_toggle_entry(context)
     ]
+    
+    # Add startup folder option
+    if str(folder_id) == str(current_startup_folder):
+        menu.append((f"Clear Startup Folder", f"RunPlugin({context.build_url('clear_startup_folder')})"))
+    else:
+        menu.append((f"Set as Startup Folder", f"RunPlugin({context.build_url('set_startup_folder', folder_id=folder_id)})"))
+    
+    menu.append(get_tools_visibility_toggle_entry(context))
+    
+    return menu
 
 
 def build_list_context_menu(context, list_id: Any, list_name: str) -> List[Tuple[str, str]]:

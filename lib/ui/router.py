@@ -454,6 +454,10 @@ class Router:
                 return self._handle_noop(context)
             elif action == "toggle_tools_menu_item":
                 return self._handle_toggle_tools_menu_item(context)
+            elif action == "set_startup_folder":
+                return self._handle_set_startup_folder(context)
+            elif action == "clear_startup_folder":
+                return self._handle_clear_startup_folder(context)
             elif action == 'lists' or action == 'show_lists_menu':
                 from lib.ui.handler_factory import get_handler_factory
                 from lib.ui.response_handler import get_response_handler
@@ -1109,6 +1113,83 @@ class Router:
             
         except Exception as e:
             self.logger.error("Error toggling tools menu item visibility: %s", e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+    def _handle_set_startup_folder(self, context: PluginContext) -> bool:
+        """Set a folder as the startup folder"""
+        try:
+            import xbmc
+            from lib.config.config_manager import get_config
+            
+            folder_id = context.get_param('folder_id')
+            
+            if not folder_id:
+                self.logger.error("No folder_id provided for set_startup_folder")
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return False
+            
+            # Set the startup folder setting
+            context.addon.setSettingString('startup_folder_id', str(folder_id))
+            
+            # Invalidate ConfigManager cache so new value is immediately visible
+            config = get_config()
+            config.invalidate('startup_folder_id')
+            
+            self.logger.info("Set startup folder to: %s", folder_id)
+            
+            # Show notification
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Startup folder set successfully",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            
+            # Refresh the current container
+            xbmc.executebuiltin('Container.Refresh')
+            
+            # End directory for context menu invocation
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+            return True
+            
+        except Exception as e:
+            self.logger.error("Error setting startup folder: %s", e)
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+            return False
+
+    def _handle_clear_startup_folder(self, context: PluginContext) -> bool:
+        """Clear the startup folder setting"""
+        try:
+            import xbmc
+            from lib.config.config_manager import get_config
+            
+            # Clear the startup folder setting (set to empty string)
+            context.addon.setSettingString('startup_folder_id', '')
+            
+            # Invalidate ConfigManager cache so cleared value is immediately visible
+            config = get_config()
+            config.invalidate('startup_folder_id')
+            
+            self.logger.info("Cleared startup folder setting")
+            
+            # Show notification
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Startup folder cleared",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            
+            # Refresh the current container
+            xbmc.executebuiltin('Container.Refresh')
+            
+            # End directory for context menu invocation
+            xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+            return True
+            
+        except Exception as e:
+            self.logger.error("Error clearing startup folder: %s", e)
             xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
             return False
 
