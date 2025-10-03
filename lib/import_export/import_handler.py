@@ -649,6 +649,18 @@ class ImportHandler:
         
         if existing:
             self.logger.debug("  Found existing folder ID: %s", existing['id'])
+            
+            # Update art_data if provided (folders may have been created without art)
+            if art_data:
+                import json
+                art_json = json.dumps(art_data)
+                self.connection_manager.execute_write(
+                    "UPDATE folders SET art_data = ? WHERE id = ?",
+                    (art_json, existing['id'])
+                )
+                self.logger.debug("  Updated folder ID %s with art_data containing %d types", 
+                                existing['id'], len(art_data))
+            
             return existing['id']
         
         # Create new folder using QueryManager with art_data and import locking
