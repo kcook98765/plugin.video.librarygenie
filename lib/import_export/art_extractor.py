@@ -79,6 +79,10 @@ class ArtExtractor:
         """
         folder_art = {}
         
+        self.logger.debug("FOLDER ART EXTRACTION: Scanning %d art files", len(art_files))
+        if art_files:
+            self.logger.debug("FOLDER ART EXTRACTION: Available files: %s", [os.path.basename(f) for f in art_files])
+        
         for art_type in ART_TYPES:
             # Look for standard folder art (poster.jpg, fanart.png, etc.)
             for art_file in art_files:
@@ -87,6 +91,7 @@ class ArtExtractor:
                 
                 if art_name == art_type and art_ext in ART_EXTENSIONS:
                     folder_art[art_type] = art_file
+                    self.logger.debug("FOLDER ART EXTRACTION: Found %s -> %s", art_type, os.path.basename(art_file))
                     break
         
         # Check for legacy folder.jpg as poster
@@ -94,7 +99,13 @@ class ArtExtractor:
             for art_file in art_files:
                 if os.path.basename(art_file).lower() == 'folder.jpg':
                     folder_art['poster'] = art_file
+                    self.logger.debug("FOLDER ART EXTRACTION: Found poster (legacy) -> folder.jpg")
                     break
+        
+        if folder_art:
+            self.logger.info("FOLDER ART EXTRACTION: Extracted %d art types: %s", len(folder_art), list(folder_art.keys()))
+        else:
+            self.logger.debug("FOLDER ART EXTRACTION: No folder art found")
         
         return folder_art
     

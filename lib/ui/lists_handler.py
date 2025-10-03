@@ -9,6 +9,7 @@ Handles lists display and navigation (refactored)
 import xbmcplugin
 import xbmcgui
 import time
+import os
 
 from typing import Dict, Any, List, Optional
 from lib.ui.plugin_context import PluginContext
@@ -156,6 +157,8 @@ class ListsHandler:
         try:
             # Get the lazy-loaded renderer instance to use its art methods
             renderer = self.listitem_renderer
+            item_name = item_data.get('title', 'Unknown')
+            item_type = 'folder' if 'action=show_folder' in item_data.get('url', '') else 'list' if 'action=show_list' in item_data.get('url', '') else 'unknown'
 
             # Check if item has custom art_data (from imported folders)
             art_data = item_data.get('art_data')
@@ -166,10 +169,15 @@ class ListsHandler:
                     try:
                         art_data = json.loads(art_data)
                     except (json.JSONDecodeError, ValueError):
+                        self.logger.warning("LISTITEM ART: Failed to parse art_data JSON for %s '%s'", item_type, item_name)
                         art_data = None
                 
                 # Apply custom artwork if valid
                 if art_data and isinstance(art_data, dict):
+                    self.logger.info("LISTITEM ART: Applying custom art to %s '%s' with %d types: %s", 
+                                   item_type, item_name, len(art_data), list(art_data.keys()))
+                    for art_type, art_path in art_data.items():
+                        self.logger.debug("  - %s: %s", art_type, os.path.basename(art_path) if art_path and not art_path.startswith('http') else art_path[:50])
                     renderer.art_manager.apply_art(list_item, art_data, fallback_icon='DefaultFolder.png')
                     return
 
@@ -178,16 +186,20 @@ class ListsHandler:
 
             if 'action=show_list' in url:
                 # This is a user list - use list/playlist art with custom resources
+                self.logger.debug("LISTITEM ART: Applying default list art to '%s'", item_name)
                 renderer._apply_art(list_item, 'list')
             elif 'action=show_folder' in url:
                 # This is a folder - use folder art with custom resources
+                self.logger.debug("LISTITEM ART: Applying default folder art to '%s'", item_name)
                 renderer._apply_art(list_item, 'folder')
             else:
                 # Default/other items - use original icon if specified
                 if 'icon' in item_data:
+                    self.logger.debug("LISTITEM ART: Using custom icon for '%s'", item_name)
                     list_item.setArt({'icon': item_data['icon'], 'thumb': item_data['icon']})
                 else:
                     # Use folder art as default for other navigable items
+                    self.logger.debug("LISTITEM ART: Applying default folder art (fallback) to '%s'", item_name)
                     renderer._apply_art(list_item, 'folder')
 
         except Exception as e:
