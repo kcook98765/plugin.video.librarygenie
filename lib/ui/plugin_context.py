@@ -280,13 +280,14 @@ class PluginContext:
                     'context_menu': context_menu
                 })
 
-            # Add Tools & Options for folder
-            menu_items.append({
-                'label': f"{L(30212)} for '{folder_name}'",
-                'url': self.build_url('show_tools', list_type='folder', list_id=folder_id),
-                'is_folder': True,
-                'description': "Manage this folder"
-            })
+            # Add Tools & Options for folder (if enabled by user)
+            if is_visible:
+                menu_items.append({
+                    'label': f"{L(30212)} for '{folder_name}'",
+                    'url': self.build_url('show_tools', list_type='folder', list_id=folder_id),
+                    'is_folder': True,
+                    'description': "Manage this folder"
+                })
 
             # Use menu builder to display with breadcrumb
             from lib.ui.menu_builder import MenuBuilder

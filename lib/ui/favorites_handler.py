@@ -133,20 +133,25 @@ class FavoritesHandler:
                 except Exception as e:
                     context.logger.debug("Could not set directory title: %s", e)
 
-            # Add Tools & Options with unified breadcrumb approach
-            breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
+            # Add Tools & Options with unified breadcrumb approach (if enabled by user)
+            from lib.config.config_manager import get_config
+            config = get_config()
+            show_tools_item = config.get_bool('show_tools_menu_item', True)
+            
+            if show_tools_item:
+                breadcrumb_text, description_text = breadcrumb_helper.get_tools_breadcrumb_formatted("kodi_favorites", {}, None)
 
-            tools_item = xbmcgui.ListItem(label=f"{L(30212)} {breadcrumb_text}", offscreen=True)
-            self._set_listitem_plot(tools_item, description_text + "Tools and options for favorites")
-            tools_item.setProperty('IsPlayable', 'false')
-            tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
+                tools_item = xbmcgui.ListItem(label=f"{L(30212)} {breadcrumb_text}", offscreen=True)
+                self._set_listitem_plot(tools_item, description_text + "Tools and options for favorites")
+                tools_item.setProperty('IsPlayable', 'false')
+                tools_item.setArt({'icon': "DefaultAddonProgram.png", 'thumb': "DefaultAddonProgram.png"})
 
-            xbmcplugin.addDirectoryItem(
-                context.addon_handle,
-                context.build_url('show_list_tools', list_type='favorites'),
-                tools_item,
-                True
-            )
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    context.build_url('show_list_tools', list_type='favorites'),
+                    tools_item,
+                    True
+                )
 
             menu_items = []
 

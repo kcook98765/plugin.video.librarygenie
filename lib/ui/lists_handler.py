@@ -561,9 +561,11 @@ class ListsHandler:
             favorites_enabled = config.get_bool('favorites_integration_enabled', False)
             kodi_favorites_item = None
 
-            # When using cached items, skip the rebuild logic below (cached items already have everything)
+            # When using cached items or processed items from _build_processed_menu_items, 
+            # skip the rebuild logic below (items already have everything)
+            # NOTE: _build_processed_menu_items already adds folders and lists, so we don't add them again
             if not cache_used:
-                # Find existing Kodi Favorites or create if needed
+                # Find existing Kodi Favorites for special handling (create if needed)
                 for item in user_lists:
                     if item.get('name') == 'Kodi Favorites':
                         kodi_favorites_item = item
@@ -590,73 +592,19 @@ class ListsHandler:
                                 break
 
                         self.logger.info("LISTS HANDLER: Refreshed lists, now have %s total lists", len(user_lists))
+                        
+                        # IMPORTANT: Rebuild menu_items since we added a new list
+                        menu_items = self._build_processed_menu_items(context, all_lists, all_folders, query_manager)
+                        self.logger.debug("Rebuilt menu with new Kodi Favorites: %d items", len(menu_items))
                     except Exception as e:
                         self.logger.error("LISTS HANDLER: Error ensuring Kodi Favorites list exists: %s", e)
 
-                # ADD KODI FAVORITES FIRST (before any folders or other lists)
-                if favorites_enabled and kodi_favorites_item:
-                    list_id = kodi_favorites_item.get('id')
-                    name = kodi_favorites_item.get('name', 'Kodi Favorites')
-                    description = kodi_favorites_item.get('description', '')
-
-                    context_menu = build_kodi_favorites_context_menu(context, list_id, name)
-
-                    menu_items.append({
-                        'label': name,
-                        'url': context.build_url('show_list', list_id=list_id),
-                        'is_folder': True,
-                        'description': description,
-                        'icon': "DefaultPlaylist.png",
-                        'context_menu': context_menu
-                    })
-
-                # Use cached or fetched folder data
+                # Log folder data usage (for debugging)
                 self.logger.debug("CACHE: Using folder data (%d folders) %s", len(all_folders), 
                                    "- ZERO DB OVERHEAD" if cache_used else "from database")
-
-                # Add folders as navigable items (excluding Search History which is now at root level)
-                for folder_info in all_folders:
-                    folder_id = folder_info['id']
-                    folder_name = folder_info['name']
-
-                    # Skip the reserved "Search History" folder since it's now shown at root level
-                    if folder_name == 'Search History':
-                        continue
-
-                    # Folder context menu with proper actions
-                    context_menu = build_folder_context_menu(context, folder_id, folder_name)
-
-                    menu_items.append({
-                        'label': folder_name,
-                        'url': context.build_url('show_folder', folder_id=folder_id),
-                        'is_folder': True,
-                        'description': f"Folder",
-                        'context_menu': context_menu
-                    })
-
-                # Separate standalone lists (not in any folder) - EXCLUDE "Kodi Favorites" since it's already added first
-                standalone_lists = [item for item in user_lists if (not item.get('folder_name') or item.get('folder_name') == 'Root') and item.get('name') != 'Kodi Favorites']
-
-                # Add standalone lists (not in any folder) - Kodi Favorites already added above
-                for list_item in standalone_lists:
-                    list_id = list_item.get('id')
-                    name = list_item.get('name', 'Unnamed List')
-                    description = list_item.get('description', '')
-
-                    # Special handling for Kodi Favorites - limited context menu
-                    if name == 'Kodi Favorites':
-                        context_menu = build_kodi_favorites_context_menu(context, list_id, name)
-                    else:
-                        context_menu = build_list_context_menu(context, list_id, name)
-
-                    menu_items.append({
-                        'label': name,
-                        'url': context.build_url('show_list', list_id=list_id),
-                        'is_folder': True,
-                        'description': description,
-                        'icon': "DefaultPlaylist.png",
-                        'context_menu': context_menu
-                    })
+                
+                # NOTE: Folders and lists are already in menu_items from _build_processed_menu_items
+                # We do NOT add them again here (that would create duplicates)
 
             # Breadcrumb context now integrated into Tools & Options labels
 
@@ -728,7 +676,7 @@ class ListsHandler:
             # Check if using modern processed cache format (V4+)
             schema_version = cached_data.get('_schema') if cached_data else None
             
-            if cached_data and schema_version in [4, 6, 7, 8, 9]:
+            if cached_data and schema_version in [4, 6, 7, 8, 9, 10, 11, 12, 13]:
                 # V4 CACHE HIT: Use pre-built processed menu items (ultra-fast)
                 cache_used = True
                 processed_items = cached_data.get('processed_items', [])
@@ -1824,18 +1772,8 @@ class ListsHandler:
             breadcrumb_action = 'lists'
             tools_url = context.build_url('show_list_tools', list_type='lists_main')
 
-        # Add Tools & Options first
-        breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
-        tools_label = breadcrumb_text or 'Lists'
-        tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
-
-        menu_items.append({
-            'label': f"Tools & Options • {tools_label}",
-            'url': tools_url,
-            'is_folder': True,
-            'icon': "DefaultAddonProgram.png",
-            'description': tools_description
-        })
+        # IMPORTANT: Never cache Tools & Options - it's added dynamically by plugin.py
+        # This prevents double Tools items when cache is served via ultra-fast path
 
         # Handle Kodi Favorites integration
         from lib.config.config_manager import get_config
