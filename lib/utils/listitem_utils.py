@@ -728,6 +728,7 @@ class ContextMenuBuilder:
                           is_reserved: bool = False,
                           import_source_id: Optional[int] = None,
                           list_id: Optional[str] = None,
+                          parent_folder_id: Optional[str] = None,
                           custom_actions: Optional[List[Tuple[str, str]]] = None) -> List[Tuple[str, str]]:
         """
         Build a context menu for an item based on type and source.
@@ -740,6 +741,7 @@ class ContextMenuBuilder:
             is_reserved: Whether the item is a reserved folder (like "Search History")
             import_source_id: Import source ID for file-sourced items
             list_id: List ID (for media items)
+            parent_folder_id: Parent folder ID (for folders and lists, used for Add operations)
             custom_actions: List of (label, action_url) tuples to add
             
         Returns:
@@ -767,7 +769,7 @@ class ContextMenuBuilder:
                         ])
                 
                 # More... option (always available, includes Move and Export options)
-                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=list&item_id={item_id}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
+                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=list&item_id={item_id}&parent_folder_id={parent_folder_id or ''}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
                 
             elif item_type == 'folder':
                 if is_files_source:
@@ -786,23 +788,23 @@ class ContextMenuBuilder:
                         ])
                 
                 # More... option (always available, includes Move and Export options)
-                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=folder&item_id={item_id}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
+                context_items.append((L(31028) or "More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=folder&item_id={item_id}&parent_folder_id={parent_folder_id or ''}&is_files_source={int(is_files_source)}&is_reserved={int(is_reserved)})"))
                 
             elif item_type == 'media_item':
                 if is_files_source:
-                    # Media items in file-sourced lists: Refresh Import, Delete Files Import, More...
+                    # Media items in file-sourced lists: Refresh Import, Delete Files Import
                     context_items.extend([
                         (L(31027) or "Refresh Import", f"RunPlugin(plugin://{self.addon_id}/?action=refresh_files_import&import_source_id={import_source_id}&item_type=media_item&item_id={item_id})"),
                         (L(31026) or "Delete Files Import", f"RunPlugin(plugin://{self.addon_id}/?action=delete_files_import&import_source_id={import_source_id})"),
                     ])
                 else:
-                    # User-managed media items: Remove from List, Add to list, More...
+                    # User-managed media items: context-dependent actions
                     if list_id:
-                        context_items.append(("Remove from List", f"RunPlugin(plugin://{self.addon_id}/?action=remove_from_list&list_id={list_id}&item_id={item_id})"))
-                    context_items.append(("Add to List", f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&media_item_id={item_id})"))
-                
-                # More... option (always available)
-                context_items.append(("More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=media_item&item_id={item_id}&list_id={list_id or ''}&is_files_source={int(is_files_source)})"))
+                        # Inside a list: show Remove from List
+                        context_items.append((L(31010) or "Remove from List", f"RunPlugin(plugin://{self.addon_id}/?action=remove_from_list&list_id={list_id}&item_id={item_id})"))
+                    else:
+                        # Outside a list: show Add to List
+                        context_items.append(("Add to List", f"RunPlugin(plugin://{self.addon_id}/?action=add_to_list&media_item_id={item_id})"))
                 
             elif item_type == 'external':
                 # External items: Remove, Add to List, More...
