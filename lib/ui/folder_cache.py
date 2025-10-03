@@ -61,6 +61,15 @@ class FolderCache:
         self.logger.debug("FolderCache initialized - dir: %s, schema: v%d, cache_enabled: %s", 
                           cache_dir, schema_version, self.cache_enabled)
     
+    def _get_tools_toggle_entry(self, base_url: str):
+        """Get the Tools & Options visibility toggle context menu entry for cache building"""
+        from lib.config.config_manager import get_config
+        config = get_config()
+        is_visible = config.get_bool('show_tools_menu_item', True)
+        
+        label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
+        return (label, f"RunPlugin({base_url}?action=toggle_tools_menu_item)")
+    
     def _load_configuration(self):
         """Load cache configuration from settings"""
         try:
@@ -763,7 +772,8 @@ class FolderCache:
             tools_context_url = f"{base_url}?action=show_list_tools&list_type=user_list&list_id={list_id}"
 
             context_menu = [
-                (f"Tools & Options for '{name}'", f"RunPlugin({tools_context_url})")
+                (f"Tools & Options for '{name}'", f"RunPlugin({tools_context_url})"),
+                self._get_tools_toggle_entry(base_url)
             ]
 
             menu_items.append({
@@ -788,7 +798,8 @@ class FolderCache:
             context_menu = [
                 (f"Rename '{folder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={folder_id})"),
                 (f"Move '{folder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={folder_id})"),
-                (f"Delete '{folder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={folder_id})")
+                (f"Delete '{folder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={folder_id})"),
+                self._get_tools_toggle_entry(base_url)
             ]
 
             menu_items.append({
@@ -812,7 +823,8 @@ class FolderCache:
                 (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
                 (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
                 (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
-                (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
+                (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})"),
+                self._get_tools_toggle_entry(base_url)
             ]
 
             menu_items.append({
@@ -847,7 +859,8 @@ class FolderCache:
                 context_menu = [
                     (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
                     (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
-                    (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})")
+                    (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})"),
+                    self._get_tools_toggle_entry(base_url)
                 ]
                 
                 menu_items.append({
@@ -871,7 +884,8 @@ class FolderCache:
                     (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
                     (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
                     (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
-                    (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
+                    (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})"),
+                    self._get_tools_toggle_entry(base_url)
                 ]
                 
                 menu_items.append({
