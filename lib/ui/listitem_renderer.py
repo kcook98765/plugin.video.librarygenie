@@ -296,13 +296,15 @@ class ListItemRenderer:
     def _set_list_context_menu(self, list_item: xbmcgui.ListItem, list_data: Dict[str, Any]):
         """Set context menu for list items - CONSOLIDATED"""
         list_id = list_data.get('id', '')
+        parent_folder_id = list_data.get('folder_id', '')
         # Check if list is import-sourced (from file import)
         is_files_source = list_data.get('is_import_sourced', 0) == 1
         import_source_id = list_data.get('import_source_id')
         context_items = self.context_menu_builder.build_context_menu(
             list_id, 'list', 
             is_files_source=is_files_source,
-            import_source_id=import_source_id
+            import_source_id=import_source_id,
+            parent_folder_id=str(parent_folder_id) if parent_folder_id else None
         )
         list_item.addContextMenuItems(context_items)
 
@@ -310,6 +312,7 @@ class ListItemRenderer:
         """Set context menu for folder items - CONSOLIDATED"""
         folder_id = folder_data.get('id', '')
         folder_name = folder_data.get('name', '')
+        parent_folder_id = folder_data.get('parent_id', '')
         # Check if folder is import-sourced (from file import) or is a reserved folder like "Search History"
         is_import_locked = folder_data.get('is_import_sourced', 0) == 1
         is_reserved = folder_name == "Search History"
@@ -340,7 +343,8 @@ class ListItemRenderer:
             folder_id, 'folder', folder_name, 
             is_files_source=is_files_source,
             is_reserved=is_reserved,
-            import_source_id=import_source_id_to_pass
+            import_source_id=import_source_id_to_pass,
+            parent_folder_id=str(parent_folder_id) if parent_folder_id else None
         )
         list_item.addContextMenuItems(context_items)
 

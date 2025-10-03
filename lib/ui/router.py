@@ -289,6 +289,7 @@ class Router:
             # Get parameters
             item_type = context.get_param('item_type', 'folder')
             item_id = context.get_param('item_id')
+            parent_folder_id = context.get_param('parent_folder_id', '')
             is_files_source = int(context.get_param('is_files_source', '0'))
             is_reserved = int(context.get_param('is_reserved', '0'))
             
@@ -315,8 +316,9 @@ class Router:
             options.append("Settings")
             actions.append('settings')
             
-            # Only add "Add Folder" and "Add List" if not file-sourced
-            if is_files_source == 0:
+            # Only add "Add Folder" and "Add List" for folders (not lists, not file-sourced, not reserved)
+            # These operations need parent_folder_id context
+            if item_type == 'folder' and is_files_source == 0 and is_reserved == 0:
                 options.append("Add Folder")
                 actions.append('add_folder')
                 options.append("Add List")
@@ -357,7 +359,7 @@ class Router:
                 import xbmc
                 xbmc.executebuiltin('Addon.OpenSettings(plugin.video.librarygenie)')
             elif selected_action == 'add_folder':
-                # Call tools_handler._create_subfolder
+                # Add subfolder using the current folder as parent (item_id is the folder to add to)
                 from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context
@@ -369,7 +371,7 @@ class Router:
                 response_handler = get_response_handler()
                 response_handler.handle_dialog_response(result, context)
             elif selected_action == 'add_list':
-                # Call tools_handler._create_list_in_folder
+                # Add list to the current folder (item_id is the folder to add to)
                 from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
                 factory.context = context
