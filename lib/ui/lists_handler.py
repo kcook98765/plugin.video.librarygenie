@@ -720,7 +720,11 @@ class ListsHandler:
                     processed_items.insert(0, tools_item)
                 
                 # Add "Back to Main Menu" item if this is the startup folder (V4 cache path)
-                if context.get_param('is_startup_folder') == 'true':
+                # Check ConfigManager directly to support all navigation paths (history/bookmarks/etc)
+                from lib.config.config_manager import get_config
+                config = get_config()
+                startup_folder_id = config.get('startup_folder_id', None)
+                if startup_folder_id and str(folder_id) == str(startup_folder_id):
                     self.logger.debug("V4 CACHE: Adding 'Back to Main Menu' item for startup folder")
                     back_to_main_item = {
                         'label': "◄ All Lists",
@@ -988,7 +992,11 @@ class ListsHandler:
                     menu_items.insert(0, tools_menu_item)
 
             # Add "Back to Main Menu" item if this is the startup folder
-            if context.get_param('is_startup_folder') == 'true':
+            # Check ConfigManager directly to support all navigation paths (history/bookmarks/etc)
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get('startup_folder_id', None)
+            if startup_folder_id and str(folder_id) == str(startup_folder_id):
                 self.logger.debug("Adding 'Back to Main Menu' item for startup folder")
                 back_to_main_item = {
                     'label': "◄ All Lists",

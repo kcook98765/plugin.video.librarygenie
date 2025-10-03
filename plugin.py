@@ -150,6 +150,16 @@ def _can_serve_from_cache_only(action, params=None):
     """Check if request can be served entirely from cache"""
     # Root actions can use V4 cache with processed items
     if action in ['', 'main_menu', 'show_lists_menu']:
+        # Check if startup folder is configured - if so, skip cache and use full routing
+        try:
+            addon = xbmcaddon.Addon()
+            startup_folder_id = addon.getSettingString('startup_folder_id')
+            if startup_folder_id:
+                # Startup folder configured - must use full routing to redirect
+                return False
+        except Exception:
+            pass  # If check fails, continue with normal cache logic
+        
         cache_file = _get_cache_file_direct(None)  # Root folder
         return cache_file and _is_cache_fresh_direct(cache_file)
     
@@ -159,6 +169,17 @@ def _can_serve_from_cache_only(action, params=None):
         # Prevent root bypass - always use full pipeline for root folder
         if folder_id in [None, '', 'root']:
             return False
+        
+        # Check if this is the startup folder - if so, use full routing to add "Back to Main Menu"
+        try:
+            addon = xbmcaddon.Addon()
+            startup_folder_id = addon.getSettingString('startup_folder_id')
+            if startup_folder_id and str(folder_id) == str(startup_folder_id):
+                # This is the startup folder - must use full routing to add "Back to Main Menu"
+                return False
+        except Exception:
+            pass  # If check fails, continue with normal cache logic
+        
         if folder_id:
             cache_file = _get_cache_file_direct(folder_id)
             return cache_file and _is_cache_fresh_direct(cache_file)

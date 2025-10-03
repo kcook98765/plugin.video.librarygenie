@@ -945,8 +945,19 @@ class FolderCache:
             # Always include root folder (use None for root level)
             common_folders.append(None)
             
+            # Add startup folder if configured (high priority)
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get('startup_folder_id', None)
+            if startup_folder_id:
+                # Add to beginning after root for high priority
+                common_folders.append(str(startup_folder_id))
+                self.logger.debug("Pre-warm: included startup folder %s", startup_folder_id)
+            
             # Get root-level subfolders (most commonly accessed)
             try:
+                # Adjust limit to account for root and startup folder
+                folders_remaining = max_folders - len(common_folders)
                 with query_manager.connection_manager.transaction() as conn:
                     root_subfolders = conn.execute("""
                         SELECT id, name
@@ -954,14 +965,17 @@ class FolderCache:
                         WHERE parent_id IS NULL OR parent_id = ''
                         ORDER BY name
                         LIMIT ?
-                    """, [max_folders - 1]).fetchall()  # -1 for root folder
+                    """, [folders_remaining]).fetchall()
                     
                     for subfolder in root_subfolders:
-                        common_folders.append(str(subfolder['id']))
+                        folder_id = str(subfolder['id'])
+                        # Skip startup folder if already added
+                        if folder_id != startup_folder_id:
+                            common_folders.append(folder_id)
                         
             except Exception as e:
                 self.logger.warning("Pre-warm: failed to get root subfolders: %s", e)
-                # Continue with just root folder
+                # Continue with root and startup folders
             
             # Pre-warm folders
             results = {
