@@ -822,6 +822,18 @@ class ContextMenuBuilder:
                     ("More...", f"RunPlugin(plugin://{self.addon_id}/?action=show_context_more_menu&item_type=bookmark&item_id={item_id})"),
                 ])
             
+            # Add universal "Hide/Show Tools & Options" toggle entry
+            from lib.config.config_manager import get_config
+            config = get_config()
+            show_tools_item = config.get_bool('show_tools_menu_item', True)
+            
+            if show_tools_item:
+                toggle_label = "Hide Tools & Options Menu Item"
+            else:
+                toggle_label = "Show Tools & Options Menu Item"
+            
+            context_items.append((toggle_label, f"RunPlugin(plugin://{self.addon_id}/?action=toggle_tools_menu_item)"))
+            
             # Add custom actions
             if custom_actions:
                 context_items.extend(custom_actions)
