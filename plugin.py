@@ -154,10 +154,15 @@ def _can_serve_from_cache_only(action, params=None):
         try:
             addon = xbmcaddon.Addon()
             startup_folder_id = addon.getSettingString('startup_folder_id')
-            if startup_folder_id:
+            log(f"Startup folder check: startup_folder_id='{startup_folder_id}', type={type(startup_folder_id)}")
+            if startup_folder_id and startup_folder_id.strip():  # Check for non-empty string
                 # Startup folder configured - must use full routing to redirect
+                log(f"Startup folder configured ({startup_folder_id}) - skipping cache to enable redirect")
                 return False
-        except Exception:
+            else:
+                log("No startup folder configured - cache serving allowed")
+        except Exception as e:
+            log_error(f"Error checking startup folder setting: {e}")
             pass  # If check fails, continue with normal cache logic
         
         cache_file = _get_cache_file_direct(None)  # Root folder

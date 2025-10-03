@@ -304,6 +304,20 @@ class ListsHandler:
             show_lists_start = time.time()
             self.logger.debug("Displaying lists menu")
 
+            # Check for startup folder redirect (before cache or any other operations)
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get('startup_folder_id', None)
+            
+            if startup_folder_id and startup_folder_id.strip():
+                self.logger.info("Startup folder configured (%s) - redirecting to folder", startup_folder_id)
+                # Navigate to the startup folder with special flag
+                from lib.ui.nav import push
+                url = context.build_url('show_folder', folder_id=startup_folder_id, is_startup_folder='true')
+                push(url)
+                # Return empty response since navigation is handled
+                return DirectoryResponse(items=[], success=True)
+
             # CACHE-FIRST: Check cache before ANY database operations (zero-DB overhead on HIT)
             folder_cache = get_folder_cache()
             folder_id = None  # Root folder
