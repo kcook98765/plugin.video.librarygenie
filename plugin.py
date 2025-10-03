@@ -266,7 +266,7 @@ def _render_cached_items_direct(cached_data, addon_handle):
                 tools_url = f"{base_url}?action=show_list_tools&list_type=folder&folder_id={folder_id}"
                 icon = "DefaultAddonProgram.png"
                 # For folders, breadcrumb_text is like "for 'FolderName'" - prepend the prefix
-                tools_label = f"⚙️ Tools & Options {breadcrumb_text}" if breadcrumb_text else "⚙️ Tools & Options"
+                tools_label = f"Tools & Options {breadcrumb_text}" if breadcrumb_text else "Tools & Options"
             else:
                 # Root view - use breadcrumb as-is (already includes "Tools & Options")
                 tools_url = f"{base_url}?action=show_list_tools&list_type=lists_main"
