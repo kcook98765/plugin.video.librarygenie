@@ -729,27 +729,15 @@ class FolderCache:
             return False
     
     def _build_root_processed_items(self, all_lists, all_folders):
-        """Build processed menu items for root folder with business logic applied"""
-        menu_items = []
+        """Build processed menu items for root folder with business logic applied
         
-        # Add Tools & Options first using centralized builder with visibility check
+        NOTE: Tools & Options is NOT cached - it's added dynamically by lists_handler 
+        based on user visibility setting which can change without cache invalidation.
+        """
+        menu_items = []
         base_url = "plugin://plugin.video.librarygenie/"
         
-        try:
-            from lib.ui.breadcrumb_helper import get_breadcrumb_helper
-            breadcrumb_helper = get_breadcrumb_helper()
-            
-            tools_item = breadcrumb_helper.build_tools_menu_item(
-                base_url=base_url,
-                list_type='lists_main',
-                breadcrumb_text='• Lists',
-                description_text='Lists • '
-            )
-            
-            if tools_item:
-                menu_items.append(tools_item)
-        except Exception as e:
-            self.logger.error("Error building Tools & Options for root: %s", e)
+        # Tools & Options is added dynamically by lists_handler, not cached
 
         # Handle Kodi Favorites integration
         try:
@@ -838,82 +826,61 @@ class FolderCache:
         return menu_items
     
     def _build_subfolder_processed_items(self, folder_info, subfolders, lists_in_folder):
-        """Build processed menu items for subfolder with business logic applied"""
+        """Build processed menu items for subfolder with business logic applied
+        
+        NOTE: Tools & Options is NOT cached - it's added dynamically by lists_handler 
+        based on user visibility setting which can change without cache invalidation.
+        """
         menu_items = []
         base_url = "plugin://plugin.video.librarygenie/"
         
-        try:
-            # Add Tools & Options first using centralized builder with visibility check
-            if folder_info and folder_info.get('id'):
-                folder_id = folder_info.get('id')
-                folder_name = folder_info.get('name', 'Unknown Folder')
-                
-                from lib.ui.breadcrumb_helper import get_breadcrumb_helper
-                breadcrumb_helper = get_breadcrumb_helper()
-                
-                tools_item = breadcrumb_helper.build_tools_menu_item(
-                    base_url=base_url,
-                    list_type='folder',
-                    breadcrumb_text=f"for '{folder_name}'",
-                    description_text="Tools and options for this folder",
-                    folder_id=folder_id,
-                    icon_prefix="⚙️ "
-                )
-                
-                if tools_item:
-                    tools_item['context_menu'] = []  # Add empty context menu as before
-                    menu_items.append(tools_item)
-            
-            # Add subfolders in this folder
-            if subfolders:
-                for subfolder in subfolders:
-                    subfolder_id = subfolder.get('id')
-                    subfolder_name = subfolder.get('name', 'Unnamed Folder')
-                    
-                    subfolder_url = f"{base_url}?action=show_folder&folder_id={subfolder_id}"
-                    context_menu = [
-                        (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
-                        (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
-                        (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})")
-                    ]
-                    
-                    menu_items.append({
-                        'label': f"📁 {subfolder_name}",
-                        'url': subfolder_url,
-                        'is_folder': True,
-                        'description': "Subfolder",
-                        'context_menu': context_menu,
-                        'icon': "DefaultFolder.png"
-                    })
-            
-            # Add lists in this folder
-            if lists_in_folder:
-                for list_item in lists_in_folder:
-                    list_id = list_item.get('id')
-                    name = list_item.get('name', 'Unnamed List')
-                    description = list_item.get('description', '')
-                    
-                    list_url = f"{base_url}?action=show_list&list_id={list_id}"
-                    context_menu = [
-                        (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
-                        (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
-                        (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
-                        (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
-                    ]
-                    
-                    menu_items.append({
-                        'label': name,
-                        'url': list_url,
-                        'is_folder': True,
-                        'description': description,
-                        'icon': "DefaultPlaylist.png",
-                        'context_menu': context_menu
-                    })
+        # Tools & Options is added dynamically by show_folder handler, not cached
         
-        except Exception as e:
-            # Log error but return empty list to prevent cache failure
-            self.logger.error("Error building subfolder processed items: %s", e)
-            return []
+        # Add subfolders in this folder
+        if subfolders:
+            for subfolder in subfolders:
+                subfolder_id = subfolder.get('id')
+                subfolder_name = subfolder.get('name', 'Unnamed Folder')
+                
+                subfolder_url = f"{base_url}?action=show_folder&folder_id={subfolder_id}"
+                context_menu = [
+                    (f"Rename '{subfolder_name}'", f"RunPlugin({base_url}?action=rename_folder&folder_id={subfolder_id})"),
+                    (f"Move '{subfolder_name}'", f"RunPlugin({base_url}?action=move_folder&folder_id={subfolder_id})"),
+                    (f"Delete '{subfolder_name}'", f"RunPlugin({base_url}?action=delete_folder&folder_id={subfolder_id})")
+                ]
+                
+                menu_items.append({
+                    'label': f"📁 {subfolder_name}",
+                    'url': subfolder_url,
+                    'is_folder': True,
+                    'description': "Subfolder",
+                    'context_menu': context_menu,
+                    'icon': "DefaultFolder.png"
+                })
+        
+        # Add lists in this folder
+        if lists_in_folder:
+            for list_item in lists_in_folder:
+                list_id = list_item.get('id')
+                name = list_item.get('name', 'Unnamed List')
+                description = list_item.get('description', '')
+                
+                list_url = f"{base_url}?action=show_list&list_id={list_id}"
+                context_menu = [
+                    (f"Rename '{name}'", f"RunPlugin({base_url}?action=rename_list&list_id={list_id})"),
+                    (f"Move '{name}' to Folder", f"RunPlugin({base_url}?action=move_list_to_folder&list_id={list_id})"),
+                    (f"Export '{name}'", f"RunPlugin({base_url}?action=export_list&list_id={list_id})"),
+                    (f"Delete '{name}'", f"RunPlugin({base_url}?action=delete_list&list_id={list_id})")
+                ]
+                
+                menu_items.append({
+                    'label': name,
+                    'url': list_url,
+                    'is_folder': True,
+                    'description': description,
+                    'icon': "DefaultPlaylist.png",
+                    'context_menu': context_menu
+                })
         
         return menu_items
     
