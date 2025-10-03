@@ -719,6 +719,19 @@ class ListsHandler:
                     # Insert at beginning of processed items before rendering
                     processed_items.insert(0, tools_item)
                 
+                # Add "Back to Main Menu" item if this is the startup folder (V4 cache path)
+                if context.get_param('is_startup_folder') == 'true':
+                    self.logger.debug("V4 CACHE: Adding 'Back to Main Menu' item for startup folder")
+                    back_to_main_item = {
+                        'label': "◄ All Lists",
+                        'url': context.build_url('show_main_menu_force'),
+                        'is_folder': True,
+                        'description': "View all lists and folders",
+                        'icon': "DefaultFolderBack.png",
+                        'context_menu': []
+                    }
+                    processed_items.append(back_to_main_item)
+                
                 # Convert processed items directly to ListItems for ultra-fast rendering
                 gui_build_start = time.time()
                 
@@ -973,6 +986,19 @@ class ListsHandler:
                     tools_menu_item['context_menu'] = []  # No context menu for tools item itself
                     # Insert at the beginning of the menu for visibility
                     menu_items.insert(0, tools_menu_item)
+
+            # Add "Back to Main Menu" item if this is the startup folder
+            if context.get_param('is_startup_folder') == 'true':
+                self.logger.debug("Adding 'Back to Main Menu' item for startup folder")
+                back_to_main_item = {
+                    'label': "◄ All Lists",
+                    'url': context.build_url('show_main_menu_force'),
+                    'is_folder': True,
+                    'description': "View all lists and folders",
+                    'icon': "DefaultFolderBack.png",
+                    'context_menu': []
+                }
+                menu_items.append(back_to_main_item)
 
             # If folder is empty, show message using lightweight method to avoid loading full renderer
             if not lists_in_folder and not subfolders: # Also check for subfolders being empty
