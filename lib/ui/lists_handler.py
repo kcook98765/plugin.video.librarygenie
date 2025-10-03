@@ -24,6 +24,12 @@ from lib.ui.dialog_service import get_dialog_service
 from lib.ui.list_operations import ListOperations
 from lib.ui.folder_operations import FolderOperations
 from lib.ui.folder_cache import get_folder_cache
+from lib.ui.menu_helpers import (
+    build_folder_context_menu,
+    build_list_context_menu,
+    build_kodi_favorites_context_menu,
+    build_search_history_list_context_menu
+)
 
 
 class ListsHandler:
@@ -51,17 +57,6 @@ class ListsHandler:
             from lib.ui.import_export_handler import ImportExportHandler
             self._import_export = ImportExportHandler(self.context)
         return self._import_export
-    
-    def _get_tools_visibility_toggle_entry(self):
-        """Get the Tools & Options visibility toggle context menu entry"""
-        from lib.config.config_manager import get_config
-        config = get_config()
-        is_visible = config.get_bool('show_tools_menu_item', True)
-        
-        label = "Hide Tools & Options Menu Item" if is_visible else "Show Tools & Options Menu Item"
-        url = self.context.build_url('toggle_tools_menu_item')
-        
-        return (label, f"RunPlugin({url})")
     
     def quick_add_to_default_list(self, context: PluginContext) -> DialogResponse:
         """Quick add item to default list"""
@@ -571,10 +566,7 @@ class ListsHandler:
                     name = kodi_favorites_item.get('name', 'Kodi Favorites')
                     description = kodi_favorites_item.get('description', '')
 
-                    context_menu = [
-                        (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
-                        self._get_tools_visibility_toggle_entry()
-                    ]
+                    context_menu = build_kodi_favorites_context_menu(context, list_id, name)
 
                     menu_items.append({
                         'label': name,
@@ -598,13 +590,8 @@ class ListsHandler:
                     if folder_name == 'Search History':
                         continue
 
-                    # Folder context menu with proper actions (no Tools & Options)
-                    context_menu = [
-                        (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
-                        (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
-                        (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})"),
-                        self._get_tools_visibility_toggle_entry()
-                    ]
+                    # Folder context menu with proper actions
+                    context_menu = build_folder_context_menu(context, folder_id, folder_name)
 
                     menu_items.append({
                         'label': folder_name,
@@ -625,18 +612,9 @@ class ListsHandler:
 
                     # Special handling for Kodi Favorites - limited context menu
                     if name == 'Kodi Favorites':
-                        context_menu = [
-                            (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
-                            self._get_tools_visibility_toggle_entry()
-                        ]
+                        context_menu = build_kodi_favorites_context_menu(context, list_id, name)
                     else:
-                        context_menu = [
-                            (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                            (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
-                            (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
-                            (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})"),
-                            self._get_tools_visibility_toggle_entry()
-                        ]
+                        context_menu = build_list_context_menu(context, list_id, name)
 
                     menu_items.append({
                         'label': name,
@@ -926,12 +904,7 @@ class ListsHandler:
                 subfolder_name = subfolder.get('name', 'Unnamed Folder')
 
                 # Subfolder context menu with proper actions
-                context_menu = [
-                    (f"Rename '{subfolder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=subfolder_id)})"),
-                    (f"Move '{subfolder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=subfolder_id)})"),
-                    (f"Delete '{subfolder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=subfolder_id)})"),
-                    self._get_tools_visibility_toggle_entry()
-                ]
+                context_menu = build_folder_context_menu(context, subfolder_id, subfolder_name)
 
                 subfolder_item = {
                     'label': f"📁 {subfolder_name}",
@@ -956,13 +929,7 @@ class ListsHandler:
                 name = list_item.get('name', 'Unnamed List')
                 description = list_item.get('description', '')
 
-                context_menu = [
-                    (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                    (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
-                    (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
-                    (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})"),
-                    self._get_tools_visibility_toggle_entry()
-                ]
+                context_menu = build_list_context_menu(context, list_id, name)
 
                 menu_items.append({
                     'label': name,
@@ -1332,10 +1299,7 @@ class ListsHandler:
                 name = list_item.get('name', 'Unnamed Search')
                 description = list_item.get('description', '')
 
-                context_menu = [
-                    (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})"),
-                    self._get_tools_visibility_toggle_entry()
-                ]
+                context_menu = build_search_history_list_context_menu(context, list_id, name)
 
                 menu_items.append({
                     'label': name,
@@ -1819,10 +1783,7 @@ class ListsHandler:
             name = kodi_favorites_item.get('name', 'Kodi Favorites')
             description = kodi_favorites_item.get('description', '')
 
-            context_menu = [
-                (f"Tools & Options for '{name}'", f"RunPlugin({context.build_url('show_list_tools', list_type='user_list', list_id=list_id)})"),
-                self._get_tools_visibility_toggle_entry()
-            ]
+            context_menu = build_kodi_favorites_context_menu(context, list_id, name)
 
             menu_items.append({
                 'label': name,
@@ -1842,12 +1803,7 @@ class ListsHandler:
             if folder_name == 'Search History':
                 continue
 
-            context_menu = [
-                (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
-                (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
-                (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})"),
-                self._get_tools_visibility_toggle_entry()
-            ]
+            context_menu = build_folder_context_menu(context, folder_id, folder_name)
 
             folder_item = {
                 'label': folder_name,
@@ -1874,13 +1830,7 @@ class ListsHandler:
             name = list_item.get('name', 'Unnamed List')
             description = list_item.get('description', '')
 
-            context_menu = [
-                (f"Rename '{name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
-                (f"Move '{name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
-                (f"Export '{name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
-                (f"Delete '{name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})"),
-                self._get_tools_visibility_toggle_entry()
-            ]
+            context_menu = build_list_context_menu(context, list_id, name)
 
             list_cache_item = {
                 'label': name,
