@@ -216,6 +216,13 @@ def _serve_from_cache_ultra_fast(action, params=None):
         if not cached_data:
             log("Failed to load cache data")
             return False
+        
+        # CRITICAL: Check schema version - reject old cache files
+        from lib.ui.folder_cache import CACHE_SCHEMA_VERSION
+        cached_schema = cached_data.get('_schema')
+        if cached_schema != CACHE_SCHEMA_VERSION:
+            log(f"Cache schema mismatch: cached={cached_schema}, current={CACHE_SCHEMA_VERSION} - rejecting cache")
+            return False
             
         log(f"Serving from cache: {cache_file}")
         
