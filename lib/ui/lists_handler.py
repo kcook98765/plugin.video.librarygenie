@@ -728,7 +728,7 @@ class ListsHandler:
             # Check if using modern processed cache format (V4+)
             schema_version = cached_data.get('_schema') if cached_data else None
             
-            if cached_data and schema_version in [4, 6, 7, 8, 9]:
+            if cached_data and schema_version in [4, 6, 7, 8, 9, 10, 11, 12, 13]:
                 # V4 CACHE HIT: Use pre-built processed menu items (ultra-fast)
                 cache_used = True
                 processed_items = cached_data.get('processed_items', [])
@@ -1824,18 +1824,8 @@ class ListsHandler:
             breadcrumb_action = 'lists'
             tools_url = context.build_url('show_list_tools', list_type='lists_main')
 
-        # Add Tools & Options first
-        breadcrumb_text, description_prefix = self.breadcrumb_helper.get_tools_breadcrumb_formatted(breadcrumb_action, breadcrumb_params, query_manager)
-        tools_label = breadcrumb_text or 'Lists'
-        tools_description = f"{description_prefix or ''}Search, Favorites, Import/Export & Settings"
-
-        menu_items.append({
-            'label': f"Tools & Options • {tools_label}",
-            'url': tools_url,
-            'is_folder': True,
-            'icon': "DefaultAddonProgram.png",
-            'description': tools_description
-        })
+        # IMPORTANT: Never cache Tools & Options - it's added dynamically by plugin.py
+        # This prevents double Tools items when cache is served via ultra-fast path
 
         # Handle Kodi Favorites integration
         from lib.config.config_manager import get_config

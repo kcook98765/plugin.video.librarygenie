@@ -19,7 +19,7 @@ from lib.utils.kodi_log import get_kodi_logger
 
 # Cache schema version - single source of truth
 # v7: Removed Tools & Options from cached items (added dynamically to respect visibility setting)
-CACHE_SCHEMA_VERSION = 12  # v12: Fixed subfolder caching to use v4 format with processed_items (was using old raw data format)
+CACHE_SCHEMA_VERSION = 13  # v13: Tools & Options never cached - added dynamically to prevent duplicates when serving via ultra-fast path
 
 
 class FolderCache:
