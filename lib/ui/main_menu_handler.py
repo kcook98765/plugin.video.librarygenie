@@ -27,6 +27,31 @@ class MainMenuHandler:
             kodi_major = get_kodi_major_version()
             context.logger.info("MAIN MENU: Starting main menu display on Kodi v%s", kodi_major)
 
+            # Check if a startup folder is configured
+            from lib.config.config_manager import get_config
+            config = get_config()
+            startup_folder_id = config.get("startup_folder_id", "").strip()
+            
+            if startup_folder_id:
+                context.logger.info("MAIN MENU: Startup folder configured (id: %s), checking if valid", startup_folder_id)
+                
+                # Verify the folder still exists
+                try:
+                    folder_info = context.query_manager.get_folder_by_id(startup_folder_id)
+                    if folder_info:
+                        context.logger.info("MAIN MENU: Redirecting to startup folder: %s", folder_info.get('name'))
+                        # Set flag in params so show_folder knows to add "Back to Main Menu" item
+                        context.params['is_startup_folder'] = 'true'
+                        # Route to show_folder
+                        from lib.ui.lists_handler import ListsHandler
+                        lists_handler = ListsHandler(context)
+                        response = lists_handler.show_folder(context, startup_folder_id)
+                        return response.success
+                    else:
+                        context.logger.warning("MAIN MENU: Startup folder id=%s not found, showing normal menu", startup_folder_id)
+                except Exception as e:
+                    context.logger.error("MAIN MENU: Error checking startup folder: %s, showing normal menu", e)
+
             # Build main menu items
             menu_builder = MenuBuilder()
             
