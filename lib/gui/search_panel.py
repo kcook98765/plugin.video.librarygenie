@@ -429,6 +429,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
                     'target': plugin_url,
                     'list_id': list_id
                 }
+                # V22 PIERS DEBUG: Confirm result is set before closing
+                xbmc.log('[LG-SearchPanel] Set _result to navigate_away for list {}, closing dialog now'.format(list_id), xbmc.LOGDEBUG)
                 self._cleanup_properties()
                 self.close()
             
@@ -444,6 +446,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         try:
             w._state['query'] = initial_query or w._state.get('query', '')
             w.doModal()
+            # V22 PIERS DEBUG: Log what we're returning
+            xbmc.log('[LG-SearchPanel] prompt() returning result: {}'.format(w._result), xbmc.LOGDEBUG)
             return w._result
         finally:
             del w
