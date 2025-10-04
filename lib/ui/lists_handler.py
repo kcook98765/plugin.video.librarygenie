@@ -1145,6 +1145,25 @@ class ListsHandler:
                     tools_menu_dict['is_folder']
                 )
 
+            # Add "Save as a list" item for Search History lists
+            # Use folder_id comparison instead of name to avoid localization issues
+            search_folder_id = query_manager.get_or_create_search_history_folder()
+            is_search_history = (search_folder_id and 
+                                str(list_info.get('folder_id')) == str(search_folder_id))
+            if is_search_history:
+                save_as_list_item = xbmcgui.ListItem(label=L(30371), offscreen=True)
+                self._set_listitem_plot(save_as_list_item, 'Convert this search history to a regular list')
+                save_as_list_item.setProperty('IsPlayable', 'false')
+                save_as_list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
+
+                save_url = context.build_url('save_search_history_as_list', list_id=list_id)
+                xbmcplugin.addDirectoryItem(
+                    context.addon_handle,
+                    save_url,
+                    save_as_list_item,
+                    False
+                )
+
             # Handle empty lists using lightweight method to avoid loading full renderer
             if not list_items:
                 context.logger.debug("List is empty")
