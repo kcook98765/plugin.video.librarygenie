@@ -1513,6 +1513,16 @@ class ToolsHandler:
                     xbmcgui.NOTIFICATION_INFO,
                     3000
                 )
+                
+                # Ensure search_handler has addon_handle
+                search_handler._ensure_handle_from_context(context)
+                
+                # Add "no matches found" item to directory
+                search_handler._add_no_matches_item(search_params['q'], media_types[0] if len(media_types) == 1 else "movie")
+                
+                # End directory properly
+                search_handler._end_directory(succeeded=True, update=False)
+                
                 return DialogResponse(
                     success=True,
                     message="No results found",
