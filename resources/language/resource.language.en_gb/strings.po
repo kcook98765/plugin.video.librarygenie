@@ -1999,6 +1999,14 @@ msgctxt "#30621"
 msgid "Display the Tools & Options item in the main lists view for quick access to search, favorites, import/export and settings"
 msgstr ""
 
+msgctxt "#30622"
+msgid "Startup Folder"
+msgstr ""
+
+msgctxt "#30623"
+msgid "Set via context menu on folders. Leave empty to show main menu on startup."
+msgstr ""
+
 # Library Management Actions  
 msgctxt "#30700"
 msgid "Browse Library"

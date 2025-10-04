@@ -592,14 +592,14 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="startup_folder_id" type="string" label="Startup Folder (Advanced)" help="Set via context menu on folders. Leave empty to show main menu on startup.">
+        <setting id="startup_folder_id" type="string" label="30622" help="30623">
           <level>2</level>
           <default></default>
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string">
-            <heading>Startup Folder ID</heading>
+            <heading>30622</heading>
           </control>
         </setting>
       </group>
