@@ -145,6 +145,17 @@ class ListResponse:
         self.breadcrumb_path = breadcrumb_path
 
 
+class NavigateAfterComplete:
+    """Response indicating navigation should occur AFTER current action completes
+    
+    Used for V22 Piers compatibility where ActivateWindow is blocked during modal contexts.
+    Router will close the directory, then execute navigation after the action fully completes.
+    """
+    
+    def __init__(self, target_url: str):
+        self.target_url = target_url
+
+
 def create_empty_directory() -> DirectoryResponse:
     """Create an empty directory response"""
     return DirectoryResponse(items=[], success=True)

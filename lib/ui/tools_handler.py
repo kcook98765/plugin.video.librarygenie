@@ -1444,20 +1444,12 @@ class ToolsHandler:
                 if target_url:
                     import xbmc
                     import xbmcplugin
-                    xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
-                    # V22 PIERS FIX: Close modal, navigate with ActivateWindow, then end directory
-                    # This matches the bookmark pattern that works across all versions
-                    import time
-                    # Small delay to ensure SearchPanel dialog is fully closed
-                    time.sleep(0.1)
-                    # Close all modal dialogs explicitly (V22 Piers requirement)
-                    xbmc.executebuiltin('Dialog.Close(all,true)')
-                    # Navigate using ActivateWindow (bookmark pattern)
-                    xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(target_url))
-                    # End directory AFTER navigation command is queued
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
-                    xbmc.log('[LG-ToolsHandler] V22 Piers navigation: Dialog.Close -> ActivateWindow -> endOfDirectory', xbmc.LOGDEBUG)
-                    return True
+                    xbmc.log('[LG-ToolsHandler] Search history navigation requested: {}'.format(target_url), xbmc.LOGDEBUG)
+                    # V22 PIERS FIX: Return special NavigateAfterComplete response
+                    # Router will handle navigation AFTER this action fully completes
+                    # This prevents V22 Piers from blocking ActivateWindow while modal context is active
+                    from lib.ui.response_types import NavigateAfterComplete
+                    return NavigateAfterComplete(target_url=target_url)
                 else:
                     # No target URL - just return
                     return DialogResponse(success=True, message="", refresh_needed=False)
