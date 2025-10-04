@@ -491,6 +491,7 @@ class Router:
                 
                 # V22 PIERS FIX: Handle NavigateAfterComplete response
                 from lib.ui.response_types import NavigateAfterComplete
+                self.logger.debug("DEBUG: result type=%s, is NavigateAfterComplete=%s", type(result).__name__, isinstance(result, NavigateAfterComplete))
                 if isinstance(result, NavigateAfterComplete):
                     # CRITICAL ORDER (matches bookmark pattern that works in V22):
                     # 1. Close dialogs first
