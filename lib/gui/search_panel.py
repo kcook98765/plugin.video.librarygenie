@@ -424,13 +424,12 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
                 self._cleanup_properties()
                 self.close()
                 
-                # Execute navigation AFTER dialog closes and Python thread completes
-                # Using RunScript with delay ensures parent action completes before navigation
+                # Execute navigation immediately after dialog closes
+                # skip_finish_directory flag prevents race with finish_directory
                 import xbmcaddon
                 addon_id = xbmcaddon.Addon().getAddonInfo('id')
                 plugin_url = 'plugin://{}/?action=show_list&list_id={}'.format(addon_id, list_id)
-                # Delayed navigation to avoid race with finish_directory
-                xbmc.executebuiltin('AlarmClock(LG_NavDelay,ActivateWindow(Videos,{},return),00:00:00,silent)'.format(plugin_url))
+                xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(plugin_url))
             
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error showing search history modal: {}'.format(e), xbmc.LOGERROR)
