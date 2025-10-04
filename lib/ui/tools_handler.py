@@ -1449,7 +1449,9 @@ class ToolsHandler:
                     # Router will handle navigation AFTER this action fully completes
                     # This prevents V22 Piers from blocking ActivateWindow while modal context is active
                     from lib.ui.response_types import NavigateAfterComplete
-                    return NavigateAfterComplete(target_url=target_url)
+                    nav_response = NavigateAfterComplete(target_url=target_url)
+                    xbmc.log('[LG-ToolsHandler] Returning NavigateAfterComplete: type={}, target={}'.format(type(nav_response).__name__, target_url), xbmc.LOGDEBUG)
+                    return nav_response
                 else:
                     # No target URL - just return
                     return DialogResponse(success=True, message="", refresh_needed=False)
