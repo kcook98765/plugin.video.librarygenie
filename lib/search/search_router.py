@@ -25,7 +25,12 @@ def start_search_flow(initial_query=''):
             return None
         # V22 FIX: Check for navigate_away result (user selected search history)
         if isinstance(result, dict) and result.get('navigate_away'):
-            return {'navigate_away': True}  # Signal to caller to skip finish_directory
+            # Pass through navigation intent with target URL
+            return {
+                'navigate_away': True,
+                'target': result.get('target'),
+                'list_id': result.get('list_id')
+            }
         return build_query_from_result(result)
     else:
         # Legacy: straight keyboard - return unified structure
