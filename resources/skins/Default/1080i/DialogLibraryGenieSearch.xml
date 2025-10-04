@@ -454,7 +454,6 @@
                 <label>$ADDON[plugin.video.librarygenie 30388]</label>
                 <enable>!String.IsEmpty(Window.Property(SearchHistoryExists))</enable>
                 <onup>260</onup>
-                <ondown>201</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
             </control>
