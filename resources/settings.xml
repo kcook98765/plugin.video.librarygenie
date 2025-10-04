@@ -594,7 +594,7 @@
         </setting>
         <setting id="set_startup_folder_action" type="action" label="30622" help="30623">
           <level>0</level>
-          <data>RunScript(special://home/addons/plugin.video.librarygenie/utilities.py,set_startup_folder)</data>
+          <data>RunScript(plugin.video.librarygenie,set_startup_folder)</data>
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
