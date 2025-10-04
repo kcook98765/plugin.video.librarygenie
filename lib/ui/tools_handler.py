@@ -1445,13 +1445,14 @@ class ToolsHandler:
                     import xbmc
                     import xbmcplugin
                     xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
-                    # V22 PIERS FIX: Use Container.Update to navigate within Videos window
-                    # Close all modal dialogs first (V22 Piers requirement)
+                    # V22 PIERS FIX: Complete directory FIRST, then close modals and update container
+                    # Tell Kodi this action succeeded (provides a valid empty directory listing)
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                    # Close all modal dialogs (V22 Piers requirement)
                     xbmc.executebuiltin('Dialog.Close(all,true)')
-                    # Use Container.Update to change container content (doesn't stack windows)
+                    # Use Container.Update to navigate to the target (replace prevents stacking)
                     xbmc.executebuiltin('Container.Update({},replace)'.format(target_url))
-                    xbmc.log('[LG-ToolsHandler] Navigation complete: Dialog.Close -> Container.Update(replace)', xbmc.LOGDEBUG)
-                    # Don't call endOfDirectory - let Container.Update handle it
+                    xbmc.log('[LG-ToolsHandler] V22 navigation: endOfDirectory -> Dialog.Close -> Container.Update', xbmc.LOGDEBUG)
                     return True
                 else:
                     # No target URL - just return
