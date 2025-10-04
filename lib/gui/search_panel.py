@@ -77,11 +77,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def _cleanup_properties(self):
         """Clean up window properties when dialog closes"""
         try:
-            window_id = self.getId()
-            if window_id:
-                window = xbmcgui.Window(window_id)
-                window.clearProperty('SearchHistoryExists')
-                xbmc.log('[LG-SearchPanel] Cleaned up window properties on close (Window {})'.format(window_id), xbmc.LOGDEBUG)
+            self.clearProperty('SearchHistoryExists')
+            xbmc.log('[LG-SearchPanel] Cleaned up window properties on close', xbmc.LOGDEBUG)
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error cleaning up properties: {}'.format(e), xbmc.LOGERROR)
 
@@ -367,18 +364,13 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def _update_search_history_property(self):
         """Update window property for search history button state"""
         try:
-            # Get dialog window ID and set property on the actual dialog window
-            window_id = self.getId()
-            if window_id:
-                window = xbmcgui.Window(window_id)
-                if self._has_search_history:
-                    window.setProperty('SearchHistoryExists', 'true')
-                    xbmc.log('[LG-SearchPanel] Search History button ENABLED (property set on Window {})'.format(window_id), xbmc.LOGDEBUG)
-                else:
-                    window.clearProperty('SearchHistoryExists')
-                    xbmc.log('[LG-SearchPanel] Search History button DISABLED (property cleared on Window {})'.format(window_id), xbmc.LOGDEBUG)
+            # Set property directly on the dialog window using self.setProperty
+            if self._has_search_history:
+                self.setProperty('SearchHistoryExists', 'true')
+                xbmc.log('[LG-SearchPanel] Search History button ENABLED (property set)', xbmc.LOGDEBUG)
             else:
-                xbmc.log('[LG-SearchPanel] Cannot update property - window not initialized', xbmc.LOGWARNING)
+                self.clearProperty('SearchHistoryExists')
+                xbmc.log('[LG-SearchPanel] Search History button DISABLED (property cleared)', xbmc.LOGDEBUG)
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error updating search history property: {}'.format(e), xbmc.LOGERROR)
 
