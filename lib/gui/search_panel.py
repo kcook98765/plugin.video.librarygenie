@@ -343,10 +343,49 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             self.clearProperty('SearchHistoryExists')
 
     def _open_search_history(self):
-        """Open search history folder"""
-        xbmc.log('[LG-SearchPanel] Opening search history', xbmc.LOGDEBUG)
-        self.close()
-        xbmc.executebuiltin('Container.Update(plugin://plugin.video.librarygenie/?action=show_search_history)')
+        """Open search history in a modal selector"""
+        xbmc.log('[LG-SearchPanel] Opening search history modal', xbmc.LOGDEBUG)
+        
+        try:
+            from lib.data.query_manager import QueryManager
+            query_manager = QueryManager()
+            
+            # Get search history folder and lists
+            folder_id = query_manager.get_or_create_search_history_folder()
+            if not folder_id:
+                xbmcgui.Dialog().notification('LibraryGenie', 'No search history available', xbmcgui.NOTIFICATION_INFO, 3000)
+                return
+            
+            lists = query_manager.get_lists_in_folder(str(folder_id))
+            if not lists:
+                xbmcgui.Dialog().notification('LibraryGenie', 'No search history found', xbmcgui.NOTIFICATION_INFO, 3000)
+                return
+            
+            # Sort by ID descending (most recent first)
+            lists.sort(key=lambda x: int(x.get('id', 0)), reverse=True)
+            
+            # Format list names for display
+            list_labels = [lst.get('name', 'Unnamed Search') for lst in lists]
+            
+            # Show modal selector
+            selected_index = xbmcgui.Dialog().select('Search History', list_labels)
+            
+            # If user cancelled (returns -1), stay in dialog
+            if selected_index < 0:
+                xbmc.log('[LG-SearchPanel] Search history selection cancelled', xbmc.LOGDEBUG)
+                return
+            
+            # User selected a search - navigate to it
+            selected_list = lists[selected_index]
+            list_id = selected_list.get('id')
+            if list_id:
+                xbmc.log('[LG-SearchPanel] Navigating to search history list ID: {}'.format(list_id), xbmc.LOGDEBUG)
+                self.close()
+                xbmc.executebuiltin('Container.Update(plugin://plugin.video.librarygenie/?action=show_list&list_id={})'.format(list_id))
+            
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error showing search history modal: {}'.format(e), xbmc.LOGERROR)
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error loading search history', xbmcgui.NOTIFICATION_ERROR, 3000)
 
     @classmethod
     def prompt(cls, initial_query=''):
