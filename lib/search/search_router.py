@@ -23,6 +23,9 @@ def start_search_flow(initial_query=''):
         result = SearchPanel.prompt(initial_query)
         if not result:
             return None
+        # V22 FIX: Check for navigate_away result (user selected search history)
+        if isinstance(result, dict) and result.get('navigate_away'):
+            return {'navigate_away': True}  # Signal to caller to skip finish_directory
         return build_query_from_result(result)
     else:
         # Legacy: straight keyboard - return unified structure

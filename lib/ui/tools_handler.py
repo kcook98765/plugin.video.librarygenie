@@ -1437,6 +1437,18 @@ class ToolsHandler:
             # Start search flow (shows custom panel or keyboard)
             search_params = start_search_flow()
             
+            # V22 FIX: Check if user navigated away to search history
+            if search_params and search_params.get('navigate_away'):
+                # User selected search history - don't call finish_directory
+                # Navigation is handled by delayed ActivateWindow in search panel
+                return DialogResponse(
+                    success=True,
+                    message="",
+                    refresh_needed=False,
+                    navigate_to_main=False,
+                    skip_finish_directory=True
+                )
+            
             if not search_params or not search_params.get('q'):
                 return DialogResponse(
                     success=True,

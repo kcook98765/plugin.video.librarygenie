@@ -491,7 +491,12 @@ class Router:
                 
                 # Handle DialogResponse properly
                 if hasattr(result, 'success'):
-                    if result.success and not result.message.startswith("Search cancelled"):
+                    # V22 FIX: Check if navigation occurred (skip_finish_directory flag)
+                    if hasattr(result, 'skip_finish_directory') and result.skip_finish_directory:
+                        # User navigated away to search history - don't call finish_directory
+                        # Navigation is handled by delayed ActivateWindow in search panel
+                        return True
+                    elif result.success and not result.message.startswith("Search cancelled"):
                         # Search succeeded and wasn't cancelled
                         return True
                     else:
