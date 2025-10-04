@@ -324,7 +324,7 @@ class SearchHandler:
                 return
             
             # Create a simple list item
-            label = "No matches found"
+            label = "No matches found - Click to run a new search"
             listitem = xbmcgui.ListItem(label=label, offscreen=True)
             
             # Set description
