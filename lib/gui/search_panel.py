@@ -416,20 +416,21 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             selected_list = lists[selected_index]
             list_id = selected_list.get('id')
             if list_id:
-                xbmc.log('[LG-SearchPanel] Navigating to search history list ID: {}'.format(list_id), xbmc.LOGDEBUG)
+                xbmc.log('[LG-SearchPanel] User selected search history list ID: {}'.format(list_id), xbmc.LOGDEBUG)
                 
-                # V22 COMPATIBILITY: Set result to special navigate value before closing
-                # This prevents finish_directory from being called in the parent action
-                self._result = {'navigate_away': True, 'list_id': list_id}
-                self._cleanup_properties()
-                self.close()
-                
-                # Execute navigation immediately after dialog closes
-                # skip_finish_directory flag prevents race with finish_directory
+                # V22 COMPATIBILITY: Return navigation intent instead of executing it
+                # Caller will perform actual navigation after dialog fully closes
                 import xbmcaddon
                 addon_id = xbmcaddon.Addon().getAddonInfo('id')
                 plugin_url = 'plugin://{}/?action=show_list&list_id={}'.format(addon_id, list_id)
-                xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(plugin_url))
+                
+                self._result = {
+                    'navigate_away': True,
+                    'target': plugin_url,
+                    'list_id': list_id
+                }
+                self._cleanup_properties()
+                self.close()
             
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error showing search history modal: {}'.format(e), xbmc.LOGERROR)

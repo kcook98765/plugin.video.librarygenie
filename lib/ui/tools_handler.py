@@ -1439,8 +1439,14 @@ class ToolsHandler:
             
             # V22 FIX: Check if user navigated away to search history
             if search_params and search_params.get('navigate_away'):
-                # User selected search history - don't call finish_directory
-                # Navigation is handled by delayed ActivateWindow in search panel
+                # User selected search history - execute navigation now (after dialog closed)
+                target_url = search_params.get('target')
+                if target_url:
+                    import xbmc
+                    xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
+                    xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(target_url))
+                
+                # Return with skip_finish_directory to prevent race condition
                 return DialogResponse(
                     success=True,
                     message="",
