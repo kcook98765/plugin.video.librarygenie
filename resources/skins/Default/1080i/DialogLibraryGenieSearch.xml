@@ -105,7 +105,6 @@
                 <aligny>center</aligny>
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 30288]</label>
-                <onup>260</onup>
                 <ondown>202</ondown>
                 <onleft>221</onleft>
                 <onright>211</onright>
@@ -206,7 +205,6 @@
                 <aligny>center</aligny>
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 32300]</label>
-                <onup>260</onup>
                 <ondown>212</ondown>
                 <onleft>201</onleft>
                 <onright>221</onright>
@@ -277,7 +275,6 @@
                 <aligny>center</aligny>
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 30323]</label>
-                <onup>260</onup>
                 <ondown>222</ondown>
                 <onleft>211</onleft>
                 <onright>201</onright>
