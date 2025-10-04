@@ -13,7 +13,11 @@ import xbmcaddon
 from typing import List, Union
 
 # Setup proper module paths for Kodi addon structure
-addon = xbmcaddon.Addon()
+try:
+    addon = xbmcaddon.Addon()
+except RuntimeError:
+    # When called directly via RunScript with path, addon ID must be explicit
+    addon = xbmcaddon.Addon('plugin.video.librarygenie')
 addon_path = addon.getAddonInfo('path')
 lib_path = os.path.join(addon_path, 'lib')
 
