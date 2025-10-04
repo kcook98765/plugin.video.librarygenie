@@ -87,13 +87,13 @@
                 <top>160</top>
                 <width>450</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -105,9 +105,8 @@
                 <aligny>center</aligny>
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 30288]</label>
-                <onup>260</onup>
                 <ondown>202</ondown>
-                <onleft>260</onleft>
+                <onleft>221</onleft>
                 <onright>211</onright>
             </control>
             
@@ -117,13 +116,13 @@
                 <top>210</top>
                 <width>450</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -137,7 +136,7 @@
                 <label>$ADDON[plugin.video.librarygenie 30286]</label>
                 <onup>201</onup>
                 <ondown>203</ondown>
-                <onleft>260</onleft>
+                <onleft>222</onleft>
                 <onright>211</onright>
             </control>
             
@@ -147,13 +146,13 @@
                 <top>260</top>
                 <width>450</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -166,8 +165,8 @@
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 30287]</label>
                 <onup>202</onup>
-                <ondown>200</ondown>
-                <onleft>260</onleft>
+                <ondown>252</ondown>
+                <onleft>223</onleft>
                 <onright>211</onright>
             </control>
 
@@ -188,13 +187,13 @@
                 <top>160</top>
                 <width>450</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -206,7 +205,6 @@
                 <aligny>center</aligny>
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 32300]</label>
-                <onup>260</onup>
                 <ondown>212</ondown>
                 <onleft>201</onleft>
                 <onright>221</onright>
@@ -218,13 +216,13 @@
                 <top>210</top>
                 <width>450</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -237,7 +235,7 @@
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 32301]</label>
                 <onup>211</onup>
-                <ondown>200</ondown>
+                <ondown>252</ondown>
                 <onleft>202</onleft>
                 <onright>221</onright>
             </control>
@@ -259,13 +257,13 @@
                 <top>160</top>
                 <width>400</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -277,7 +275,6 @@
                 <aligny>center</aligny>
                 <textoffsetx>44</textoffsetx>
                 <label>$ADDON[plugin.video.librarygenie 30323]</label>
-                <onup>260</onup>
                 <ondown>222</ondown>
                 <onleft>211</onleft>
                 <onright>201</onright>
@@ -289,13 +286,13 @@
                 <top>210</top>
                 <width>400</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -319,13 +316,13 @@
                 <top>260</top>
                 <width>400</width>
                 <height>40</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF404040</colordiffuse>
                 <textureradionofocus colordiffuse="FF666666">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradionofocus>
                 <textureradiofocus colordiffuse="FF888888">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradiofocus>
-                <textureradioonnofocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
-                <textureradioonfocus colordiffuse="FF00FF00">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
+                <textureradioonnofocus colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonnofocus>
+                <textureradioonfocus colordiffuse="FF00E5E5">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</textureradioonfocus>
                 <radiowidth>28</radiowidth>
                 <radioheight>28</radioheight>
                 <radioposx>8</radioposx>
@@ -349,7 +346,7 @@
                 <top>330</top>
                 <width>1480</width>
                 <height>50</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF606060</colordiffuse>
                 <font>font13</font>
@@ -381,7 +378,7 @@
                 <top>460</top>
                 <width>1480</width>
                 <height>60</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF606060</colordiffuse>
                 <font>font13</font>
@@ -397,13 +394,34 @@
                 <onright>260</onright>
             </control>
             
-            <!-- Cancel button -->
-            <control type="button" id="261">
+            <!-- Search button -->
+            <control type="button" id="260">
                 <left>100</left>
                 <top>560</top>
                 <width>740</width>
                 <height>70</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
+                <font>font30_title</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FF00CED1</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>$ADDON[plugin.video.librarygenie 32305]</label>
+                <onup>200</onup>
+                <ondown>262</ondown>
+                <onleft>261</onleft>
+                <onright>261</onright>
+            </control>
+            
+            <!-- Cancel button -->
+            <control type="button" id="261">
+                <left>860</left>
+                <top>560</top>
+                <width>720</width>
+                <height>70</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF606060</colordiffuse>
                 <font>font30_title</font>
@@ -413,30 +431,31 @@
                 <aligny>center</aligny>
                 <label>$ADDON[plugin.video.librarygenie 32304]</label>
                 <onup>200</onup>
-                <ondown>201</ondown>
+                <ondown>262</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
             </control>
             
-            <!-- Search button -->
-            <control type="button" id="260">
-                <left>860</left>
-                <top>560</top>
-                <width>720</width>
-                <height>70</height>
-                <texturefocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+            <!-- Search History button -->
+            <control type="button" id="262">
+                <left>100</left>
+                <top>660</top>
+                <width>1480</width>
+                <height>50</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
                 <colordiffuse>FF606060</colordiffuse>
-                <font>font30_title</font>
+                <font>font13</font>
                 <textcolor>FFFFFFFF</textcolor>
-                <focusedcolor>FF00FF00</focusedcolor>
+                <focusedcolor>FFFFAA00</focusedcolor>
+                <disabledcolor>FF666666</disabledcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>$ADDON[plugin.video.librarygenie 32305]</label>
-                <onup>200</onup>
-                <ondown>201</ondown>
-                <onleft>261</onleft>
-                <onright>261</onright>
+                <label>$ADDON[plugin.video.librarygenie 30388]</label>
+                <enable>!String.IsEmpty(Window.Property(SearchHistoryExists))</enable>
+                <onup>260</onup>
+                <onleft>260</onleft>
+                <onright>260</onright>
             </control>
         </control>
     </controls>

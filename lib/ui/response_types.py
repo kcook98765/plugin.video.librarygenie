@@ -62,7 +62,8 @@ class DialogResponse:
                  refresh_needed: bool = False, navigate_to_lists: bool = False,
                  navigate_to_folder: Optional[Union[int, str]] = None, navigate_to_main: bool = False,
                  navigate_to_favorites: bool = False, navigate_on_failure: Optional[str] = None,
-                 is_settings_operation: bool = False, intent: Optional[NavigationIntent] = None):
+                 is_settings_operation: bool = False, intent: Optional[NavigationIntent] = None,
+                 skip_finish_directory: bool = False):
         self.success = success
         self.message = message
         self.refresh_needed = refresh_needed
@@ -73,6 +74,7 @@ class DialogResponse:
         self.navigate_on_failure = navigate_on_failure
         self.is_settings_operation = is_settings_operation
         self.intent = intent
+        self.skip_finish_directory = skip_finish_directory
 
         # Debug logging (moved from __post_init__)
         try:
@@ -141,6 +143,17 @@ class ListResponse:
         self.navigate_to_main = navigate_to_main
         self.refresh_needed = refresh_needed
         self.breadcrumb_path = breadcrumb_path
+
+
+class NavigateAfterComplete:
+    """Response indicating navigation should occur AFTER current action completes
+    
+    Used for V22 Piers compatibility where ActivateWindow is blocked during modal contexts.
+    Router will close the directory, then execute navigation after the action fully completes.
+    """
+    
+    def __init__(self, target_url: str):
+        self.target_url = target_url
 
 
 def create_empty_directory() -> DirectoryResponse:

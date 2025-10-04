@@ -1437,6 +1437,22 @@ class ToolsHandler:
             # Start search flow (shows custom panel or keyboard)
             search_params = start_search_flow()
             
+            # V22 FIX: Check if user navigated away to search history
+            if search_params and search_params.get('navigate_away'):
+                # User selected search history - navigate using bookmark pattern
+                target_url = search_params.get('target')
+                if target_url:
+                    import xbmc
+                    import xbmcplugin
+                    xbmc.log('[LG-ToolsHandler] Search history navigation requested: {}'.format(target_url), xbmc.LOGDEBUG)
+                    # V22 PIERS FIX: Return special NavigateAfterComplete response
+                    # Router will handle navigation via version-specific method
+                    from lib.ui.response_types import NavigateAfterComplete
+                    return NavigateAfterComplete(target_url=target_url)
+                else:
+                    # No target URL - just return
+                    return DialogResponse(success=True, message="", refresh_needed=False)
+            
             if not search_params or not search_params.get('q'):
                 return DialogResponse(
                     success=True,
@@ -1513,6 +1529,16 @@ class ToolsHandler:
                     xbmcgui.NOTIFICATION_INFO,
                     3000
                 )
+                
+                # Ensure search_handler has addon_handle
+                search_handler._ensure_handle_from_context(context)
+                
+                # Add "no matches found" item to directory
+                search_handler._add_no_matches_item(search_params['q'], media_types[0] if len(media_types) == 1 else "movie")
+                
+                # End directory properly
+                search_handler._end_directory(succeeded=True, update=False)
+                
                 return DialogResponse(
                     success=True,
                     message="No results found",

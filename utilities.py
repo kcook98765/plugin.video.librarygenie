@@ -47,6 +47,8 @@ def main():
     # Dispatch to appropriate handler (let exceptions bubble up to decorator)
     if action == "set_default_list":
         handle_set_default_list()
+    elif action == "set_startup_folder":
+        handle_set_startup_folder()
     elif action == "manual_library_sync":
         handle_manual_library_sync()
     elif action == "import_shortlist":
@@ -268,6 +270,99 @@ def _create_new_list_with_folder_selection(query_manager):
         dialog_service = get_dialog_service(logger_name='utilities._create_new_list_with_folder_selection')
         dialog_service.show_error(f"Error creating list: {str(e)}")
         return None
+
+
+def handle_set_startup_folder():
+    """Handle set startup folder action from settings"""
+    log_info("Handling set_startup_folder action")
+    
+    try:
+        from data.query_manager import get_query_manager
+        from config.config_manager import get_config
+        
+        query_manager = get_query_manager()
+        if not query_manager or not query_manager.initialize():
+            dialog_service = get_dialog_service("utilities.handle_set_startup_folder")
+            dialog_service.log_and_notify_error(
+                "Database initialization failed",
+                "Database not available"
+            )
+            return
+        
+        config = get_config()
+        
+        # Get available folders
+        all_folders = query_manager.get_all_folders()
+        folders = [f for f in all_folders if f.get('name') != 'Search History']
+        
+        dialog_service = get_dialog_service(logger_name='utilities.handle_set_startup_folder')
+        folder_options: List[Union[str, xbmcgui.ListItem]] = ["[Main Menu]"]
+        folder_ids = [""]
+        
+        for folder in folders:
+            folder_options.append(folder['name'])
+            folder_ids.append(str(folder['id']))
+        
+        selected = dialog_service.select("Select Startup Folder", folder_options)
+        
+        if selected == -1:
+            return
+        
+        selected_folder_id = folder_ids[selected]
+        
+        config.set("startup_folder_id", selected_folder_id)
+        _update_startup_folder_display(config, selected_folder_id)
+        
+        if selected == 0:
+            dialog_service.log_and_notify_success(
+                "Startup folder cleared",
+                "Startup folder set to Main Menu"
+            )
+        else:
+            folder_name = folder_options[selected]
+            dialog_service.log_and_notify_success(
+                f"Startup folder set to: {folder_name}",
+                f"Startup folder set to: {folder_name}"
+            )
+        
+        dialog_service.log_and_notify_success(
+            "Startup folder updated",
+            "Startup folder updated. Click OK to save settings."
+        )
+        
+    except Exception as e:
+        import traceback
+        log_error(f"Set startup folder error traceback: {traceback.format_exc()}")
+        dialog_service = get_dialog_service("utilities.handle_set_startup_folder")
+        dialog_service.log_and_notify_error(
+            f"Error in handle_set_startup_folder: {e}",
+            f"Error setting startup folder: {str(e)}",
+            exception=e
+        )
+
+
+def _update_startup_folder_display(config, folder_id=""):
+    """Helper function to update the display setting with the current startup folder name"""
+    try:
+        if not folder_id:
+            config.set("startup_folder_display", "Main Menu")
+            return True
+        
+        from data.query_manager import get_query_manager
+        query_manager = get_query_manager()
+        if query_manager and query_manager.initialize():
+            folder_info = query_manager.get_folder_by_id(folder_id)
+            if folder_info:
+                folder_name = folder_info.get('name', 'Unknown Folder')
+                config.set("startup_folder_display", folder_name)
+                return True
+        
+        config.set("startup_folder_display", f"Folder ID: {folder_id}")
+        return True
+        
+    except Exception as e:
+        log_error(f"Error updating startup folder display: {e}")
+        return False
 
 
 def handle_manual_library_sync():

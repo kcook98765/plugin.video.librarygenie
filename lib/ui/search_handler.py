@@ -23,6 +23,7 @@ from lib.data.query_manager import get_query_manager
 from lib.data.connection_manager import get_connection_manager
 from lib.search.simple_search_engine import SimpleSearchEngine
 from lib.utils.kodi_log import get_kodi_logger
+from lib.utils.kodi_version import get_kodi_major_version
 from lib.ui.localization import L
 from lib.ui.menu_builder import MenuBuilder
 from lib.ui.dialog_service import get_dialog_service
@@ -62,8 +63,9 @@ class SearchHandler:
             # Step 1: Get search keywords
             search_terms = self._prompt_for_search_terms()
             if not search_terms:
-                self._info("No search terms entered")
-                self._end_directory(succeeded=False, update=False)
+                self._info("No search terms entered - navigating back")
+                # Navigate back instead of showing empty directory
+                xbmc.executebuiltin('Action(Back)')
                 return False
 
             # Step 2: Use default search options (always search both title and plot)
@@ -118,6 +120,7 @@ class SearchHandler:
                         return True
             else:
                 self._show_no_results_message(search_terms)
+                self._add_no_matches_item(search_terms, media_scope)
                 self._end_directory(succeeded=True, update=False)
                 return True
         except Exception as e:
@@ -314,6 +317,45 @@ class SearchHandler:
     def _show_no_results_message(self, search_terms: str):
         """Show message when no results found"""
         self._notify_info(L(32101).format(search_terms))  # "No results found for '{0}'"
+    
+    def _add_no_matches_item(self, search_terms: str, media_scope: str = "movie"):
+        """Add a 'No matches found' list item that redirects back to search when clicked"""
+        try:
+            if self.addon_handle is None:
+                return
+            
+            # Create a simple list item
+            label = "No matches found - Click to run a new search"
+            listitem = xbmcgui.ListItem(label=label, offscreen=True)
+            
+            # Set description
+            description = f"No results for '{search_terms}'. Click to search again."
+            kodi_major = get_kodi_major_version()
+            if kodi_major >= 21:
+                try:
+                    video_info_tag = listitem.getVideoInfoTag()
+                    video_info_tag.setPlot(description)
+                except Exception:
+                    pass
+            else:
+                listitem.setInfo('video', {'plot': description})
+            
+            # Set icon to indicate informational/empty state
+            listitem.setArt({'icon': 'DefaultAddSource.png', 'thumb': 'DefaultAddSource.png'})
+            
+            # Mark as not playable folder
+            listitem.setProperty('IsPlayable', 'false')
+            
+            # Create URL that triggers search again with same media scope
+            url = f"plugin://{self.addon_id}/?action=prompt_and_search"
+            
+            # Add to directory as a clickable folder
+            xbmcplugin.addDirectoryItem(self.addon_handle, url, listitem, isFolder=True)
+            
+            self._debug(f"Added 'no matches found' item with search redirect")
+            
+        except Exception as e:
+            self._error(f"Failed to add no matches item: {e}")
 
     # Helper methods
     def _ensure_handle_from_context(self, context):

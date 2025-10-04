@@ -592,14 +592,38 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
-        <setting id="startup_folder_id" type="string" label="Startup Folder (Advanced)" help="Set via context menu on folders. Leave empty to show main menu on startup.">
-          <level>2</level>
-          <default></default>
+        <setting id="set_startup_folder_action" type="action" label="30622" help="30623">
+          <level>0</level>
+          <data>RunScript(plugin.video.librarygenie,set_startup_folder)</data>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="button" format="action">
+            <heading>30622</heading>
+          </control>
+        </setting>
+        <setting id="startup_folder_display" type="string" label="30624" help="">
+          <level>0</level>
+          <default>Main Menu</default>
+          <dependencies>
+            <dependency type="enable" setting="set_startup_folder_action" operator="is">false</dependency>
+          </dependencies>
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string">
-            <heading>Startup Folder ID</heading>
+            <heading>30624</heading>
+          </control>
+        </setting>
+        <setting id="startup_folder_id" type="string" label="" help="">
+          <level>4</level>
+          <default></default>
+          <visible>false</visible>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string">
+            <heading></heading>
           </control>
         </setting>
       </group>
