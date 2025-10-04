@@ -1445,14 +1445,14 @@ class ToolsHandler:
                     import xbmc
                     import xbmcplugin
                     xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
-                    # V22 PIERS FIX: Close modals, queue navigation, THEN end directory
+                    # V22 PIERS FIX: Close modals and navigate WITHOUT 'return' parameter
                     # Explicitly close all modal dialogs before ActivateWindow  
                     # Kodi V15+ prevents window activation if modal dialogs are open
                     xbmc.executebuiltin('Dialog.Close(all,true)')
-                    # Queue the navigation (executebuiltin is asynchronous)
-                    xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(target_url))
-                    # End directory LAST so Kodi processes the queued navigation
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                    # Navigate WITHOUT 'return' parameter to prevent V22 from coming back to search
+                    xbmc.executebuiltin('ActivateWindow(Videos,{})'.format(target_url))
+                    # Don't call endOfDirectory - let navigation complete naturally
+                    xbmc.log('[LG-ToolsHandler] Navigation queued without return parameter for V22 Piers', xbmc.LOGDEBUG)
                     return True
                 else:
                     # No target URL - just return
