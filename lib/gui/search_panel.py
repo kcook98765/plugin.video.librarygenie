@@ -419,7 +419,9 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
                 xbmc.log('[LG-SearchPanel] Navigating to search history list ID: {}'.format(list_id), xbmc.LOGDEBUG)
                 self._cleanup_properties()
                 self.close()
-                xbmc.executebuiltin('Container.Update(plugin://plugin.video.librarygenie/?action=show_list&list_id={})'.format(list_id))
+                # V22 COMPATIBILITY: Explicitly use 'replace' mode for proper navigation stack handling
+                # Without this, V22 fails to update the container path correctly when transitioning from modal dialog
+                xbmc.executebuiltin('Container.Update(plugin://plugin.video.librarygenie/?action=show_list&list_id={},replace)'.format(list_id))
             
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error showing search history modal: {}'.format(e), xbmc.LOGERROR)
