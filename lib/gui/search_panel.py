@@ -60,14 +60,27 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         """Initialize the dialog"""
         self._wire_controls()
         self._apply_state_to_controls()
+        
+        # Re-check search history and update property now that window is initialized
+        self._check_search_history_exists()
         self._update_search_history_property()
+        
         # Focus on Search button by default, not the edit control
         self.setFocusId(260)
 
     def onAction(self, action):
         """Handle actions"""
         if action.getId() in (xbmcgui.ACTION_NAV_BACK, xbmcgui.ACTION_PREVIOUS_MENU):
+            self._cleanup_properties()
             self.close()
+    
+    def _cleanup_properties(self):
+        """Clean up window properties when dialog closes"""
+        window_id = self.getWindowId()
+        if window_id:
+            window = xbmcgui.Window(window_id)
+            window.clearProperty('SearchHistoryExists')
+            xbmc.log('[LG-SearchPanel] Cleaned up window properties on close (Window {})'.format(window_id), xbmc.LOGDEBUG)
 
     def onClick(self, control_id):
         """Handle control clicks"""
@@ -93,6 +106,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             self._finalize_and_close()
         elif control_id == 261:
             self._result = None
+            self._cleanup_properties()
             self.close()
         elif control_id == 262:
             self._open_search_history()
@@ -304,6 +318,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             'query': query,
         }
         xbmc.log('[LG-SearchPanel] Result being returned: {}'.format(self._result), xbmc.LOGDEBUG)
+        self._cleanup_properties()
         self.close()
 
     def _read_presets(self):
@@ -348,12 +363,18 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _update_search_history_property(self):
         """Update window property for search history button state"""
-        if self._has_search_history:
-            self.setProperty('SearchHistoryExists', 'true')
-            xbmc.log('[LG-SearchPanel] Search History button ENABLED (property set)', xbmc.LOGDEBUG)
+        # Get dialog window ID and set property on the actual dialog window
+        window_id = self.getWindowId()
+        if window_id:
+            window = xbmcgui.Window(window_id)
+            if self._has_search_history:
+                window.setProperty('SearchHistoryExists', 'true')
+                xbmc.log('[LG-SearchPanel] Search History button ENABLED (property set on Window {})'.format(window_id), xbmc.LOGDEBUG)
+            else:
+                window.clearProperty('SearchHistoryExists')
+                xbmc.log('[LG-SearchPanel] Search History button DISABLED (property cleared on Window {})'.format(window_id), xbmc.LOGDEBUG)
         else:
-            self.clearProperty('SearchHistoryExists')
-            xbmc.log('[LG-SearchPanel] Search History button DISABLED (property cleared)', xbmc.LOGDEBUG)
+            xbmc.log('[LG-SearchPanel] Cannot update property - window not initialized', xbmc.LOGWARNING)
 
     def _open_search_history(self):
         """Open search history in a modal selector"""
@@ -398,6 +419,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             list_id = selected_list.get('id')
             if list_id:
                 xbmc.log('[LG-SearchPanel] Navigating to search history list ID: {}'.format(list_id), xbmc.LOGDEBUG)
+                self._cleanup_properties()
                 self.close()
                 xbmc.executebuiltin('Container.Update(plugin://plugin.video.librarygenie/?action=show_list&list_id={})'.format(list_id))
             
