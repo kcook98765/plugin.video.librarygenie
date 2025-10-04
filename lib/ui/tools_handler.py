@@ -1445,6 +1445,9 @@ class ToolsHandler:
                     import xbmc
                     import xbmcplugin
                     xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
+                    # V22 FIX: Explicitly close all modal dialogs before ActivateWindow
+                    # Kodi V15+ prevents window activation if modal dialogs are open
+                    xbmc.executebuiltin('Dialog.Close(all,true)')
                     # Queue navigation, then end directory (bookmark pattern)
                     xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(target_url))
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
