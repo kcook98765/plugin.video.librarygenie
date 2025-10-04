@@ -392,37 +392,16 @@
                 <focusedcolor>FFFFAA00</focusedcolor>
                 <label></label>
                 <onup>252</onup>
-                <ondown>261</ondown>
-                <onleft>260</onleft>
-                <onright>260</onright>
-            </control>
-            
-            <!-- Cancel button -->
-            <control type="button" id="261">
-                <left>100</left>
-                <top>540</top>
-                <width>740</width>
-                <height>70</height>
-                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
-                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
-                <colordiffuse>FF606060</colordiffuse>
-                <font>font30_title</font>
-                <textcolor>FFFFFFFF</textcolor>
-                <focusedcolor>FFFF0000</focusedcolor>
-                <align>center</align>
-                <aligny>center</aligny>
-                <label>$ADDON[plugin.video.librarygenie 32304]</label>
-                <onup>200</onup>
-                <ondown>262</ondown>
+                <ondown>260</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
             </control>
             
             <!-- Search button -->
             <control type="button" id="260">
-                <left>860</left>
+                <left>100</left>
                 <top>540</top>
-                <width>720</width>
+                <width>740</width>
                 <height>70</height>
                 <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
@@ -437,6 +416,27 @@
                 <ondown>262</ondown>
                 <onleft>261</onleft>
                 <onright>261</onright>
+            </control>
+            
+            <!-- Cancel button -->
+            <control type="button" id="261">
+                <left>860</left>
+                <top>540</top>
+                <width>720</width>
+                <height>70</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
+                <font>font30_title</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFF0000</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>$ADDON[plugin.video.librarygenie 32304]</label>
+                <onup>200</onup>
+                <ondown>262</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
             </control>
             
             <!-- Search History button -->
