@@ -1208,11 +1208,18 @@ def _register_all_handlers(router: 'Router'):
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().delete_folder(ctx, ctx.get_param('folder_id')))
 
+    def _handle_save_search_history_as_list(ctx):
+        factory = _get_factory()
+        factory.context = ctx
+        list_id = ctx.get_param('list_id')
+        return _handle_dialog_response(ctx, factory.get_tools_handler()._copy_search_history_to_list(ctx, list_id))
+
     router.register_handler('delete_list', _handle_delete_list)
     router.register_handler('rename_list', _handle_rename_list)
     router.register_handler('remove_from_list', _handle_remove_from_list_handler)
     router.register_handler('rename_folder', _handle_rename_folder)
     router.register_handler('delete_folder', _handle_delete_folder)
+    router.register_handler('save_search_history_as_list', _handle_save_search_history_as_list)
 
     # Register FavoritesHandler methods
     router.register_handler('scan_favorites_execute', lambda ctx: _get_factory().get_favorites_handler().handle_scan_favorites(ctx))
