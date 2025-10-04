@@ -1150,15 +1150,6 @@ class ListsHandler:
             search_folder_id = query_manager.get_or_create_search_history_folder()
             is_search_history = (search_folder_id and 
                                 str(list_info.get('folder_id')) == str(search_folder_id))
-            
-            # DEBUG logging
-            context.logger.debug("=== SEARCH HISTORY DETECTION ===")
-            context.logger.debug("List info: %s", list_info)
-            context.logger.debug("Search folder ID: %s", search_folder_id)
-            context.logger.debug("List folder_id: %s", list_info.get('folder_id'))
-            context.logger.debug("Is search history: %s", is_search_history)
-            context.logger.debug("================================")
-            
             if is_search_history:
                 save_as_list_item = xbmcgui.ListItem(label=L(30371), offscreen=True)
                 self._set_listitem_plot(save_as_list_item, 'Convert this search history to a regular list')

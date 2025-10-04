@@ -700,6 +700,7 @@ class QueryManager:
                     "description": folder_context.lstrip(' ') if folder_context else '',
                     "created": row_dict['created_at'][:10] if row_dict['created_at'] else '',
                     "modified": row_dict['created_at'][:10] if row_dict['created_at'] else '',
+                    "folder_id": row_dict['folder_id'],
                     "folder_name": row_dict['folder_name'],
                     "is_import_sourced": row_dict.get('is_import_sourced', 0),
                     "import_source_id": row_dict.get('import_source_id')
