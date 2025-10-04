@@ -65,8 +65,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         self._check_search_history_exists()
         self._update_search_history_property()
         
-        # Focus on Search button by default, not the edit control
-        self.setFocusId(260)
+        # Focus on Query field by default
+        self.setFocusId(200)
 
     def onAction(self, action):
         """Handle actions"""
