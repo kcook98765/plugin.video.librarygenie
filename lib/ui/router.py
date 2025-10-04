@@ -492,13 +492,15 @@ class Router:
                 # V22 PIERS FIX: Handle NavigateAfterComplete response
                 from lib.ui.response_types import NavigateAfterComplete
                 if isinstance(result, NavigateAfterComplete):
-                    # Close directory first to release modal context
-                    finish_directory(context.addon_handle, succeeded=True, update=False)
-                    # Now navigate using ActivateWindow (modal context is fully closed)
+                    # CRITICAL ORDER (matches bookmark pattern that works in V22):
+                    # 1. Close dialogs first
+                    # 2. Queue navigation with ActivateWindow
+                    # 3. endOfDirectory LAST (allows Kodi to process the queued navigation)
                     import xbmc
-                    xbmc.executebuiltin('Dialog.Close(all,true)')  # Ensure all dialogs are closed
+                    xbmc.executebuiltin('Dialog.Close(all,true)')
                     xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(result.target_url))
-                    self.logger.debug("V22 Piers: Navigation executed after directory close: %s", result.target_url)
+                    finish_directory(context.addon_handle, succeeded=True, update=False)
+                    self.logger.debug("V22 Piers: Navigation queued, then directory closed: %s", result.target_url)
                     return True
                 
                 # Handle DialogResponse and navigation properly
