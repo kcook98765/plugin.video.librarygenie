@@ -63,8 +63,9 @@ class SearchHandler:
             # Step 1: Get search keywords
             search_terms = self._prompt_for_search_terms()
             if not search_terms:
-                self._info("No search terms entered")
-                self._end_directory(succeeded=False, update=False)
+                self._info("No search terms entered - navigating back")
+                # Navigate back instead of showing empty directory
+                xbmc.executebuiltin('Action(Back)')
                 return False
 
             # Step 2: Use default search options (always search both title and plot)
