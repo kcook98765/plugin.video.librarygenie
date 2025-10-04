@@ -325,12 +325,23 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         try:
             from lib.data.query_manager import QueryManager
             query_manager = QueryManager()
+            
+            # Initialize query manager if needed
+            if not query_manager.initialize():
+                xbmc.log('[LG-SearchPanel] Failed to initialize query manager', xbmc.LOGWARNING)
+                self._has_search_history = False
+                return
+            
             folder_id = query_manager.get_or_create_search_history_folder()
             if folder_id:
-                lists = query_manager.get_lists_in_folder(folder_id)
+                # Convert folder_id to string for API compatibility
+                lists = query_manager.get_lists_in_folder(str(folder_id))
                 self._has_search_history = len(lists) > 0
+                xbmc.log('[LG-SearchPanel] Search history check: folder_id={}, {} lists found, enabled={}'.format(
+                    folder_id, len(lists), self._has_search_history), xbmc.LOGDEBUG)
             else:
                 self._has_search_history = False
+                xbmc.log('[LG-SearchPanel] Search history check: no folder found', xbmc.LOGDEBUG)
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error checking search history: {}'.format(e), xbmc.LOGERROR)
             self._has_search_history = False
@@ -339,8 +350,10 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         """Update window property for search history button state"""
         if self._has_search_history:
             self.setProperty('SearchHistoryExists', 'true')
+            xbmc.log('[LG-SearchPanel] Search History button ENABLED (property set)', xbmc.LOGDEBUG)
         else:
             self.clearProperty('SearchHistoryExists')
+            xbmc.log('[LG-SearchPanel] Search History button DISABLED (property cleared)', xbmc.LOGDEBUG)
 
     def _open_search_history(self):
         """Open search history in a modal selector"""
@@ -349,6 +362,11 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         try:
             from lib.data.query_manager import QueryManager
             query_manager = QueryManager()
+            
+            # Initialize query manager if needed
+            if not query_manager.initialize():
+                xbmcgui.Dialog().notification('LibraryGenie', 'Database error', xbmcgui.NOTIFICATION_ERROR, 3000)
+                return
             
             # Get search history folder and lists
             folder_id = query_manager.get_or_create_search_history_folder()
