@@ -1445,14 +1445,13 @@ class ToolsHandler:
                     import xbmc
                     import xbmcplugin
                     xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
-                    # V22 PIERS FIX: Use bookmark navigation pattern that works across all versions
-                    # Close all modal dialogs BEFORE ActivateWindow (V22 Piers requirement)
+                    # V22 PIERS FIX: Use Container.Update to navigate within Videos window
+                    # Close all modal dialogs first (V22 Piers requirement)
                     xbmc.executebuiltin('Dialog.Close(all,true)')
-                    # Navigate using ActivateWindow with return parameter (maintains back button history)
-                    xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(target_url))
-                    # End directory with SUCCESS (bookmark pattern)
-                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
-                    xbmc.log('[LG-ToolsHandler] Navigation complete: Dialog.Close -> ActivateWindow -> endOfDirectory(True)', xbmc.LOGDEBUG)
+                    # Use Container.Update to change container content (doesn't stack windows)
+                    xbmc.executebuiltin('Container.Update({},replace)'.format(target_url))
+                    xbmc.log('[LG-ToolsHandler] Navigation complete: Dialog.Close -> Container.Update(replace)', xbmc.LOGDEBUG)
+                    # Don't call endOfDirectory - let Container.Update handle it
                     return True
                 else:
                     # No target URL - just return
