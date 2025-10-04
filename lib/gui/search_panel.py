@@ -52,11 +52,15 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
             'match_mode': default_match,
             'query': ''  # Always start with empty query
         }
+        
+        # Check if search history exists
+        self._check_search_history_exists()
 
     def onInit(self):
         """Initialize the dialog"""
         self._wire_controls()
         self._apply_state_to_controls()
+        self._update_search_history_property()
         # Focus on Search button by default, not the edit control
         self.setFocusId(260)
 
@@ -90,6 +94,8 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         elif control_id == 261:
             self._result = None
             self.close()
+        elif control_id == 262:
+            self._open_search_history()
 
     def _wire_controls(self):
         """Wire up all controls"""
@@ -313,6 +319,34 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         os.makedirs(PROFILE, exist_ok=True)
         with open(PRESETS_PATH, 'w', encoding='utf-8') as fh:
             json.dump(presets, fh, ensure_ascii=False, indent=2)
+
+    def _check_search_history_exists(self):
+        """Check if search history exists"""
+        try:
+            from lib.data.query_manager import QueryManager
+            query_manager = QueryManager()
+            folder_id = query_manager.get_or_create_search_history_folder()
+            if folder_id:
+                lists = query_manager.get_lists_in_folder(folder_id)
+                self._has_search_history = len(lists) > 0
+            else:
+                self._has_search_history = False
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error checking search history: {}'.format(e), xbmc.LOGERROR)
+            self._has_search_history = False
+
+    def _update_search_history_property(self):
+        """Update window property for search history button state"""
+        if self._has_search_history:
+            self.setProperty('SearchHistoryExists', 'true')
+        else:
+            self.clearProperty('SearchHistoryExists')
+
+    def _open_search_history(self):
+        """Open search history folder"""
+        xbmc.log('[LG-SearchPanel] Opening search history', xbmc.LOGDEBUG)
+        self.close()
+        xbmc.executebuiltin('Container.Update(plugin://plugin.video.librarygenie/?action=show_search_history)')
 
     @classmethod
     def prompt(cls, initial_query=''):
