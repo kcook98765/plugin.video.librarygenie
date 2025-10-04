@@ -346,7 +346,7 @@ class SearchHandler:
             listitem.setProperty('IsPlayable', 'false')
             
             # Create URL that triggers search again with same media scope
-            url = f"plugin://{self.addon_id}/?action=search_prompt&media_scope={media_scope}"
+            url = f"plugin://{self.addon_id}/?action=prompt_and_search"
             
             # Add to directory as a clickable folder
             xbmcplugin.addDirectoryItem(self.addon_handle, url, listitem, isFolder=True)
