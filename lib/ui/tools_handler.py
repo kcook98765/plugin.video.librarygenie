@@ -1445,14 +1445,15 @@ class ToolsHandler:
                     import xbmc
                     import xbmcplugin
                     xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
-                    # V22 PIERS FIX: Close modals and REPLACE window to prevent stacking
-                    # Explicitly close all modal dialogs before navigation
+                    # V22 PIERS FIX: End directory first with failure to prevent re-invocation
+                    # Tell Kodi we're NOT providing a directory listing
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    # Close all modal dialogs before navigation
                     # Kodi V15+ prevents window activation if modal dialogs are open
                     xbmc.executebuiltin('Dialog.Close(all,true)')
-                    # Use ReplaceWindow instead of ActivateWindow to prevent window stacking
+                    # Use ReplaceWindow to replace current window instead of stacking
                     xbmc.executebuiltin('ReplaceWindow(Videos,{})'.format(target_url))
-                    xbmc.log('[LG-ToolsHandler] ReplaceWindow called for V22 Piers compatibility', xbmc.LOGDEBUG)
-                    # Don't call endOfDirectory since we're replacing the window
+                    xbmc.log('[LG-ToolsHandler] Navigation sequence complete: endOfDirectory(failed) -> Dialog.Close -> ReplaceWindow', xbmc.LOGDEBUG)
                     return True
                 else:
                     # No target URL - just return
