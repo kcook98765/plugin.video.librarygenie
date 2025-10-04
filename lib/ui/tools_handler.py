@@ -1446,12 +1446,9 @@ class ToolsHandler:
                     import xbmcplugin
                     xbmc.log('[LG-ToolsHandler] Search history navigation requested: {}'.format(target_url), xbmc.LOGDEBUG)
                     # V22 PIERS FIX: Return special NavigateAfterComplete response
-                    # Router will handle navigation AFTER this action fully completes
-                    # This prevents V22 Piers from blocking ActivateWindow while modal context is active
+                    # Router will handle navigation via version-specific method
                     from lib.ui.response_types import NavigateAfterComplete
-                    nav_response = NavigateAfterComplete(target_url=target_url)
-                    xbmc.log('[LG-ToolsHandler] Returning NavigateAfterComplete: type={}, target={}'.format(type(nav_response).__name__, target_url), xbmc.LOGDEBUG)
-                    return nav_response
+                    return NavigateAfterComplete(target_url=target_url)
                 else:
                     # No target URL - just return
                     return DialogResponse(success=True, message="", refresh_needed=False)

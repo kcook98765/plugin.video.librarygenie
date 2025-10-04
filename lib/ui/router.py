@@ -491,16 +491,31 @@ class Router:
                 
                 # V22 PIERS FIX: Handle NavigateAfterComplete response
                 from lib.ui.response_types import NavigateAfterComplete
-                self.logger.debug("DEBUG: result type=%s, is NavigateAfterComplete=%s", type(result).__name__, isinstance(result, NavigateAfterComplete))
                 if isinstance(result, NavigateAfterComplete):
-                    # V22 Piers blocks ActivateWindow even after modal close if action was modal-triggered
-                    # Use Container.Update instead - it works in modal contexts
+                    # V22 Piers blocks ActivateWindow when action originated from modal context
+                    # Solution: Use RunPlugin to execute navigation in a FRESH plugin context (not modal-tainted)
                     import xbmc
-                    xbmc.executebuiltin('Dialog.Close(all,true)')
-                    # Container.Update navigates within current window (not blocked by V22 modal restrictions)
-                    xbmc.executebuiltin('Container.Update({},replace)'.format(result.target_url))
-                    finish_directory(context.addon_handle, succeeded=True, update=False)
-                    self.logger.debug("V22 Piers: Container.Update navigation: %s", result.target_url)
+                    import xbmcaddon
+                    
+                    # Get Kodi version to use V22-specific workaround
+                    kodi_version = int(xbmc.getInfoLabel('System.BuildVersion').split('.')[0])
+                    
+                    if kodi_version >= 22:
+                        # V22 Piers: Trigger navigation via RunPlugin in fresh execution context
+                        xbmc.executebuiltin('Dialog.Close(all,true)')
+                        # Create a navigation helper action that will execute in clean context
+                        nav_url = 'RunPlugin(plugin://plugin.video.librarygenie/?action=navigate_to&url={})'.format(
+                            result.target_url.replace('&', '%26')  # URL encode ampersands
+                        )
+                        xbmc.executebuiltin(nav_url)
+                        finish_directory(context.addon_handle, succeeded=True, update=False)
+                        self.logger.debug("V22 Piers: RunPlugin navigation trigger: %s", result.target_url)
+                    else:
+                        # V19-21: Direct ActivateWindow works fine
+                        xbmc.executebuiltin('Dialog.Close(all,true)')
+                        xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(result.target_url))
+                        finish_directory(context.addon_handle, succeeded=True, update=False)
+                        self.logger.debug("V19-21: ActivateWindow navigation: %s", result.target_url)
                     return True
                 
                 # Handle DialogResponse and navigation properly
@@ -521,6 +536,26 @@ class Router:
                     succeeded = bool(result) if result is not None else True
                     finish_directory(context.addon_handle, succeeded=succeeded, update=False)
                     return succeeded
+            elif action == 'navigate_to':
+                # V22 PIERS WORKAROUND: Navigation helper that executes in fresh plugin context
+                # This action is triggered via RunPlugin to avoid V22's modal-context ActivateWindow blocking
+                target_url = context.get_param('url')
+                if target_url:
+                    import xbmc
+                    # Decode URL-encoded ampersands
+                    target_url = target_url.replace('%26', '&')
+                    self.logger.debug("V22 navigate_to helper: navigating to %s", target_url)
+                    # Close any dialogs first
+                    xbmc.executebuiltin('Dialog.Close(all,true)')
+                    # Navigate using ActivateWindow (works in fresh context!)
+                    xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(target_url))
+                    # End directory successfully
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                    return True
+                else:
+                    self.logger.error("navigate_to action called without url parameter")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
             elif action == 'save_bookmark_from_context' or action == 'save_bookmark':
                 # Redirect old bookmark actions to the new integrated approach
                 from lib.ui.handler_factory import get_handler_factory
