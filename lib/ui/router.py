@@ -489,6 +489,18 @@ class Router:
                 # Use unified search which properly handles custom panel and cancellation
                 result = tools_handler._handle_unified_local_search(context)
                 
+                # V22 PIERS FIX: Handle NavigateAfterComplete response
+                from lib.ui.response_types import NavigateAfterComplete
+                if isinstance(result, NavigateAfterComplete):
+                    # Close directory first to release modal context
+                    finish_directory(context.addon_handle, succeeded=True, update=False)
+                    # Now navigate using ActivateWindow (modal context is fully closed)
+                    import xbmc
+                    xbmc.executebuiltin('Dialog.Close(all,true)')  # Ensure all dialogs are closed
+                    xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(result.target_url))
+                    self.logger.debug("V22 Piers: Navigation executed after directory close: %s", result.target_url)
+                    return True
+                
                 # Handle DialogResponse and navigation properly
                 # V22 FIX: If result is True (navigation occurred), tools_handler already called endOfDirectory
                 if result is True:
