@@ -2004,7 +2004,11 @@ msgid "Startup Folder"
 msgstr ""
 
 msgctxt "#30623"
-msgid "Set via context menu on folders. Leave empty to show main menu on startup."
+msgid "Choose which folder to show when LibraryGenie opens. Select 'Main Menu' to show the default view."
+msgstr ""
+
+msgctxt "#30624"
+msgid "Current Startup Folder"
 msgstr ""
 
 # Library Management Actions  
