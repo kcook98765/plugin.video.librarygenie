@@ -76,11 +76,14 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     
     def _cleanup_properties(self):
         """Clean up window properties when dialog closes"""
-        window_id = self.getWindowId()
-        if window_id:
-            window = xbmcgui.Window(window_id)
-            window.clearProperty('SearchHistoryExists')
-            xbmc.log('[LG-SearchPanel] Cleaned up window properties on close (Window {})'.format(window_id), xbmc.LOGDEBUG)
+        try:
+            window_id = self.getId()
+            if window_id:
+                window = xbmcgui.Window(window_id)
+                window.clearProperty('SearchHistoryExists')
+                xbmc.log('[LG-SearchPanel] Cleaned up window properties on close (Window {})'.format(window_id), xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error cleaning up properties: {}'.format(e), xbmc.LOGERROR)
 
     def onClick(self, control_id):
         """Handle control clicks"""
@@ -363,18 +366,21 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
 
     def _update_search_history_property(self):
         """Update window property for search history button state"""
-        # Get dialog window ID and set property on the actual dialog window
-        window_id = self.getWindowId()
-        if window_id:
-            window = xbmcgui.Window(window_id)
-            if self._has_search_history:
-                window.setProperty('SearchHistoryExists', 'true')
-                xbmc.log('[LG-SearchPanel] Search History button ENABLED (property set on Window {})'.format(window_id), xbmc.LOGDEBUG)
+        try:
+            # Get dialog window ID and set property on the actual dialog window
+            window_id = self.getId()
+            if window_id:
+                window = xbmcgui.Window(window_id)
+                if self._has_search_history:
+                    window.setProperty('SearchHistoryExists', 'true')
+                    xbmc.log('[LG-SearchPanel] Search History button ENABLED (property set on Window {})'.format(window_id), xbmc.LOGDEBUG)
+                else:
+                    window.clearProperty('SearchHistoryExists')
+                    xbmc.log('[LG-SearchPanel] Search History button DISABLED (property cleared on Window {})'.format(window_id), xbmc.LOGDEBUG)
             else:
-                window.clearProperty('SearchHistoryExists')
-                xbmc.log('[LG-SearchPanel] Search History button DISABLED (property cleared on Window {})'.format(window_id), xbmc.LOGDEBUG)
-        else:
-            xbmc.log('[LG-SearchPanel] Cannot update property - window not initialized', xbmc.LOGWARNING)
+                xbmc.log('[LG-SearchPanel] Cannot update property - window not initialized', xbmc.LOGWARNING)
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error updating search history property: {}'.format(e), xbmc.LOGERROR)
 
     def _open_search_history(self):
         """Open search history in a modal selector"""
