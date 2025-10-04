@@ -1439,21 +1439,19 @@ class ToolsHandler:
             
             # V22 FIX: Check if user navigated away to search history
             if search_params and search_params.get('navigate_away'):
-                # User selected search history - execute navigation now (after dialog closed)
+                # User selected search history - navigate using bookmark pattern
                 target_url = search_params.get('target')
                 if target_url:
                     import xbmc
+                    import xbmcplugin
                     xbmc.log('[LG-ToolsHandler] Navigating to search history: {}'.format(target_url), xbmc.LOGDEBUG)
+                    # Queue navigation, then end directory (bookmark pattern)
                     xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(target_url))
-                
-                # Return with skip_finish_directory to prevent race condition
-                return DialogResponse(
-                    success=True,
-                    message="",
-                    refresh_needed=False,
-                    navigate_to_main=False,
-                    skip_finish_directory=True
-                )
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=True)
+                    return True
+                else:
+                    # No target URL - just return
+                    return DialogResponse(success=True, message="", refresh_needed=False)
             
             if not search_params or not search_params.get('q'):
                 return DialogResponse(

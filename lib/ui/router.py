@@ -489,14 +489,13 @@ class Router:
                 # Use unified search which properly handles custom panel and cancellation
                 result = tools_handler._handle_unified_local_search(context)
                 
-                # Handle DialogResponse properly
+                # Handle DialogResponse and navigation properly
+                # V22 FIX: If result is True (navigation occurred), tools_handler already called endOfDirectory
+                if result is True:
+                    return True
+                    
                 if hasattr(result, 'success'):
-                    # V22 FIX: Check if navigation occurred (skip_finish_directory flag)
-                    if hasattr(result, 'skip_finish_directory') and result.skip_finish_directory:
-                        # User navigated away to search history - don't call finish_directory
-                        # Navigation is handled by delayed ActivateWindow in search panel
-                        return True
-                    elif result.success and not result.message.startswith("Search cancelled"):
+                    if result.success and not result.message.startswith("Search cancelled"):
                         # Search succeeded and wasn't cancelled
                         return True
                     else:
@@ -504,7 +503,7 @@ class Router:
                         finish_directory(context.addon_handle, succeeded=True, update=False)
                         return True
                 else:
-                    # Fallback for non-DialogResponse
+                    # Fallback for non-DialogResponse/non-bool
                     succeeded = bool(result) if result is not None else True
                     finish_directory(context.addon_handle, succeeded=succeeded, update=False)
                     return succeeded
