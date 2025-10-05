@@ -196,13 +196,11 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
          item_info.get('title') and is_playable and not is_folder)
     )
 
-    # Only show "Add to List" options for playable media items
+    # Only show "Add to List" options for playable media items 
     if is_playable_item:
         # 2. LG Quick Add (if enabled and configured)
         if quick_add_enabled and default_list_id:
             quick_add_label = L(30380)  # "LG Quick Add"
-            if not quick_add_label or quick_add_label.startswith('LocMiss_'):
-                quick_add_label = "LG Quick Add"
             options.append(quick_add_label)
 
             # Determine appropriate quick add action based on context
@@ -215,8 +213,6 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
 
         # 3. LG Add to List...
         add_list_label = L(30381)  # "LG Add to List..."
-        if not add_list_label or add_list_label.startswith('LocMiss_'):
-            add_list_label = "LG Add to List..."
         options.append(add_list_label)
 
         # Determine appropriate add action based on context
@@ -230,8 +226,6 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     # 4. LG Remove from List (if in list context and is playable item)
     if in_list_context and is_playable_item:
         remove_label = L(30382)  # "LG Remove from List"
-        if not remove_label or remove_label.startswith('LocMiss_'):
-            remove_label = "LG Remove from List"
         options.append(remove_label)
 
         # Extract list_id for remove action
@@ -255,8 +249,6 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     if not _is_folder_context(container_path, item_info.get('file_path')):
         bookmark_label = L(30394)  # "LG Save Bookmark"
-        if not bookmark_label or bookmark_label.startswith('LocMiss_'):
-            bookmark_label = "LG Save Bookmark"
         options.append(bookmark_label)
         
         # Use container path for bookmarking the current folder location
@@ -294,38 +286,28 @@ def _show_search_submenu(addon):
 
         # Local Movie Search
         movie_search_label = L(30385)  # "Local Movie Search"
-        if not movie_search_label or movie_search_label.startswith('LocMiss_'):
-            movie_search_label = "Local Movie Search"
         options.append(movie_search_label)
         actions.append("search_movies")
 
         # Local TV Search
         tv_search_label = L(30386)  # "Local TV Search"
-        if not tv_search_label or tv_search_label.startswith('LocMiss_'):
-            tv_search_label = "Local TV Search"
         options.append(tv_search_label)
         actions.append("search_tv")
 
         # AI Movie Search (if available)
         if ai_search_available:
             ai_search_label = L(30387)  # "AI Movie Search"
-            if not ai_search_label or ai_search_label.startswith('LocMiss_'):
-                ai_search_label = "AI Movie Search"
             options.append(ai_search_label)
             actions.append("search_ai")
 
         # Search History
         search_history_label = L(30388)  # "Search History"
-        if not search_history_label or search_history_label.startswith('LocMiss_'):
-            search_history_label = "Search History"
         options.append(search_history_label)
         actions.append("show_search_history")
 
         # Kodi Favorites (if enabled)
         if favorites_enabled:
             favorites_label = L(30389)  # "Kodi Favorites"
-            if not favorites_label or favorites_label.startswith('LocMiss_'):
-                favorites_label = "Kodi Favorites"
             options.append(favorites_label)
             actions.append("show_favorites")
 

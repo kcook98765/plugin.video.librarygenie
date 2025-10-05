@@ -67,7 +67,7 @@ class LibraryGenieService:
         self._service_start_time = time.time()
         
         
-        log_info("🚀 LibraryGenie service initialized")
+        log_info("LibraryGenie service initialized")
 
 
     def _show_notification(self, message: str, icon: str = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
@@ -323,10 +323,10 @@ class LibraryGenieService:
             log(f"AI Search activated setting: {ai_activated}")
             
             if self._should_start_ai_sync():
-                log_info("✅ AI Search sync conditions met - starting sync thread")
+                log_info("AI Search sync conditions met - starting sync thread")
                 self._start_ai_sync_thread()
             else:
-                log_info("❌ AI Search sync conditions not met - sync disabled")
+                log_info("AI Search sync conditions not met - sync disabled")
 
 
             # Main service loop
@@ -341,7 +341,7 @@ class LibraryGenieService:
 
     def run(self):
         """Main service loop - optimized for minimal resource usage"""
-        log_info("🔥 LibraryGenie service starting main loop...")
+        log_info("LibraryGenie service starting main loop...")
         tick_count = 0
         last_dialog_active = False
         last_ai_sync_check = 0
@@ -402,14 +402,14 @@ class LibraryGenieService:
                     break
 
             except Exception as e:
-                log_error(f"💥 SERVICE ERROR: {e}")
+                log_error(f"SERVICE ERROR: {e}")
                 import traceback
                 log_error(f"SERVICE TRACEBACK: {traceback.format_exc()}")
                 # Error recovery with longer wait
                 if self.monitor.waitForAbort(2.0):
                     break
 
-        log_info("🛑 LibraryGenie service stopped")
+        log_info("LibraryGenie service stopped")
 
     def _check_ai_sync_activation(self, tick_count=None):
         """Check if AI sync should be started (for dynamic activation detection)"""
@@ -420,7 +420,7 @@ class LibraryGenieService:
                                  (current_time - self._last_ai_sync_check_time) > 300)  # 5 minutes
             
             if should_log_periodic:
-                log(f"🔄 Periodic AI sync check (tick {tick_count})")
+                log(f"Periodic AI sync check (tick {tick_count})")
                 self._last_ai_sync_check_time = current_time
                 
             # Check if AI sync should start and isn't already running
@@ -431,7 +431,7 @@ class LibraryGenieService:
             else:
                 # Stop sync thread if AI Search was deactivated
                 if self.sync_thread and self.sync_thread.is_alive():
-                    log_info("🛑 AI Search deactivation detected - stopping sync thread")
+                    log_info("AI Search deactivation detected - stopping sync thread")
                     self._stop_ai_sync_thread()
         except Exception as e:
             log_error(f"Error checking AI sync activation: {e}")
@@ -612,7 +612,7 @@ class LibraryGenieService:
             if not current_state['client_configured']:
                 log("AI client not configured, skipping sync")
             else:
-                log_info("✅ AI Search configuration verified")
+                log_info("AI Search configuration verified")
             
             self._last_ai_sync_state = current_state
         
@@ -712,7 +712,7 @@ class LibraryGenieService:
                     items_removed = result.get("items_removed", 0)
                     
                     if items_added > 0 or items_removed > 0:
-                        log_info(f"📚 Startup sync completed: +{items_added} new, -{items_removed} removed")
+                        log_info(f"Startup sync completed: +{items_added} new, -{items_removed} removed")
                         self._show_notification(
                             f"Library updated: {items_added} new items added",
                             time_ms=4000
