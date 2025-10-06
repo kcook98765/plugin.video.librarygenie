@@ -637,24 +637,47 @@ def handle_ai_search_replace_sync():
         ):
             return
         
+        # Get media items from database
+        from lib.data.connection_manager import get_connection_manager
+        conn_manager = get_connection_manager()
+        
+        movies_result = conn_manager.execute_query(
+            "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
+        )
+        
+        # Format movies for sync
+        sync_items = []
+        for row in movies_result:
+            imdb_id = row['imdbnumber'] if row['imdbnumber'] else ''
+            imdb_id = imdb_id.strip()
+            if imdb_id and imdb_id.startswith('tt'):
+                sync_items.append({
+                    'imdb_id': imdb_id,
+                    'title': row['title'] if row['title'] else '',
+                    'year': row['year'] if row['year'] else 0
+                })
+        
+        if not sync_items:
+            dialog_service.show_error("No movies with IMDb IDs found in your library")
+            return
+        
         # Get AI search service and perform sync
         ai_service = AISearchClient()
-        if ai_service:
-            # Run replace sync in background
-            # Use hasattr guard for missing methods
-            if hasattr(ai_service, 'perform_replace_sync'):
-                success = ai_service.perform_replace_sync()
-            else:
-                log_info("AISearchClient missing perform_replace_sync method")
-                success = False
-            
-            if success:
-                dialog_service.show_success("AI search replace sync started")
-                log_info("AI search replace sync started successfully")
-            else:
-                dialog_service.show_error("Failed to start AI search replace sync")
+        sync_result = ai_service.sync_media_batch(sync_items, use_replace_mode=True)
+        
+        if sync_result and sync_result.get('success'):
+            results = sync_result.get('results', {})
+            dialog_service.show_success(
+                f"Replace sync completed!\n\n"
+                f"Accepted: {results.get('accepted', 0)}\n"
+                f"Duplicates: {results.get('duplicates', 0)}\n"
+                f"Invalid: {results.get('invalid', 0)}"
+            )
+            log_info(f"AI search replace sync completed: {results}")
         else:
-            dialog_service.show_error("AI search service not available")
+            error_msg = sync_result.get('error', 'Unknown error') if sync_result else 'No response'
+            dialog_service.show_error(f"Replace sync failed: {error_msg}")
+            log_error(f"Replace sync failed: {error_msg}")
         
     except Exception as e:
         log_error(f"Error in handle_ai_search_replace_sync: {e}")
@@ -690,24 +713,47 @@ def handle_ai_search_regular_sync():
         ):
             return
         
-        # Get AI search service and perform sync
+        # Get media items from database
+        from lib.data.connection_manager import get_connection_manager
+        conn_manager = get_connection_manager()
+        
+        movies_result = conn_manager.execute_query(
+            "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
+        )
+        
+        # Format movies for sync
+        sync_items = []
+        for row in movies_result:
+            imdb_id = row['imdbnumber'] if row['imdbnumber'] else ''
+            imdb_id = imdb_id.strip()
+            if imdb_id and imdb_id.startswith('tt'):
+                sync_items.append({
+                    'imdb_id': imdb_id,
+                    'title': row['title'] if row['title'] else '',
+                    'year': row['year'] if row['year'] else 0
+                })
+        
+        if not sync_items:
+            dialog_service.show_error("No movies with IMDb IDs found in your library")
+            return
+        
+        # Get AI search service and perform sync (merge mode)
         ai_service = AISearchClient()
-        if ai_service:
-            # Run regular sync in background
-            # Use hasattr guard for missing methods  
-            if hasattr(ai_service, 'perform_regular_sync'):
-                success = ai_service.perform_regular_sync()
-            else:
-                log_info("AISearchClient missing perform_regular_sync method")
-                success = False
-            
-            if success:
-                dialog_service.show_success("AI search regular sync started")
-                log_info("AI search regular sync started successfully")
-            else:
-                dialog_service.show_error("Failed to start AI search regular sync")
+        sync_result = ai_service.sync_media_batch(sync_items, use_replace_mode=False)
+        
+        if sync_result and sync_result.get('success'):
+            results = sync_result.get('results', {})
+            dialog_service.show_success(
+                f"Regular sync completed!\n\n"
+                f"Accepted: {results.get('accepted', 0)}\n"
+                f"Duplicates: {results.get('duplicates', 0)}\n"
+                f"Invalid: {results.get('invalid', 0)}"
+            )
+            log_info(f"AI search regular sync completed: {results}")
         else:
-            dialog_service.show_error("AI search service not available")
+            error_msg = sync_result.get('error', 'Unknown error') if sync_result else 'No response'
+            dialog_service.show_error(f"Regular sync failed: {error_msg}")
+            log_error(f"Regular sync failed: {error_msg}")
         
     except Exception as e:
         log_error(f"Error in handle_ai_search_regular_sync: {e}")
