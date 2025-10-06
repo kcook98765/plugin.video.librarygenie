@@ -480,14 +480,72 @@ class Router:
                 from lib.ui.handler_factory import get_handler_factory
                 from lib.ui.response_handler import get_response_handler
                 from lib.ui.nav import finish_directory
+                from lib.search.integrated_search import start_integrated_search_flow, execute_ai_search_and_save
+                from lib.search.search_router import build_query_from_result
                 
                 factory = get_handler_factory()
                 factory.context = context
                 tools_handler = factory.get_tools_handler()
+                search_handler = factory.get_search_handler()
                 response_handler = get_response_handler()
                 
-                # Use unified search which properly handles custom panel and cancellation
-                result = tools_handler._handle_unified_local_search(context)
+                # Use integrated search flow that handles local/AI toggle
+                search_result = start_integrated_search_flow('local')
+                
+                if not search_result:
+                    # User cancelled
+                    finish_directory(context.addon_handle, succeeded=True, update=False)
+                    return True
+                
+                # Check for navigate_away (search history)
+                if isinstance(search_result, dict) and search_result.get('navigate_away'):
+                    from lib.ui.response_types import NavigateAfterComplete
+                    result = NavigateAfterComplete(search_result.get('target'))
+                elif isinstance(search_result, dict) and search_result.get('mode') == 'ai':
+                    # AI search mode - execute and save
+                    ai_result = search_result.get('result', {})
+                    query = ai_result.get('query', '').strip()
+                    
+                    if not query:
+                        finish_directory(context.addon_handle, succeeded=True, update=False)
+                        return True
+                    
+                    # Execute AI search and save as list
+                    list_id = execute_ai_search_and_save(query, max_results=ai_result.get('max_results', 20))
+                    
+                    if list_id:
+                        # Navigate to the AI search results list
+                        import xbmcaddon
+                        addon_id = xbmcaddon.Addon().getAddonInfo('id')
+                        plugin_url = f'plugin://{addon_id}/?action=show_list&list_id={list_id}'
+                        from lib.ui.response_types import NavigateAfterComplete
+                        result = NavigateAfterComplete(plugin_url)
+                    else:
+                        finish_directory(context.addon_handle, succeeded=True, update=False)
+                        return True
+                elif isinstance(search_result, dict) and search_result.get('mode') == 'local':
+                    # Local search mode - use existing handler
+                    local_result = search_result.get('result')
+                    query_params = build_query_from_result(local_result)
+                    
+                    # Execute local search using existing search handler logic
+                    from lib.search.simple_search_engine import SimpleSearchEngine
+                    engine = SimpleSearchEngine()
+                    results = engine.search(query_params['q'], query_params)
+                    
+                    if results.total_count > 0:
+                        # Save and navigate to results
+                        list_id = search_handler._save_search_history(query_params['q'], {}, results)
+                        if list_id:
+                            success = search_handler._render_saved_search_list_directly(str(list_id), context)
+                            if success:
+                                return True
+                    
+                    # Fallback
+                    finish_directory(context.addon_handle, succeeded=True, update=False)
+                    return True
+                else:
+                    result = True
                 
                 # V22 PIERS FIX: Handle NavigateAfterComplete response
                 from lib.ui.response_types import NavigateAfterComplete
