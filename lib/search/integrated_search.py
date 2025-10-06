@@ -120,19 +120,19 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
         
         logger.info(f"AI search returned {len(results)} results")
         
-        # Save as a list in AI Search Results folder
+        # Save as a list in Search History folder (same as local searches)
         query_manager = get_query_manager()
         if not query_manager.initialize():
             logger.error("Failed to initialize query manager")
             return None
         
-        # Get or create AI Search Results folder
-        folder_id = query_manager.get_or_create_folder("AI Search Results", create_if_missing=True)
+        # Get or create Search History folder
+        folder_id = query_manager.get_or_create_search_history_folder()
         if not folder_id:
-            logger.error("Failed to create AI Search Results folder")
+            logger.error("Failed to get Search History folder")
             return None
         
-        # Create list name with query
+        # Create list name with AI prefix to distinguish from local searches
         list_name = f"AI: {query[:50]}"  # Limit to 50 chars
         
         # Create the list
