@@ -206,6 +206,9 @@ class AISearchClient:
                     # Update internal state
                     self._api_key = api_key
                     self._is_activated = True
+                    
+                    # Save activation status to persistent settings
+                    self.settings.set_ai_search_activated(True)
 
                     self.logger.info("AI SEARCH: Successfully activated with OTP for user: %s", user_email)
 
