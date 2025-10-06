@@ -367,6 +367,11 @@ def run_otp_authorization_flow(server_url: str) -> bool:
             result = exchange_otp_for_api_key(otp_code, server_url)
 
             if result['success']:
+                # Save activation status to persistent settings
+                from lib.config.settings import SettingsManager
+                settings = SettingsManager()
+                settings.set_ai_search_activated(True)
+                
                 # Success - show confirmation
                 dialog_service.ok(
                     "Authorization Complete",
