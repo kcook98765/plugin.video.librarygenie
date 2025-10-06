@@ -258,9 +258,18 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append("remove_from_list_generic")
 
     # 5. LG Find Similar Movies (if AI search is available and item has IMDb ID)
+    # DEBUG: Log conditions for similar movies feature
+    xbmc.log(f"[LG SIMILAR DEBUG] ai_search_available={ai_search_available}", xbmc.LOGINFO)
+    xbmc.log(f"[LG SIMILAR DEBUG] is_playable_item={is_playable_item}", xbmc.LOGINFO)
+    xbmc.log(f"[LG SIMILAR DEBUG] dbtype={item_info.get('dbtype')}", xbmc.LOGINFO)
+    xbmc.log(f"[LG SIMILAR DEBUG] imdbnumber={item_info.get('imdbnumber')}", xbmc.LOGINFO)
+    
     if ai_search_available and is_playable_item:
         imdb_id = item_info.get('imdbnumber', '').strip()
+        xbmc.log(f"[LG SIMILAR DEBUG] Passed first check. imdb_id={imdb_id}, starts_with_tt={imdb_id.startswith('tt') if imdb_id else False}", xbmc.LOGINFO)
+        
         if imdb_id and imdb_id.startswith('tt'):
+            xbmc.log(f"[LG SIMILAR DEBUG] Adding Find Similar Movies option!", xbmc.LOGINFO)
             similar_label = "LG Find Similar Movies"
             options.append(similar_label)
             
@@ -268,6 +277,10 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             title = item_info.get('title', 'Unknown')
             year = item_info.get('year', '')
             actions.append(f"find_similar_movies&imdb_id={imdb_id}&title={urllib.parse.quote(title)}&year={year}")
+        else:
+            xbmc.log(f"[LG SIMILAR DEBUG] Failed imdb_id check", xbmc.LOGINFO)
+    else:
+        xbmc.log(f"[LG SIMILAR DEBUG] Failed first check (ai_search or playable)", xbmc.LOGINFO)
 
     # 6. Save Link to Bookmarks (if not in LibraryGenie folder context)
     # Only show for navigable folders/containers
