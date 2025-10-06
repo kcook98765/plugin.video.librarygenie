@@ -184,27 +184,31 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
             return None
         
         # Add results to list
-        # Convert AI results to media items format
-        media_items = []
+        # Fetch full media item details from database
+        from lib.data.connection_manager import get_connection_manager
+        conn_manager = get_connection_manager()
+        
+        matched_items = []
         for result in results:
             # AI search returns IMDb IDs - we need to match them to our library
             imdb_id = result.get('imdb_id', '').strip()
             if not imdb_id or not imdb_id.startswith('tt'):
                 continue
             
-            # Find matching media item in our database
-            from lib.data.connection_manager import get_connection_manager
-            conn_manager = get_connection_manager()
+            # Fetch full media item details
             db_result = conn_manager.execute_query(
-                "SELECT id FROM media_items WHERE imdbnumber = ? LIMIT 1",
+                """SELECT * FROM media_items 
+                   WHERE imdbnumber = ? AND is_removed = 0 
+                   LIMIT 1""",
                 (imdb_id,)
             )
             
             if db_result and len(db_result) > 0:
-                media_id = db_result[0]['id']
-                media_items.append({'media_id': media_id})
+                # Convert database row to dict with all fields
+                item_dict = dict(db_result[0])
+                matched_items.append(item_dict)
         
-        if not media_items:
+        if not matched_items:
             logger.warning("No AI search results matched items in library")
             xbmcgui.Dialog().notification(
                 'LibraryGenie',
@@ -215,14 +219,14 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
             # Still return the list ID so user can see it's created
             return list_id
         
-        # Add items to list
-        for item in media_items:
-            query_manager.add_item_to_list(list_id, item['media_id'])
+        # Add items to list using the same method as local search
+        search_results = {"items": matched_items}
+        added_count = query_manager.add_search_results_to_list(list_id, search_results)
         
-        logger.info(f"Added {len(media_items)} items to AI search list {list_id}")
+        logger.info(f"Added {added_count} items to AI search list {list_id}")
         xbmcgui.Dialog().notification(
             'LibraryGenie',
-            f'Found {len(media_items)} matching movies',
+            f'Found {added_count} matching movies',
             xbmcgui.NOTIFICATION_INFO,
             3000
         )
