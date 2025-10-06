@@ -9,6 +9,7 @@ Handles toggling between local and AI search panels
 import xbmc
 import xbmcaddon
 import xbmcgui
+from datetime import datetime
 from typing import Optional, Dict, Any
 from lib.gui.search_panel import SearchPanel
 from lib.gui.ai_search_panel import AISearchPanel
@@ -132,8 +133,14 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
             logger.error("Failed to get Search History folder")
             return None
         
-        # Create list name with AI prefix to distinguish from local searches
-        list_name = f"AI: {query[:50]}"  # Limit to 50 chars
+        # Create list name with AI prefix and timestamp (same format as local search)
+        timestamp = datetime.now().strftime("%m/%d %H:%M")
+        display_query = query if len(query) <= 20 else f"{query[:17]}..."
+        list_name = f"AI: '{display_query}' ({timestamp})"
+        
+        # Truncate if too long
+        if len(list_name) > 60:
+            list_name = list_name[:57] + "..."
         
         # Create the list
         list_id = query_manager.create_list(list_name, folder_id=folder_id)
