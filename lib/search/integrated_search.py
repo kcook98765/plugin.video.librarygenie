@@ -136,16 +136,41 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
         # Create list name with AI prefix and timestamp (same format as local search)
         timestamp = datetime.now().strftime("%m/%d %H:%M")
         display_query = query if len(query) <= 20 else f"{query[:17]}..."
-        list_name = f"AI: '{display_query}' ({timestamp})"
+        base_list_name = f"AI: '{display_query}' ({timestamp})"
         
         # Truncate if too long
-        if len(list_name) > 60:
-            list_name = list_name[:57] + "..."
+        if len(base_list_name) > 60:
+            base_list_name = base_list_name[:57] + "..."
         
-        # Create the list
-        list_id = query_manager.create_list(list_name, folder_id=folder_id)
+        # Try to create the list with fallback for duplicate names
+        list_id = None
+        for attempt in range(11):  # Try base name + 10 numbered attempts
+            if attempt == 0:
+                list_name = base_list_name
+            else:
+                list_name = f"{base_list_name} ({attempt})"
+                # Truncate if adding number made it too long
+                if len(list_name) > 60:
+                    # Make room for the number suffix
+                    truncated_base = base_list_name[:54 - len(str(attempt))] + "..."
+                    list_name = f"{truncated_base} ({attempt})"
+            
+            result = query_manager.create_list(list_name, folder_id=folder_id)
+            
+            # Check if creation succeeded
+            if result and isinstance(result, int):
+                list_id = result
+                logger.info(f"Created AI search list: '{list_name}'" + (f" (attempt {attempt + 1})" if attempt > 0 else ""))
+                break
+            elif isinstance(result, dict) and result.get('error') == 'duplicate_name':
+                logger.debug(f"List name '{list_name}' already exists, trying next variation")
+                continue
+            else:
+                logger.error(f"Failed to create list '{list_name}': {result}")
+                break
+        
         if not list_id:
-            logger.error("Failed to create AI search results list")
+            logger.error("Failed to create AI search results list after 11 attempts")
             return None
         
         # Add results to list
