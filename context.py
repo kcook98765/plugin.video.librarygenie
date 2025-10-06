@@ -168,14 +168,12 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         quick_add_enabled = False
         default_list_id = ""
     
-    # Check if AI search is available/authorized
+    # Check if AI search is available/authorized (using proper AISearchClient check)
     ai_search_available = False
     try:
-        from lib.config.config_manager import get_config
-        config = get_config()
-        ai_search_activated = config.get_bool('ai_search_activated', False)
-        ai_search_api_key = config.get('ai_search_api_key', '')
-        ai_search_available = ai_search_activated and ai_search_api_key
+        from lib.remote.ai_search_client import AISearchClient
+        ai_client = AISearchClient()
+        ai_search_available = ai_client.is_activated()
     except Exception:
         pass
 
@@ -258,18 +256,15 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append("remove_from_list_generic")
 
     # 5. LG Find Similar Movies (if AI search is available and item has IMDb ID)
-    # DEBUG: Log conditions for similar movies feature
-    xbmc.log(f"[LG SIMILAR DEBUG] ai_search_available={ai_search_available}", xbmc.LOGINFO)
-    xbmc.log(f"[LG SIMILAR DEBUG] is_playable_item={is_playable_item}", xbmc.LOGINFO)
-    xbmc.log(f"[LG SIMILAR DEBUG] dbtype={item_info.get('dbtype')}", xbmc.LOGINFO)
-    xbmc.log(f"[LG SIMILAR DEBUG] imdbnumber={item_info.get('imdbnumber')}", xbmc.LOGINFO)
-    
-    if ai_search_available and is_playable_item:
+    if ai_search_available and is_playable_item and item_info.get('dbtype') == 'movie':
         imdb_id = item_info.get('imdbnumber', '').strip()
-        xbmc.log(f"[LG SIMILAR DEBUG] Passed first check. imdb_id={imdb_id}, starts_with_tt={imdb_id.startswith('tt') if imdb_id else False}", xbmc.LOGINFO)
         
-        if imdb_id and imdb_id.startswith('tt'):
-            xbmc.log(f"[LG SIMILAR DEBUG] Adding Find Similar Movies option!", xbmc.LOGINFO)
+        # Ensure IMDb ID has 'tt' prefix (Kodi sometimes stores without it)
+        if imdb_id and not imdb_id.startswith('tt'):
+            imdb_id = f"tt{imdb_id}"
+        
+        # Valid IMDb ID must start with 'tt' and have at least one digit
+        if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
             similar_label = "LG Find Similar Movies"
             options.append(similar_label)
             
@@ -277,10 +272,6 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             title = item_info.get('title', 'Unknown')
             year = item_info.get('year', '')
             actions.append(f"find_similar_movies&imdb_id={imdb_id}&title={urllib.parse.quote(title)}&year={year}")
-        else:
-            xbmc.log(f"[LG SIMILAR DEBUG] Failed imdb_id check", xbmc.LOGINFO)
-    else:
-        xbmc.log(f"[LG SIMILAR DEBUG] Failed first check (ai_search or playable)", xbmc.LOGINFO)
 
     # 6. Save Link to Bookmarks (if not in LibraryGenie folder context)
     # Only show for navigable folders/containers
