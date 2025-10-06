@@ -38,6 +38,7 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         """Initialize the dialog"""
         self._wire_controls()
         self._apply_state_to_controls()
+        self._load_and_display_stats()
         
         # Focus on Query field by default
         self.setFocusId(200)
@@ -76,6 +77,10 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         self.btn_switch = self.getControl(210)
         self.btn_search = self.getControl(260)
         self.btn_cancel = self.getControl(261)
+        try:
+            self.stats_text = self.getControl(270)
+        except:
+            self.stats_text = None
 
     def _apply_state_to_controls(self):
         """Apply current state to dialog controls"""
@@ -102,6 +107,122 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         # Move focus to Search button after keyboard closes
         self.setFocusId(260)
 
+    def _load_and_display_stats(self):
+        """Load library statistics from API with caching"""
+        if not self.stats_text:
+            return
+        
+        try:
+            from lib.utils.cache import get_cached, set_cached
+            from lib.remote.ai_search_client import AISearchClient
+            
+            # Check cache first (1 hour TTL)
+            CACHE_KEY = 'ai_library_stats'
+            cached_stats = get_cached(CACHE_KEY)
+            
+            if cached_stats:
+                xbmc.log('[LG-AISearchPanel] Using cached library stats', xbmc.LOGDEBUG)
+                self._display_stats(cached_stats)
+                return
+            
+            # Fetch fresh stats
+            client = AISearchClient()
+            if not client.is_activated():
+                self.stats_text.setText('[COLOR FFAAAAAA]AI Search not activated[/COLOR]')
+                return
+            
+            stats = client.get_library_stats()
+            if stats:
+                # Cache for 1 hour (3600 seconds)
+                set_cached(CACHE_KEY, stats, 3600)
+                self._display_stats(stats)
+            else:
+                self.stats_text.setText('[COLOR FFAAAAAA]Unable to load statistics[/COLOR]')
+        
+        except Exception as e:
+            xbmc.log('[LG-AISearchPanel] Error loading stats: {}'.format(str(e)), xbmc.LOGERROR)
+            self.stats_text.setText('[COLOR FFAAAAAA]Error loading statistics[/COLOR]')
+    
+    def _display_stats(self, stats):
+        """Format and display library statistics"""
+        if not stats or not self.stats_text:
+            return
+        
+        try:
+            lines = ['[B]Library Statistics[/B]', '']
+            
+            # Library Overview
+            lib_overview = stats.get('library_overview', {})
+            if lib_overview:
+                total = lib_overview.get('total_uploaded', 0)
+                lines.append('[COLOR FF00CED1]Your Library:[/COLOR]')
+                lines.append('  Total Movies: [B]{}[/B]'.format(total))
+                
+                date_range = lib_overview.get('upload_date_range', {})
+                if date_range:
+                    earliest = date_range.get('earliest', 'N/A')
+                    latest = date_range.get('latest', 'N/A')
+                    if earliest != 'N/A':
+                        earliest = earliest.split('T')[0]
+                    if latest != 'N/A':
+                        latest = latest.split('T')[0]
+                    lines.append('  Date Range: {} to {}'.format(earliest, latest))
+                lines.append('')
+            
+            # Setup Status
+            setup_status = stats.get('setup_status', {})
+            if setup_status:
+                completely_setup = setup_status.get('completely_setup', {})
+                not_setup = setup_status.get('not_setup', {})
+                
+                lines.append('[COLOR FF00CED1]Setup Status:[/COLOR]')
+                if completely_setup:
+                    count = completely_setup.get('count', 0)
+                    pct = completely_setup.get('percentage', 0)
+                    lines.append('  Searchable: [B]{} ({:.1f}%)[/B]'.format(count, pct))
+                
+                if not_setup:
+                    count = not_setup.get('count', 0)
+                    pct = not_setup.get('percentage', 0)
+                    lines.append('  Not Ready: {} ({:.1f}%)'.format(count, pct))
+                lines.append('')
+            
+            # System Context
+            sys_context = stats.get('system_context', {})
+            if sys_context:
+                lines.append('[COLOR FF00CED1]System Stats:[/COLOR]')
+                
+                total_sys = sys_context.get('total_movies_in_system', 0)
+                lines.append('  Total Movies: [B]{:,}[/B]'.format(total_sys))
+                
+                # OpenSearch stats
+                os_stats = sys_context.get('opensearch_detailed_stats', {})
+                if os_stats:
+                    indexed = os_stats.get('movies_indexed', 0)
+                    completion = os_stats.get('indexing_completion_rate', 0)
+                    lines.append('  Indexed: {:,} ({:.1f}%)'.format(indexed, completion))
+                
+                # TMDB stats
+                tmdb_stats = sys_context.get('tmdb_detailed_stats', {})
+                if tmdb_stats:
+                    success_rate = tmdb_stats.get('success_rate', 0)
+                    lines.append('  TMDB Success: {:.1f}%'.format(success_rate))
+                
+                # User lists stats
+                user_stats = sys_context.get('user_lists_stats', {})
+                if user_stats:
+                    total_users = user_stats.get('total_users_with_lists', 0)
+                    avg_movies = user_stats.get('average_movies_per_user', 0)
+                    lines.append('  Active Users: {} (avg {:.0f} movies)'.format(total_users, avg_movies))
+            
+            # Join all lines
+            formatted_text = '\n'.join(lines)
+            self.stats_text.setText(formatted_text)
+        
+        except Exception as e:
+            xbmc.log('[LG-AISearchPanel] Error formatting stats: {}'.format(str(e)), xbmc.LOGERROR)
+            self.stats_text.setText('[COLOR FFAAAAAA]Error displaying statistics[/COLOR]')
+    
     def _switch_to_local_search(self):
         """Switch to local search window"""
         xbmc.log('[LG-AISearchPanel] Switching to local search', xbmc.LOGDEBUG)
