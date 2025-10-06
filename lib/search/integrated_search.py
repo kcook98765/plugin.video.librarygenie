@@ -158,13 +158,23 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
             result = query_manager.create_list(list_name, folder_id=folder_id)
             
             # Check if creation succeeded
-            if result and isinstance(result, int):
+            if isinstance(result, dict):
+                if result.get('error') == 'duplicate_name':
+                    logger.debug(f"List name '{list_name}' already exists, trying next variation")
+                    continue
+                elif result.get('id'):
+                    # Success - extract ID from dict
+                    list_id = int(result['id'])
+                    logger.info(f"Created AI search list: '{list_name}'" + (f" (attempt {attempt + 1})" if attempt > 0 else ""))
+                    break
+                else:
+                    logger.error(f"Failed to create list '{list_name}': {result}")
+                    break
+            elif isinstance(result, int):
+                # Also handle if it returns an int directly
                 list_id = result
                 logger.info(f"Created AI search list: '{list_name}'" + (f" (attempt {attempt + 1})" if attempt > 0 else ""))
                 break
-            elif isinstance(result, dict) and result.get('error') == 'duplicate_name':
-                logger.debug(f"List name '{list_name}' already exists, trying next variation")
-                continue
             else:
                 logger.error(f"Failed to create list '{list_name}': {result}")
                 break
