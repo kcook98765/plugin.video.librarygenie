@@ -153,7 +153,7 @@
                 <aligny>center</aligny>
                 <label>Search</label>
                 <onup>200</onup>
-                <ondown>210</ondown>
+                <ondown>270</ondown>
                 <onleft>261</onleft>
                 <onright>261</onright>
             </control>
@@ -174,7 +174,7 @@
                 <aligny>center</aligny>
                 <label>Cancel</label>
                 <onup>200</onup>
-                <ondown>210</ondown>
+                <ondown>270</ondown>
                 <onleft>260</onleft>
                 <onright>260</onright>
             </control>
@@ -190,6 +190,10 @@
                 <shadowcolor>FF000000</shadowcolor>
                 <align>left</align>
                 <autoscroll>false</autoscroll>
+                <onup>260</onup>
+                <ondown>210</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
                 <label>Loading statistics...</label>
             </control>
             
