@@ -109,6 +109,8 @@ def _show_librarygenie_menu(addon):
             'container_content': xbmc.getInfoLabel('Container.Content'),
             'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
             'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
+            'imdbnumber': xbmc.getInfoLabel('ListItem.IMDBNumber'),
+            'year': xbmc.getInfoLabel('ListItem.Year'),
         }
 
 
@@ -165,6 +167,17 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     except Exception:
         quick_add_enabled = False
         default_list_id = ""
+    
+    # Check if AI search is available/authorized
+    ai_search_available = False
+    try:
+        from lib.config.config_manager import get_config
+        config = get_config()
+        ai_search_activated = config.get_bool('ai_search_activated', False)
+        ai_search_api_key = config.get('ai_search_api_key', '')
+        ai_search_available = ai_search_activated and ai_search_api_key
+    except Exception:
+        pass
 
     # Determine if we're in a list context for remove option
     container_path = xbmc.getInfoLabel('Container.FolderPath')
@@ -244,7 +257,19 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         else:
             actions.append("remove_from_list_generic")
 
-    # 5. Save Link to Bookmarks (if not in LibraryGenie folder context)
+    # 5. LG Find Similar Movies (if AI search is available and item has IMDb ID)
+    if ai_search_available and is_playable_item:
+        imdb_id = item_info.get('imdbnumber', '').strip()
+        if imdb_id and imdb_id.startswith('tt'):
+            similar_label = "LG Find Similar Movies"
+            options.append(similar_label)
+            
+            # Build action with required parameters
+            title = item_info.get('title', 'Unknown')
+            year = item_info.get('year', '')
+            actions.append(f"find_similar_movies&imdb_id={imdb_id}&title={urllib.parse.quote(title)}&year={year}")
+
+    # 6. Save Link to Bookmarks (if not in LibraryGenie folder context)
     # Only show for navigable folders/containers
     container_path = xbmc.getInfoLabel('Container.FolderPath')
     if not _is_folder_context(container_path, item_info.get('file_path')):
@@ -568,6 +593,11 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Launch AI Movie Search - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=ai_search"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+        
+        elif action_with_params.startswith("find_similar_movies&"):
+            # Handle Find Similar Movies action
+            plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
+            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
         
         elif action_with_params.startswith("import_file_media&"):
             # Handle Import File Media action
