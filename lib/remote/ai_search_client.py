@@ -302,7 +302,13 @@ class AISearchClient:
                 'limit': min(limit, 100)
             }
 
+            # DEBUG: Log request data
+            self.logger.debug("📤 AI SEARCH REQUEST DATA: %s", json.dumps(search_data, indent=2))
+
             response = self._make_request('kodi/search/movies', 'POST', search_data)
+
+            # DEBUG: Log full response
+            self.logger.debug("📥 AI SEARCH RESPONSE DATA: %s", json.dumps(response, indent=2) if response else "None")
 
             if response and response.get('success'):
                 # Validate response structure
