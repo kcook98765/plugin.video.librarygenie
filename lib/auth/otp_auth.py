@@ -385,14 +385,28 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                     media_items = library_manager.get_all_items(limit=10000)
 
                     if media_items:
-                        # Lazy import to avoid circular dependency
-                        from lib.remote.ai_search_client import get_ai_search_client
-                        ai_client = get_ai_search_client()
-                        sync_result = ai_client.sync_after_otp(media_items)
-                        if sync_result and sync_result.get('success'):
-                            logger.info("Post-OTP authoritative sync completed: %s", sync_result.get('results', {}))
+                        # Convert media items to format expected by sync (with imdb_id field)
+                        sync_items = []
+                        for item in media_items:
+                            if item.get('imdbnumber'):  # Database field name
+                                sync_items.append({
+                                    'imdb_id': item['imdbnumber'],
+                                    'title': item.get('title', ''),
+                                    'year': item.get('year', 0)
+                                })
+                        
+                        if sync_items:
+                            # Lazy import to avoid circular dependency
+                            from lib.remote.ai_search_client import get_ai_search_client
+                            ai_client = get_ai_search_client()
+                            sync_result = ai_client.sync_media_batch(sync_items, use_replace_mode=True)
+                            if sync_result and sync_result.get('success'):
+                                logger.info("Post-OTP authoritative sync completed: %s", sync_result.get('results', {}))
+                            else:
+                                error_msg = sync_result.get('error', 'Unknown error') if sync_result else 'No response'
+                                logger.warning("Post-OTP sync failed: %s (but authentication was successful)", error_msg)
                         else:
-                            logger.warning("Post-OTP sync failed, but authentication was successful")
+                            logger.info("No media items with IMDb IDs found, skipping post-OTP sync")
                     else:
                         logger.info("No media items found, skipping post-OTP sync")
 
