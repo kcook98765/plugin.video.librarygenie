@@ -175,7 +175,7 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
         
         # Add items to list
         for item in media_items:
-            query_manager.add_media_to_list(list_id, item['media_id'])
+            query_manager.add_item_to_list(list_id, item['media_id'])
         
         logger.info(f"Added {len(media_items)} items to AI search list {list_id}")
         xbmcgui.Dialog().notification(
