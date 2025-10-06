@@ -180,54 +180,98 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                         earliest = earliest.split('T')[0]
                     if latest != 'N/A':
                         latest = latest.split('T')[0]
-                    lines.append('  Date Range: {} to {}'.format(earliest, latest))
+                    lines.append('  Upload Range: {} to {}'.format(earliest, latest))
                 lines.append('')
             
-            # Setup Status
+            # Data Quality
+            data_quality = stats.get('data_quality', {})
+            if data_quality:
+                lines.append('[COLOR FF00CED1]Data Quality:[/COLOR]')
+                
+                tmdb_avail = data_quality.get('tmdb_data_available', {})
+                if tmdb_avail:
+                    count = safe_int(tmdb_avail.get('count', 0))
+                    pct = safe_float(tmdb_avail.get('percentage', 0))
+                    lines.append('  TMDB Data: {} ({:.1f}%)'.format(count, pct))
+                
+                tmdb_errors = data_quality.get('tmdb_errors', {})
+                if tmdb_errors:
+                    count = safe_int(tmdb_errors.get('count', 0))
+                    pct = safe_float(tmdb_errors.get('percentage', 0))
+                    lines.append('  TMDB Errors: {} ({:.1f}%)'.format(count, pct))
+                
+                os_indexed = data_quality.get('opensearch_indexed', {})
+                if os_indexed:
+                    count = safe_int(os_indexed.get('count', 0))
+                    pct = safe_float(os_indexed.get('percentage', 0))
+                    lines.append('  AI Searchable: [B]{} ({:.1f}%)[/B]'.format(count, pct))
+                lines.append('')
+            
+            # Setup Status with Breakdown
             setup_status = stats.get('setup_status', {})
             if setup_status:
-                completely_setup = setup_status.get('completely_setup', {})
                 not_setup = setup_status.get('not_setup', {})
                 
-                lines.append('[COLOR FF00CED1]Setup Status:[/COLOR]')
-                if completely_setup:
-                    count = safe_int(completely_setup.get('count', 0))
-                    pct = safe_float(completely_setup.get('percentage', 0))
-                    lines.append('  Searchable: [B]{} ({:.1f}%)[/B]'.format(count, pct))
+                lines.append('[COLOR FF00CED1]Not Ready Breakdown:[/COLOR]')
                 
-                if not_setup:
-                    count = safe_int(not_setup.get('count', 0))
-                    pct = safe_float(not_setup.get('percentage', 0))
-                    lines.append('  Not Ready: {} ({:.1f}%)'.format(count, pct))
+                breakdown = not_setup.get('breakdown', {})
+                if breakdown:
+                    missing_tmdb = breakdown.get('missing_tmdb_data', {})
+                    if missing_tmdb:
+                        count = safe_int(missing_tmdb.get('count', 0))
+                        lines.append('  Missing TMDB: {}'.format(count))
+                    
+                    not_indexed = breakdown.get('not_in_opensearch', {})
+                    if not_indexed:
+                        count = safe_int(not_indexed.get('count', 0))
+                        lines.append('  Not Indexed: {}'.format(count))
+                    
+                    tmdb_err = breakdown.get('tmdb_errors', {})
+                    if tmdb_err:
+                        count = safe_int(tmdb_err.get('count', 0))
+                        if count > 0:
+                            lines.append('  TMDB Errors: {}'.format(count))
+                lines.append('')
+            
+            # Batch History
+            batch_history = stats.get('batch_history', {})
+            if batch_history:
+                lines.append('[COLOR FF00CED1]Sync History:[/COLOR]')
+                
+                total_batches = safe_int(batch_history.get('total_batches', 0))
+                successful = safe_int(batch_history.get('successful_batches', 0))
+                failed = safe_int(batch_history.get('failed_batches', 0))
+                
+                lines.append('  Total Syncs: {}'.format(total_batches))
+                if total_batches > 0:
+                    lines.append('  Success: {} | Failed: {}'.format(successful, failed))
+                
+                recent = batch_history.get('recent_batches', [])
+                if recent and len(recent) > 0:
+                    last_batch = recent[0]
+                    mode = last_batch.get('mode', 'N/A')
+                    items = safe_int(last_batch.get('items_accepted', 0))
+                    status = last_batch.get('status', 'N/A')
+                    lines.append('  Last Sync: {} ({} items, {})'.format(mode, items, status))
                 lines.append('')
             
             # System Context
             sys_context = stats.get('system_context', {})
             if sys_context:
-                lines.append('[COLOR FF00CED1]System Stats:[/COLOR]')
+                lines.append('[COLOR FF00CED1]System-Wide:[/COLOR]')
                 
                 total_sys = safe_int(sys_context.get('total_movies_in_system', 0))
                 lines.append('  Total Movies: [B]{:,}[/B]'.format(total_sys))
-                
-                # OpenSearch stats
-                os_stats = sys_context.get('opensearch_detailed_stats', {})
-                if os_stats:
-                    indexed = safe_int(os_stats.get('movies_indexed', 0))
-                    completion = safe_float(os_stats.get('indexing_completion_rate', 0))
-                    lines.append('  Indexed: {:,} ({:.1f}%)'.format(indexed, completion))
-                
-                # TMDB stats
-                tmdb_stats = sys_context.get('tmdb_detailed_stats', {})
-                if tmdb_stats:
-                    success_rate = safe_float(tmdb_stats.get('success_rate', 0))
-                    lines.append('  TMDB Success: {:.1f}%'.format(success_rate))
                 
                 # User lists stats
                 user_stats = sys_context.get('user_lists_stats', {})
                 if user_stats:
                     total_users = safe_int(user_stats.get('total_users_with_lists', 0))
                     avg_movies = safe_float(user_stats.get('average_movies_per_user', 0))
-                    lines.append('  Active Users: {} (avg {:.0f} movies)'.format(total_users, avg_movies))
+                    largest = safe_int(user_stats.get('largest_user_collection', 0))
+                    lines.append('  Active Users: {}'.format(total_users))
+                    lines.append('  Avg Collection: {:.0f} movies'.format(avg_movies))
+                    lines.append('  Largest: {:,} movies'.format(largest))
             
             # Join all lines
             formatted_text = '\n'.join(lines)
