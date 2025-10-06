@@ -505,7 +505,14 @@ class AISearchClient:
             return None
 
         try:
+            # DEBUG: Log request
+            self.logger.debug("📤 LIBRARY STATS REQUEST: GET /users/me/library/stats")
+            
             response = self._make_request('users/me/library/stats', 'GET')
+            
+            # DEBUG: Log full response
+            self.logger.debug("📥 LIBRARY STATS RESPONSE: %s", json.dumps(response, indent=2) if response else "None")
+            
             if response and response.get('success'):
                 return response.get('stats')
             return None
