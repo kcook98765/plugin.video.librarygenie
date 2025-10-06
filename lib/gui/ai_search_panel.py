@@ -151,10 +151,24 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         try:
             lines = ['[B]Library Statistics[/B]', '']
             
+            # Helper to safely convert to float
+            def safe_float(val, default=0.0):
+                try:
+                    return float(val) if val is not None else default
+                except (ValueError, TypeError):
+                    return default
+            
+            # Helper to safely convert to int
+            def safe_int(val, default=0):
+                try:
+                    return int(val) if val is not None else default
+                except (ValueError, TypeError):
+                    return default
+            
             # Library Overview
             lib_overview = stats.get('library_overview', {})
             if lib_overview:
-                total = lib_overview.get('total_uploaded', 0)
+                total = safe_int(lib_overview.get('total_uploaded', 0))
                 lines.append('[COLOR FF00CED1]Your Library:[/COLOR]')
                 lines.append('  Total Movies: [B]{}[/B]'.format(total))
                 
@@ -177,13 +191,13 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                 
                 lines.append('[COLOR FF00CED1]Setup Status:[/COLOR]')
                 if completely_setup:
-                    count = completely_setup.get('count', 0)
-                    pct = completely_setup.get('percentage', 0)
+                    count = safe_int(completely_setup.get('count', 0))
+                    pct = safe_float(completely_setup.get('percentage', 0))
                     lines.append('  Searchable: [B]{} ({:.1f}%)[/B]'.format(count, pct))
                 
                 if not_setup:
-                    count = not_setup.get('count', 0)
-                    pct = not_setup.get('percentage', 0)
+                    count = safe_int(not_setup.get('count', 0))
+                    pct = safe_float(not_setup.get('percentage', 0))
                     lines.append('  Not Ready: {} ({:.1f}%)'.format(count, pct))
                 lines.append('')
             
@@ -192,27 +206,27 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
             if sys_context:
                 lines.append('[COLOR FF00CED1]System Stats:[/COLOR]')
                 
-                total_sys = sys_context.get('total_movies_in_system', 0)
+                total_sys = safe_int(sys_context.get('total_movies_in_system', 0))
                 lines.append('  Total Movies: [B]{:,}[/B]'.format(total_sys))
                 
                 # OpenSearch stats
                 os_stats = sys_context.get('opensearch_detailed_stats', {})
                 if os_stats:
-                    indexed = os_stats.get('movies_indexed', 0)
-                    completion = os_stats.get('indexing_completion_rate', 0)
+                    indexed = safe_int(os_stats.get('movies_indexed', 0))
+                    completion = safe_float(os_stats.get('indexing_completion_rate', 0))
                     lines.append('  Indexed: {:,} ({:.1f}%)'.format(indexed, completion))
                 
                 # TMDB stats
                 tmdb_stats = sys_context.get('tmdb_detailed_stats', {})
                 if tmdb_stats:
-                    success_rate = tmdb_stats.get('success_rate', 0)
+                    success_rate = safe_float(tmdb_stats.get('success_rate', 0))
                     lines.append('  TMDB Success: {:.1f}%'.format(success_rate))
                 
                 # User lists stats
                 user_stats = sys_context.get('user_lists_stats', {})
                 if user_stats:
-                    total_users = user_stats.get('total_users_with_lists', 0)
-                    avg_movies = user_stats.get('average_movies_per_user', 0)
+                    total_users = safe_int(user_stats.get('total_users_with_lists', 0))
+                    avg_movies = safe_float(user_stats.get('average_movies_per_user', 0))
                     lines.append('  Active Users: {} (avg {:.0f} movies)'.format(total_users, avg_movies))
             
             # Join all lines
