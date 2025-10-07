@@ -547,6 +547,9 @@ class AISearchClient:
                 'include_themes': facets.get('themes', False),
                 'include_genre': facets.get('genre', False)
             }
+            
+            # DEBUG: Log the exact request data being sent
+            self.logger.info("🔍 SIMILAR MOVIES REQUEST DATA: %s", json.dumps(request_data))
 
             # Ensure at least one facet is enabled
             if not any(request_data[key] for key in ['include_plot', 'include_mood', 'include_themes', 'include_genre']):
@@ -555,6 +558,9 @@ class AISearchClient:
 
             # Make request without authentication (public endpoint)
             response = self._make_public_request('similar_to', 'POST', request_data)
+            
+            # DEBUG: Log the raw response
+            self.logger.info("🔍 SIMILAR MOVIES RESPONSE: %s", json.dumps(response) if response else "None")
 
             if response and response.get('success'):
                 results = response.get('results', [])
