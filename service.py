@@ -893,7 +893,7 @@ class LibraryGenieService:
             from lib.data.connection_manager import get_connection_manager
             conn_manager = get_connection_manager()
             
-            movies_result = conn_manager.execute_query("SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''")
+            movies_result = conn_manager.execute_query("SELECT imdbnumber, title, year FROM media_items WHERE source = 'lib' AND media_type = 'movie' AND imdbnumber IS NOT NULL AND imdbnumber != ''")
             movies = [{"imdbnumber": row["imdbnumber"], "title": row["title"], "year": row["year"]} for row in movies_result]
             for movie in movies:
                 imdb_id = movie.get('imdbnumber', '').strip()

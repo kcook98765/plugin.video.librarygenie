@@ -642,11 +642,11 @@ def handle_ai_search_replace_sync():
         conn_manager = get_connection_manager()
         
         movies_result = conn_manager.execute_query(
-            "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
+            "SELECT imdbnumber, title, year FROM media_items WHERE source = 'lib' AND media_type = 'movie' AND imdbnumber IS NOT NULL AND imdbnumber != ''"
         )
         
         # DEBUG: Log raw query results
-        log_info(f"[DEBUG-REPLACE] Database query returned {len(movies_result) if movies_result else 0} rows")
+        log_info(f"[DEBUG-REPLACE] Database query returned {len(movies_result) if movies_result else 0} rows (source='lib', media_type='movie')")
         
         # Format movies for sync
         sync_items = []
@@ -728,11 +728,11 @@ def handle_ai_search_regular_sync():
         conn_manager = get_connection_manager()
         
         movies_result = conn_manager.execute_query(
-            "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
+            "SELECT imdbnumber, title, year FROM media_items WHERE source = 'lib' AND media_type = 'movie' AND imdbnumber IS NOT NULL AND imdbnumber != ''"
         )
         
         # DEBUG: Log raw query results
-        log_info(f"[DEBUG-REGULAR] Database query returned {len(movies_result) if movies_result else 0} rows")
+        log_info(f"[DEBUG-REGULAR] Database query returned {len(movies_result) if movies_result else 0} rows (source='lib', media_type='movie')")
         
         # Format movies for sync
         sync_items = []

@@ -380,17 +380,22 @@ def run_otp_authorization_flow(server_url: str) -> bool:
 
                 # Trigger authoritative sync after successful OTP authentication
                 try:
-                    from lib.data.list_library_manager import get_list_library_manager
-                    library_manager = get_list_library_manager()
-                    media_items = library_manager.get_all_items(limit=10000)
+                    # Query only movies from library source with IMDb IDs
+                    from lib.data.connection_manager import get_connection_manager
+                    conn_manager = get_connection_manager()
+                    
+                    movies_result = conn_manager.execute_query(
+                        "SELECT imdbnumber, title, year FROM media_items WHERE source = 'lib' AND media_type = 'movie' AND imdbnumber IS NOT NULL AND imdbnumber != ''"
+                    )
 
-                    if media_items:
+                    if movies_result:
                         # Convert media items to format expected by sync (with imdb_id field)
                         sync_items = []
-                        for item in media_items:
-                            if item.get('imdbnumber'):  # Database field name
+                        for item in movies_result:
+                            imdb_id = item.get('imdbnumber', '').strip()
+                            if imdb_id and imdb_id.startswith('tt'):
                                 sync_items.append({
-                                    'imdb_id': item['imdbnumber'],
+                                    'imdb_id': imdb_id,
                                     'title': item.get('title', ''),
                                     'year': item.get('year', 0)
                                 })
@@ -399,6 +404,7 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                             # Lazy import to avoid circular dependency
                             from lib.remote.ai_search_client import get_ai_search_client
                             ai_client = get_ai_search_client()
+                            logger.info("Post-OTP sync: Syncing %s movies (source='lib', media_type='movie')", len(sync_items))
                             sync_result = ai_client.sync_media_batch(sync_items, use_replace_mode=True)
                             if sync_result and sync_result.get('success'):
                                 logger.info("Post-OTP authoritative sync completed: %s", sync_result.get('results', {}))
@@ -406,9 +412,9 @@ def run_otp_authorization_flow(server_url: str) -> bool:
                                 error_msg = sync_result.get('error', 'Unknown error') if sync_result else 'No response'
                                 logger.warning("Post-OTP sync failed: %s (but authentication was successful)", error_msg)
                         else:
-                            logger.info("No media items with IMDb IDs found, skipping post-OTP sync")
+                            logger.info("No movies with valid IMDb IDs found, skipping post-OTP sync")
                     else:
-                        logger.info("No media items found, skipping post-OTP sync")
+                        logger.info("No movies found in library, skipping post-OTP sync")
 
                 except Exception as e:
                     logger.warning("Post-OTP sync failed but authentication succeeded: %s", e)
