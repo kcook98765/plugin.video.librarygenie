@@ -601,7 +601,7 @@ class AISearchHandler:
                 dialog_bg.create("AI Search Replace Sync", "Preparing sync...")
 
                 movies_result = conn_manager.execute_query(
-                    "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
+                    "SELECT imdbnumber, title, year FROM media_items WHERE source = 'lib' AND media_type = 'movie' AND imdbnumber IS NOT NULL AND imdbnumber != ''"
                 )
 
                 movies_with_imdb = []
