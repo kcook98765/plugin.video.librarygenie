@@ -325,6 +325,9 @@ class LibraryGenieService:
             if self._should_start_ai_sync():
                 log_info("AI Search sync conditions met - starting sync thread")
                 self._start_ai_sync_thread()
+                
+                # Fetch library stats at startup (one-time)
+                self._fetch_startup_stats()
             else:
                 log_info("AI Search sync conditions not met - sync disabled")
 
@@ -630,6 +633,20 @@ class LibraryGenieService:
 
         # Configuration looks good - sync worker will test connection when it runs
         return True
+
+    def _fetch_startup_stats(self):
+        """Fetch and cache library stats at service startup (one-time)"""
+        try:
+            log_info("Fetching library stats at service startup...")
+            from lib.utils.stats_cache import get_stats_cache
+            
+            stats_cache = get_stats_cache()
+            if stats_cache.fetch_and_save_stats():
+                log_info("Library stats cached at startup")
+            else:
+                log("Failed to fetch stats at startup (will retry after next sync)")
+        except Exception as e:
+            log_error(f"Error fetching stats at startup: {e}")
 
     def _start_ai_sync_thread(self):
         """Start the AI search sync background thread"""
