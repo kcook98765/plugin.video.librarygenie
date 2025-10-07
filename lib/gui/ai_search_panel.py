@@ -108,36 +108,29 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         self.setFocusId(260)
 
     def _load_and_display_stats(self):
-        """Load library statistics from API with caching"""
+        """Load library statistics from cached file"""
         if not self.stats_text:
             return
         
         try:
-            from lib.utils.cache import get_cached, set_cached
+            from lib.utils.stats_cache import get_stats_cache
             from lib.remote.ai_search_client import AISearchClient
             
-            # Check cache first (1 hour TTL)
-            CACHE_KEY = 'ai_library_stats'
-            cached_stats = get_cached(CACHE_KEY)
-            
-            if cached_stats:
-                xbmc.log('[LG-AISearchPanel] Using cached library stats', xbmc.LOGDEBUG)
-                self._display_stats(cached_stats)
-                return
-            
-            # Fetch fresh stats
+            # Check if AI Search is activated
             client = AISearchClient()
             if not client.is_activated():
                 self.stats_text.setText('[COLOR FFAAAAAA]AI Search not activated[/COLOR]')
                 return
             
-            stats = client.get_library_stats()
+            # Load stats from cached file
+            stats_cache = get_stats_cache()
+            stats = stats_cache.load_stats()
+            
             if stats:
-                # Cache for 1 hour (3600 seconds)
-                set_cached(CACHE_KEY, stats, 3600)
+                xbmc.log('[LG-AISearchPanel] Using cached library stats from file', xbmc.LOGDEBUG)
                 self._display_stats(stats)
             else:
-                self.stats_text.setText('[COLOR FFAAAAAA]Unable to load statistics[/COLOR]')
+                self.stats_text.setText('[COLOR FFAAAAAA]No statistics available yet[/COLOR]\n[COLOR FF888888]Stats will be cached after next sync[/COLOR]')
         
         except Exception as e:
             xbmc.log('[LG-AISearchPanel] Error loading stats: {}'.format(str(e)), xbmc.LOGERROR)
