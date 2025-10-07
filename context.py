@@ -96,11 +96,15 @@ def _get_imdb_id():
     """Get IMDb ID - first try InfoLabel, then query database if needed"""
     # Step 1: Try ListItem.IMDBNumber InfoLabel first
     imdb_from_infolabel = xbmc.getInfoLabel('ListItem.IMDBNumber').strip()
+    xbmc.log(f"[LG SIMILAR] ListItem.IMDBNumber: '{imdb_from_infolabel}'", xbmc.LOGINFO)
+    
     if imdb_from_infolabel and imdb_from_infolabel.startswith('tt'):
+        xbmc.log(f"[LG SIMILAR] Using IMDb ID from InfoLabel: {imdb_from_infolabel}", xbmc.LOGINFO)
         return imdb_from_infolabel
     
     # Step 2: If InfoLabel doesn't have valid IMDb ID, query database
     dbid = xbmc.getInfoLabel('ListItem.DBID').strip()
+    xbmc.log(f"[LG SIMILAR] ListItem.DBID: '{dbid}'", xbmc.LOGINFO)
     
     if dbid and dbid.isdigit():
         try:
@@ -109,21 +113,27 @@ def _get_imdb_id():
             
             # Get dbtype if available, otherwise try to infer from container
             dbtype = xbmc.getInfoLabel('ListItem.DBTYPE').strip()
+            xbmc.log(f"[LG SIMILAR] ListItem.DBTYPE: '{dbtype}'", xbmc.LOGINFO)
+            
             if not dbtype:
                 # Infer from container content
                 if xbmc.getCondVisibility('Container.Content(movies)'):
                     dbtype = 'movie'
+                    xbmc.log("[LG SIMILAR] Inferred dbtype='movie' from Container.Content", xbmc.LOGINFO)
                 elif xbmc.getCondVisibility('Container.Content(episodes)'):
                     dbtype = 'episode'
+                    xbmc.log("[LG SIMILAR] Inferred dbtype='episode' from Container.Content", xbmc.LOGINFO)
             
             with conn_mgr.get_connection() as conn:
                 # Query with or without media_type filter
                 if dbtype:
+                    xbmc.log(f"[LG SIMILAR] Querying DB: kodi_id={dbid}, media_type={dbtype}", xbmc.LOGINFO)
                     result = conn.execute(
                         "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND media_type = ? AND is_removed = 0",
                         [dbid, dbtype]
                     ).fetchone()
                 else:
+                    xbmc.log(f"[LG SIMILAR] Querying DB: kodi_id={dbid} (no media_type filter)", xbmc.LOGINFO)
                     result = conn.execute(
                         "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND is_removed = 0",
                         [dbid]
@@ -131,12 +141,21 @@ def _get_imdb_id():
                 
                 if result and result[0]:
                     imdb_id = result[0].strip()
+                    xbmc.log(f"[LG SIMILAR] DB returned IMDb ID: '{imdb_id}'", xbmc.LOGINFO)
                     # Only return if it starts with 'tt'
                     if imdb_id.startswith('tt'):
+                        xbmc.log(f"[LG SIMILAR] Using IMDb ID from DB: {imdb_id}", xbmc.LOGINFO)
                         return imdb_id
-        except Exception:
-            pass
+                    else:
+                        xbmc.log(f"[LG SIMILAR] DB IMDb ID doesn't start with 'tt', rejecting: {imdb_id}", xbmc.LOGINFO)
+                else:
+                    xbmc.log("[LG SIMILAR] No IMDb ID found in DB", xbmc.LOGINFO)
+        except Exception as e:
+            xbmc.log(f"[LG SIMILAR] DB query error: {str(e)}", xbmc.LOGERROR)
+    else:
+        xbmc.log("[LG SIMILAR] No valid DBID available for DB lookup", xbmc.LOGINFO)
     
+    xbmc.log("[LG SIMILAR] No valid IMDb ID found", xbmc.LOGINFO)
     return ''
 
 
@@ -314,11 +333,15 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         not item_info.get('dbtype') and item_info.get('is_movies')
     )
     
+    xbmc.log(f"[LG SIMILAR] Menu check: ai_search_available={ai_search_available}, is_playable_item={is_playable_item}, is_movie={is_movie}", xbmc.LOGINFO)
+    xbmc.log(f"[LG SIMILAR] Menu check: dbtype='{item_info.get('dbtype')}', is_movies={item_info.get('is_movies')}, imdbnumber='{item_info.get('imdbnumber')}'", xbmc.LOGINFO)
+    
     if ai_search_available and is_playable_item and is_movie:
         imdb_id = item_info.get('imdbnumber', '').strip()
         
         # Only show option if we have a valid IMDb ID (already validated to start with 'tt')
         if imdb_id:
+            xbmc.log(f"[LG SIMILAR] ✓ Adding 'Find Similar Movies' option for: {item_info.get('title')} (IMDb: {imdb_id})", xbmc.LOGINFO)
             similar_label = "LG Find Similar Movies"
             options.append(similar_label)
             
@@ -326,6 +349,17 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             title = item_info.get('title', 'Unknown')
             year = item_info.get('year', '')
             actions.append(f"find_similar_movies&imdb_id={imdb_id}&title={urllib.parse.quote(title)}&year={year}")
+        else:
+            xbmc.log(f"[LG SIMILAR] ✗ No valid IMDb ID, hiding option for: {item_info.get('title')}", xbmc.LOGINFO)
+    else:
+        reason = []
+        if not ai_search_available:
+            reason.append("AI search not available")
+        if not is_playable_item:
+            reason.append("not playable item")
+        if not is_movie:
+            reason.append("not a movie")
+        xbmc.log(f"[LG SIMILAR] ✗ Hiding option: {', '.join(reason)}", xbmc.LOGINFO)
 
     # 6. Save Link to Bookmarks (if not in LibraryGenie folder context)
     # Only show for navigable folders/containers
