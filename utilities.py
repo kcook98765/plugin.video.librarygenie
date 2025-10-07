@@ -645,8 +645,12 @@ def handle_ai_search_replace_sync():
             "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
         )
         
+        # DEBUG: Log raw query results
+        log_info(f"[DEBUG-REPLACE] Database query returned {len(movies_result) if movies_result else 0} rows")
+        
         # Format movies for sync
         sync_items = []
+        skipped_count = 0
         for row in movies_result:
             imdb_id = row['imdbnumber'] if row['imdbnumber'] else ''
             imdb_id = imdb_id.strip()
@@ -656,6 +660,12 @@ def handle_ai_search_replace_sync():
                     'title': row['title'] if row['title'] else '',
                     'year': row['year'] if row['year'] else 0
                 })
+            else:
+                skipped_count += 1
+        
+        # DEBUG: Log filtering results
+        log_info(f"[DEBUG-REPLACE] After filtering: {len(sync_items)} valid items, {skipped_count} skipped (invalid/empty IMDb IDs)")
+        log_info(f"[DEBUG-REPLACE] Sending {len(sync_items)} items to sync_media_batch(use_replace_mode=True)")
         
         if not sync_items:
             dialog_service.show_error("No movies with IMDb IDs found in your library")
@@ -721,8 +731,12 @@ def handle_ai_search_regular_sync():
             "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
         )
         
+        # DEBUG: Log raw query results
+        log_info(f"[DEBUG-REGULAR] Database query returned {len(movies_result) if movies_result else 0} rows")
+        
         # Format movies for sync
         sync_items = []
+        skipped_count = 0
         for row in movies_result:
             imdb_id = row['imdbnumber'] if row['imdbnumber'] else ''
             imdb_id = imdb_id.strip()
@@ -732,6 +746,12 @@ def handle_ai_search_regular_sync():
                     'title': row['title'] if row['title'] else '',
                     'year': row['year'] if row['year'] else 0
                 })
+            else:
+                skipped_count += 1
+        
+        # DEBUG: Log filtering results
+        log_info(f"[DEBUG-REGULAR] After filtering: {len(sync_items)} valid items, {skipped_count} skipped (invalid/empty IMDb IDs)")
+        log_info(f"[DEBUG-REGULAR] Sending {len(sync_items)} items to sync_media_batch(use_replace_mode=False)")
         
         if not sync_items:
             dialog_service.show_error("No movies with IMDb IDs found in your library")
