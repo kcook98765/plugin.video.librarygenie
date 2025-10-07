@@ -170,6 +170,7 @@ class AISearchHandler:
                 item_dict = dict(row)
                 # Convert to standard format expected by add_search_results_to_list
                 standard_item = {
+                    'id': item_dict.get('id'),  # Database ID from media_items table
                     'kodi_id': item_dict.get('kodi_id'),
                     'media_type': item_dict.get('media_type', 'movie'),
                     'title': item_dict.get('title', ''),
