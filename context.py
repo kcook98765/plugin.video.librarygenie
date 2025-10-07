@@ -92,6 +92,29 @@ def main():
         )
 
 
+def _get_imdb_id_from_db(dbtype, dbid):
+    """Query media_items table for IMDb ID by Kodi dbid"""
+    if not dbtype or not dbid or dbid == '0':
+        return ''
+    
+    try:
+        from lib.db.connection import ConnectionManager
+        conn_mgr = ConnectionManager()
+        
+        with conn_mgr.get_connection() as conn:
+            result = conn.execute(
+                "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND media_type = ? AND is_removed = 0",
+                [dbid, dbtype]
+            ).fetchone()
+            
+            if result and result[0]:
+                return result[0]
+    except Exception:
+        pass
+    
+    return ''
+
+
 def _show_librarygenie_menu(addon):
     """Show LibraryGenie submenu with conditional options"""
     try:
@@ -109,9 +132,11 @@ def _show_librarygenie_menu(addon):
             'container_content': xbmc.getInfoLabel('Container.Content'),
             'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
             'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
-            'imdbnumber': xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),  # Proper IMDb ID from unique IDs
             'year': xbmc.getInfoLabel('ListItem.Year'),
         }
+        
+        # Get IMDb ID from database (faster than JSON-RPC)
+        item_info['imdbnumber'] = _get_imdb_id_from_db(item_info['dbtype'], item_info['dbid'])
 
 
         # Build options list
