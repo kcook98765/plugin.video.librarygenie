@@ -113,15 +113,13 @@ def _get_imdb_id():
     
     if dbid and dbid.isdigit():
         try:
-            # Ensure addon path is in sys.path for imports
-            import os
-            addon_path = xbmcaddon.Addon().getAddonInfo('path')
-            if addon_path not in sys.path:
-                sys.path.insert(0, addon_path)
-                xbmc.log(f"[LG SIMILAR] Added addon path to sys.path: {addon_path}", xbmc.LOGINFO)
+            # Use the same pattern as the rest of context.py
+            from lib.data.query_manager import get_query_manager
+            query_manager = get_query_manager()
             
-            from lib.db.connection import ConnectionManager
-            conn_mgr = ConnectionManager()
+            if not query_manager.initialize():
+                xbmc.log("[LG SIMILAR] Failed to initialize query manager", xbmc.LOGERROR)
+                return ''
             
             # Get dbtype if available, otherwise try to infer from container
             dbtype = xbmc.getInfoLabel('ListItem.DBTYPE').strip()
@@ -136,7 +134,8 @@ def _get_imdb_id():
                     dbtype = 'episode'
                     xbmc.log("[LG SIMILAR] Inferred dbtype='episode' from Container.Content", xbmc.LOGINFO)
             
-            with conn_mgr.get_connection() as conn:
+            # Direct SQL query through query_manager's connection
+            with query_manager.conn_manager.get_connection() as conn:
                 # Query with or without media_type filter
                 if dbtype:
                     xbmc.log(f"[LG SIMILAR] Querying DB: kodi_id={dbid}, media_type={dbtype}", xbmc.LOGINFO)
@@ -156,7 +155,7 @@ def _get_imdb_id():
                     xbmc.log(f"[LG SIMILAR] DB returned IMDb ID: '{imdb_id}'", xbmc.LOGINFO)
                     # Only return if it starts with 'tt'
                     if imdb_id.startswith('tt'):
-                        xbmc.log(f"[LG SIMILAR] Using IMDb ID from DB: {imdb_id}", xbmc.LOGINFO)
+                        xbmc.log(f"[LG SIMILAR] ✓ Using IMDb ID from DB: {imdb_id}", xbmc.LOGINFO)
                         return imdb_id
                     else:
                         xbmc.log(f"[LG SIMILAR] DB IMDb ID doesn't start with 'tt', rejecting: {imdb_id}", xbmc.LOGINFO)
