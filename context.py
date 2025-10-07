@@ -98,14 +98,16 @@ def _get_imdb_id():
     imdb_from_infolabel = xbmc.getInfoLabel('ListItem.IMDBNumber').strip()
     xbmc.log(f"[LG SIMILAR] ListItem.IMDBNumber: '{imdb_from_infolabel}'", xbmc.LOGINFO)
     
-    # Validate it's actually an IMDb ID (starts with 'tt'), not a Kodi database ID
+    # Check if it's a valid IMDb ID (starts with 'tt')
     if imdb_from_infolabel and imdb_from_infolabel.startswith('tt'):
-        xbmc.log(f"[LG SIMILAR] Using IMDb ID from InfoLabel: {imdb_from_infolabel}", xbmc.LOGINFO)
+        xbmc.log(f"[LG SIMILAR] ✓ Valid IMDb ID from InfoLabel: {imdb_from_infolabel}", xbmc.LOGINFO)
         return imdb_from_infolabel
-    elif imdb_from_infolabel:
-        xbmc.log(f"[LG SIMILAR] InfoLabel returned invalid IMDb ID (possibly Kodi DB ID): '{imdb_from_infolabel}'", xbmc.LOGINFO)
     
-    # Step 2: If InfoLabel doesn't have valid IMDb ID, query database
+    # If it's just numeric, it's a Kodi DB ID, not an IMDb ID
+    if imdb_from_infolabel and imdb_from_infolabel.isdigit():
+        xbmc.log(f"[LG SIMILAR] InfoLabel is numeric (Kodi DB ID): '{imdb_from_infolabel}' - will lookup in database", xbmc.LOGINFO)
+    
+    # Step 2: Query database using DBID to get actual IMDb ID
     dbid = xbmc.getInfoLabel('ListItem.DBID').strip()
     xbmc.log(f"[LG SIMILAR] ListItem.DBID: '{dbid}'", xbmc.LOGINFO)
     
