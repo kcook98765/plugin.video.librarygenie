@@ -375,9 +375,9 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         xbmc.log(f"[LG SIMILAR] ✗ Hiding option: {', '.join(reason)}", xbmc.LOGINFO)
 
     # 6. Save Link to Bookmarks (if not in LibraryGenie folder context)
-    # Only show for navigable folders/containers
+    # Only show for navigable folders/containers, and NOT for playable items
     container_path = xbmc.getInfoLabel('Container.FolderPath')
-    if not _is_folder_context(container_path, item_info.get('file_path')):
+    if not _is_folder_context(container_path, item_info.get('file_path')) and not is_playable_item:
         bookmark_label = L(30394)  # "LG Save Bookmark"
         options.append(bookmark_label)
         
