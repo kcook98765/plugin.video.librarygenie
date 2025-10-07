@@ -369,12 +369,21 @@ class AISearchClient:
             return {'success': True, 'results': {'accepted': 0, 'duplicates': 0, 'invalid': 0}}
 
         try:
+            # DEBUG: Log incoming media_items count
+            self.logger.info(f"[DEBUG] sync_media_batch received {len(media_items)} media_items")
+            
             # Extract IMDb IDs from media items
             imdb_ids = []
+            invalid_count = 0
             for item in media_items:
                 imdb_id = item.get('imdb_id')
                 if imdb_id and imdb_id.startswith('tt'):
                     imdb_ids.append(imdb_id)
+                else:
+                    invalid_count += 1
+
+            # DEBUG: Log extraction results
+            self.logger.info(f"[DEBUG] Extracted {len(imdb_ids)} valid IMDb IDs, {invalid_count} invalid/missing")
 
             if not imdb_ids:
                 self.logger.warning("No valid IMDb IDs found in media items")
@@ -388,6 +397,8 @@ class AISearchClient:
                 'source': 'kodi'
             }
 
+            # DEBUG: Log the exact count being sent to API
+            self.logger.info(f"[DEBUG] Preparing batch start request with total_count={len(imdb_ids)}")
             self.logger.info("Starting batch sync in '%s' mode with %s items", sync_mode, len(imdb_ids))
             start_response = self._make_request('library/batch/start', 'POST', batch_start_data)
             if not start_response or not start_response.get('success'):
