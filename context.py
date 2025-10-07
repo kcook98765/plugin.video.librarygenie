@@ -135,7 +135,7 @@ def _get_imdb_id():
                     xbmc.log("[LG SIMILAR] Inferred dbtype='episode' from Container.Content", xbmc.LOGINFO)
             
             # Direct SQL query through query_manager's connection
-            with query_manager.conn_manager.get_connection() as conn:
+            with query_manager.connection_manager.get_connection() as conn:
                 # Query with or without media_type filter
                 if dbtype:
                     xbmc.log(f"[LG SIMILAR] Querying DB: kodi_id={dbid}, media_type={dbtype}", xbmc.LOGINFO)
