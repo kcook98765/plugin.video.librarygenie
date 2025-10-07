@@ -249,10 +249,9 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                 recent = batch_history.get('recent_batches', [])
                 if recent and len(recent) > 0:
                     last_batch = recent[0]
-                    mode = last_batch.get('mode', 'N/A')
-                    items = safe_int(last_batch.get('items_accepted', 0))
+                    items = safe_int(last_batch.get('successful_imports', 0))
                     status = last_batch.get('status', 'N/A')
-                    lines.append('  Last Sync: {} ({} items, {})'.format(mode, items, status))
+                    lines.append('  Last Sync: {} items ({})'.format(items, status))
                 lines.append('')
             
             # System Context
