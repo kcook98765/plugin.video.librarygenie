@@ -252,61 +252,20 @@ class AISearchHandler:
 
     def _redirect_to_search_list(self, list_id: int):
         """
-        Redirect to the created search history list using same method as local search
+        Navigate to the created search history list
 
         Args:
             list_id: ID of the list to show
         """
         try:
-            # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
-            # This eliminates the Container.Update issue that prevents AI search results 
-            # from displaying in Kodi V22
-            success = self._render_search_list_directly(list_id)
-            if success:
-                self.logger.info("AI SEARCH: Successfully displayed results using direct rendering for list %s", list_id)
-            else:
-                self.logger.error("AI SEARCH: Failed to render results directly for list %s", list_id)
+            import xbmc
+            # Use ActivateWindow for navigation (works even when called from RunPlugin context menu)
+            list_url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+            xbmc.executebuiltin(f'ActivateWindow(Videos,{list_url},return)')
+            self.logger.info("AI SEARCH: Navigating to search results list %s", list_id)
 
         except Exception as e:
-            self.logger.error("AI SEARCH: Failed to redirect to search list: %s", e)
-
-    def _render_search_list_directly(self, list_id: int) -> bool:
-        """Directly render AI search list without Container.Update redirect"""
-        try:
-            self.logger.debug("AI SEARCH: Directly rendering search list ID: %s", list_id)
-
-            # Import and instantiate ListsHandler
-            from lib.ui.handler_factory import get_handler_factory
-            from lib.ui.response_handler import get_response_handler
-            from lib.ui.plugin_context import PluginContext
-
-            # Create a context for the direct rendering
-            # PluginContext reads from sys.argv internally, so no arguments needed
-            context = PluginContext()
-
-            factory = get_handler_factory()
-            factory.context = context
-            lists_handler = factory.get_lists_handler()
-            response_handler = get_response_handler()
-
-            # Directly call view_list with the saved list ID
-            directory_response = lists_handler.view_list(context, str(list_id))
-
-            # Handle the DirectoryResponse
-            success = response_handler.handle_directory_response(directory_response, context)
-
-            if success:
-                self.logger.debug("AI SEARCH: Successfully rendered search list %s directly", list_id)
-                return True
-            else:
-                self.logger.warning("AI SEARCH: Failed to handle directory response for list %s", list_id)
-                return False
-
-        except Exception as e:
-            self.logger.error("AI SEARCH: Error rendering search list directly: %s", e)
-            import traceback
-            self.logger.error("AI SEARCH: Direct rendering traceback: %s", traceback.format_exc())
-            return False
+            self.logger.error("AI SEARCH: Failed to navigate to search list: %s", e)
 
     def prompt_and_search(self) -> bool:
         """
