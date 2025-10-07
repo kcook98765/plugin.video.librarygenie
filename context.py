@@ -109,7 +109,7 @@ def _show_librarygenie_menu(addon):
             'container_content': xbmc.getInfoLabel('Container.Content'),
             'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
             'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
-            'imdbnumber': xbmc.getInfoLabel('ListItem.IMDBNumber'),
+            'imdbnumber': xbmc.getInfoLabel('ListItem.UniqueID(imdb)'),  # Proper IMDb ID from unique IDs
             'year': xbmc.getInfoLabel('ListItem.Year'),
         }
 
