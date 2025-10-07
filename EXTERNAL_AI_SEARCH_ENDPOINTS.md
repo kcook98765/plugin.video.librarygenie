@@ -715,24 +715,20 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
     "setup_status": {
       "completely_setup": {
         "count": 1150,
-        "percentage": 93.2,
-        "movies": ["tt0111161", "tt0068646", "tt0071562"]
+        "percentage": 93.2
       },
       "not_setup": {
         "count": 84,
         "percentage": 6.8,
         "breakdown": {
           "missing_tmdb_data": {
-            "count": 12,
-            "movies": ["tt9999999", "tt8888888"]
+            "count": 12
           },
           "tmdb_errors": {
-            "count": 3,
-            "movies": ["tt7777777"]
+            "count": 3
           },
           "not_in_opensearch": {
-            "count": 69,
-            "movies": ["tt6666666", "tt5555555"]
+            "count": 69
           }
         }
       }
@@ -799,7 +795,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 
 **Response Fields:**
 - `library_overview`: Basic library information (total count, date range)
-- `setup_status`: Breakdown of movies by completeness status with sample IMDb IDs
+- `setup_status`: Breakdown of movies by completeness status with counts and percentages only
 - `data_quality`: Percentages for TMDB data availability and OpenSearch indexing
 - `batch_history`: Upload batch statistics and recent batch details
 - `system_context`: System-wide statistics and service availability with enhanced metrics:
