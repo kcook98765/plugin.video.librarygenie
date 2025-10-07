@@ -281,10 +281,8 @@ class AISearchHandler:
             from lib.ui.plugin_context import PluginContext
 
             # Create a context for the direct rendering
-            # Note: AI search typically doesn't have a context passed in, so we create one
-            import sys
-            addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-            context = PluginContext(addon_handle, sys.argv[0], {})
+            # PluginContext reads from sys.argv internally, so no arguments needed
+            context = PluginContext()
 
             factory = get_handler_factory()
             factory.context = context
