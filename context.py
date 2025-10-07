@@ -92,59 +92,50 @@ def main():
         )
 
 
-def _get_dbid_reliable():
-    """Get DBID reliably from sys.listitem or InfoLabel with validation"""
-    try:
-        # Method 1: Try sys.listitem (most reliable for context menu addons)
-        if hasattr(sys, 'listitem'):
-            listitem = sys.listitem
-            # Try parsing from videodb:// URL
-            path = listitem.getfilename()
-            if path.startswith('videodb://'):
-                dbid = path.split('?')[0].rstrip('/').split('/')[-1]
-                if dbid.isdigit():
-                    return dbid
-            
-            # Validate InfoLabel by comparing labels
-            label_check = xbmc.getInfoLabel('ListItem.Label')
-            if label_check == listitem.getLabel():
-                dbid = xbmc.getInfoLabel('ListItem.DBID')
-                if dbid and dbid.isdigit():
-                    return dbid
-        
-        # Method 2: Fallback to InfoLabel (may be unreliable)
-        dbid = xbmc.getInfoLabel('ListItem.DBID')
-        if dbid and dbid.isdigit():
-            return dbid
-            
-    except Exception as e:
-        xbmc.log(f"LibraryGenie: Error getting DBID: {str(e)}", xbmc.LOGERROR)
+def _get_imdb_id():
+    """Get IMDb ID - first try InfoLabel, then query database if needed"""
+    # Step 1: Try ListItem.IMDBNumber InfoLabel first
+    imdb_from_infolabel = xbmc.getInfoLabel('ListItem.IMDBNumber').strip()
+    if imdb_from_infolabel and imdb_from_infolabel.startswith('tt'):
+        return imdb_from_infolabel
     
-    return ''
-
-
-def _get_imdb_id_from_db(dbtype, dbid):
-    """Query media_items table for IMDb ID by Kodi dbid"""
-    if not dbtype or not dbid or dbid == '0':
-        return ''
+    # Step 2: If InfoLabel doesn't have valid IMDb ID, query database
+    dbid = xbmc.getInfoLabel('ListItem.DBID').strip()
     
-    try:
-        from lib.db.connection import ConnectionManager
-        conn_mgr = ConnectionManager()
-        
-        with conn_mgr.get_connection() as conn:
-            result = conn.execute(
-                "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND media_type = ? AND is_removed = 0",
-                [dbid, dbtype]
-            ).fetchone()
+    if dbid and dbid.isdigit():
+        try:
+            from lib.db.connection import ConnectionManager
+            conn_mgr = ConnectionManager()
             
-            if result and result[0]:
-                imdb_id = result[0].strip()
-                # Only return if it starts with 'tt' (valid IMDb ID)
-                if imdb_id.startswith('tt'):
-                    return imdb_id
-    except Exception:
-        pass
+            # Get dbtype if available, otherwise try to infer from container
+            dbtype = xbmc.getInfoLabel('ListItem.DBTYPE').strip()
+            if not dbtype:
+                # Infer from container content
+                if xbmc.getCondVisibility('Container.Content(movies)'):
+                    dbtype = 'movie'
+                elif xbmc.getCondVisibility('Container.Content(episodes)'):
+                    dbtype = 'episode'
+            
+            with conn_mgr.get_connection() as conn:
+                # Query with or without media_type filter
+                if dbtype:
+                    result = conn.execute(
+                        "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND media_type = ? AND is_removed = 0",
+                        [dbid, dbtype]
+                    ).fetchone()
+                else:
+                    result = conn.execute(
+                        "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND is_removed = 0",
+                        [dbid]
+                    ).fetchone()
+                
+                if result and result[0]:
+                    imdb_id = result[0].strip()
+                    # Only return if it starts with 'tt'
+                    if imdb_id.startswith('tt'):
+                        return imdb_id
+        except Exception:
+            pass
     
     return ''
 
@@ -154,16 +145,11 @@ def _show_librarygenie_menu(addon):
     try:
         # IMPORTANT: Cache all item info BEFORE showing any dialogs
         # This prevents losing context when the dialog opens
-        
-        # Get DBID using reliable method
-        dbid = _get_dbid_reliable()
-        dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
-        
         item_info = {
-            'dbtype': dbtype,
-            'dbid': dbid,
+            'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
+            'dbid': xbmc.getInfoLabel('ListItem.DBID'),
             'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
-            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),  # Try ListItem.Path for navigation URL
+            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),
             'title': xbmc.getInfoLabel('ListItem.Title'),
             'label': xbmc.getInfoLabel('ListItem.Label'),
             'media_item_id': xbmc.getInfoLabel('ListItem.Property(media_item_id)'),
@@ -174,8 +160,8 @@ def _show_librarygenie_menu(addon):
             'year': xbmc.getInfoLabel('ListItem.Year'),
         }
         
-        # Get IMDb ID from database - only returns if it starts with 'tt'
-        item_info['imdbnumber'] = _get_imdb_id_from_db(dbtype, dbid)
+        # Get IMDb ID - only returns if it starts with 'tt'
+        item_info['imdbnumber'] = _get_imdb_id()
 
 
         # Build options list
@@ -323,8 +309,12 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
             actions.append("remove_from_list_generic")
 
     # 5. LG Find Similar Movies (if AI search is available and item has valid IMDb ID)
-    # Note: _get_imdb_id_from_db() already validates IMDb ID starts with 'tt'
-    if ai_search_available and is_playable_item and item_info.get('dbtype') == 'movie':
+    # Determine if this is a movie - use dbtype or infer from container
+    is_movie = item_info.get('dbtype') == 'movie' or (
+        not item_info.get('dbtype') and item_info.get('is_movies')
+    )
+    
+    if ai_search_available and is_playable_item and is_movie:
         imdb_id = item_info.get('imdbnumber', '').strip()
         
         # Only show option if we have a valid IMDb ID (already validated to start with 'tt')
