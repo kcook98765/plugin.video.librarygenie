@@ -98,9 +98,12 @@ def _get_imdb_id():
     imdb_from_infolabel = xbmc.getInfoLabel('ListItem.IMDBNumber').strip()
     xbmc.log(f"[LG SIMILAR] ListItem.IMDBNumber: '{imdb_from_infolabel}'", xbmc.LOGINFO)
     
+    # Validate it's actually an IMDb ID (starts with 'tt'), not a Kodi database ID
     if imdb_from_infolabel and imdb_from_infolabel.startswith('tt'):
         xbmc.log(f"[LG SIMILAR] Using IMDb ID from InfoLabel: {imdb_from_infolabel}", xbmc.LOGINFO)
         return imdb_from_infolabel
+    elif imdb_from_infolabel:
+        xbmc.log(f"[LG SIMILAR] InfoLabel returned invalid IMDb ID (possibly Kodi DB ID): '{imdb_from_infolabel}'", xbmc.LOGINFO)
     
     # Step 2: If InfoLabel doesn't have valid IMDb ID, query database
     dbid = xbmc.getInfoLabel('ListItem.DBID').strip()
@@ -108,6 +111,13 @@ def _get_imdb_id():
     
     if dbid and dbid.isdigit():
         try:
+            # Ensure addon path is in sys.path for imports
+            import os
+            addon_path = xbmcaddon.Addon().getAddonInfo('path')
+            if addon_path not in sys.path:
+                sys.path.insert(0, addon_path)
+                xbmc.log(f"[LG SIMILAR] Added addon path to sys.path: {addon_path}", xbmc.LOGINFO)
+            
             from lib.db.connection import ConnectionManager
             conn_mgr = ConnectionManager()
             
@@ -152,6 +162,8 @@ def _get_imdb_id():
                     xbmc.log("[LG SIMILAR] No IMDb ID found in DB", xbmc.LOGINFO)
         except Exception as e:
             xbmc.log(f"[LG SIMILAR] DB query error: {str(e)}", xbmc.LOGERROR)
+            import traceback
+            xbmc.log(f"[LG SIMILAR] Traceback: {traceback.format_exc()}", xbmc.LOGERROR)
     else:
         xbmc.log("[LG SIMILAR] No valid DBID available for DB lookup", xbmc.LOGINFO)
     
