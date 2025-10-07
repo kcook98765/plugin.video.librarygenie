@@ -353,9 +353,12 @@ class AISearchHandler:
             title = context.params.get('title', 'Unknown')
             year = context.params.get('year', '')
             is_plugin_context = context.params.get('is_plugin_context', False)
+            
+            # DEBUG: Log received parameters
+            self.logger.info("🔍 SIMILAR MOVIES PARAMS: imdb_id=%s, title=%s, year=%s", imdb_id, title, year)
 
             if not imdb_id or not imdb_id.startswith('tt'):
-                self.logger.error("SIMILAR MOVIES: Invalid or missing IMDb ID")
+                self.logger.error("SIMILAR MOVIES: Invalid or missing IMDb ID (received: %s)", imdb_id)
                 self.dialog.show_error("No valid IMDb ID found", title="Similar Movies", time_ms=3000)
                 return False
 
