@@ -538,6 +538,15 @@ class LibraryGenieService:
                         message = f"Found {items_added} new, {items_removed} removed movies"
                         self._show_notification(f"Library updated: {message}", time_ms=3000)
                         log_info(f"Periodic sync found changes: {message}")
+                        
+                        # Update stats cache after changes detected
+                        try:
+                            from lib.utils.stats_cache import get_stats_cache
+                            stats_cache = get_stats_cache()
+                            if stats_cache.fetch_and_save_stats():
+                                log_info("Library stats updated after periodic sync")
+                        except Exception as e:
+                            log_error(f"Failed to update stats cache after periodic sync: {e}")
                     else:
                         message = "No new movies found"
                         log("Periodic library sync: No changes detected")
@@ -717,6 +726,15 @@ class LibraryGenieService:
                             f"Library updated: {items_added} new items added",
                             time_ms=4000
                         )
+                        
+                        # Update stats cache after changes detected
+                        try:
+                            from lib.utils.stats_cache import get_stats_cache
+                            stats_cache = get_stats_cache()
+                            if stats_cache.fetch_and_save_stats():
+                                log_info("Library stats updated after startup sync")
+                        except Exception as e:
+                            log_error(f"Failed to update stats cache after startup sync: {e}")
                     else:
                         log("Startup sync completed: no changes detected")
                 else:
@@ -838,6 +856,16 @@ class LibraryGenieService:
                             log_info(f"Fresh install sync added {total_items} items - invalidating database cache")
                             self._invalidate_and_refresh_db_cache()
                         
+                        # Update stats cache after successful initial sync
+                        if total_items > 0:
+                            try:
+                                from lib.utils.stats_cache import get_stats_cache
+                                stats_cache = get_stats_cache()
+                                if stats_cache.fetch_and_save_stats():
+                                    log_info("Library stats updated after initial sync")
+                            except Exception as e:
+                                log_error(f"Failed to update stats cache after initial sync: {e}")
+                        
                         self._show_notification(
                             f"Initial sync complete: {message}",
                             xbmcgui.NOTIFICATION_INFO,
@@ -951,6 +979,15 @@ class LibraryGenieService:
                     self.sync_stop_event.wait(1)
 
             log_info("AI search synchronization completed")
+            
+            # Fetch and save library stats after successful sync
+            try:
+                from lib.utils.stats_cache import get_stats_cache
+                stats_cache = get_stats_cache()
+                if stats_cache.fetch_and_save_stats():
+                    log_info("Library stats updated after AI sync")
+            except Exception as e:
+                log_error(f"Failed to update stats cache after sync: {e}")
 
             # Show completion notification with summary
             self._show_notification(
