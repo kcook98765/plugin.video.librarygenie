@@ -92,6 +92,37 @@ def main():
         )
 
 
+def _get_dbid_reliable():
+    """Get DBID reliably from sys.listitem or InfoLabel with validation"""
+    try:
+        # Method 1: Try sys.listitem (most reliable for context menu addons)
+        if hasattr(sys, 'listitem'):
+            listitem = sys.listitem
+            # Try parsing from videodb:// URL
+            path = listitem.getfilename()
+            if path.startswith('videodb://'):
+                dbid = path.split('?')[0].rstrip('/').split('/')[-1]
+                if dbid.isdigit():
+                    return dbid
+            
+            # Validate InfoLabel by comparing labels
+            label_check = xbmc.getInfoLabel('ListItem.Label')
+            if label_check == listitem.getLabel():
+                dbid = xbmc.getInfoLabel('ListItem.DBID')
+                if dbid and dbid.isdigit():
+                    return dbid
+        
+        # Method 2: Fallback to InfoLabel (may be unreliable)
+        dbid = xbmc.getInfoLabel('ListItem.DBID')
+        if dbid and dbid.isdigit():
+            return dbid
+            
+    except Exception as e:
+        xbmc.log(f"LibraryGenie: Error getting DBID: {str(e)}", xbmc.LOGERROR)
+    
+    return ''
+
+
 def _get_imdb_id_from_db(dbtype, dbid):
     """Query media_items table for IMDb ID by Kodi dbid"""
     if not dbtype or not dbid or dbid == '0':
@@ -108,7 +139,10 @@ def _get_imdb_id_from_db(dbtype, dbid):
             ).fetchone()
             
             if result and result[0]:
-                return result[0]
+                imdb_id = result[0].strip()
+                # Only return if it starts with 'tt' (valid IMDb ID)
+                if imdb_id.startswith('tt'):
+                    return imdb_id
     except Exception:
         pass
     
@@ -120,9 +154,14 @@ def _show_librarygenie_menu(addon):
     try:
         # IMPORTANT: Cache all item info BEFORE showing any dialogs
         # This prevents losing context when the dialog opens
+        
+        # Get DBID using reliable method
+        dbid = _get_dbid_reliable()
+        dbtype = xbmc.getInfoLabel('ListItem.DBTYPE')
+        
         item_info = {
-            'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
-            'dbid': xbmc.getInfoLabel('ListItem.DBID'),
+            'dbtype': dbtype,
+            'dbid': dbid,
             'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
             'navigation_path': xbmc.getInfoLabel('ListItem.Path'),  # Try ListItem.Path for navigation URL
             'title': xbmc.getInfoLabel('ListItem.Title'),
@@ -135,8 +174,8 @@ def _show_librarygenie_menu(addon):
             'year': xbmc.getInfoLabel('ListItem.Year'),
         }
         
-        # Get IMDb ID from database (faster than JSON-RPC)
-        item_info['imdbnumber'] = _get_imdb_id_from_db(item_info['dbtype'], item_info['dbid'])
+        # Get IMDb ID from database - only returns if it starts with 'tt'
+        item_info['imdbnumber'] = _get_imdb_id_from_db(dbtype, dbid)
 
 
         # Build options list
@@ -193,12 +232,15 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         quick_add_enabled = False
         default_list_id = ""
     
-    # Check if AI search is available/authorized (using proper AISearchClient check)
+    # Check if AI search is available (config activated AND has API key)
     ai_search_available = False
     try:
-        from lib.remote.ai_search_client import AISearchClient
-        ai_client = AISearchClient()
-        ai_search_available = ai_client.is_activated()
+        from lib.auth.state import is_authorized
+        from lib.config.settings import SettingsManager
+        settings = SettingsManager()
+        ai_search_activated = settings.get_ai_search_activated()
+        has_api_key = is_authorized()
+        ai_search_available = ai_search_activated and has_api_key
     except Exception:
         pass
 
@@ -280,16 +322,13 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         else:
             actions.append("remove_from_list_generic")
 
-    # 5. LG Find Similar Movies (if AI search is available and item has IMDb ID)
+    # 5. LG Find Similar Movies (if AI search is available and item has valid IMDb ID)
+    # Note: _get_imdb_id_from_db() already validates IMDb ID starts with 'tt'
     if ai_search_available and is_playable_item and item_info.get('dbtype') == 'movie':
         imdb_id = item_info.get('imdbnumber', '').strip()
         
-        # Ensure IMDb ID has 'tt' prefix (Kodi sometimes stores without it)
-        if imdb_id and not imdb_id.startswith('tt'):
-            imdb_id = f"tt{imdb_id}"
-        
-        # Valid IMDb ID must start with 'tt' and have at least one digit
-        if imdb_id and imdb_id.startswith('tt') and len(imdb_id) > 2:
+        # Only show option if we have a valid IMDb ID (already validated to start with 'tt')
+        if imdb_id:
             similar_label = "LG Find Similar Movies"
             options.append(similar_label)
             
