@@ -29,9 +29,14 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         self._result = None
         self._keyboard_closed_time = 0
         
+        # Get result limit from settings
+        result_limit = ADDON.getSettingInt('ai_search_result_limit')
+        if result_limit <= 0:
+            result_limit = 20  # Fallback default
+        
         self._state = {
             'query': '',
-            'max_results': 20,  # Default number of results
+            'max_results': result_limit,  # From settings
             'mode': 'hybrid',  # Default to hybrid mode (recommended)
             'use_llm': False,  # Default: don't use LLM (can be slow/costly)
             'debug_intent': False  # Default: no debug diagnostics

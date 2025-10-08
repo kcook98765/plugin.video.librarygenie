@@ -72,8 +72,14 @@ class AISearchHandler:
 
             progress.update(40, "Performing AI search...")
 
-            # Perform AI search to get IMDb IDs
-            search_results = self.ai_client.search_movies(query, limit=100)
+            # Perform AI search to get IMDb IDs (get limit from settings)
+            import xbmcaddon
+            addon = xbmcaddon.Addon()
+            result_limit = addon.getSettingInt('ai_search_result_limit')
+            if result_limit <= 0:
+                result_limit = 20  # Fallback default
+            
+            search_results = self.ai_client.search_movies(query, limit=result_limit)
 
             if not search_results or not search_results.get('success'):
                 progress.close()

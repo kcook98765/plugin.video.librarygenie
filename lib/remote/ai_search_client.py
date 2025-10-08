@@ -288,7 +288,7 @@ class AISearchClient:
 
         Args:
             query: Search query string
-            limit: Maximum number of results (default: 50, max: 100)
+            limit: Maximum number of results (default: 50, max: 200)
             mode: Search mode - "bm25" (default) or "hybrid"
             use_llm: Enable GPT-4 intent extraction (default: False)
             debug_intent: Include detailed diagnostics in response (default: False)
@@ -303,7 +303,7 @@ class AISearchClient:
         try:
             # Build request payload based on parameters
             search_data = {
-                'limit': min(limit, 100),
+                'limit': min(limit, 200),
                 'mode': mode
             }
             
