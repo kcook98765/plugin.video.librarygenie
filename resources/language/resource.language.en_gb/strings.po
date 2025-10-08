@@ -2463,3 +2463,11 @@ msgstr ""
 msgctxt "#32329"
 msgid "Deactivate AI Search"
 msgstr ""
+
+msgctxt "#32330"
+msgid "AI Search Result Limit"
+msgstr ""
+
+msgctxt "#32331"
+msgid "Maximum number of results to fetch from AI search (10-200). Higher values may take longer."
+msgstr ""
