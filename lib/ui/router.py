@@ -510,8 +510,14 @@ class Router:
                         finish_directory(context.addon_handle, succeeded=True, update=False)
                         return True
                     
-                    # Execute AI search and save as list
-                    list_id = execute_ai_search_and_save(query, max_results=ai_result.get('max_results', 20))
+                    # Execute AI search and save as list with new parameters
+                    list_id = execute_ai_search_and_save(
+                        query, 
+                        max_results=ai_result.get('max_results', 20),
+                        mode=ai_result.get('mode', 'hybrid'),
+                        use_llm=ai_result.get('use_llm', False),
+                        debug_intent=ai_result.get('debug_intent', False)
+                    )
                     
                     if list_id:
                         # Navigate to the AI search results list

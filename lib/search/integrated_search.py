@@ -80,13 +80,17 @@ def start_integrated_search_flow(initial_mode='local'):
             }
 
 
-def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[int]:
+def execute_ai_search_and_save(query: str, max_results: int = 20, mode: str = 'hybrid', 
+                                use_llm: bool = False, debug_intent: bool = False) -> Optional[int]:
     """
     Execute AI search and save results as a list
     
     Args:
         query: Natural language search query
         max_results: Maximum number of results
+        mode: Search mode - "bm25" or "hybrid" (default: hybrid)
+        use_llm: Enable GPT-4 intent extraction (default: False)
+        debug_intent: Include detailed diagnostics in response (default: False)
         
     Returns:
         List ID if successful, None otherwise
@@ -94,9 +98,10 @@ def execute_ai_search_and_save(query: str, max_results: int = 20) -> Optional[in
     logger = get_kodi_logger('lib.search.integrated_search')
     
     try:
-        # Call AI search API
+        # Call AI search API with new parameters
         ai_client = AISearchClient()
-        response = ai_client.search_movies(query, limit=max_results)
+        response = ai_client.search_movies(query, limit=max_results, mode=mode, 
+                                          use_llm=use_llm, debug_intent=debug_intent)
         
         if not response or not response.get('success'):
             error_msg = response.get('error', 'Unknown error') if response else 'No response'
