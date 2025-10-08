@@ -281,13 +281,17 @@ class AISearchClient:
                 'error': f'Connection test failed: {str(e)}'
             }
 
-    def search_movies(self, query: str, limit: int = 50) -> Optional[Dict[str, Any]]:
+    def search_movies(self, query: str, limit: int = 50, mode: str = 'bm25', 
+                      use_llm: bool = False, debug_intent: bool = False) -> Optional[Dict[str, Any]]:
         """
         Perform AI-powered movie search using /kodi/search/movies endpoint
 
         Args:
             query: Search query string
             limit: Maximum number of results (default: 50, max: 100)
+            mode: Search mode - "bm25" (default) or "hybrid"
+            use_llm: Enable GPT-4 intent extraction (default: False)
+            debug_intent: Include detailed diagnostics in response (default: False)
 
         Returns:
             Search results or None if search fails
@@ -297,18 +301,65 @@ class AISearchClient:
             return None
 
         try:
+            # Build request payload based on parameters
             search_data = {
-                'query': query,
-                'limit': min(limit, 100)
+                'limit': min(limit, 100),
+                'mode': mode
             }
+            
+            # Use 'vibe' parameter when LLM is enabled, otherwise use 'query'
+            if use_llm:
+                search_data['vibe'] = query
+                search_data['use_llm'] = True
+            else:
+                search_data['query'] = query
+            
+            # Add debug flag if requested
+            if debug_intent:
+                search_data['debug_intent'] = True
 
-            # DEBUG: Log request data
-            self.logger.debug("📤 AI SEARCH REQUEST DATA: %s", json.dumps(search_data, indent=2))
+            # DEBUG: Log raw request data being sent
+            self.logger.info("=" * 80)
+            self.logger.info("📤 AI SEARCH RAW REQUEST DATA:")
+            self.logger.info("  Endpoint: /kodi/search/movies")
+            self.logger.info("  Mode: %s", mode)
+            self.logger.info("  Use LLM: %s", use_llm)
+            self.logger.info("  Debug Intent: %s", debug_intent)
+            self.logger.info("  Full Payload:")
+            self.logger.info("%s", json.dumps(search_data, indent=2))
+            self.logger.info("=" * 80)
 
             response = self._make_request('kodi/search/movies', 'POST', search_data)
 
-            # DEBUG: Log full response
-            self.logger.debug("📥 AI SEARCH RESPONSE DATA: %s", json.dumps(response, indent=2) if response else "None")
+            # DEBUG: Log raw response data received
+            self.logger.info("=" * 80)
+            self.logger.info("📥 AI SEARCH RAW RESPONSE DATA:")
+            if response:
+                self.logger.info("  Success: %s", response.get('success'))
+                self.logger.info("  Mode: %s", response.get('mode'))
+                self.logger.info("  Total Results: %s", response.get('total_results'))
+                self.logger.info("  Max Score: %s", response.get('max_score'))
+                self.logger.info("  Full Response:")
+                self.logger.info("%s", json.dumps(response, indent=2))
+                
+                # Log diagnostics separately for easier analysis
+                if 'diagnostics' in response:
+                    self.logger.info("-" * 80)
+                    self.logger.info("🔍 DIAGNOSTICS:")
+                    diagnostics = response['diagnostics']
+                    self.logger.info("  LLM Used: %s", diagnostics.get('llm_used'))
+                    self.logger.info("  Fallback Used: %s", diagnostics.get('fallback_used'))
+                    self.logger.info("  Fallback Reason: %s", diagnostics.get('fallback_reason'))
+                    self.logger.info("  Execution Mode: %s", diagnostics.get('execution_mode'))
+                    self.logger.info("  Pass: %s", diagnostics.get('pass'))
+                    if 'vector_weights' in diagnostics:
+                        self.logger.info("  Vector Weights: %s", diagnostics.get('vector_weights'))
+                    if 'parsed_intent_summary' in diagnostics:
+                        self.logger.info("  Parsed Intent: %s", diagnostics.get('parsed_intent_summary'))
+                    self.logger.info("-" * 80)
+            else:
+                self.logger.info("  Response: None")
+            self.logger.info("=" * 80)
 
             if response and response.get('success'):
                 # Validate response structure
@@ -317,7 +368,8 @@ class AISearchClient:
                     self.logger.error("Invalid response format: results is not a list")
                     return None
 
-                self.logger.info("AI search completed: %s results", len(results))
+                self.logger.info("AI search completed: %s results (mode: %s, llm: %s)", 
+                               len(results), response.get('mode', 'unknown'), use_llm)
                 return response
             else:
                 error_msg = response.get('error', 'Unknown error') if response else 'No response'
