@@ -31,7 +31,10 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         
         self._state = {
             'query': '',
-            'max_results': 20  # Default number of results
+            'max_results': 20,  # Default number of results
+            'mode': 'hybrid',  # Default to hybrid mode (recommended)
+            'use_llm': False,  # Default: don't use LLM (can be slow/costly)
+            'debug_intent': False  # Default: no debug diagnostics
         }
 
     def onInit(self):
@@ -293,10 +296,13 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         xbmc.log('[LG-AISearchPanel] Query: "{}"'.format(query), xbmc.LOGDEBUG)
         xbmc.log('[LG-AISearchPanel] Full state: {}'.format(self._state), xbmc.LOGDEBUG)
         
-        # Prepare result
+        # Prepare result with all search parameters
         self._result = {
             'query': query,
-            'max_results': self._state.get('max_results', 20)
+            'max_results': self._state.get('max_results', 20),
+            'mode': self._state.get('mode', 'hybrid'),
+            'use_llm': self._state.get('use_llm', False),
+            'debug_intent': self._state.get('debug_intent', False)
         }
         xbmc.log('[LG-AISearchPanel] Result being returned: {}'.format(self._result), xbmc.LOGDEBUG)
         self.close()
