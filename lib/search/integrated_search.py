@@ -80,14 +80,14 @@ def start_integrated_search_flow(initial_mode='local'):
             }
 
 
-def execute_ai_search_and_save(query: str, max_results: int = 20, mode: str = 'hybrid', 
+def execute_ai_search_and_save(query: str, max_results: Optional[int] = None, mode: str = 'hybrid', 
                                 use_llm: bool = False, debug_intent: bool = False) -> Optional[int]:
     """
     Execute AI search and save results as a list
     
     Args:
         query: Natural language search query
-        max_results: Maximum number of results
+        max_results: Maximum number of results (None = use setting, default)
         mode: Search mode - "bm25" or "hybrid" (default: hybrid)
         use_llm: Enable GPT-4 intent extraction (default: False)
         debug_intent: Include detailed diagnostics in response (default: False)
@@ -98,6 +98,14 @@ def execute_ai_search_and_save(query: str, max_results: int = 20, mode: str = 'h
     logger = get_kodi_logger('lib.search.integrated_search')
     
     try:
+        # Get result limit from settings if not provided
+        if max_results is None:
+            import xbmcaddon
+            addon = xbmcaddon.Addon()
+            max_results = addon.getSettingInt('ai_search_result_limit')
+            if max_results <= 0:
+                max_results = 20  # Fallback default
+        
         # Call AI search API with new parameters
         ai_client = AISearchClient()
         response = ai_client.search_movies(query, limit=max_results, mode=mode, 
