@@ -66,6 +66,15 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         elif control_id == 210:
             # Switch to Local Search
             self._switch_to_local_search()
+        elif control_id == 220:
+            # Toggle search mode (BM25 / Hybrid)
+            self._toggle_mode()
+        elif control_id == 230:
+            # Toggle LLM (AI Understanding)
+            self._toggle_llm()
+        elif control_id == 240:
+            # Toggle debug mode
+            self._toggle_debug()
         elif control_id == 260:
             # Search button
             self._finalize_and_close()
@@ -78,6 +87,9 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         """Wire up all controls"""
         self.q_edit = self.getControl(200)
         self.btn_switch = self.getControl(210)
+        self.btn_mode = self.getControl(220)
+        self.btn_llm = self.getControl(230)
+        self.btn_debug = self.getControl(240)
         self.btn_search = self.getControl(260)
         self.btn_cancel = self.getControl(261)
         try:
@@ -89,6 +101,11 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         """Apply current state to dialog controls"""
         # Query (using button label)
         self.q_edit.setLabel(self._state.get('query', ''))
+        
+        # Update toggle button labels based on state
+        self._update_mode_button()
+        self._update_llm_button()
+        self._update_debug_button()
 
     def _open_keyboard(self):
         """Open keyboard for query input"""
@@ -109,6 +126,52 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         
         # Move focus to Search button after keyboard closes
         self.setFocusId(260)
+
+    def _toggle_mode(self):
+        """Toggle between BM25 and Hybrid search modes"""
+        current_mode = self._state.get('mode', 'hybrid')
+        new_mode = 'bm25' if current_mode == 'hybrid' else 'hybrid'
+        self._state['mode'] = new_mode
+        self._update_mode_button()
+        xbmc.log('[LG-AISearchPanel] Search mode toggled to: {}'.format(new_mode), xbmc.LOGDEBUG)
+
+    def _toggle_llm(self):
+        """Toggle LLM (AI Understanding) on/off"""
+        current = self._state.get('use_llm', False)
+        self._state['use_llm'] = not current
+        self._update_llm_button()
+        xbmc.log('[LG-AISearchPanel] LLM toggled to: {}'.format(not current), xbmc.LOGDEBUG)
+
+    def _toggle_debug(self):
+        """Toggle debug mode on/off"""
+        current = self._state.get('debug_intent', False)
+        self._state['debug_intent'] = not current
+        self._update_debug_button()
+        xbmc.log('[LG-AISearchPanel] Debug mode toggled to: {}'.format(not current), xbmc.LOGDEBUG)
+
+    def _update_mode_button(self):
+        """Update mode button label to reflect current state"""
+        mode = self._state.get('mode', 'hybrid')
+        if mode == 'hybrid':
+            self.btn_mode.setLabel('Mode: Hybrid ✓')
+        else:
+            self.btn_mode.setLabel('Mode: BM25')
+
+    def _update_llm_button(self):
+        """Update LLM button label to reflect current state"""
+        use_llm = self._state.get('use_llm', False)
+        if use_llm:
+            self.btn_llm.setLabel('AI Understanding: ON ✓')
+        else:
+            self.btn_llm.setLabel('AI Understanding: OFF')
+
+    def _update_debug_button(self):
+        """Update debug button label to reflect current state"""
+        debug = self._state.get('debug_intent', False)
+        if debug:
+            self.btn_debug.setLabel('Debug Mode: ON ✓')
+        else:
+            self.btn_debug.setLabel('Debug Mode: OFF')
 
     def _load_and_display_stats(self):
         """Load library statistics from cached file"""
