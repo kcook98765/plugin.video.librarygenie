@@ -464,6 +464,18 @@
             <heading>30435</heading>
           </control>
         </setting>
+        <setting id="ai_search_result_limit" type="integer" label="32330" help="32331">
+          <level>0</level>
+          <default>20</default>
+          <constraints>
+            <minimum>10</minimum>
+            <step>10</step>
+            <maximum>200</maximum>
+          </constraints>
+          <control type="slider" format="integer">
+            <popup>false</popup>
+          </control>
+        </setting>
         <setting id="remote_server_url" type="string" label="30411" help="30540">
           <level>3</level>
           <default></default>
