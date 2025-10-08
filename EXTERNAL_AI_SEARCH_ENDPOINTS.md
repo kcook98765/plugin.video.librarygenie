@@ -265,69 +265,190 @@ Authorization: ApiKey YOUR_API_KEY
 
 **Endpoint:** `POST /kodi/search/movies`  
 **Authentication:** Required (API Key)  
-**Purpose:** Search for movies using MediaVault's semantic search system
+**Purpose:** Advanced multi-mode search with semantic understanding and intelligent fallback
 
-**Description:**
-This endpoint uses the same advanced search process as MediaVault:
-1. **Embedding Generation**: Your search query is converted to a vector using OpenAI's text-embedding-3-small model
-2. **Semantic Search**: The vector is used to search against 4 embedding facets stored in OpenSearch:
-   - Plot vectors (40% weight)
-   - Mood/tone vectors (30% weight)  
-   - Theme vectors (20% weight)
-   - Genre/trope vectors (10% weight)
-3. **Similarity Scoring**: Results are ranked by semantic similarity scores
+**Overview:**
+This endpoint provides three powerful search modes with automatic fallback handling:
 
-**Request:**
+1. **BM25 Mode** (keyword-based): Pure text matching with auto-relaxation for better recall
+2. **Hybrid Mode** (recommended): Combines keyword matching (60%) + semantic vectors (40%) for best results
+3. **LLM-Assisted Mode** (optional): GPT-4 extracts search intent from natural language queries
+
+**Search Modes Explained:**
+
+**BM25 Mode (Keyword Search):**
+- Pure keyword-based search using OpenSearch BM25 algorithm
+- Auto-relaxation: Starts strict (75% minimum match), relaxes to 50% if needed for better recall
+- Fast and reliable for exact keyword matching
+- Best for: Specific titles, director names, exact phrases
+
+**Hybrid Mode (Semantic + Keyword):**
+- Blends BM25 keyword matching (60%) with semantic vector search (40%)
+- Generates embeddings for 4 semantic facets:
+  - Plot vectors (storyline/narrative similarity)
+  - Mood/tone vectors (atmosphere/feel similarity)
+  - Themes vectors (underlying concepts/messages)
+  - Genre/trope vectors (category/conventions)
+- Server-side re-ranking using OpenSearch rescore for optimal performance
+- Best for: Descriptive queries, finding similar vibes, semantic understanding
+
+**LLM-Assisted Mode (Intent Extraction):**
+- Uses GPT-4 to parse natural language into structured search parameters
+- Extracts phrases for each semantic facet, filters (year/runtime/rating), and vector weights
+- Works with both BM25 and Hybrid modes
+- Best for: Complex natural language queries, conversational search
+
+**Basic Request (BM25 Mode - Default):**
 ```json
 {
-  "query": "psychological thriller with mind bending plot twists",
+  "query": "inception",
+  "limit": 20
+}
+```
+
+**Advanced Request (Hybrid Mode with LLM):**
+```json
+{
+  "query": "dark psychological thriller from the 90s",
+  "mode": "hybrid",
+  "use_llm": true,
   "limit": 50
 }
 ```
 
-**Response:**
+**Natural Language Request (Using "vibe"):**
+```json
+{
+  "vibe": "looking for mind-bending movies like inception with complex plots",
+  "mode": "hybrid",
+  "use_llm": true,
+  "debug_intent": true
+}
+```
+
+**Request Parameters:**
+
+**Required:**
+- `query` OR `vibe` (string): Search query
+  - `query`: Standard search text
+  - `vibe`: Natural language description (recommended with `use_llm: true`)
+
+**Optional:**
+- `mode` (string): Search mode - "bm25" (default) or "hybrid"
+- `use_llm` (boolean): Enable GPT-4 intent extraction (default: false)
+- `limit` (integer): Maximum results (default: 20, max: 100)
+- `debug_intent` (boolean): Include detailed diagnostics in response (default: false)
+
+**Success Response:**
 ```json
 {
   "success": true,
-  "query": "psychological thriller with mind bending plot twists",
-  "total_results": 15,
+  "query": "dark psychological thriller from the 90s",
+  "mode": "hybrid",
+  "total_results": 24,
   "max_score": 0.924,
   "results": [
     {
-      "imdb_id": "tt1375666",
-      "score": 0.924
+      "imdb_id": "tt0114369",
+      "score": 0.924,
+      "bm25_score": 0.856
     },
     {
-      "imdb_id": "tt0816692", 
-      "score": 0.887
+      "imdb_id": "tt0117571",
+      "score": 0.887,
+      "bm25_score": 0.792
     },
     {
-      "imdb_id": "tt0468569",
-      "score": 0.863
+      "imdb_id": "tt0114814",
+      "score": 0.863,
+      "bm25_score": 0.845
     }
   ]
 }
 ```
 
-**Parameters:**
-- `query` (required): Natural language search query describing the movie you want
-- `limit` (optional): Maximum number of results (default: 20, max: 100)
+**Response with Diagnostics (debug_intent=true):**
+```json
+{
+  "success": true,
+  "query": "dark psychological thriller from the 90s",
+  "mode": "hybrid",
+  "total_results": 24,
+  "max_score": 0.924,
+  "results": [...],
+  "diagnostics": {
+    "llm_used": true,
+    "fallback_used": false,
+    "fallback_reason": null,
+    "execution_mode": "llm_hybrid",
+    "pass": "strict",
+    "relaxation_details": {
+      "strict": 75,
+      "relaxed": 50,
+      "used": "strict"
+    },
+    "vector_weights": {
+      "plot": 0.4,
+      "mood": 0.3,
+      "themes": 0.2,
+      "genre": 0.1
+    },
+    "parsed_intent_summary": {
+      "confidence": 0.92,
+      "query_text": "dark psychological thriller",
+      "vector_focus": {
+        "plot": 0.4,
+        "mood": 0.3,
+        "themes": 0.2,
+        "genre": 0.1
+      }
+    }
+  }
+}
+```
 
-**Response Format:**
+**Response Fields:**
 - `success`: Boolean indicating if search succeeded
-- `query`: The original search query  
-- `total_results`: Number of results returned
-- `max_score`: Highest similarity score in the result set
-- `results`: Array of objects containing:
-  - `imdb_id`: IMDb identifier (e.g., "tt1375666")
-  - `score`: Semantic similarity score (0.0 to 1.0, higher is better match)
+- `query`: The search query used
+- `mode`: Search mode executed ("bm25" or "hybrid")
+- `total_results`: Number of results found
+- `max_score`: Highest score in results
+- `results`: Array of result objects:
+  - `imdb_id`: IMDb identifier
+  - `score`: Final ranking score (blended for hybrid mode)
+  - `bm25_score`: Original keyword score (hybrid mode only)
+
+**Diagnostics Fields (when debug_intent=true):**
+- `llm_used`: Whether GPT-4 intent extraction was used
+- `fallback_used`: Whether automatic fallback occurred
+- `fallback_reason`: Why fallback happened (e.g., "hybrid_failed")
+- `execution_mode`: Actual mode executed ("bm25", "hybrid", "llm_bm25", "llm_hybrid")
+- `pass`: Which query pass succeeded ("strict" or "relaxed")
+- `relaxation_details`: BM25 minimum_should_match thresholds used
+- `vector_weights`: Actual semantic vector weights applied (hybrid only)
+- `parsed_intent_summary`: LLM extraction results (when LLM used)
+
+**Automatic Fallback Chain:**
+
+The system automatically recovers from failures:
+
+1. **LLM Failure**: Falls back to standard mode (no diagnostic flag set, LLM is optional)
+2. **Hybrid Failure**: Falls back to BM25 mode (sets `fallback_used: true`, `fallback_reason: "hybrid_failed"`)
+3. **BM25 Failure**: Returns error (end of fallback chain)
 
 **Error Responses:**
 ```json
-// Missing query
+// Missing query/vibe
 {
   "success": false,
-  "error": "Search query required",
+  "error": "query or vibe required",
+  "results": []
+}
+
+// Invalid mode
+{
+  "success": false,
+  "error": "mode must be \"bm25\" or \"hybrid\"",
   "results": []
 }
 
@@ -338,12 +459,77 @@ This endpoint uses the same advanced search process as MediaVault:
   "results": []
 }
 
-// Internal error
+// Internal error (after all fallbacks exhausted)
 {
   "success": false,
   "error": "Internal search error",
   "results": []
 }
+```
+
+**Best Practices:**
+
+1. **Start with Hybrid Mode**: Provides best results by combining keyword + semantic search
+2. **Use LLM for Natural Language**: Enable `use_llm: true` when users type conversational queries
+3. **Use "vibe" Parameter**: Better suited for natural language than "query"
+4. **Enable Diagnostics in Development**: Use `debug_intent: true` to understand search behavior
+5. **Handle Scores Appropriately**: 
+   - In hybrid mode, use `score` for ranking (blended score)
+   - Use `bm25_score` for fallback comparison or debugging
+6. **Trust the Fallback**: System automatically degrades gracefully from Hybrid → BM25
+
+**Example Kodi Integration:**
+```python
+import urllib.request
+import json
+
+def search_movies(api_key, user_query, semantic=True, use_ai=False):
+    """
+    Search for movies with configurable modes
+    
+    Args:
+        api_key: User's API key
+        user_query: Search query from user
+        semantic: Use hybrid mode (True) or BM25 only (False)
+        use_ai: Enable LLM intent extraction
+    """
+    url = "https://your-server.com:5020/kodi/search/movies"
+    headers = {
+        "Authorization": f"ApiKey {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "vibe" if use_ai else "query": user_query,
+        "mode": "hybrid" if semantic else "bm25",
+        "use_llm": use_ai,
+        "limit": 50
+    }
+    
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode('utf-8'),
+        headers=headers,
+        method='POST'
+    )
+    
+    response = urllib.request.urlopen(request, timeout=30)
+    result = json.loads(response.read().decode('utf-8'))
+    
+    if result['success']:
+        return result['results']  # List of {imdb_id, score}
+    return []
+
+# Usage examples:
+# Basic keyword search
+results = search_movies(api_key, "inception", semantic=False)
+
+# Semantic hybrid search
+results = search_movies(api_key, "mind bending thriller", semantic=True)
+
+# Natural language with AI
+results = search_movies(api_key, "looking for dark moody films like blade runner", 
+                       semantic=True, use_ai=True)
 ```
 
 ### 4. Find Similar Movies
