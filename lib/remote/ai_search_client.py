@@ -351,7 +351,6 @@ class AISearchClient:
                     self.logger.info("  Fallback Used: %s", diagnostics.get('fallback_used'))
                     self.logger.info("  Fallback Reason: %s", diagnostics.get('fallback_reason'))
                     self.logger.info("  Execution Mode: %s", diagnostics.get('execution_mode'))
-                    self.logger.info("  Pass: %s", diagnostics.get('pass'))
                     if 'vector_weights' in diagnostics:
                         self.logger.info("  Vector Weights: %s", diagnostics.get('vector_weights'))
                     if 'parsed_intent_summary' in diagnostics:
@@ -587,7 +586,7 @@ class AISearchClient:
     def search_similar_movies(self, reference_imdb_id: str, facets: Dict[str, bool]) -> Optional[List[str]]:
         """
         Find movies similar to reference movie using /similar_to endpoint
-        Note: This is a public endpoint that doesn't require authentication
+        Note: Authentication is optional but recommended - if authenticated, results are filtered to only show movies in the user's library
 
         Args:
             reference_imdb_id: IMDb ID of reference movie
@@ -616,8 +615,8 @@ class AISearchClient:
                 self.logger.warning("No facets selected for similarity search")
                 return None
 
-            # Make request without authentication (public endpoint)
-            response = self._make_public_request('similar_to', 'POST', request_data)
+            # Make request with authentication to get user-filtered results
+            response = self._make_request('similar_to', 'POST', request_data)
 
             if response and response.get('success'):
                 results = response.get('results', [])
