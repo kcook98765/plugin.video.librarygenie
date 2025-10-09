@@ -137,15 +137,32 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         current_mode = self._state.get('mode', 'hybrid')
         new_mode = 'bm25' if current_mode == 'hybrid' else 'hybrid'
         self._state['mode'] = new_mode
+        
+        # Hybrid mode REQUIRES LLM per API specification
+        # Auto-enable LLM when switching to Hybrid
+        if new_mode == 'hybrid' and not self._state.get('use_llm', False):
+            self._state['use_llm'] = True
+            self._update_llm_button()
+            xbmc.log('[LG-AISearchPanel] Auto-enabled LLM for Hybrid mode (required by API)', xbmc.LOGDEBUG)
+        
         self._update_mode_button()
         xbmc.log('[LG-AISearchPanel] Search mode toggled to: {}'.format(new_mode), xbmc.LOGDEBUG)
 
     def _toggle_llm(self):
         """Toggle LLM (AI Understanding) on/off"""
         current = self._state.get('use_llm', False)
-        self._state['use_llm'] = not current
+        new_llm_state = not current
+        self._state['use_llm'] = new_llm_state
+        
+        # Hybrid mode REQUIRES LLM per API specification
+        # Auto-switch to BM25 when disabling LLM in Hybrid mode
+        if not new_llm_state and self._state.get('mode') == 'hybrid':
+            self._state['mode'] = 'bm25'
+            self._update_mode_button()
+            xbmc.log('[LG-AISearchPanel] Auto-switched to BM25 mode (Hybrid requires LLM)', xbmc.LOGDEBUG)
+        
         self._update_llm_button()
-        xbmc.log('[LG-AISearchPanel] LLM toggled to: {}'.format(not current), xbmc.LOGDEBUG)
+        xbmc.log('[LG-AISearchPanel] LLM toggled to: {}'.format(new_llm_state), xbmc.LOGDEBUG)
 
     def _toggle_debug(self):
         """Toggle debug mode on/off"""
