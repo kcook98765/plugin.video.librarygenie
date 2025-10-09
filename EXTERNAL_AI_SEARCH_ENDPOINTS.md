@@ -270,32 +270,37 @@ Authorization: ApiKey YOUR_API_KEY
 **Overview:**
 This endpoint provides three powerful search modes with automatic fallback handling:
 
-1. **BM25 Mode** (keyword-based): Pure text matching with auto-relaxation for better recall
-2. **Hybrid Mode** (recommended): Combines keyword matching (60%) + semantic vectors (40%) for best results
-3. **LLM-Assisted Mode** (optional): GPT-4 extracts search intent from natural language queries
+1. **BM25 Mode** (keyword-based): Simple keyword search with fixed 70% minimum_should_match, used as fallback when LLM fails or is disabled
+2. **Hybrid Mode** (recommended): Requires LLM to extract intent, combines BM25 keyword matching with multi-vector semantic search using LLM-provided weights
+3. **LLM-Assisted Mode** (optional): GPT-4 extracts search intent from natural language queries - LLM is the single source of truth for all intent extraction
 
 **Search Modes Explained:**
 
 **BM25 Mode (Keyword Search):**
 - Pure keyword-based search using OpenSearch BM25 algorithm
-- Auto-relaxation: Starts strict (75% minimum match), relaxes to 50% if needed for better recall
+- Simple keyword matching with fixed 70% minimum_should_match
+- Used as fallback when LLM fails or is disabled
 - Fast and reliable for exact keyword matching
 - Best for: Specific titles, director names, exact phrases
 
 **Hybrid Mode (Semantic + Keyword):**
-- Blends BM25 keyword matching (60%) with semantic vector search (40%)
-- Generates embeddings for 4 semantic facets:
+- **Requires `use_llm: true`** - LLM is mandatory for hybrid mode
+- LLM extracts structured intent (must/should/exclude filters + semantic phrases)
+- Combines BM25 keyword matching with multi-vector semantic search using LLM-provided weights
+- Uses script_score in main query (not rescore) for vector scoring
+- Semantic search uses 4 embedding facets:
   - Plot vectors (storyline/narrative similarity)
   - Mood/tone vectors (atmosphere/feel similarity)
   - Themes vectors (underlying concepts/messages)
   - Genre/trope vectors (category/conventions)
-- Server-side re-ranking using OpenSearch rescore for optimal performance
+- No heuristic vector generation - all vectors come from LLM intent extraction
 - Best for: Descriptive queries, finding similar vibes, semantic understanding
 
 **LLM-Assisted Mode (Intent Extraction):**
-- Uses GPT-4 to parse natural language into structured search parameters
-- Extracts phrases for each semantic facet, filters (year/runtime/rating), and vector weights
-- Works with both BM25 and Hybrid modes
+- LLM is the single source of truth for all intent extraction
+- Extracts structured search parameters: must/should/exclude filters, ranges (year/runtime/rating), languages, countries, semantic phrases, and weights
+- No regex or heuristic parsing - zero fallback to heuristics
+- Works with both BM25 and Hybrid modes (Hybrid requires LLM)
 - Best for: Complex natural language queries, conversational search
 
 **Basic Request (BM25 Mode - Default):**
@@ -381,12 +386,6 @@ This endpoint provides three powerful search modes with automatic fallback handl
     "fallback_used": false,
     "fallback_reason": null,
     "execution_mode": "llm_hybrid",
-    "pass": "strict",
-    "relaxation_details": {
-      "strict": 75,
-      "relaxed": 50,
-      "used": "strict"
-    },
     "vector_weights": {
       "plot": 0.4,
       "mood": 0.3,
@@ -422,19 +421,23 @@ This endpoint provides three powerful search modes with automatic fallback handl
 - `llm_used`: Whether GPT-4 intent extraction was used
 - `fallback_used`: Whether automatic fallback occurred
 - `fallback_reason`: Why fallback happened (e.g., "hybrid_failed")
-- `execution_mode`: Actual mode executed ("bm25", "hybrid", "llm_bm25", "llm_hybrid")
-- `pass`: Which query pass succeeded ("strict" or "relaxed")
-- `relaxation_details`: BM25 minimum_should_match thresholds used
-- `vector_weights`: Actual semantic vector weights applied (hybrid only)
+- `execution_mode`: Actual mode executed:
+  - `"bm25"`: Simple keyword search (no LLM)
+  - `"llm_bm25"`: LLM intent extraction used in BM25-only mode
+  - `"llm_hybrid"`: LLM intent extraction with hybrid vector search
+  - Note: `"hybrid"` without LLM is no longer supported
+- `vector_weights`: LLM-provided semantic vector weights applied (hybrid only)
 - `parsed_intent_summary`: LLM extraction results (when LLM used)
 
 **Automatic Fallback Chain:**
 
-The system automatically recovers from failures:
+The system automatically recovers from failures with simplified fallback logic:
 
-1. **LLM Failure**: Falls back to standard mode (no diagnostic flag set, LLM is optional)
-2. **Hybrid Failure**: Falls back to BM25 mode (sets `fallback_used: true`, `fallback_reason: "hybrid_failed"`)
+1. **LLM Failure**: Falls back to simple BM25 keyword search (no vectors, no heuristics)
+2. **Embeddings Failure**: Falls back to simple BM25 (drops vector portion entirely, sets `fallback_used: true`, `fallback_reason: "hybrid_failed"`)
 3. **BM25 Failure**: Returns error (end of fallback chain)
+
+Note: No auto-relaxation or complex fallback logic - BM25 uses fixed 70% minimum_should_match
 
 **Error Responses:**
 ```json
