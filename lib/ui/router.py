@@ -589,8 +589,19 @@ class Router:
                         # Save and navigate to results
                         list_id = search_handler._save_search_history(query_params['q'], {}, results)
                         if list_id:
-                            success = search_handler._render_saved_search_list_directly(str(list_id), context)
-                            if success:
+                            # Check handle validity - use ActivateWindow if handle is invalid (RunPlugin scenario)
+                            if context.addon_handle >= 0:
+                                # Valid handle - render directly
+                                success = search_handler._render_saved_search_list_directly(str(list_id), context)
+                                if success:
+                                    return True
+                            else:
+                                # Invalid handle (RunPlugin) - use ActivateWindow to show results
+                                import xbmc
+                                import xbmcaddon
+                                addon_id = xbmcaddon.Addon().getAddonInfo('id')
+                                list_url = f"plugin://{addon_id}/?action=show_list&list_id={list_id}"
+                                xbmc.executebuiltin(f'ActivateWindow(videos,{list_url},return)')
                                 return True
                     
                     # Fallback
