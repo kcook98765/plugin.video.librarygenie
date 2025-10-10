@@ -506,9 +506,9 @@ class Router:
                 search_result = start_integrated_search_flow(initial_mode)
                 
                 if not search_result:
-                    # User cancelled - close the Videos window and return to previous screen
+                    # User cancelled - return to Programs menu where search was launched from
                     import xbmc
-                    xbmc.executebuiltin('PreviousMenu')
+                    xbmc.executebuiltin('ActivateWindow(programs)')
                     return True
                 
                 # Check for navigate_away (search history)
