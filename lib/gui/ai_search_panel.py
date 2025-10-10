@@ -41,6 +41,9 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
             'use_llm': True,  # Hard-coded: Always use AI Understanding
             'debug_intent': False  # Hard-coded: Debug always off
         }
+        
+        # Check if search history exists
+        self._check_search_history_exists()
 
     def onInit(self):
         """Initialize the dialog"""
@@ -48,13 +51,26 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         self._apply_state_to_controls()
         self._load_and_display_stats()
         
+        # Re-check search history and update property now that window is initialized
+        self._check_search_history_exists()
+        self._update_search_history_property()
+        
         # Focus on Query field by default
         self.setFocusId(200)
 
     def onAction(self, action):
         """Handle actions"""
         if action.getId() in (xbmcgui.ACTION_NAV_BACK, xbmcgui.ACTION_PREVIOUS_MENU):
+            self._cleanup_properties()
             self.close()
+    
+    def _cleanup_properties(self):
+        """Clean up window properties when dialog closes"""
+        try:
+            self.clearProperty('SearchHistoryExists')
+            xbmc.log('[LG-AISearchPanel] Cleaned up window properties on close', xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-AISearchPanel] Error cleaning up properties: {}'.format(e), xbmc.LOGERROR)
     
     def onClick(self, control_id):
         """Handle control clicks"""
@@ -77,7 +93,11 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         elif control_id == 261:
             # Cancel button
             self._result = None
+            self._cleanup_properties()
             self.close()
+        elif control_id == 262:
+            # Search History button
+            self._open_search_history()
 
     def _wire_controls(self):
         """Wire up all controls"""
@@ -280,6 +300,108 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         except Exception as e:
             xbmc.log('[LG-AISearchPanel] Error formatting stats: {}'.format(str(e)), xbmc.LOGERROR)
             self.stats_text.setText('[COLOR FFAAAAAA]Error displaying statistics[/COLOR]')
+    
+    def _check_search_history_exists(self):
+        """Check if search history exists"""
+        try:
+            from lib.data.query_manager import QueryManager
+            query_manager = QueryManager()
+            
+            # Initialize query manager if needed
+            if not query_manager.initialize():
+                xbmc.log('[LG-AISearchPanel] Failed to initialize query manager', xbmc.LOGWARNING)
+                self._has_search_history = False
+                return
+            
+            folder_id = query_manager.get_or_create_search_history_folder()
+            if folder_id:
+                # Convert folder_id to string for API compatibility
+                lists = query_manager.get_lists_in_folder(str(folder_id))
+                self._has_search_history = len(lists) > 0
+                xbmc.log('[LG-AISearchPanel] Search history check: folder_id={}, {} lists found, enabled={}'.format(
+                    folder_id, len(lists), self._has_search_history), xbmc.LOGDEBUG)
+            else:
+                self._has_search_history = False
+                xbmc.log('[LG-AISearchPanel] Search history check: no folder found', xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-AISearchPanel] Error checking search history: {}'.format(e), xbmc.LOGERROR)
+            self._has_search_history = False
+
+    def _update_search_history_property(self):
+        """Update window property for search history button state"""
+        try:
+            # Set property directly on the dialog window using self.setProperty
+            if self._has_search_history:
+                self.setProperty('SearchHistoryExists', 'true')
+                xbmc.log('[LG-AISearchPanel] Search History button ENABLED (property set)', xbmc.LOGDEBUG)
+            else:
+                self.clearProperty('SearchHistoryExists')
+                xbmc.log('[LG-AISearchPanel] Search History button DISABLED (property cleared)', xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-AISearchPanel] Error updating search history property: {}'.format(e), xbmc.LOGERROR)
+
+    def _open_search_history(self):
+        """Open search history in a modal selector"""
+        xbmc.log('[LG-AISearchPanel] Opening search history modal', xbmc.LOGDEBUG)
+        
+        try:
+            from lib.data.query_manager import QueryManager
+            query_manager = QueryManager()
+            
+            # Initialize query manager if needed
+            if not query_manager.initialize():
+                xbmcgui.Dialog().notification('LibraryGenie', 'Database error', xbmcgui.NOTIFICATION_ERROR, 3000)
+                return
+            
+            # Get search history folder and lists
+            folder_id = query_manager.get_or_create_search_history_folder()
+            if not folder_id:
+                xbmcgui.Dialog().notification('LibraryGenie', 'No search history available', xbmcgui.NOTIFICATION_INFO, 3000)
+                return
+            
+            lists = query_manager.get_lists_in_folder(str(folder_id))
+            if not lists:
+                xbmcgui.Dialog().notification('LibraryGenie', 'No search history found', xbmcgui.NOTIFICATION_INFO, 3000)
+                return
+            
+            # Sort by ID descending (most recent first)
+            lists.sort(key=lambda x: int(x.get('id', 0)), reverse=True)
+            
+            # Format list names for display
+            list_labels = [lst.get('name', 'Unnamed Search') for lst in lists]
+            
+            # Show modal selector
+            selected_index = xbmcgui.Dialog().select('Search History', list_labels)
+            
+            # If user cancelled (returns -1), stay in dialog
+            if selected_index < 0:
+                xbmc.log('[LG-AISearchPanel] Search history selection cancelled', xbmc.LOGDEBUG)
+                return
+            
+            # User selected a search - navigate to it
+            selected_list = lists[selected_index]
+            list_id = selected_list.get('id')
+            if list_id:
+                xbmc.log('[LG-AISearchPanel] User selected search history list ID: {}'.format(list_id), xbmc.LOGDEBUG)
+                
+                # Return navigation intent instead of executing it
+                # Caller will perform actual navigation after dialog fully closes
+                import xbmcaddon
+                addon_id = xbmcaddon.Addon().getAddonInfo('id')
+                plugin_url = 'plugin://{}/?action=show_list&list_id={}'.format(addon_id, list_id)
+                
+                self._result = {
+                    'navigate_away': True,
+                    'target': plugin_url,
+                    'list_id': list_id
+                }
+                xbmc.log('[LG-AISearchPanel] Set _result to navigate_away for list {}, closing dialog now'.format(list_id), xbmc.LOGDEBUG)
+                self._cleanup_properties()
+                self.close()
+            
+        except Exception as e:
+            xbmc.log('[LG-AISearchPanel] Error showing search history modal: {}'.format(e), xbmc.LOGERROR)
+            xbmcgui.Dialog().notification('LibraryGenie', 'Error loading search history', xbmcgui.NOTIFICATION_ERROR, 3000)
     
     def _switch_to_local_search(self):
         """Switch to local search window"""
