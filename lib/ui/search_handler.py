@@ -63,9 +63,8 @@ class SearchHandler:
             # Step 1: Get search keywords
             search_terms = self._prompt_for_search_terms()
             if not search_terms:
-                self._info("No search terms entered - returning to Programs menu")
-                # Return to Programs menu where search was launched from
-                xbmc.executebuiltin('ActivateWindow(programs)')
+                self._info("No search terms entered - user cancelled")
+                # Dialog already closed - just return False and let Kodi handle navigation back
                 return False
 
             # Step 2: Use default search options (always search both title and plot)
