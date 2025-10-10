@@ -84,7 +84,7 @@
                 <focusedcolor>FFFFAA00</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>⇄ Switch to Local Search</label>
+                <label>> Switch to Local Search</label>
                 <onup>210</onup>
                 <ondown>200</ondown>
                 <onleft>260</onleft>

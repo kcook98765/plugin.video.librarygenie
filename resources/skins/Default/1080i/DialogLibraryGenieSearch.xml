@@ -84,7 +84,7 @@
                 <focusedcolor>FFFFAA00</focusedcolor>
                 <align>center</align>
                 <aligny>center</aligny>
-                <label>⇄ Switch to AI Search</label>
+                <label>>Switch to AI Search</label>
                 <onup>209</onup>
                 <ondown>201</ondown>
                 <onleft>260</onleft>
