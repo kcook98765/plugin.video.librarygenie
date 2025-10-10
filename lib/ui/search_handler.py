@@ -83,6 +83,7 @@ class SearchHandler:
                     session_state.clear_tools_return_location()
                     
                     # Check if we have valid handle (invoked from Videos window)
+                    self._debug(f"Checking handle validity: context.addon_handle={context.addon_handle}")
                     if context.addon_handle >= 0:
                         # Valid handle - render directly
                         success = self._render_saved_search_list_directly(str(list_id), context)
@@ -224,17 +225,7 @@ class SearchHandler:
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
-
-                    # Automatically show saved list immediately - use REPLACE semantics to fix parent path
-                    # This ensures search results have the correct parent (Search History) rather than
-                    # inheriting an incorrect parent path from where the search was initiated
-                    from lib.ui.response_types import NavigationIntent
-                    list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                    intent = NavigationIntent(url=list_url, mode='replace')
-                    # Store intent for router to execute
-                    self._pending_intent = intent
-                    self._debug(f"Set navigation intent to REPLACE to saved list: {list_url}")
-
+                    # Navigation is now handled by prompt_and_search based on handle validity
                     return list_id  # Return the list ID on success
                 else:
                     self._warn(f"Failed to add items to search history list {list_id}")
