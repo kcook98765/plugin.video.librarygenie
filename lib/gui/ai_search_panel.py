@@ -37,15 +37,10 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         self._state = {
             'query': '',
             'max_results': result_limit,  # From settings
-            'mode': 'hybrid',  # Default to hybrid mode (recommended per API docs)
-            'use_llm': False,  # Default: LLM off for speed (will be auto-enabled if Hybrid)
-            'debug_intent': False  # Default: no debug diagnostics
+            'mode': 'hybrid',  # Hard-coded: Always use Hybrid mode
+            'use_llm': True,  # Hard-coded: Always use AI Understanding
+            'debug_intent': False  # Hard-coded: Debug always off
         }
-        
-        # Enforce API constraint: Hybrid mode requires LLM
-        # Since default is Hybrid, auto-enable LLM at initialization
-        if self._state['mode'] == 'hybrid' and not self._state['use_llm']:
-            self._state['use_llm'] = True
 
     def onInit(self):
         """Initialize the dialog"""
