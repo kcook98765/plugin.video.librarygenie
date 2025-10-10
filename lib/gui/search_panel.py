@@ -475,6 +475,19 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
     def _switch_to_ai_search(self):
         """Switch to AI search window"""
         xbmc.log('[LG-SearchPanel] Switching to AI search', xbmc.LOGDEBUG)
+        
+        # Save preference if AI is activated (sticky preference)
+        try:
+            from lib.auth.state import is_authorized
+            from lib.config.config_manager import get_config
+            
+            if is_authorized():
+                config = get_config()
+                config.set('preferred_search_mode', 'ai')
+                xbmc.log('[LG-SearchPanel] Saved preferred search mode: ai', xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error saving search mode preference: {}'.format(e), xbmc.LOGERROR)
+        
         self._result = {
             'switch_to_ai': True
         }
