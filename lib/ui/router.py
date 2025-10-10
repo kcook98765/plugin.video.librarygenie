@@ -477,186 +477,23 @@ class Router:
                 response = lists_handler.show_lists_menu(context, force_main_menu=True)
                 return response_handler.handle_directory_response(response, context)
             elif action == 'prompt_and_search':
-                from lib.ui.handler_factory import get_handler_factory
-                from lib.ui.response_handler import get_response_handler
-                from lib.ui.nav import finish_directory
-                from lib.search.integrated_search import start_integrated_search_flow, execute_ai_search_and_save
-                from lib.search.search_router import build_query_from_result
-                
-                factory = get_handler_factory()
-                factory.context = context
-                tools_handler = factory.get_tools_handler()
-                search_handler = factory.get_search_handler()
-                response_handler = get_response_handler()
-                
-                # Determine initial search mode based on user preference (sticky preference)
-                # Default to 'local' if AI is not activated, otherwise use stored preference
+                # Use SearchFlowController for consolidated search flow
+                from lib.search.search_flow import SearchFlowController
                 from lib.auth.state import is_authorized
                 from lib.config.config_manager import get_config
                 
+                # Determine initial search mode based on user preference
                 initial_mode = 'local'  # Default
                 if is_authorized():
-                    # AI is activated - use stored preference
                     config = get_config()
                     preferred_mode = config.get('preferred_search_mode', 'local')
                     if preferred_mode in ('local', 'ai'):
                         initial_mode = preferred_mode
                 
-                # Use integrated search flow that handles local/AI toggle
-                search_result = start_integrated_search_flow(initial_mode)
-                
-                if not search_result:
-                    # User cancelled - just return, dialog is already closed
-                    # No navigation needed - user stays in Programs menu where they started
-                    return True
-                
-                # Check for navigate_away (search history)
-                if isinstance(search_result, dict) and search_result.get('navigate_away'):
-                    from lib.ui.response_types import NavigateAfterComplete
-                    result = NavigateAfterComplete(search_result.get('target'))
-                elif isinstance(search_result, dict) and search_result.get('mode') == 'ai':
-                    # AI search mode - execute and save
-                    ai_result = search_result.get('result', {})
-                    query = ai_result.get('query', '').strip()
-                    
-                    if not query:
-                        finish_directory(context.addon_handle, succeeded=True, update=False)
-                        return True
-                    
-                    # Execute AI search and save as list with new parameters
-                    list_id = execute_ai_search_and_save(
-                        query, 
-                        max_results=ai_result.get('max_results', 20),
-                        mode=ai_result.get('mode', 'hybrid'),
-                        use_llm=ai_result.get('use_llm', False),
-                        debug_intent=ai_result.get('debug_intent', False)
-                    )
-                    
-                    if list_id:
-                        # Navigate to the AI search results list
-                        import xbmcaddon
-                        addon_id = xbmcaddon.Addon().getAddonInfo('id')
-                        plugin_url = f'plugin://{addon_id}/?action=show_list&list_id={list_id}'
-                        from lib.ui.response_types import NavigateAfterComplete
-                        result = NavigateAfterComplete(plugin_url)
-                    else:
-                        finish_directory(context.addon_handle, succeeded=True, update=False)
-                        return True
-                elif isinstance(search_result, dict) and search_result.get('mode') == 'local':
-                    # Local search mode - use existing handler
-                    local_result = search_result.get('result')
-                    query_params = build_query_from_result(local_result)
-                    
-                    # Convert query_params to SimpleSearchQuery object
-                    from lib.search.simple_query_interpreter import get_simple_query_interpreter
-                    from lib.search.simple_search_engine import SimpleSearchEngine
-                    
-                    # Convert query_params dict to kwargs for interpreter
-                    interpreter = get_simple_query_interpreter()
-                    
-                    # Map type to media_types list
-                    media_type_map = {
-                        'all': ['movie', 'episode', 'tvshow'],
-                        'movie': ['movie'],
-                        'episode': ['episode', 'tvshow']
-                    }
-                    media_types = media_type_map.get(query_params.get('type', 'all'), ['movie'])
-                    
-                    # Map scope list to search_scope string
-                    scope_list = query_params.get('scope', ['title', 'plot'])
-                    if set(scope_list) == {'title', 'plot'}:
-                        search_scope = 'both'
-                    elif 'title' in scope_list:
-                        search_scope = 'title'
-                    elif 'plot' in scope_list:
-                        search_scope = 'plot'
-                    else:
-                        search_scope = 'both'
-                    
-                    # Parse query into SimpleSearchQuery object
-                    search_query = interpreter.parse_query(
-                        query_params['q'],
-                        media_types=media_types,
-                        search_scope=search_scope,
-                        match_logic=query_params.get('match', 'all')
-                    )
-                    
-                    # Execute search with SimpleSearchQuery object
-                    engine = SimpleSearchEngine()
-                    results = engine.search(search_query)
-                    
-                    if results.total_count > 0:
-                        # Save and navigate to results
-                        list_id = search_handler._save_search_history(query_params['q'], {}, results)
-                        if list_id:
-                            # Check handle validity - use ActivateWindow if handle is invalid (RunPlugin scenario)
-                            if context.addon_handle >= 0:
-                                # Valid handle - render directly
-                                success = search_handler._render_saved_search_list_directly(str(list_id), context)
-                                if success:
-                                    return True
-                            else:
-                                # Invalid handle (RunPlugin) - use ActivateWindow to show results
-                                import xbmc
-                                import xbmcaddon
-                                addon_id = xbmcaddon.Addon().getAddonInfo('id')
-                                list_url = f"plugin://{addon_id}/?action=show_list&list_id={list_id}"
-                                xbmc.executebuiltin(f'ActivateWindow(videos,{list_url},return)')
-                                return True
-                    
-                    # Fallback
-                    finish_directory(context.addon_handle, succeeded=True, update=False)
-                    return True
-                else:
-                    result = True
-                
-                # V22 PIERS FIX: Handle NavigateAfterComplete response
-                from lib.ui.response_types import NavigateAfterComplete
-                if isinstance(result, NavigateAfterComplete):
-                    # V22 Piers blocks ActivateWindow when action originated from modal context
-                    # Solution: Use RunPlugin to execute navigation in a FRESH plugin context (not modal-tainted)
-                    import xbmc
-                    import xbmcaddon
-                    
-                    # Get Kodi version to use V22-specific workaround
-                    kodi_version = int(xbmc.getInfoLabel('System.BuildVersion').split('.')[0])
-                    
-                    if kodi_version >= 22:
-                        # V22 Piers: Trigger navigation via RunPlugin in fresh execution context
-                        xbmc.executebuiltin('Dialog.Close(all,true)')
-                        # Create a navigation helper action that will execute in clean context
-                        nav_url = 'RunPlugin(plugin://plugin.video.librarygenie/?action=navigate_to&url={})'.format(
-                            result.target_url.replace('&', '%26')  # URL encode ampersands
-                        )
-                        xbmc.executebuiltin(nav_url)
-                        finish_directory(context.addon_handle, succeeded=True, update=False)
-                        self.logger.debug("V22 Piers: RunPlugin navigation trigger: %s", result.target_url)
-                    else:
-                        # V19-21: Direct ActivateWindow works fine
-                        xbmc.executebuiltin('Dialog.Close(all,true)')
-                        xbmc.executebuiltin('ActivateWindow(Videos,{},return)'.format(result.target_url))
-                        finish_directory(context.addon_handle, succeeded=True, update=False)
-                        self.logger.debug("V19-21: ActivateWindow navigation: %s", result.target_url)
-                    return True
-                
-                # Handle DialogResponse and navigation properly
-                # V22 FIX: If result is True (navigation occurred), tools_handler already called endOfDirectory
-                if result is True:
-                    return True
-                    
-                if hasattr(result, 'success'):
-                    if result.success and not result.message.startswith("Search cancelled"):
-                        # Search succeeded and wasn't cancelled
-                        return True
-                    else:
-                        # Search was cancelled or no results - close directory gracefully
-                        finish_directory(context.addon_handle, succeeded=True, update=False)
-                        return True
-                else:
-                    # Fallback for non-DialogResponse/non-bool
-                    succeeded = bool(result) if result is not None else True
-                    finish_directory(context.addon_handle, succeeded=succeeded, update=False)
-                    return succeeded
+                # Execute search flow via controller
+                controller = SearchFlowController()
+                controller.execute_search_flow(context, initial_mode)
+                return True
             elif action == 'navigate_to':
                 # V22 PIERS WORKAROUND: Navigation helper that executes in fresh plugin context
                 # This action is triggered via RunPlugin to avoid V22's modal-context ActivateWindow blocking
