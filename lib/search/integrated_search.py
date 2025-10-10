@@ -73,6 +73,10 @@ def start_integrated_search_flow(initial_mode='local'):
                 current_mode = 'local'
                 continue
             
+            # Check for navigate_away (search history selection)
+            if isinstance(result, dict) and result.get('navigate_away'):
+                return result
+            
             # Regular AI search result
             return {
                 'mode': 'ai',
