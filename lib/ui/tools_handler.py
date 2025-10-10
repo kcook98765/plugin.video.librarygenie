@@ -1499,7 +1499,9 @@ class ToolsHandler:
                     session_state = get_session_state()
                     session_state.clear_tools_return_location()
                     
-                    success = search_handler._render_saved_search_list_directly(str(list_id), context)
+                    from lib.search.search_flow import NavigationStrategy
+                    nav_strategy = NavigationStrategy()
+                    success = nav_strategy.navigate_to_results(list_id, context)
                     if success:
                         return DialogResponse(
                             success=True,
