@@ -506,10 +506,10 @@ class Router:
                 search_result = start_integrated_search_flow(initial_mode)
                 
                 if not search_result:
-                    # User cancelled - dialog already closed, end directory with succeeded=True
-                    # succeeded=True tells Kodi "plugin completed successfully with no results"
-                    # This allows proper navigation back (succeeded=False would trigger error handling)
-                    finish_directory(context.addon_handle, succeeded=True, update=False)
+                    # User cancelled - close the Videos window entirely and return to where user came from
+                    # Using Action(Close) closes the current window (Videos) instead of showing empty directory
+                    import xbmc
+                    xbmc.executebuiltin('Action(Close)')
                     return True
                 
                 # Check for navigate_away (search history)
