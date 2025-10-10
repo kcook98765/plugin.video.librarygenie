@@ -27,7 +27,6 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
     def __init__(self, *args, **kwargs):
         super(AISearchPanel, self).__init__()
         self._result = None
-        self._keyboard_closed_time = 0
         
         # Get result limit from settings
         result_limit = ADDON.getSettingInt('ai_search_result_limit')
@@ -60,11 +59,6 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         
         # Focus on Query field by default
         self.setFocusId(200)
-        
-        # Auto-open keyboard on dialog init to prevent keyboard shortcut leak-through
-        # This allows users to start typing immediately instead of accidentally triggering
-        # global shortcuts (like 'b' for PVR Timers) while navigating the dialog
-        self._open_keyboard()
 
     def onAction(self, action):
         """Handle actions"""
@@ -82,17 +76,7 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
     
     def onClick(self, control_id):
         """Handle control clicks"""
-        if control_id == 200:
-            # Clicking on query box opens keyboard (with debounce)
-            import time
-            current_time = time.time()
-            time_since_close = current_time - self._keyboard_closed_time
-            
-            if time_since_close < 0.5:  # Ignore clicks within 500ms
-                xbmc.log('[LG-AISearchPanel] Ignoring click - keyboard closed {:.2f}s ago'.format(time_since_close), xbmc.LOGDEBUG)
-            else:
-                self._open_keyboard()
-        elif control_id == 210:
+        if control_id == 210:
             # Switch to Local Search
             self._switch_to_local_search()
         elif control_id == 260:
@@ -120,28 +104,10 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
 
     def _apply_state_to_controls(self):
         """Apply current state to dialog controls"""
-        # Query (using button label)
-        self.q_edit.setLabel(self._state.get('query', ''))
+        # Query (using edit control)
+        self.q_edit.setText(self._state.get('query', ''))
 
-    def _open_keyboard(self):
-        """Open keyboard for query input"""
-        import time
-        
-        # Get current text from button label
-        current_text = self.q_edit.getLabel()
-        kb = xbmc.Keyboard(current_text, 'Enter natural language search (e.g., "action movies from the 90s")')
-        kb.doModal()
-        
-        # Record when keyboard closed
-        self._keyboard_closed_time = time.time()
-        
-        if kb.isConfirmed():
-            text = kb.getText()
-            self._state['query'] = text
-            self.q_edit.setLabel(text)
-        
-        # Move focus to Search button after keyboard closes
-        self.setFocusId(260)
+    # _open_keyboard method removed - now using native edit control which handles input directly
 
     def _load_and_display_stats(self):
         """Load library statistics from cached file"""
@@ -431,8 +397,8 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
 
     def _finalize_and_close(self):
         """Finalize and close dialog"""
-        # Get query from button label
-        query = self.q_edit.getLabel().strip()
+        # Get query from edit control
+        query = self.q_edit.getText().strip()
         
         # Update state with the final query
         self._state['query'] = query

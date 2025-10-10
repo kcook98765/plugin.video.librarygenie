@@ -115,21 +115,18 @@
                 <textcolor>FFAAAAAA</textcolor>
             </control>
             
-            <!-- Query Button (acts like text field, opens keyboard on click) -->
-            <control type="button" id="200">
+            <!-- Query Edit Control (native text input - captures keyboard, blocks global shortcuts) -->
+            <control type="edit" id="200">
                 <left>100</left>
                 <top>380</top>
                 <width>1480</width>
                 <height>60</height>
                 <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
                 <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
-                <colordiffuse>FF606060</colordiffuse>
                 <font>font13</font>
-                <align>left</align>
-                <aligny>center</aligny>
-                <textoffsetx>12</textoffsetx>
                 <textcolor>FFFFFFFF</textcolor>
-                <focusedcolor>FFFFAA00</focusedcolor>
+                <textoffsetx>12</textoffsetx>
+                <textoffsety>0</textoffsety>
                 <label></label>
                 <onup>210</onup>
                 <ondown>260</ondown>
