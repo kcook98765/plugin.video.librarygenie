@@ -75,6 +75,7 @@ class ConfigManager:
             "ai_search_api_key": "",
             "ai_search_activated": False,
             "ai_search_sync_interval": 1,
+            "preferred_search_mode": "local",  # 'local' or 'ai' - last used search mode
             
             # Backup settings
             "enable_automatic_backups": False,
