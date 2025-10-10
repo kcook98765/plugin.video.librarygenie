@@ -369,6 +369,16 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
     def _switch_to_local_search(self):
         """Switch to local search window"""
         xbmc.log('[LG-AISearchPanel] Switching to local search', xbmc.LOGDEBUG)
+        
+        # Save preference (sticky preference)
+        try:
+            from lib.config.config_manager import get_config
+            config = get_config()
+            config.set('preferred_search_mode', 'local')
+            xbmc.log('[LG-AISearchPanel] Saved preferred search mode: local', xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-AISearchPanel] Error saving search mode preference: {}'.format(e), xbmc.LOGERROR)
+        
         self._result = {
             'switch_to_local': True
         }
