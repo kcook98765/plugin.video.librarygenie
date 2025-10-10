@@ -506,8 +506,9 @@ class Router:
                 search_result = start_integrated_search_flow(initial_mode)
                 
                 if not search_result:
-                    # User cancelled
-                    finish_directory(context.addon_handle, succeeded=True, update=False)
+                    # User cancelled - close the Videos window and return to previous screen
+                    import xbmc
+                    xbmc.executebuiltin('PreviousMenu')
                     return True
                 
                 # Check for navigate_away (search history)

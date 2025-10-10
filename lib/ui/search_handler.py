@@ -63,9 +63,9 @@ class SearchHandler:
             # Step 1: Get search keywords
             search_terms = self._prompt_for_search_terms()
             if not search_terms:
-                self._info("No search terms entered - navigating back")
-                # Navigate back instead of showing empty directory
-                xbmc.executebuiltin('Action(Back)')
+                self._info("No search terms entered - returning to previous screen")
+                # Close the Videos window and return to where user came from (e.g., Programs menu)
+                xbmc.executebuiltin('PreviousMenu')
                 return False
 
             # Step 2: Use default search options (always search both title and plot)
