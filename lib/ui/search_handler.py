@@ -63,9 +63,8 @@ class SearchHandler:
             # Step 1: Get search keywords
             search_terms = self._prompt_for_search_terms()
             if not search_terms:
-                self._info("No search terms entered - navigating back")
-                # Navigate back instead of showing empty directory
-                xbmc.executebuiltin('Action(Back)')
+                self._info("No search terms entered - user cancelled")
+                # Dialog already closed - just return False and let Kodi handle navigation back
                 return False
 
             # Step 2: Use default search options (always search both title and plot)
@@ -83,30 +82,21 @@ class SearchHandler:
                     # Clear any tools return location to prevent confusion
                     session_state.clear_tools_return_location()
                     
-                    # IMPROVED: Use direct rendering with enhanced error handling
-                    success = self._render_saved_search_list_directly(str(list_id), context)
+                    # Use NavigationStrategy for consistent navigation logic
+                    from lib.search.search_flow import NavigationStrategy
+                    nav_strategy = NavigationStrategy()
+                    success = nav_strategy.navigate_to_results(list_id, context)
                     if success:
-                        self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
+                        self._debug(f"Successfully navigated to search results for list {list_id}")
                         return True
                     else:
-                        # IMPROVED: Try redirect fallback before failing
-                        self._warn(f"Direct rendering failed for list {list_id}, trying redirect fallback")
-                        
-                        # Restore session state for fallback attempt
-                        if original_return_location is not None:
-                            session_state.set_tools_return_location(original_return_location)
-                        
-                        if self._try_redirect_to_saved_search_list():
-                            self._debug(f"Redirect fallback succeeded for list {list_id}")
-                            return True
-                        
-                        # If both methods fail, show user-friendly error and stay in current context
-                        # instead of triggering router fallback that could show Tools & Options
+                        # Navigation failed - show error
+                        self._warn(f"Navigation failed for list {list_id}")
                         self.dialog_service.show_error(
                             "Search results saved but could not be displayed. Check Search History.", 
                             time_ms=4000
                         )
-                        self._end_directory(succeeded=True, update=False)  # succeeded=True prevents router fallback
+                        self._end_directory(succeeded=True, update=False)
                         return True
                 else:
                     # Failed to save search history, try redirect method as fallback
@@ -222,17 +212,7 @@ class SearchHandler:
                 added = self.query_manager.add_search_results_to_list(list_id, search_results)
                 if added > 0:
                     self._debug(f"Successfully added {added} items to search history list {list_id}")
-
-                    # Automatically show saved list immediately - use REPLACE semantics to fix parent path
-                    # This ensures search results have the correct parent (Search History) rather than
-                    # inheriting an incorrect parent path from where the search was initiated
-                    from lib.ui.response_types import NavigationIntent
-                    list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                    intent = NavigationIntent(url=list_url, mode='replace')
-                    # Store intent for router to execute
-                    self._pending_intent = intent
-                    self._debug(f"Set navigation intent to REPLACE to saved list: {list_url}")
-
+                    # Navigation is now handled by prompt_and_search based on handle validity
                     return list_id  # Return the list ID on success
                 else:
                     self._warn(f"Failed to add items to search history list {list_id}")
@@ -246,45 +226,6 @@ class SearchHandler:
             import traceback
             self._error(f"Search history save traceback: {traceback.format_exc()}")
             return None
-
-    def _render_saved_search_list_directly(self, list_id: str, context: PluginContext) -> bool:
-        """Directly render saved search list with timing to prevent race conditions"""
-        try:
-            self._debug(f"Directly rendering saved search list ID: {list_id}")
-            
-            # Add small delay to prevent navigation race conditions
-            import time
-            time.sleep(0.1)
-
-            # Import and instantiate ListsHandler
-            from lib.ui.handler_factory import get_handler_factory
-            from lib.ui.response_handler import get_response_handler
-
-            factory = get_handler_factory()
-            factory.context = context
-            lists_handler = factory.get_lists_handler()
-            response_handler = get_response_handler()
-
-            # Directly call view_list with the saved list ID
-            directory_response = lists_handler.view_list(context, list_id)
-
-            # Handle the DirectoryResponse
-            success = response_handler.handle_directory_response(directory_response, context)
-
-            if success:
-                # Small delay after successful rendering to ensure navigation completes
-                time.sleep(0.05)
-                self._debug(f"Successfully rendered saved search list {list_id} directly")
-                return True
-            else:
-                self._warn(f"Failed to handle directory response for list {list_id}")
-                return False
-
-        except Exception as e:
-            self._error(f"Error rendering saved search list directly: {e}")
-            import traceback
-            self._error(f"Direct rendering traceback: {traceback.format_exc()}")
-            return False
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""
