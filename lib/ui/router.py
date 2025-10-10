@@ -506,13 +506,8 @@ class Router:
                 search_result = start_integrated_search_flow(initial_mode)
                 
                 if not search_result:
-                    # User cancelled - signal NO content (succeeded=True with 0 items)
-                    # This completes the directory request gracefully without showing content
-                    # The 'return' parameter in search.py's ActivateWindow will then restore Programs menu
-                    finish_directory(context.addon_handle, succeeded=True, update=False)
-                    # Close the Videos window since we're not showing content
-                    import xbmc
-                    xbmc.executebuiltin('Action(Close)')
+                    # User cancelled - just return, dialog is already closed
+                    # No navigation needed - user stays in Programs menu where they started
                     return True
                 
                 # Check for navigate_away (search history)

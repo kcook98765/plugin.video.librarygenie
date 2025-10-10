@@ -82,30 +82,33 @@ class SearchHandler:
                     # Clear any tools return location to prevent confusion
                     session_state.clear_tools_return_location()
                     
-                    # IMPROVED: Use direct rendering with enhanced error handling
-                    success = self._render_saved_search_list_directly(str(list_id), context)
-                    if success:
-                        self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
-                        return True
-                    else:
-                        # IMPROVED: Try redirect fallback before failing
-                        self._warn(f"Direct rendering failed for list {list_id}, trying redirect fallback")
-                        
-                        # Restore session state for fallback attempt
-                        if original_return_location is not None:
-                            session_state.set_tools_return_location(original_return_location)
-                        
-                        if self._try_redirect_to_saved_search_list():
-                            self._debug(f"Redirect fallback succeeded for list {list_id}")
+                    # Check if we have valid handle (invoked from Videos window)
+                    if context.addon_handle >= 0:
+                        # Valid handle - render directly
+                        success = self._render_saved_search_list_directly(str(list_id), context)
+                        if success:
+                            self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
                             return True
-                        
-                        # If both methods fail, show user-friendly error and stay in current context
-                        # instead of triggering router fallback that could show Tools & Options
-                        self.dialog_service.show_error(
-                            "Search results saved but could not be displayed. Check Search History.", 
-                            time_ms=4000
-                        )
-                        self._end_directory(succeeded=True, update=False)  # succeeded=True prevents router fallback
+                        else:
+                            # Try redirect fallback
+                            self._warn(f"Direct rendering failed for list {list_id}, trying redirect fallback")
+                            if original_return_location is not None:
+                                session_state.set_tools_return_location(original_return_location)
+                            if self._try_redirect_to_saved_search_list():
+                                self._debug(f"Redirect fallback succeeded for list {list_id}")
+                                return True
+                            # Show error
+                            self.dialog_service.show_error(
+                                "Search results saved but could not be displayed. Check Search History.", 
+                                time_ms=4000
+                            )
+                            self._end_directory(succeeded=True, update=False)
+                            return True
+                    else:
+                        # Invalid handle (RunPlugin) - navigate to Videos window with results
+                        self._debug(f"Invalid handle detected, navigating to Videos window with list {list_id}")
+                        list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
+                        xbmc.executebuiltin(f'ActivateWindow(videos,{list_url},return)')
                         return True
                 else:
                     # Failed to save search history, try redirect method as fallback
