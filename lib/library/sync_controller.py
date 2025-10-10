@@ -121,6 +121,15 @@ class SyncController:
             
             success = len(results['errors']) == 0 or (results['movies'] > 0 or results['episodes'] > 0)
             
+            # If sync was successful and items were synced, update stats cache
+            if success and (results['movies'] > 0 or results['episodes'] > 0):
+                try:
+                    from lib.utils.stats_cache import get_stats_cache
+                    stats_cache = get_stats_cache()
+                    if stats_cache.fetch_and_save_stats():
+                        self.logger.info("Library stats updated after manual sync")
+                except Exception as e:
+                    self.logger.error("Failed to update stats cache after sync: %s", e)
             
             return success, message
 

@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="dialog">
+    <defaultcontrol always="true">260</defaultcontrol>
+    <allowoverlay>yes</allowoverlay>
+    <controls>
+        <!-- FULLSCREEN SOLID BACKGROUND - Layer 1 -->
+        <control type="image" id="1">
+            <description>Fullscreen Dialog Background</description>
+            <left>0</left>
+            <top>0</top>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+            <colordiffuse>FF000000</colordiffuse>
+            <aspectratio>stretch</aspectratio>
+            <visible>true</visible>
+        </control>
+        
+        <!-- FULLSCREEN SOLID BACKGROUND - Layer 2 (extra opacity) -->
+        <control type="image" id="2">
+            <description>Black overlay for complete opacity</description>
+            <left>0</left>
+            <top>0</top>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+            <colordiffuse>EE000000</colordiffuse>
+            <aspectratio>stretch</aspectratio>
+            <visible>true</visible>
+        </control>
+        
+        <!-- FULLSCREEN SOLID BACKGROUND - Layer 3 (maximum opacity) -->
+        <control type="image" id="3">
+            <description>Third black layer for complete blocking</description>
+            <left>0</left>
+            <top>0</top>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+            <colordiffuse>DD000000</colordiffuse>
+            <aspectratio>stretch</aspectratio>
+            <visible>true</visible>
+        </control>
+        
+        <control type="group">
+            <left>150</left>
+            <top>120</top>
+            <width>1620</width>
+            <height>840</height>
+            
+            <!-- Content area background - Solid color -->
+            <control type="image">
+                <width>1620</width>
+                <height>840</height>
+                <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                <colordiffuse>FF1A1A1A</colordiffuse>
+                <aspectratio>stretch</aspectratio>
+                <visible>true</visible>
+            </control>
+            
+            <!-- Header -->
+            <control type="label" id="100">
+                <left>40</left>
+                <top>24</top>
+                <width>1540</width>
+                <height>60</height>
+                <align>center</align>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <label>AI Movie Search</label>
+            </control>
+
+            <!-- Switch to Local Search button (at top) -->
+            <control type="button" id="210">
+                <left>100</left>
+                <top>120</top>
+                <width>1480</width>
+                <height>50</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFAA00</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>> Switch to Local Search</label>
+                <onup>210</onup>
+                <ondown>200</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
+            </control>
+
+            <!-- Description Label -->
+            <control type="label">
+                <left>100</left>
+                <top>210</top>
+                <width>1480</width>
+                <height>80</height>
+                <align>center</align>
+                <font>font12</font>
+                <textcolor>FFAAAAAA</textcolor>
+                <wrapmultiline>true</wrapmultiline>
+                <label>Ask in natural language what movies you're looking for[CR](e.g., "action movies from the 90s" or "sci-fi films like Blade Runner")</label>
+            </control>
+
+            <!-- Query Label -->
+            <control type="label">
+                <left>100</left>
+                <top>330</top>
+                <width>300</width>
+                <height>40</height>
+                <label>Your Search</label>
+                <font>font13</font>
+                <textcolor>FFAAAAAA</textcolor>
+            </control>
+            
+            <!-- Query Button (acts like text field, opens keyboard on click) -->
+            <control type="button" id="200">
+                <left>100</left>
+                <top>380</top>
+                <width>1480</width>
+                <height>60</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
+                <font>font13</font>
+                <align>left</align>
+                <aligny>center</aligny>
+                <textoffsetx>12</textoffsetx>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFAA00</focusedcolor>
+                <label></label>
+                <onup>210</onup>
+                <ondown>260</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
+            </control>
+            
+            <!-- Search button -->
+            <control type="button" id="260">
+                <left>100</left>
+                <top>470</top>
+                <width>740</width>
+                <height>70</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
+                <font>font30_title</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FF00CED1</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>Search</label>
+                <onup>200</onup>
+                <ondown>262</ondown>
+                <onleft>261</onleft>
+                <onright>261</onright>
+            </control>
+            
+            <!-- Cancel button -->
+            <control type="button" id="261">
+                <left>860</left>
+                <top>470</top>
+                <width>720</width>
+                <height>70</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
+                <font>font30_title</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFF0000</focusedcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>Cancel</label>
+                <onup>200</onup>
+                <ondown>262</ondown>
+                <onleft>260</onleft>
+                <onright>260</onright>
+            </control>
+            
+            <!-- Search History button -->
+            <control type="button" id="262">
+                <left>100</left>
+                <top>560</top>
+                <width>1480</width>
+                <height>50</height>
+                <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                <colordiffuse>FF606060</colordiffuse>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <focusedcolor>FFFFAA00</focusedcolor>
+                <disabledcolor>FF666666</disabledcolor>
+                <align>center</align>
+                <aligny>center</aligny>
+                <label>$ADDON[plugin.video.librarygenie 30388]</label>
+                <enable>!String.IsEmpty(Window.Property(SearchHistoryExists))</enable>
+                <onup>261</onup>
+                <ondown>271</ondown>
+                <onleft>262</onleft>
+                <onright>262</onright>
+            </control>
+
+            <!-- Library Statistics Display -->
+            <control type="textbox" id="270">
+                <left>100</left>
+                <top>630</top>
+                <width>1460</width>
+                <height>170</height>
+                <font>font12</font>
+                <textcolor>FFCCCCCC</textcolor>
+                <shadowcolor>FF000000</shadowcolor>
+                <align>left</align>
+                <pagecontrol>271</pagecontrol>
+                <scrolltime>200</scrolltime>
+                <label>Loading statistics...</label>
+            </control>
+
+            <!-- Scrollbar for Statistics (allows navigation and scrolling) -->
+            <control type="scrollbar" id="271">
+                <left>1570</left>
+                <top>630</top>
+                <width>10</width>
+                <height>170</height>
+                <texturesliderbackground colordiffuse="FF404040">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturesliderbackground>
+                <texturesliderbar colordiffuse="FF00CED1">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturesliderbar>
+                <orientation>vertical</orientation>
+                <onup>262</onup>
+                <ondown>271</ondown>
+                <onleft>262</onleft>
+                <onright>262</onright>
+            </control>
+            
+        </control>
+    </controls>
+</window>

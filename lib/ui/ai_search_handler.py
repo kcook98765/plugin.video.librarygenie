@@ -72,8 +72,14 @@ class AISearchHandler:
 
             progress.update(40, "Performing AI search...")
 
-            # Perform AI search to get IMDb IDs
-            search_results = self.ai_client.search_movies(query, limit=100)
+            # Perform AI search to get IMDb IDs (get limit from settings)
+            import xbmcaddon
+            addon = xbmcaddon.Addon()
+            result_limit = addon.getSettingInt('ai_search_result_limit')
+            if result_limit <= 0:
+                result_limit = 20  # Fallback default
+            
+            search_results = self.ai_client.search_movies(query, limit=result_limit)
 
             if not search_results or not search_results.get('success'):
                 progress.close()
@@ -170,6 +176,7 @@ class AISearchHandler:
                 item_dict = dict(row)
                 # Convert to standard format expected by add_search_results_to_list
                 standard_item = {
+                    'id': item_dict.get('id'),  # Database ID from media_items table
                     'kodi_id': item_dict.get('kodi_id'),
                     'media_type': item_dict.get('media_type', 'movie'),
                     'title': item_dict.get('title', ''),
@@ -251,63 +258,20 @@ class AISearchHandler:
 
     def _redirect_to_search_list(self, list_id: int):
         """
-        Redirect to the created search history list using same method as local search
+        Navigate to the created search history list
 
         Args:
             list_id: ID of the list to show
         """
         try:
-            # OPTION A FIX: Use direct rendering to bypass V22 navigation race condition
-            # This eliminates the Container.Update issue that prevents AI search results 
-            # from displaying in Kodi V22
-            success = self._render_search_list_directly(list_id)
-            if success:
-                self.logger.info("AI SEARCH: Successfully displayed results using direct rendering for list %s", list_id)
-            else:
-                self.logger.error("AI SEARCH: Failed to render results directly for list %s", list_id)
+            import xbmc
+            # Use ActivateWindow for navigation (works even when called from RunPlugin context menu)
+            list_url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+            xbmc.executebuiltin(f'ActivateWindow(Videos,{list_url},return)')
+            self.logger.info("AI SEARCH: Navigating to search results list %s", list_id)
 
         except Exception as e:
-            self.logger.error("AI SEARCH: Failed to redirect to search list: %s", e)
-
-    def _render_search_list_directly(self, list_id: int) -> bool:
-        """Directly render AI search list without Container.Update redirect"""
-        try:
-            self.logger.debug("AI SEARCH: Directly rendering search list ID: %s", list_id)
-
-            # Import and instantiate ListsHandler
-            from lib.ui.handler_factory import get_handler_factory
-            from lib.ui.response_handler import get_response_handler
-            from lib.ui.plugin_context import PluginContext
-
-            # Create a context for the direct rendering
-            # Note: AI search typically doesn't have a context passed in, so we create one
-            import sys
-            addon_handle = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-            context = PluginContext(addon_handle, sys.argv[0], {})
-
-            factory = get_handler_factory()
-            factory.context = context
-            lists_handler = factory.get_lists_handler()
-            response_handler = get_response_handler()
-
-            # Directly call view_list with the saved list ID
-            directory_response = lists_handler.view_list(context, str(list_id))
-
-            # Handle the DirectoryResponse
-            success = response_handler.handle_directory_response(directory_response, context)
-
-            if success:
-                self.logger.debug("AI SEARCH: Successfully rendered search list %s directly", list_id)
-                return True
-            else:
-                self.logger.warning("AI SEARCH: Failed to handle directory response for list %s", list_id)
-                return False
-
-        except Exception as e:
-            self.logger.error("AI SEARCH: Error rendering search list directly: %s", e)
-            import traceback
-            self.logger.error("AI SEARCH: Direct rendering traceback: %s", traceback.format_exc())
-            return False
+            self.logger.error("AI SEARCH: Failed to navigate to search list: %s", e)
 
     def prompt_and_search(self) -> bool:
         """
@@ -643,7 +607,7 @@ class AISearchHandler:
                 dialog_bg.create("AI Search Replace Sync", "Preparing sync...")
 
                 movies_result = conn_manager.execute_query(
-                    "SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''"
+                    "SELECT imdbnumber, title, year FROM media_items WHERE source = 'lib' AND media_type = 'movie' AND imdbnumber IS NOT NULL AND imdbnumber != ''"
                 )
 
                 movies_with_imdb = []

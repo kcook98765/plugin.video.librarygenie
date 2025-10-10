@@ -92,6 +92,86 @@ def main():
         )
 
 
+def _get_imdb_id():
+    """Get IMDb ID - first try InfoLabel, then query database if needed"""
+    # Step 1: Try ListItem.IMDBNumber InfoLabel first
+    imdb_from_infolabel = xbmc.getInfoLabel('ListItem.IMDBNumber').strip()
+    xbmc.log(f"[LG SIMILAR] ListItem.IMDBNumber: '{imdb_from_infolabel}'", xbmc.LOGINFO)
+    
+    # Check if it's a valid IMDb ID (starts with 'tt')
+    if imdb_from_infolabel and imdb_from_infolabel.startswith('tt'):
+        xbmc.log(f"[LG SIMILAR] ✓ Valid IMDb ID from InfoLabel: {imdb_from_infolabel}", xbmc.LOGINFO)
+        return imdb_from_infolabel
+    
+    # If it's just numeric, it's a Kodi DB ID, not an IMDb ID
+    if imdb_from_infolabel and imdb_from_infolabel.isdigit():
+        xbmc.log(f"[LG SIMILAR] InfoLabel is numeric (Kodi DB ID): '{imdb_from_infolabel}' - will lookup in database", xbmc.LOGINFO)
+    
+    # Step 2: Query database using DBID to get actual IMDb ID
+    dbid = xbmc.getInfoLabel('ListItem.DBID').strip()
+    xbmc.log(f"[LG SIMILAR] ListItem.DBID: '{dbid}'", xbmc.LOGINFO)
+    
+    if dbid and dbid.isdigit():
+        try:
+            # Use the same pattern as the rest of context.py
+            from lib.data.query_manager import get_query_manager
+            query_manager = get_query_manager()
+            
+            if not query_manager.initialize():
+                xbmc.log("[LG SIMILAR] Failed to initialize query manager", xbmc.LOGERROR)
+                return ''
+            
+            # Get dbtype if available, otherwise try to infer from container
+            dbtype = xbmc.getInfoLabel('ListItem.DBTYPE').strip()
+            xbmc.log(f"[LG SIMILAR] ListItem.DBTYPE: '{dbtype}'", xbmc.LOGINFO)
+            
+            if not dbtype:
+                # Infer from container content
+                if xbmc.getCondVisibility('Container.Content(movies)'):
+                    dbtype = 'movie'
+                    xbmc.log("[LG SIMILAR] Inferred dbtype='movie' from Container.Content", xbmc.LOGINFO)
+                elif xbmc.getCondVisibility('Container.Content(episodes)'):
+                    dbtype = 'episode'
+                    xbmc.log("[LG SIMILAR] Inferred dbtype='episode' from Container.Content", xbmc.LOGINFO)
+            
+            # Direct SQL query through query_manager's connection
+            with query_manager.connection_manager.get_connection() as conn:
+                # Query with or without media_type filter
+                if dbtype:
+                    xbmc.log(f"[LG SIMILAR] Querying DB: kodi_id={dbid}, media_type={dbtype}", xbmc.LOGINFO)
+                    result = conn.execute(
+                        "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND media_type = ? AND is_removed = 0",
+                        [dbid, dbtype]
+                    ).fetchone()
+                else:
+                    xbmc.log(f"[LG SIMILAR] Querying DB: kodi_id={dbid} (no media_type filter)", xbmc.LOGINFO)
+                    result = conn.execute(
+                        "SELECT imdbnumber FROM media_items WHERE kodi_id = ? AND is_removed = 0",
+                        [dbid]
+                    ).fetchone()
+                
+                if result and result[0]:
+                    imdb_id = result[0].strip()
+                    xbmc.log(f"[LG SIMILAR] DB returned IMDb ID: '{imdb_id}'", xbmc.LOGINFO)
+                    # Only return if it starts with 'tt'
+                    if imdb_id.startswith('tt'):
+                        xbmc.log(f"[LG SIMILAR] ✓ Using IMDb ID from DB: {imdb_id}", xbmc.LOGINFO)
+                        return imdb_id
+                    else:
+                        xbmc.log(f"[LG SIMILAR] DB IMDb ID doesn't start with 'tt', rejecting: {imdb_id}", xbmc.LOGINFO)
+                else:
+                    xbmc.log("[LG SIMILAR] No IMDb ID found in DB", xbmc.LOGINFO)
+        except Exception as e:
+            xbmc.log(f"[LG SIMILAR] DB query error: {str(e)}", xbmc.LOGERROR)
+            import traceback
+            xbmc.log(f"[LG SIMILAR] Traceback: {traceback.format_exc()}", xbmc.LOGERROR)
+    else:
+        xbmc.log("[LG SIMILAR] No valid DBID available for DB lookup", xbmc.LOGINFO)
+    
+    xbmc.log("[LG SIMILAR] No valid IMDb ID found", xbmc.LOGINFO)
+    return ''
+
+
 def _show_librarygenie_menu(addon):
     """Show LibraryGenie submenu with conditional options"""
     try:
@@ -101,7 +181,7 @@ def _show_librarygenie_menu(addon):
             'dbtype': xbmc.getInfoLabel('ListItem.DBTYPE'),
             'dbid': xbmc.getInfoLabel('ListItem.DBID'),
             'file_path': xbmc.getInfoLabel('ListItem.FileNameAndPath'),
-            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),  # Try ListItem.Path for navigation URL
+            'navigation_path': xbmc.getInfoLabel('ListItem.Path'),
             'title': xbmc.getInfoLabel('ListItem.Title'),
             'label': xbmc.getInfoLabel('ListItem.Label'),
             'media_item_id': xbmc.getInfoLabel('ListItem.Property(media_item_id)'),
@@ -109,7 +189,11 @@ def _show_librarygenie_menu(addon):
             'container_content': xbmc.getInfoLabel('Container.Content'),
             'is_movies': xbmc.getCondVisibility('Container.Content(movies)'),
             'is_episodes': xbmc.getCondVisibility('Container.Content(episodes)'),
+            'year': xbmc.getInfoLabel('ListItem.Year'),
         }
+        
+        # Get IMDb ID - only returns if it starts with 'tt'
+        item_info['imdbnumber'] = _get_imdb_id()
 
 
         # Build options list
@@ -165,6 +249,18 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     except Exception:
         quick_add_enabled = False
         default_list_id = ""
+    
+    # Check if AI search is available (config activated AND has API key)
+    ai_search_available = False
+    try:
+        from lib.auth.state import is_authorized
+        from lib.config.settings import SettingsManager
+        settings = SettingsManager()
+        ai_search_activated = settings.get_ai_search_activated()
+        has_api_key = is_authorized()
+        ai_search_available = ai_search_activated and has_api_key
+    except Exception:
+        pass
 
     # Determine if we're in a list context for remove option
     container_path = xbmc.getInfoLabel('Container.FolderPath')
@@ -196,13 +292,11 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
          item_info.get('title') and is_playable and not is_folder)
     )
 
-    # Only show "Add to List" options for playable media items
+    # Only show "Add to List" options for playable media items 
     if is_playable_item:
         # 2. LG Quick Add (if enabled and configured)
         if quick_add_enabled and default_list_id:
             quick_add_label = L(30380)  # "LG Quick Add"
-            if not quick_add_label or quick_add_label.startswith('LocMiss_'):
-                quick_add_label = "LG Quick Add"
             options.append(quick_add_label)
 
             # Determine appropriate quick add action based on context
@@ -215,8 +309,6 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
 
         # 3. LG Add to List...
         add_list_label = L(30381)  # "LG Add to List..."
-        if not add_list_label or add_list_label.startswith('LocMiss_'):
-            add_list_label = "LG Add to List..."
         options.append(add_list_label)
 
         # Determine appropriate add action based on context
@@ -230,8 +322,6 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
     # 4. LG Remove from List (if in list context and is playable item)
     if in_list_context and is_playable_item:
         remove_label = L(30382)  # "LG Remove from List"
-        if not remove_label or remove_label.startswith('LocMiss_'):
-            remove_label = "LG Remove from List"
         options.append(remove_label)
 
         # Extract list_id for remove action
@@ -250,13 +340,45 @@ def _add_common_lg_options(options, actions, addon, item_info, is_librarygenie_c
         else:
             actions.append("remove_from_list_generic")
 
-    # 5. Save Link to Bookmarks (if not in LibraryGenie folder context)
-    # Only show for navigable folders/containers
+    # 5. LG Find Similar Movies (if AI search is available and item has valid IMDb ID)
+    # Determine if this is a movie - use dbtype or infer from container
+    is_movie = item_info.get('dbtype') == 'movie' or (
+        not item_info.get('dbtype') and item_info.get('is_movies')
+    )
+    
+    xbmc.log(f"[LG SIMILAR] Menu check: ai_search_available={ai_search_available}, is_playable_item={is_playable_item}, is_movie={is_movie}", xbmc.LOGINFO)
+    xbmc.log(f"[LG SIMILAR] Menu check: dbtype='{item_info.get('dbtype')}', is_movies={item_info.get('is_movies')}, imdbnumber='{item_info.get('imdbnumber')}'", xbmc.LOGINFO)
+    
+    if ai_search_available and is_playable_item and is_movie:
+        imdb_id = item_info.get('imdbnumber', '').strip()
+        
+        # Only show option if we have a valid IMDb ID (already validated to start with 'tt')
+        if imdb_id:
+            xbmc.log(f"[LG SIMILAR] ✓ Adding 'Find Similar Movies' option for: {item_info.get('title')} (IMDb: {imdb_id})", xbmc.LOGINFO)
+            similar_label = "LG Find Similar Movies"
+            options.append(similar_label)
+            
+            # Build action with required parameters
+            title = item_info.get('title', 'Unknown')
+            year = item_info.get('year', '')
+            actions.append(f"find_similar_movies&imdb_id={imdb_id}&title={urllib.parse.quote(title)}&year={year}")
+        else:
+            xbmc.log(f"[LG SIMILAR] ✗ No valid IMDb ID, hiding option for: {item_info.get('title')}", xbmc.LOGINFO)
+    else:
+        reason = []
+        if not ai_search_available:
+            reason.append("AI search not available")
+        if not is_playable_item:
+            reason.append("not playable item")
+        if not is_movie:
+            reason.append("not a movie")
+        xbmc.log(f"[LG SIMILAR] ✗ Hiding option: {', '.join(reason)}", xbmc.LOGINFO)
+
+    # 6. Save Link to Bookmarks (if not in LibraryGenie folder context)
+    # Only show for navigable folders/containers, and NOT for playable items
     container_path = xbmc.getInfoLabel('Container.FolderPath')
-    if not _is_folder_context(container_path, item_info.get('file_path')):
+    if not _is_folder_context(container_path, item_info.get('file_path')) and not is_playable_item:
         bookmark_label = L(30394)  # "LG Save Bookmark"
-        if not bookmark_label or bookmark_label.startswith('LocMiss_'):
-            bookmark_label = "LG Save Bookmark"
         options.append(bookmark_label)
         
         # Use container path for bookmarking the current folder location
@@ -294,38 +416,28 @@ def _show_search_submenu(addon):
 
         # Local Movie Search
         movie_search_label = L(30385)  # "Local Movie Search"
-        if not movie_search_label or movie_search_label.startswith('LocMiss_'):
-            movie_search_label = "Local Movie Search"
         options.append(movie_search_label)
         actions.append("search_movies")
 
         # Local TV Search
         tv_search_label = L(30386)  # "Local TV Search"
-        if not tv_search_label or tv_search_label.startswith('LocMiss_'):
-            tv_search_label = "Local TV Search"
         options.append(tv_search_label)
         actions.append("search_tv")
 
         # AI Movie Search (if available)
         if ai_search_available:
             ai_search_label = L(30387)  # "AI Movie Search"
-            if not ai_search_label or ai_search_label.startswith('LocMiss_'):
-                ai_search_label = "AI Movie Search"
             options.append(ai_search_label)
             actions.append("search_ai")
 
         # Search History
         search_history_label = L(30388)  # "Search History"
-        if not search_history_label or search_history_label.startswith('LocMiss_'):
-            search_history_label = "Search History"
         options.append(search_history_label)
         actions.append("show_search_history")
 
         # Kodi Favorites (if enabled)
         if favorites_enabled:
             favorites_label = L(30389)  # "Kodi Favorites"
-            if not favorites_label or favorites_label.startswith('LocMiss_'):
-                favorites_label = "Kodi Favorites"
             options.append(favorites_label)
             actions.append("show_favorites")
 
@@ -586,6 +698,11 @@ def _execute_action(action_with_params, addon, item_info=None):
             # Launch AI Movie Search - PUSH semantics for navigation
             plugin_url = "plugin://plugin.video.librarygenie/?action=ai_search"
             xbmc.executebuiltin(f"ActivateWindow(Videos,{plugin_url})")
+        
+        elif action_with_params.startswith("find_similar_movies&"):
+            # Handle Find Similar Movies action
+            plugin_url = f"plugin://plugin.video.librarygenie/?action={action_with_params}"
+            xbmc.executebuiltin(f"RunPlugin({plugin_url})")
         
         elif action_with_params.startswith("import_file_media&"):
             # Handle Import File Media action

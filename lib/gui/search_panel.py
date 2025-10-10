@@ -55,6 +55,9 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         
         # Check if search history exists
         self._check_search_history_exists()
+        
+        # Check if AI search is activated
+        self._check_ai_search_activated()
 
     def onInit(self):
         """Initialize the dialog"""
@@ -64,6 +67,10 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         # Re-check search history and update property now that window is initialized
         self._check_search_history_exists()
         self._update_search_history_property()
+        
+        # Check AI search activation and set property
+        self._check_ai_search_activated()
+        self._update_ai_search_property()
         
         # Focus on Query field by default
         self.setFocusId(200)
@@ -78,6 +85,7 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         """Clean up window properties when dialog closes"""
         try:
             self.clearProperty('SearchHistoryExists')
+            self.clearProperty('AISearchActivated')
             xbmc.log('[LG-SearchPanel] Cleaned up window properties on close', xbmc.LOGDEBUG)
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error cleaning up properties: {}'.format(e), xbmc.LOGERROR)
@@ -100,6 +108,9 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
                 xbmc.log('[LG-SearchPanel] Ignoring click - keyboard closed {:.2f}s ago'.format(time_since_close), xbmc.LOGDEBUG)
             else:
                 self._open_keyboard()
+        elif control_id == 209:
+            # Switch to AI Search
+            self._switch_to_ai_search()
         elif control_id == 252:
             self._save_as_default()
         elif control_id == 260:
@@ -437,6 +448,51 @@ class SearchPanel(xbmcgui.WindowXMLDialog):
         except Exception as e:
             xbmc.log('[LG-SearchPanel] Error showing search history modal: {}'.format(e), xbmc.LOGERROR)
             xbmcgui.Dialog().notification('LibraryGenie', 'Error loading search history', xbmcgui.NOTIFICATION_ERROR, 3000)
+
+    def _check_ai_search_activated(self):
+        """Check if AI search is activated"""
+        try:
+            from lib.config.config_manager import get_config
+            config = get_config()
+            self._ai_search_activated = config.get_bool('ai_search_activated', False)
+            xbmc.log('[LG-SearchPanel] AI Search activated: {}'.format(self._ai_search_activated), xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error checking AI search activation: {}'.format(e), xbmc.LOGERROR)
+            self._ai_search_activated = False
+
+    def _update_ai_search_property(self):
+        """Update window property for AI search button state"""
+        try:
+            if self._ai_search_activated:
+                self.setProperty('AISearchActivated', 'true')
+                xbmc.log('[LG-SearchPanel] AI Search button ENABLED (property set)', xbmc.LOGDEBUG)
+            else:
+                self.clearProperty('AISearchActivated')
+                xbmc.log('[LG-SearchPanel] AI Search button DISABLED (property cleared)', xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error updating AI search property: {}'.format(e), xbmc.LOGERROR)
+
+    def _switch_to_ai_search(self):
+        """Switch to AI search window"""
+        xbmc.log('[LG-SearchPanel] Switching to AI search', xbmc.LOGDEBUG)
+        
+        # Save preference if AI is activated (sticky preference)
+        try:
+            from lib.auth.state import is_authorized
+            from lib.config.config_manager import get_config
+            
+            if is_authorized():
+                config = get_config()
+                config.set('preferred_search_mode', 'ai')
+                xbmc.log('[LG-SearchPanel] Saved preferred search mode: ai', xbmc.LOGDEBUG)
+        except Exception as e:
+            xbmc.log('[LG-SearchPanel] Error saving search mode preference: {}'.format(e), xbmc.LOGERROR)
+        
+        self._result = {
+            'switch_to_ai': True
+        }
+        self._cleanup_properties()
+        self.close()
 
     @classmethod
     def prompt(cls, initial_query=''):

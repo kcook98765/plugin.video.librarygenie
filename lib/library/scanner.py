@@ -825,7 +825,6 @@ class LibraryScanner:
             movie_data = self.kodi_client.get_movie_details(kodi_id)
             if movie_data:
                 movies.append(movie_data)
-                self.logger.debug("Fetched details for new movie ID %s: %s", kodi_id, movie_data.get("title", "Unknown"))
             else:
                 self.logger.debug("Could not fetch details for movie ID %s (may have been removed)", kodi_id)
         

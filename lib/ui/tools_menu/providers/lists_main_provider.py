@@ -24,25 +24,12 @@ class ListsMainToolsProvider(BaseToolsProvider):
         try:
             actions = []
             
-            # Search operations - Unified Local Search
+            # Search operations - Unified Local Search (with AI toggle when activated)
             actions.append(self._create_action(
                 action_id="local_search",
                 label="Local Search",
                 handler=self._handle_local_search
             ))
-            
-            # Check if AI Search is available (like old system)
-            try:
-                from lib.remote.ai_search_client import get_ai_search_client
-                ai_client = get_ai_search_client()
-                if ai_client.is_activated():
-                    actions.append(self._create_action(
-                        action_id="ai_movie_search",
-                        label=L(30079),  # AI Movie Search
-                        handler=self._handle_ai_movie_search
-                    ))
-            except Exception:
-                pass  # AI search not available
             
             actions.append(self._create_action(
                 action_id="search_history",
@@ -196,19 +183,6 @@ class ListsMainToolsProvider(BaseToolsProvider):
             logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
             logger.error("Error handling local search: %s", e)
             return DialogResponse(success=False, message="Error opening local search")
-
-    def _handle_ai_movie_search(self, plugin_context: Any, payload: dict) -> DialogResponse:
-        """Handle AI movie search"""
-        try:
-            from lib.ui.tools_handler import ToolsHandler
-            tools_handler = ToolsHandler()
-            return tools_handler._handle_ai_search(plugin_context)
-        except Exception as e:
-            from lib.utils.kodi_log import get_kodi_logger
-            logger = get_kodi_logger('lib.ui.tools_menu.lists_main_provider')
-            logger.error("Error handling AI movie search: %s", e)
-            return DialogResponse(success=False, message="Error opening AI movie search")
-
 
     def _handle_search_history(self, plugin_context: Any, payload: dict) -> DialogResponse:
         """Handle search history"""

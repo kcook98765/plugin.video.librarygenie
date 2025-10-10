@@ -206,6 +206,9 @@ class AISearchClient:
                     # Update internal state
                     self._api_key = api_key
                     self._is_activated = True
+                    
+                    # Save activation status to persistent settings
+                    self.settings.set_ai_search_activated(True)
 
                     self.logger.info("AI SEARCH: Successfully activated with OTP for user: %s", user_email)
 
@@ -278,13 +281,17 @@ class AISearchClient:
                 'error': f'Connection test failed: {str(e)}'
             }
 
-    def search_movies(self, query: str, limit: int = 50) -> Optional[Dict[str, Any]]:
+    def search_movies(self, query: str, limit: int = 50, mode: str = 'bm25', 
+                      use_llm: bool = False, debug_intent: bool = False) -> Optional[Dict[str, Any]]:
         """
         Perform AI-powered movie search using /kodi/search/movies endpoint
 
         Args:
             query: Search query string
-            limit: Maximum number of results (default: 50, max: 100)
+            limit: Maximum number of results (default: 50, max: 200)
+            mode: Search mode - "bm25" (default) or "hybrid"
+            use_llm: Enable GPT-4 intent extraction (default: False)
+            debug_intent: Include detailed diagnostics in response (default: False)
 
         Returns:
             Search results or None if search fails
@@ -294,12 +301,64 @@ class AISearchClient:
             return None
 
         try:
+            # Build request payload based on parameters
             search_data = {
-                'query': query,
-                'limit': min(limit, 100)
+                'limit': min(limit, 200),
+                'mode': mode
             }
+            
+            # Use 'vibe' parameter when LLM is enabled, otherwise use 'query'
+            if use_llm:
+                search_data['vibe'] = query
+                search_data['use_llm'] = True
+            else:
+                search_data['query'] = query
+            
+            # Add debug flag if requested
+            if debug_intent:
+                search_data['debug_intent'] = True
+
+            # DEBUG: Log raw request data being sent
+            self.logger.info("=" * 80)
+            self.logger.info("📤 AI SEARCH RAW REQUEST DATA:")
+            self.logger.info("  Endpoint: /kodi/search/movies")
+            self.logger.info("  Mode: %s", mode)
+            self.logger.info("  Use LLM: %s", use_llm)
+            self.logger.info("  Debug Intent: %s", debug_intent)
+            self.logger.info("  Full Payload:")
+            self.logger.info("%s", json.dumps(search_data, indent=2))
+            self.logger.info("=" * 80)
 
             response = self._make_request('kodi/search/movies', 'POST', search_data)
+
+            # DEBUG: Log raw response data received
+            self.logger.info("=" * 80)
+            self.logger.info("📥 AI SEARCH RAW RESPONSE DATA:")
+            if response:
+                self.logger.info("  Success: %s", response.get('success'))
+                self.logger.info("  Mode: %s", response.get('mode'))
+                self.logger.info("  Total Results: %s", response.get('total_results'))
+                self.logger.info("  Max Score: %s", response.get('max_score'))
+                self.logger.info("  Full Response:")
+                self.logger.info("%s", json.dumps(response, indent=2))
+                
+                # Log diagnostics separately for easier analysis
+                if 'diagnostics' in response:
+                    self.logger.info("-" * 80)
+                    self.logger.info("🔍 DIAGNOSTICS:")
+                    diagnostics = response['diagnostics']
+                    self.logger.info("  LLM Used: %s", diagnostics.get('llm_used'))
+                    self.logger.info("  Fallback Used: %s", diagnostics.get('fallback_used'))
+                    self.logger.info("  Fallback Reason: %s", diagnostics.get('fallback_reason'))
+                    self.logger.info("  Execution Mode: %s", diagnostics.get('execution_mode'))
+                    if 'vector_weights' in diagnostics:
+                        self.logger.info("  Vector Weights: %s", diagnostics.get('vector_weights'))
+                    if 'parsed_intent_summary' in diagnostics:
+                        self.logger.info("  Parsed Intent: %s", diagnostics.get('parsed_intent_summary'))
+                    self.logger.info("-" * 80)
+            else:
+                self.logger.info("  Response: None")
+            self.logger.info("=" * 80)
 
             if response and response.get('success'):
                 # Validate response structure
@@ -308,7 +367,8 @@ class AISearchClient:
                     self.logger.error("Invalid response format: results is not a list")
                     return None
 
-                self.logger.info("AI search completed: %s results", len(results))
+                self.logger.info("AI search completed: %s results (mode: %s, llm: %s)", 
+                               len(results), response.get('mode', 'unknown'), use_llm)
                 return response
             else:
                 error_msg = response.get('error', 'Unknown error') if response else 'No response'
@@ -360,12 +420,21 @@ class AISearchClient:
             return {'success': True, 'results': {'accepted': 0, 'duplicates': 0, 'invalid': 0}}
 
         try:
+            # DEBUG: Log incoming media_items count
+            self.logger.info(f"[DEBUG] sync_media_batch received {len(media_items)} media_items")
+            
             # Extract IMDb IDs from media items
             imdb_ids = []
+            invalid_count = 0
             for item in media_items:
                 imdb_id = item.get('imdb_id')
                 if imdb_id and imdb_id.startswith('tt'):
                     imdb_ids.append(imdb_id)
+                else:
+                    invalid_count += 1
+
+            # DEBUG: Log extraction results
+            self.logger.info(f"[DEBUG] Extracted {len(imdb_ids)} valid IMDb IDs, {invalid_count} invalid/missing")
 
             if not imdb_ids:
                 self.logger.warning("No valid IMDb IDs found in media items")
@@ -379,6 +448,8 @@ class AISearchClient:
                 'source': 'kodi'
             }
 
+            # DEBUG: Log the exact count being sent to API
+            self.logger.info(f"[DEBUG] Preparing batch start request with total_count={len(imdb_ids)}")
             self.logger.info("Starting batch sync in '%s' mode with %s items", sync_mode, len(imdb_ids))
             start_response = self._make_request('library/batch/start', 'POST', batch_start_data)
             if not start_response or not start_response.get('success'):
@@ -496,7 +567,14 @@ class AISearchClient:
             return None
 
         try:
+            # DEBUG: Log request
+            self.logger.debug("📤 LIBRARY STATS REQUEST: GET /users/me/library/stats")
+            
             response = self._make_request('users/me/library/stats', 'GET')
+            
+            # DEBUG: Log full response
+            self.logger.debug("📥 LIBRARY STATS RESPONSE: %s", json.dumps(response, indent=2) if response else "None")
+            
             if response and response.get('success'):
                 return response.get('stats')
             return None
@@ -508,7 +586,7 @@ class AISearchClient:
     def search_similar_movies(self, reference_imdb_id: str, facets: Dict[str, bool]) -> Optional[List[str]]:
         """
         Find movies similar to reference movie using /similar_to endpoint
-        Note: This is a public endpoint that doesn't require authentication
+        Note: Authentication is optional but recommended - if authenticated, results are filtered to only show movies in the user's library
 
         Args:
             reference_imdb_id: IMDb ID of reference movie
@@ -537,8 +615,8 @@ class AISearchClient:
                 self.logger.warning("No facets selected for similarity search")
                 return None
 
-            # Make request without authentication (public endpoint)
-            response = self._make_public_request('similar_to', 'POST', request_data)
+            # Make request with authentication to get user-filtered results
+            response = self._make_request('similar_to', 'POST', request_data)
 
             if response and response.get('success'):
                 results = response.get('results', [])

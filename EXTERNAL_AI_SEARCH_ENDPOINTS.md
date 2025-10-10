@@ -153,7 +153,7 @@ API Errors → Check Connectivity → Validate API Key → Re-pair if Needed →
 ### 🚨 **CRITICAL: API Selection Guide**
 
 **FOR REPLACE-SYNC (Complete Library Replacement):**
-Use **MAIN API ONLY** (endpoints 4-8 below). Do NOT mix with V1 API.
+Use **MAIN API ONLY** (endpoints 5-9 below). Do NOT mix with V1 API.
 
 ✅ **CORRECT Replace-Sync Flow:**
 ```
@@ -265,69 +265,193 @@ Authorization: ApiKey YOUR_API_KEY
 
 **Endpoint:** `POST /kodi/search/movies`  
 **Authentication:** Required (API Key)  
-**Purpose:** Search for movies using MediaVault's semantic search system
+**Purpose:** Advanced multi-mode search with semantic understanding and intelligent fallback
 
-**Description:**
-This endpoint uses the same advanced search process as MediaVault:
-1. **Embedding Generation**: Your search query is converted to a vector using OpenAI's text-embedding-3-small model
-2. **Semantic Search**: The vector is used to search against 4 embedding facets stored in OpenSearch:
-   - Plot vectors (40% weight)
-   - Mood/tone vectors (30% weight)  
-   - Theme vectors (20% weight)
-   - Genre/trope vectors (10% weight)
-3. **Similarity Scoring**: Results are ranked by semantic similarity scores
+**Overview:**
+This endpoint provides three powerful search modes with automatic fallback handling:
 
-**Request:**
+1. **BM25 Mode** (keyword-based): Simple keyword search with fixed 70% minimum_should_match, used as fallback when LLM fails or is disabled
+2. **Hybrid Mode** (recommended): Requires LLM to extract intent, combines BM25 keyword matching with multi-vector semantic search using LLM-provided weights
+3. **LLM-Assisted Mode** (optional): GPT-4 extracts search intent from natural language queries - LLM is the single source of truth for all intent extraction
+
+**Search Modes Explained:**
+
+**BM25 Mode (Keyword Search):**
+- Pure keyword-based search using OpenSearch BM25 algorithm
+- Simple keyword matching with fixed 70% minimum_should_match
+- Used as fallback when LLM fails or is disabled
+- Fast and reliable for exact keyword matching
+- Best for: Specific titles, director names, exact phrases
+
+**Hybrid Mode (Semantic + Keyword):**
+- **Requires `use_llm: true`** - LLM is mandatory for hybrid mode
+- LLM extracts structured intent (must/should/exclude filters + semantic phrases)
+- Combines BM25 keyword matching with multi-vector semantic search using LLM-provided weights
+- Uses script_score in main query (not rescore) for vector scoring
+- Semantic search uses 4 embedding facets:
+  - Plot vectors (storyline/narrative similarity)
+  - Mood/tone vectors (atmosphere/feel similarity)
+  - Themes vectors (underlying concepts/messages)
+  - Genre/trope vectors (category/conventions)
+- No heuristic vector generation - all vectors come from LLM intent extraction
+- Best for: Descriptive queries, finding similar vibes, semantic understanding
+
+**LLM-Assisted Mode (Intent Extraction):**
+- LLM is the single source of truth for all intent extraction
+- Extracts structured search parameters: must/should/exclude filters, ranges (year/runtime/rating), languages, countries, semantic phrases, and weights
+- No regex or heuristic parsing - zero fallback to heuristics
+- Works with both BM25 and Hybrid modes (Hybrid requires LLM)
+- Best for: Complex natural language queries, conversational search
+
+**Basic Request (BM25 Mode - Default):**
 ```json
 {
-  "query": "psychological thriller with mind bending plot twists",
+  "query": "inception",
+  "limit": 20
+}
+```
+
+**Advanced Request (Hybrid Mode with LLM):**
+```json
+{
+  "query": "dark psychological thriller from the 90s",
+  "mode": "hybrid",
+  "use_llm": true,
   "limit": 50
 }
 ```
 
-**Response:**
+**Natural Language Request (Using "vibe"):**
+```json
+{
+  "vibe": "looking for mind-bending movies like inception with complex plots",
+  "mode": "hybrid",
+  "use_llm": true,
+  "debug_intent": true
+}
+```
+
+**Request Parameters:**
+
+**Required:**
+- `query` OR `vibe` (string): Search query
+  - `query`: Standard search text
+  - `vibe`: Natural language description (recommended with `use_llm: true`)
+
+**Optional:**
+- `mode` (string): Search mode - "bm25" (default) or "hybrid"
+- `use_llm` (boolean): Enable GPT-4 intent extraction (default: false)
+- `limit` (integer): Maximum results (default: 20, max: 100)
+- `debug_intent` (boolean): Include detailed diagnostics in response (default: false)
+
+**Success Response:**
 ```json
 {
   "success": true,
-  "query": "psychological thriller with mind bending plot twists",
-  "total_results": 15,
+  "query": "dark psychological thriller from the 90s",
+  "mode": "hybrid",
+  "total_results": 24,
   "max_score": 0.924,
   "results": [
     {
-      "imdb_id": "tt1375666",
-      "score": 0.924
+      "imdb_id": "tt0114369",
+      "score": 0.924,
+      "bm25_score": 0.856
     },
     {
-      "imdb_id": "tt0816692", 
-      "score": 0.887
+      "imdb_id": "tt0117571",
+      "score": 0.887,
+      "bm25_score": 0.792
     },
     {
-      "imdb_id": "tt0468569",
-      "score": 0.863
+      "imdb_id": "tt0114814",
+      "score": 0.863,
+      "bm25_score": 0.845
     }
   ]
 }
 ```
 
-**Parameters:**
-- `query` (required): Natural language search query describing the movie you want
-- `limit` (optional): Maximum number of results (default: 20, max: 100)
+**Response with Diagnostics (debug_intent=true):**
+```json
+{
+  "success": true,
+  "query": "dark psychological thriller from the 90s",
+  "mode": "hybrid",
+  "total_results": 24,
+  "max_score": 0.924,
+  "results": [...],
+  "diagnostics": {
+    "llm_used": true,
+    "fallback_used": false,
+    "fallback_reason": null,
+    "execution_mode": "llm_hybrid",
+    "vector_weights": {
+      "plot": 0.4,
+      "mood": 0.3,
+      "themes": 0.2,
+      "genre": 0.1
+    },
+    "parsed_intent_summary": {
+      "confidence": 0.92,
+      "query_text": "dark psychological thriller",
+      "vector_focus": {
+        "plot": 0.4,
+        "mood": 0.3,
+        "themes": 0.2,
+        "genre": 0.1
+      }
+    }
+  }
+}
+```
 
-**Response Format:**
+**Response Fields:**
 - `success`: Boolean indicating if search succeeded
-- `query`: The original search query  
-- `total_results`: Number of results returned
-- `max_score`: Highest similarity score in the result set
-- `results`: Array of objects containing:
-  - `imdb_id`: IMDb identifier (e.g., "tt1375666")
-  - `score`: Semantic similarity score (0.0 to 1.0, higher is better match)
+- `query`: The search query used
+- `mode`: Search mode executed ("bm25" or "hybrid")
+- `total_results`: Number of results found
+- `max_score`: Highest score in results
+- `results`: Array of result objects:
+  - `imdb_id`: IMDb identifier
+  - `score`: Final ranking score (blended for hybrid mode)
+  - `bm25_score`: Original keyword score (hybrid mode only)
+
+**Diagnostics Fields (when debug_intent=true):**
+- `llm_used`: Whether GPT-4 intent extraction was used
+- `fallback_used`: Whether automatic fallback occurred
+- `fallback_reason`: Why fallback happened (e.g., "hybrid_failed")
+- `execution_mode`: Actual mode executed:
+  - `"bm25"`: Simple keyword search (no LLM)
+  - `"llm_bm25"`: LLM intent extraction used in BM25-only mode
+  - `"llm_hybrid"`: LLM intent extraction with hybrid vector search
+  - Note: `"hybrid"` without LLM is no longer supported
+- `vector_weights`: LLM-provided semantic vector weights applied (hybrid only)
+- `parsed_intent_summary`: LLM extraction results (when LLM used)
+
+**Automatic Fallback Chain:**
+
+The system automatically recovers from failures with simplified fallback logic:
+
+1. **LLM Failure**: Falls back to simple BM25 keyword search (no vectors, no heuristics)
+2. **Embeddings Failure**: Falls back to simple BM25 (drops vector portion entirely, sets `fallback_used: true`, `fallback_reason: "hybrid_failed"`)
+3. **BM25 Failure**: Returns error (end of fallback chain)
+
+Note: No auto-relaxation or complex fallback logic - BM25 uses fixed 70% minimum_should_match
 
 **Error Responses:**
 ```json
-// Missing query
+// Missing query/vibe
 {
   "success": false,
-  "error": "Search query required",
+  "error": "query or vibe required",
+  "results": []
+}
+
+// Invalid mode
+{
+  "success": false,
+  "error": "mode must be \"bm25\" or \"hybrid\"",
   "results": []
 }
 
@@ -338,7 +462,7 @@ This endpoint uses the same advanced search process as MediaVault:
   "results": []
 }
 
-// Internal error
+// Internal error (after all fallbacks exhausted)
 {
   "success": false,
   "error": "Internal search error",
@@ -346,7 +470,200 @@ This endpoint uses the same advanced search process as MediaVault:
 }
 ```
 
-### 4. Start Batch Upload Session
+**Best Practices:**
+
+1. **Start with Hybrid Mode**: Provides best results by combining keyword + semantic search
+2. **Use LLM for Natural Language**: Enable `use_llm: true` when users type conversational queries
+3. **Use "vibe" Parameter**: Better suited for natural language than "query"
+4. **Enable Diagnostics in Development**: Use `debug_intent: true` to understand search behavior
+5. **Handle Scores Appropriately**: 
+   - In hybrid mode, use `score` for ranking (blended score)
+   - Use `bm25_score` for fallback comparison or debugging
+6. **Trust the Fallback**: System automatically degrades gracefully from Hybrid → BM25
+
+**Example Kodi Integration:**
+```python
+import urllib.request
+import json
+
+def search_movies(api_key, user_query, semantic=True, use_ai=False):
+    """
+    Search for movies with configurable modes
+    
+    Args:
+        api_key: User's API key
+        user_query: Search query from user
+        semantic: Use hybrid mode (True) or BM25 only (False)
+        use_ai: Enable LLM intent extraction
+    """
+    url = "https://your-server.com:5020/kodi/search/movies"
+    headers = {
+        "Authorization": f"ApiKey {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "vibe" if use_ai else "query": user_query,
+        "mode": "hybrid" if semantic else "bm25",
+        "use_llm": use_ai,
+        "limit": 50
+    }
+    
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode('utf-8'),
+        headers=headers,
+        method='POST'
+    )
+    
+    response = urllib.request.urlopen(request, timeout=30)
+    result = json.loads(response.read().decode('utf-8'))
+    
+    if result['success']:
+        return result['results']  # List of {imdb_id, score}
+    return []
+
+# Usage examples:
+# Basic keyword search
+results = search_movies(api_key, "inception", semantic=False)
+
+# Semantic hybrid search
+results = search_movies(api_key, "mind bending thriller", semantic=True)
+
+# Natural language with AI
+results = search_movies(api_key, "looking for dark moody films like blade runner", 
+                       semantic=True, use_ai=True)
+```
+
+### 4. Find Similar Movies
+
+**Endpoint:** `POST /similar_to`  
+**Authentication:** Optional (API Key)  
+**Purpose:** Find movies similar to a reference movie based on AI embeddings
+
+**Description:**
+This endpoint finds movies similar to a reference movie using the same advanced embedding system as MediaVault's search:
+1. **Reference Movie Lookup**: The system retrieves embedding vectors for the specified IMDb ID
+2. **Facet-Based Similarity**: Compare against selected embedding facets:
+   - Plot embeddings (storyline/narrative similarity)
+   - Mood/tone embeddings (atmosphere/feel similarity)
+   - Theme embeddings (underlying messages/concepts similarity)
+   - Genre/trope embeddings (category/convention similarity)
+3. **Similarity Scoring**: Results are ranked by vector similarity scores
+4. **User Filtering**: If authenticated, results are filtered to only show movies in the user's library
+
+**Request:**
+```json
+{
+  "reference_imdb_id": "tt0111161",
+  "include_plot": true,
+  "include_mood": true,
+  "include_themes": false,
+  "include_genre": true
+}
+```
+
+**Parameters:**
+- `reference_imdb_id` (required): IMDb ID of the reference movie (format: "tt" + digits, minimum 9 characters)
+- `include_plot` (optional): Include plot/storyline similarity (default: false)
+- `include_mood` (optional): Include mood/tone similarity (default: false)
+- `include_themes` (optional): Include themes/subtext similarity (default: false)
+- `include_genre` (optional): Include genre/trope similarity (default: false)
+
+**Important:** At least one facet must be set to `true`
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "results": [
+    "tt0068646",
+    "tt0071562",
+    "tt0468569",
+    "tt0137523",
+    "tt0110912"
+  ]
+}
+```
+
+**Response Format:**
+- `success`: Boolean indicating if the search succeeded
+- `results`: Array of IMDb IDs for similar movies (up to 50 results), sorted by similarity score
+
+**Error Responses:**
+```json
+// Missing reference IMDb ID
+{
+  "success": false,
+  "error": "reference_imdb_id is required"
+}
+
+// No facets selected
+{
+  "success": false,
+  "error": "At least one facet must be included"
+}
+
+// Invalid IMDb ID format
+{
+  "success": false,
+  "error": "Invalid IMDb ID format"
+}
+
+// Search service unavailable
+{
+  "success": false,
+  "error": "Search service not available"
+}
+
+// Invalid JSON
+{
+  "success": false,
+  "error": "Request must be JSON"
+}
+```
+
+**Use Cases:**
+- "Find movies like this" feature in Kodi addon
+- Building recommendation lists based on user favorites
+- Discovering similar titles for collection organization
+- Creating dynamic playlists based on movie similarity
+
+**Example Usage in Kodi:**
+```python
+import urllib.request
+import json
+
+def find_similar_movies(api_key, imdb_id):
+    url = "https://your-server.com:5020/similar_to"
+    headers = {
+        "Authorization": f"ApiKey {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "reference_imdb_id": imdb_id,
+        "include_plot": True,
+        "include_mood": True,
+        "include_genre": True
+    }
+    
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode('utf-8'),
+        headers=headers,
+        method='POST'
+    )
+    
+    response = urllib.request.urlopen(request)
+    result = json.loads(response.read().decode('utf-8'))
+    
+    if result['success']:
+        return result['results']  # List of similar IMDb IDs
+    return []
+```
+
+### 5. Start Batch Upload Session
 
 **Endpoint:** `POST /library/batch/start`  
 **Authentication:** Required (API Key)  
@@ -388,7 +705,7 @@ When using `"mode": "replace"`, you MUST:
 }
 ```
 
-### 5. Upload Movie Chunk  
+### 6. Upload Movie Chunk  
 
 **Endpoint:** `PUT /library/batch/{upload_id}/chunk`  
 **Authentication:** Required (API Key)  
@@ -439,7 +756,7 @@ Idempotency-Key: <uuid-per-chunk>
 }
 ```
 
-### 6. Commit Batch Session
+### 7. Commit Batch Session
 
 **Endpoint:** `POST /library/batch/{upload_id}/commit`  
 **Authentication:** Required (API Key)  
@@ -473,7 +790,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 }
 ```
 
-### 7. Get Batch Status
+### 8. Get Batch Status
 
 **Endpoint:** `GET /library/batch/{upload_id}/status`  
 **Authentication:** Required (API Key)  
@@ -499,7 +816,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 }
 ```
 
-### 8. Get Library Hash (Delta Sync)
+### 9. Get Library Hash (Delta Sync)
 
 **Endpoint:** `GET /library/hash`  
 **Authentication:** Required (API Key)  
@@ -516,7 +833,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 
 
 
-### 9. Get Movie List
+### 10. Get Movie List
 
 **Endpoint:** `GET /kodi/movies/list`  
 **Authentication:** Required (API Key)  
@@ -543,7 +860,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 }
 ```
 
-### 10. Get Batch History
+### 11. Get Batch History
 
 **Endpoint:** `GET /kodi/movies/batches`  
 **Authentication:** Required (API Key)  
@@ -566,7 +883,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 }
 ```
 
-### 11. Get Library Statistics
+### 12. Get Library Statistics
 
 **Endpoint:** `GET /users/me/library/stats`  
 **Authentication:** Required (API Key)  
@@ -587,24 +904,20 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
     "setup_status": {
       "completely_setup": {
         "count": 1150,
-        "percentage": 93.2,
-        "movies": ["tt0111161", "tt0068646", "tt0071562"]
+        "percentage": 93.2
       },
       "not_setup": {
         "count": 84,
         "percentage": 6.8,
         "breakdown": {
           "missing_tmdb_data": {
-            "count": 12,
-            "movies": ["tt9999999", "tt8888888"]
+            "count": 12
           },
           "tmdb_errors": {
-            "count": 3,
-            "movies": ["tt7777777"]
+            "count": 3
           },
           "not_in_opensearch": {
-            "count": 69,
-            "movies": ["tt6666666", "tt5555555"]
+            "count": 69
           }
         }
       }
@@ -671,7 +984,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 
 **Response Fields:**
 - `library_overview`: Basic library information (total count, date range)
-- `setup_status`: Breakdown of movies by completeness status with sample IMDb IDs
+- `setup_status`: Breakdown of movies by completeness status with counts and percentages only
 - `data_quality`: Percentages for TMDB data availability and OpenSearch indexing
 - `batch_history`: Upload batch statistics and recent batch details
 - `system_context`: System-wide statistics and service availability with enhanced metrics:
@@ -709,7 +1022,7 @@ This endpoint is **MANDATORY** for replace-sync. Without calling commit:
 - Compare user's collection size to community averages
 - Display search readiness and system capacity metrics
 
-### 12. Clear Movie List
+### 13. Clear Movie List
 
 **Endpoint:** `DELETE /kodi/movies/clear`  
 **Authentication:** Required (API Key)  
@@ -785,16 +1098,16 @@ function performReplacSync(movies) {
             source: 'kodi'
         })
     });
-
+    
     const batch = await batchResponse.json();
     const uploadId = batch.upload_id;
-
+    
     // 2. Upload movies in chunks
     const chunkSize = 1000;
     for (let i = 0; i < movies.length; i += chunkSize) {
         const chunk = movies.slice(i, i + chunkSize);
         const chunkIndex = Math.floor(i / chunkSize);
-
+        
         await fetch(`/library/batch/${uploadId}/chunk`, {
             method: 'PUT',
             headers: { 
@@ -807,13 +1120,13 @@ function performReplacSync(movies) {
             })
         });
     }
-
+    
     // 3. Commit batch (REQUIRED!)
     const commitResponse = await fetch(`/library/batch/${uploadId}/commit`, {
         method: 'POST',
         headers: { 'Authorization': `ApiKey ${apiKey}` }
     });
-
+    
     const result = await commitResponse.json();
     console.log(`Replace-sync complete: ${result.user_movie_count} movies`);
     return result;
@@ -831,19 +1144,19 @@ function performDeltaSync() {
     });
     const serverData = await hashResponse.json();
     const serverFingerprints = new Set(serverData.fingerprints);
-
+    
     // Get local movies and calculate fingerprints
     const localMovies = getUserMovieCollection();
     const newMovies = localMovies.filter(movie => {
         const fingerprint = calculateFingerprint(movie.imdb_id);
         return !serverFingerprints.has(fingerprint);
     });
-
+    
     if (newMovies.length === 0) {
         console.log('Collection already up to date');
         return;
     }
-
+    
     // Upload only new movies using merge mode
     return performReplacSync(newMovies, 'merge');
 }

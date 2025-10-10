@@ -67,7 +67,7 @@ class LibraryGenieService:
         self._service_start_time = time.time()
         
         
-        log_info("🚀 LibraryGenie service initialized")
+        log_info("LibraryGenie service initialized")
 
 
     def _show_notification(self, message: str, icon: str = xbmcgui.NOTIFICATION_INFO, time_ms: int = 5000):
@@ -323,10 +323,13 @@ class LibraryGenieService:
             log(f"AI Search activated setting: {ai_activated}")
             
             if self._should_start_ai_sync():
-                log_info("✅ AI Search sync conditions met - starting sync thread")
+                log_info("AI Search sync conditions met - starting sync thread")
                 self._start_ai_sync_thread()
+                
+                # Fetch library stats at startup (one-time)
+                self._fetch_startup_stats()
             else:
-                log_info("❌ AI Search sync conditions not met - sync disabled")
+                log_info("AI Search sync conditions not met - sync disabled")
 
 
             # Main service loop
@@ -341,7 +344,7 @@ class LibraryGenieService:
 
     def run(self):
         """Main service loop - optimized for minimal resource usage"""
-        log_info("🔥 LibraryGenie service starting main loop...")
+        log_info("LibraryGenie service starting main loop...")
         tick_count = 0
         last_dialog_active = False
         last_ai_sync_check = 0
@@ -402,14 +405,14 @@ class LibraryGenieService:
                     break
 
             except Exception as e:
-                log_error(f"💥 SERVICE ERROR: {e}")
+                log_error(f"SERVICE ERROR: {e}")
                 import traceback
                 log_error(f"SERVICE TRACEBACK: {traceback.format_exc()}")
                 # Error recovery with longer wait
                 if self.monitor.waitForAbort(2.0):
                     break
 
-        log_info("🛑 LibraryGenie service stopped")
+        log_info("LibraryGenie service stopped")
 
     def _check_ai_sync_activation(self, tick_count=None):
         """Check if AI sync should be started (for dynamic activation detection)"""
@@ -420,7 +423,7 @@ class LibraryGenieService:
                                  (current_time - self._last_ai_sync_check_time) > 300)  # 5 minutes
             
             if should_log_periodic:
-                log(f"🔄 Periodic AI sync check (tick {tick_count})")
+                log(f"Periodic AI sync check (tick {tick_count})")
                 self._last_ai_sync_check_time = current_time
                 
             # Check if AI sync should start and isn't already running
@@ -431,7 +434,7 @@ class LibraryGenieService:
             else:
                 # Stop sync thread if AI Search was deactivated
                 if self.sync_thread and self.sync_thread.is_alive():
-                    log_info("🛑 AI Search deactivation detected - stopping sync thread")
+                    log_info("AI Search deactivation detected - stopping sync thread")
                     self._stop_ai_sync_thread()
         except Exception as e:
             log_error(f"Error checking AI sync activation: {e}")
@@ -538,6 +541,15 @@ class LibraryGenieService:
                         message = f"Found {items_added} new, {items_removed} removed movies"
                         self._show_notification(f"Library updated: {message}", time_ms=3000)
                         log_info(f"Periodic sync found changes: {message}")
+                        
+                        # Update stats cache after changes detected
+                        try:
+                            from lib.utils.stats_cache import get_stats_cache
+                            stats_cache = get_stats_cache()
+                            if stats_cache.fetch_and_save_stats():
+                                log_info("Library stats updated after periodic sync")
+                        except Exception as e:
+                            log_error(f"Failed to update stats cache after periodic sync: {e}")
                     else:
                         message = "No new movies found"
                         log("Periodic library sync: No changes detected")
@@ -612,7 +624,7 @@ class LibraryGenieService:
             if not current_state['client_configured']:
                 log("AI client not configured, skipping sync")
             else:
-                log_info("✅ AI Search configuration verified")
+                log_info("AI Search configuration verified")
             
             self._last_ai_sync_state = current_state
         
@@ -621,6 +633,20 @@ class LibraryGenieService:
 
         # Configuration looks good - sync worker will test connection when it runs
         return True
+
+    def _fetch_startup_stats(self):
+        """Fetch and cache library stats at service startup (one-time)"""
+        try:
+            log_info("Fetching library stats at service startup...")
+            from lib.utils.stats_cache import get_stats_cache
+            
+            stats_cache = get_stats_cache()
+            if stats_cache.fetch_and_save_stats():
+                log_info("Library stats cached at startup")
+            else:
+                log("Failed to fetch stats at startup (will retry after next sync)")
+        except Exception as e:
+            log_error(f"Error fetching stats at startup: {e}")
 
     def _start_ai_sync_thread(self):
         """Start the AI search sync background thread"""
@@ -712,11 +738,20 @@ class LibraryGenieService:
                     items_removed = result.get("items_removed", 0)
                     
                     if items_added > 0 or items_removed > 0:
-                        log_info(f"📚 Startup sync completed: +{items_added} new, -{items_removed} removed")
+                        log_info(f"Startup sync completed: +{items_added} new, -{items_removed} removed")
                         self._show_notification(
                             f"Library updated: {items_added} new items added",
                             time_ms=4000
                         )
+                        
+                        # Update stats cache after changes detected
+                        try:
+                            from lib.utils.stats_cache import get_stats_cache
+                            stats_cache = get_stats_cache()
+                            if stats_cache.fetch_and_save_stats():
+                                log_info("Library stats updated after startup sync")
+                        except Exception as e:
+                            log_error(f"Failed to update stats cache after startup sync: {e}")
                     else:
                         log("Startup sync completed: no changes detected")
                 else:
@@ -838,6 +873,16 @@ class LibraryGenieService:
                             log_info(f"Fresh install sync added {total_items} items - invalidating database cache")
                             self._invalidate_and_refresh_db_cache()
                         
+                        # Update stats cache after successful initial sync
+                        if total_items > 0:
+                            try:
+                                from lib.utils.stats_cache import get_stats_cache
+                                stats_cache = get_stats_cache()
+                                if stats_cache.fetch_and_save_stats():
+                                    log_info("Library stats updated after initial sync")
+                            except Exception as e:
+                                log_error(f"Failed to update stats cache after initial sync: {e}")
+                        
                         self._show_notification(
                             f"Initial sync complete: {message}",
                             xbmcgui.NOTIFICATION_INFO,
@@ -893,7 +938,7 @@ class LibraryGenieService:
             from lib.data.connection_manager import get_connection_manager
             conn_manager = get_connection_manager()
             
-            movies_result = conn_manager.execute_query("SELECT imdbnumber, title, year FROM media_items WHERE imdbnumber IS NOT NULL AND imdbnumber != ''")
+            movies_result = conn_manager.execute_query("SELECT imdbnumber, title, year FROM media_items WHERE source = 'lib' AND media_type = 'movie' AND imdbnumber IS NOT NULL AND imdbnumber != ''")
             movies = [{"imdbnumber": row["imdbnumber"], "title": row["title"], "year": row["year"]} for row in movies_result]
             for movie in movies:
                 imdb_id = movie.get('imdbnumber', '').strip()
@@ -951,6 +996,15 @@ class LibraryGenieService:
                     self.sync_stop_event.wait(1)
 
             log_info("AI search synchronization completed")
+            
+            # Fetch and save library stats after successful sync
+            try:
+                from lib.utils.stats_cache import get_stats_cache
+                stats_cache = get_stats_cache()
+                if stats_cache.fetch_and_save_stats():
+                    log_info("Library stats updated after AI sync")
+            except Exception as e:
+                log_error(f"Failed to update stats cache after sync: {e}")
 
             # Show completion notification with summary
             self._show_notification(

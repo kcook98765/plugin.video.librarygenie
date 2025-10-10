@@ -255,6 +255,18 @@ class SQLiteBackupManager:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
+            # CRITICAL: Clear all kodi_ids first to prevent unique constraint violations
+            # When remapping, IDs may swap between items, causing conflicts with the unique index
+            # on (media_type, source, kodi_id). Nulling first ensures clean updates.
+            self.logger.info("Clearing existing kodi_ids to prevent constraint violations...")
+            cursor.execute("""
+                UPDATE media_items 
+                SET kodi_id = NULL 
+                WHERE source = 'lib'
+            """)
+            conn.commit()
+            self.logger.info("Kodi IDs cleared successfully")
+            
             # Get all library items from backup
             cursor.execute("""
                 SELECT id, file_path, imdbnumber, title, year, media_type 
