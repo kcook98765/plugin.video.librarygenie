@@ -82,34 +82,21 @@ class SearchHandler:
                     # Clear any tools return location to prevent confusion
                     session_state.clear_tools_return_location()
                     
-                    # Check if we have valid handle (invoked from Videos window)
-                    self._debug(f"Checking handle validity: context.addon_handle={context.addon_handle}")
-                    if context.addon_handle >= 0:
-                        # Valid handle - render directly
-                        success = self._render_saved_search_list_directly(str(list_id), context)
-                        if success:
-                            self._debug(f"Successfully displayed search results using direct rendering for list {list_id}")
-                            return True
-                        else:
-                            # Try redirect fallback
-                            self._warn(f"Direct rendering failed for list {list_id}, trying redirect fallback")
-                            if original_return_location is not None:
-                                session_state.set_tools_return_location(original_return_location)
-                            if self._try_redirect_to_saved_search_list():
-                                self._debug(f"Redirect fallback succeeded for list {list_id}")
-                                return True
-                            # Show error
-                            self.dialog_service.show_error(
-                                "Search results saved but could not be displayed. Check Search History.", 
-                                time_ms=4000
-                            )
-                            self._end_directory(succeeded=True, update=False)
-                            return True
+                    # Use NavigationStrategy for consistent navigation logic
+                    from lib.search.search_flow import NavigationStrategy
+                    nav_strategy = NavigationStrategy()
+                    success = nav_strategy.navigate_to_results(list_id, context)
+                    if success:
+                        self._debug(f"Successfully navigated to search results for list {list_id}")
+                        return True
                     else:
-                        # Invalid handle (RunPlugin) - navigate to Videos window with results
-                        self._debug(f"Invalid handle detected, navigating to Videos window with list {list_id}")
-                        list_url = f"plugin://{self.addon_id}/?action=show_list&list_id={list_id}"
-                        xbmc.executebuiltin(f'ActivateWindow(videos,{list_url},return)')
+                        # Navigation failed - show error
+                        self._warn(f"Navigation failed for list {list_id}")
+                        self.dialog_service.show_error(
+                            "Search results saved but could not be displayed. Check Search History.", 
+                            time_ms=4000
+                        )
+                        self._end_directory(succeeded=True, update=False)
                         return True
                 else:
                     # Failed to save search history, try redirect method as fallback
