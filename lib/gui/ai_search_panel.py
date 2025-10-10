@@ -63,9 +63,47 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
 
     def onAction(self, action):
         """Handle actions"""
-        if action.getId() in (xbmcgui.ACTION_NAV_BACK, xbmcgui.ACTION_PREVIOUS_MENU):
+        action_id = action.getId()
+        
+        # Handle back/close actions
+        if action_id in (xbmcgui.ACTION_NAV_BACK, xbmcgui.ACTION_PREVIOUS_MENU):
             self._cleanup_properties()
             self.close()
+            return
+        
+        # WHITELIST APPROACH: Only allow essential navigation and interaction actions
+        # Everything else gets blocked to prevent keyboard shortcuts from leaking through
+        allowed_actions = [
+            # Navigation
+            xbmcgui.ACTION_MOVE_UP,
+            xbmcgui.ACTION_MOVE_DOWN,
+            xbmcgui.ACTION_MOVE_LEFT,
+            xbmcgui.ACTION_MOVE_RIGHT,
+            xbmcgui.ACTION_PAGE_UP,
+            xbmcgui.ACTION_PAGE_DOWN,
+            # Selection
+            xbmcgui.ACTION_SELECT_ITEM,
+            xbmcgui.ACTION_MOUSE_CLICK,
+            xbmcgui.ACTION_MOUSE_LEFT_CLICK,
+            xbmcgui.ACTION_MOUSE_RIGHT_CLICK,
+            xbmcgui.ACTION_MOUSE_DOUBLE_CLICK,
+            xbmcgui.ACTION_MOUSE_MOVE,
+            # Tab navigation
+            xbmcgui.ACTION_NEXT_CONTROL,
+            xbmcgui.ACTION_PREV_CONTROL,
+        ]
+        
+        # If action is in whitelist, allow it
+        if action_id in allowed_actions:
+            try:
+                super(AISearchPanel, self).onAction(action)
+            except:
+                pass
+            return
+        
+        # Block all other actions (including letter keys mapped to PVR shortcuts)
+        xbmc.log('[LG-AISearchPanel] Blocked action ID: {} to prevent global shortcut'.format(action_id), xbmc.LOGDEBUG)
+        return  # Consume the action - don't pass to parent
     
     def _cleanup_properties(self):
         """Clean up window properties when dialog closes"""
