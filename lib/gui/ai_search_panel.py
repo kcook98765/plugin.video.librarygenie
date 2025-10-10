@@ -97,10 +97,18 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
         self.btn_switch = self.getControl(210)
         self.btn_search = self.getControl(260)
         self.btn_cancel = self.getControl(261)
+        
+        # Wire up 4 stats columns
         try:
-            self.stats_text = self.getControl(270)
+            self.stats_col1 = self.getControl(270)  # Library Overview & Data Quality
+            self.stats_col2 = self.getControl(271)  # Not Ready Breakdown
+            self.stats_col3 = self.getControl(272)  # Sync History
+            self.stats_col4 = self.getControl(273)  # System-Wide
         except:
-            self.stats_text = None
+            self.stats_col1 = None
+            self.stats_col2 = None
+            self.stats_col3 = None
+            self.stats_col4 = None
 
     def _apply_state_to_controls(self):
         """Apply current state to dialog controls"""
@@ -111,7 +119,7 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
 
     def _load_and_display_stats(self):
         """Load library statistics from cached file"""
-        if not self.stats_text:
+        if not self.stats_col1:
             return
         
         try:
@@ -121,7 +129,7 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
             # Check if AI Search is activated
             client = AISearchClient()
             if not client.is_activated():
-                self.stats_text.setText('[COLOR FFAAAAAA]AI Search not activated[/COLOR]')
+                self.stats_col1.setText('[COLOR FFAAAAAA]AI Search[/COLOR]\n[COLOR FFAAAAAA]not activated[/COLOR]')
                 return
             
             # Load stats from cached file
@@ -132,20 +140,18 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                 xbmc.log('[LG-AISearchPanel] Using cached library stats from file', xbmc.LOGDEBUG)
                 self._display_stats(stats)
             else:
-                self.stats_text.setText('[COLOR FFAAAAAA]No statistics available yet[/COLOR]\n[COLOR FF888888]Stats will be cached after next sync[/COLOR]')
+                self.stats_col1.setText('[COLOR FFAAAAAA]No statistics[/COLOR]\n[COLOR FFAAAAAA]available yet[/COLOR]\n[COLOR FF888888]Stats cached[/COLOR]\n[COLOR FF888888]after sync[/COLOR]')
         
         except Exception as e:
             xbmc.log('[LG-AISearchPanel] Error loading stats: {}'.format(str(e)), xbmc.LOGERROR)
-            self.stats_text.setText('[COLOR FFAAAAAA]Error loading statistics[/COLOR]')
+            self.stats_col1.setText('[COLOR FFAAAAAA]Error loading[/COLOR]\n[COLOR FFAAAAAA]statistics[/COLOR]')
     
     def _display_stats(self, stats):
-        """Format and display library statistics"""
-        if not stats or not self.stats_text:
+        """Format and display library statistics in 4 columns"""
+        if not stats or not self.stats_col1:
             return
         
         try:
-            lines = ['[B]Library Statistics[/B]', '']
-            
             # Helper to safely convert to float
             def safe_float(val, default=0.0):
                 try:
@@ -160,12 +166,13 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                 except (ValueError, TypeError):
                     return default
             
-            # Library Overview
+            # COLUMN 1: Library Overview & Data Quality
+            col1_lines = []
             lib_overview = stats.get('library_overview', {})
             if lib_overview:
                 total = safe_int(lib_overview.get('total_uploaded', 0))
-                lines.append('[COLOR FF00CED1]Your Library:[/COLOR]')
-                lines.append('  Total Movies: [B]{}[/B]'.format(total))
+                col1_lines.append('[B][COLOR FF00CED1]Your Library[/COLOR][/B]')
+                col1_lines.append('Total: [B]{}[/B]'.format(total))
                 
                 date_range = lib_overview.get('upload_date_range', {})
                 if date_range:
@@ -175,105 +182,115 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                         earliest = earliest.split('T')[0]
                     if latest != 'N/A':
                         latest = latest.split('T')[0]
-                    lines.append('  Upload Range: {} to {}'.format(earliest, latest))
-                lines.append('')
+                    col1_lines.append('Range:')
+                    col1_lines.append('{}'.format(earliest))
+                    col1_lines.append('to {}'.format(latest))
+                col1_lines.append('')
             
-            # Data Quality
             data_quality = stats.get('data_quality', {})
             if data_quality:
-                lines.append('[COLOR FF00CED1]Data Quality:[/COLOR]')
+                col1_lines.append('[B][COLOR FF00CED1]Data Quality[/COLOR][/B]')
                 
                 tmdb_avail = data_quality.get('tmdb_data_available', {})
                 if tmdb_avail:
                     count = safe_int(tmdb_avail.get('count', 0))
                     pct = safe_float(tmdb_avail.get('percentage', 0))
-                    lines.append('  TMDB Data: {} ({:.1f}%)'.format(count, pct))
-                
-                tmdb_errors = data_quality.get('tmdb_errors', {})
-                if tmdb_errors:
-                    count = safe_int(tmdb_errors.get('count', 0))
-                    pct = safe_float(tmdb_errors.get('percentage', 0))
-                    lines.append('  TMDB Errors: {} ({:.1f}%)'.format(count, pct))
+                    col1_lines.append('TMDB: {} ({:.1f}%)'.format(count, pct))
                 
                 os_indexed = data_quality.get('opensearch_indexed', {})
                 if os_indexed:
                     count = safe_int(os_indexed.get('count', 0))
                     pct = safe_float(os_indexed.get('percentage', 0))
-                    lines.append('  AI Searchable: [B]{} ({:.1f}%)[/B]'.format(count, pct))
-                lines.append('')
+                    col1_lines.append('AI Ready:')
+                    col1_lines.append('[B]{} ({:.1f}%)[/B]'.format(count, pct))
             
-            # Setup Status with Breakdown
+            # COLUMN 2: Not Ready Breakdown
+            col2_lines = []
             setup_status = stats.get('setup_status', {})
             if setup_status:
                 not_setup = setup_status.get('not_setup', {})
-                
-                lines.append('[COLOR FF00CED1]Not Ready Breakdown:[/COLOR]')
+                col2_lines.append('[B][COLOR FF00CED1]Not Ready[/COLOR][/B]')
                 
                 breakdown = not_setup.get('breakdown', {})
                 if breakdown:
                     missing_tmdb = breakdown.get('missing_tmdb_data', {})
                     if missing_tmdb:
                         count = safe_int(missing_tmdb.get('count', 0))
-                        lines.append('  Missing TMDB: {}'.format(count))
+                        col2_lines.append('Missing TMDB:')
+                        col2_lines.append('  [B]{}[/B]'.format(count))
+                        col2_lines.append('')
                     
                     not_indexed = breakdown.get('not_in_opensearch', {})
                     if not_indexed:
                         count = safe_int(not_indexed.get('count', 0))
-                        lines.append('  Not Indexed: {}'.format(count))
+                        col2_lines.append('Not Indexed:')
+                        col2_lines.append('  [B]{}[/B]'.format(count))
+                        col2_lines.append('')
                     
                     tmdb_err = breakdown.get('tmdb_errors', {})
                     if tmdb_err:
                         count = safe_int(tmdb_err.get('count', 0))
                         if count > 0:
-                            lines.append('  TMDB Errors: {}'.format(count))
-                lines.append('')
+                            col2_lines.append('TMDB Errors:')
+                            col2_lines.append('  [B]{}[/B]'.format(count))
             
-            # Batch History
+            # COLUMN 3: Sync History
+            col3_lines = []
             batch_history = stats.get('batch_history', {})
             if batch_history:
-                lines.append('[COLOR FF00CED1]Sync History:[/COLOR]')
+                col3_lines.append('[B][COLOR FF00CED1]Sync History[/COLOR][/B]')
                 
                 total_batches = safe_int(batch_history.get('total_batches', 0))
                 successful = safe_int(batch_history.get('successful_batches', 0))
                 failed = safe_int(batch_history.get('failed_batches', 0))
                 
-                lines.append('  Total Syncs: {}'.format(total_batches))
+                col3_lines.append('Total: {}'.format(total_batches))
                 if total_batches > 0:
-                    lines.append('  Success: {} | Failed: {}'.format(successful, failed))
+                    col3_lines.append('Success: {}'.format(successful))
+                    col3_lines.append('Failed: {}'.format(failed))
+                    col3_lines.append('')
                 
                 recent = batch_history.get('recent_batches', [])
                 if recent and len(recent) > 0:
                     last_batch = recent[0]
                     items = safe_int(last_batch.get('successful_imports', 0))
                     status = last_batch.get('status', 'N/A')
-                    lines.append('  Last Sync: {} items ({})'.format(items, status))
-                lines.append('')
+                    col3_lines.append('Last Sync:')
+                    col3_lines.append('  {} items'.format(items))
+                    col3_lines.append('  ({})'.format(status))
             
-            # System Context
+            # COLUMN 4: System-Wide
+            col4_lines = []
             sys_context = stats.get('system_context', {})
             if sys_context:
-                lines.append('[COLOR FF00CED1]System-Wide:[/COLOR]')
+                col4_lines.append('[B][COLOR FF00CED1]System-Wide[/COLOR][/B]')
                 
                 total_sys = safe_int(sys_context.get('total_movies_in_system', 0))
-                lines.append('  Total Movies: [B]{:,}[/B]'.format(total_sys))
+                col4_lines.append('Total Movies:')
+                col4_lines.append('[B]{:,}[/B]'.format(total_sys))
+                col4_lines.append('')
                 
-                # User lists stats
                 user_stats = sys_context.get('user_lists_stats', {})
                 if user_stats:
                     total_users = safe_int(user_stats.get('total_users_with_lists', 0))
                     avg_movies = safe_float(user_stats.get('average_movies_per_user', 0))
                     largest = safe_int(user_stats.get('largest_user_collection', 0))
-                    lines.append('  Active Users: {}'.format(total_users))
-                    lines.append('  Avg Collection: {:.0f} movies'.format(avg_movies))
-                    lines.append('  Largest: {:,} movies'.format(largest))
+                    col4_lines.append('Active Users:')
+                    col4_lines.append('  [B]{}[/B]'.format(total_users))
+                    col4_lines.append('Avg Collection:')
+                    col4_lines.append('  {:.0f} movies'.format(avg_movies))
+                    col4_lines.append('Largest:')
+                    col4_lines.append('  {:,} movies'.format(largest))
             
-            # Join all lines
-            formatted_text = '\n'.join(lines)
-            self.stats_text.setText(formatted_text)
+            # Set text for each column
+            self.stats_col1.setText('\n'.join(col1_lines))
+            self.stats_col2.setText('\n'.join(col2_lines))
+            self.stats_col3.setText('\n'.join(col3_lines))
+            self.stats_col4.setText('\n'.join(col4_lines))
         
         except Exception as e:
             xbmc.log('[LG-AISearchPanel] Error formatting stats: {}'.format(str(e)), xbmc.LOGERROR)
-            self.stats_text.setText('[COLOR FFAAAAAA]Error displaying statistics[/COLOR]')
+            self.stats_col1.setText('[COLOR FFAAAAAA]Error displaying[/COLOR]\n[COLOR FFAAAAAA]statistics[/COLOR]')
     
     def _check_search_history_exists(self):
         """Check if search history exists"""
