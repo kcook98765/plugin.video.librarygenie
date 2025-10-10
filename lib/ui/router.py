@@ -506,8 +506,7 @@ class Router:
                 search_result = start_integrated_search_flow(initial_mode)
                 
                 if not search_result:
-                    # User cancelled - close the Videos window entirely and return to where user came from
-                    # Using Action(Close) closes the current window (Videos) instead of showing empty directory
+                    # User cancelled - close Videos window and return to Programs menu
                     import xbmc
                     xbmc.executebuiltin('Action(Close)')
                     return True

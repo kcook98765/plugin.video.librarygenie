@@ -16,7 +16,7 @@ if len(sys.argv) > 1:
     import utilities
     utilities.main()
 else:
-    # Launch search by opening Videos window with plugin URL
-    # ActivateWindow creates proper plugin context (unlike RunPlugin from Programs)
+    # Launch search directly using RunPlugin
+    # This shows the search dialog without opening the Videos window
     xbmc.executebuiltin('Dialog.Close(busydialog)', True)
-    xbmc.executebuiltin('ActivateWindow(videos,plugin://plugin.video.librarygenie/?action=prompt_and_search,return)')
+    xbmc.executebuiltin('RunPlugin(plugin://plugin.video.librarygenie/?action=prompt_and_search)')
