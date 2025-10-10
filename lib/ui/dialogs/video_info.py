@@ -26,7 +26,7 @@ def is_video_info_active() -> bool:
     return current_dialog_id in (12003, 10147)  # DialogVideoInfo / Fallback
 
 
-def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait: float = 1.0) -> bool:
+def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait: float = 2.5) -> bool:
     """
     Monitor for dialog actually closing instead of using fixed sleep.
     Centralized dialog management utility.
@@ -60,7 +60,7 @@ def wait_for_dialog_close(context: str, initial_dialog_id: int, logger, max_wait
     return False
 
 
-def close_video_info_dialog(logger, timeout: float = 1.0) -> bool:
+def close_video_info_dialog(logger, timeout: float = 2.5) -> bool:
     """
     Close video info dialog and verify it closed.
     This is the single source of truth for dialog closing operations.
@@ -84,7 +84,7 @@ def close_video_info_dialog(logger, timeout: float = 1.0) -> bool:
     
     # Send back action to close the dialog
     with navigation_action():
-        xbmc.executebuiltin('Action(Back)')
+        xbmc.executebuiltin('Action(Back)', True)
     
     # Monitor for dialog actually closing
     if wait_for_dialog_close("dialog close verification", initial_dialog_id, logger, max_wait=timeout):
