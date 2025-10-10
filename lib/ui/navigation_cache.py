@@ -217,7 +217,7 @@ class NavigationStateCache:
         }
     
     @contextmanager
-    def nav_mutation(self, grace_ms: int = 150):
+    def nav_mutation(self, grace_ms: int = 300):
         """
         Context manager for navigation operations that may change UI state.
         Bumps generation before and after the operation with a grace period.
@@ -310,7 +310,7 @@ def invalidate_navigation_cache():
     get_navigation_cache().bump_generation()
 
 @contextmanager
-def navigation_action(grace_ms: int = 150):
+def navigation_action(grace_ms: int = 300):
     """Context manager for navigation actions"""
     with get_navigation_cache().nav_mutation(grace_ms):
         yield
