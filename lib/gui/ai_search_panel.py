@@ -42,6 +42,9 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
             'debug_intent': False  # Hard-coded: Debug always off
         }
         
+        # Initialize search history flag before checking
+        self._has_search_history = False
+        
         # Check if search history exists
         self._check_search_history_exists()
 
