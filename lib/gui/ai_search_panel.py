@@ -182,9 +182,7 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                         earliest = earliest.split('T')[0]
                     if latest != 'N/A':
                         latest = latest.split('T')[0]
-                    col1_lines.append('Range:')
-                    col1_lines.append('{}'.format(earliest))
-                    col1_lines.append('to {}'.format(latest))
+                    col1_lines.append('Range: {} to {}'.format(earliest, latest))
                 col1_lines.append('')
             
             data_quality = stats.get('data_quality', {})
@@ -201,8 +199,7 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                 if os_indexed:
                     count = safe_int(os_indexed.get('count', 0))
                     pct = safe_float(os_indexed.get('percentage', 0))
-                    col1_lines.append('AI Ready:')
-                    col1_lines.append('[B]{} ({:.1f}%)[/B]'.format(count, pct))
+                    col1_lines.append('AI Ready: [B]{} ({:.1f}%)[/B]'.format(count, pct))
             
             # COLUMN 2: Not Ready Breakdown
             col2_lines = []
@@ -216,23 +213,18 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                     missing_tmdb = breakdown.get('missing_tmdb_data', {})
                     if missing_tmdb:
                         count = safe_int(missing_tmdb.get('count', 0))
-                        col2_lines.append('Missing TMDB:')
-                        col2_lines.append('  [B]{}[/B]'.format(count))
-                        col2_lines.append('')
+                        col2_lines.append('Missing TMDB: [B]{}[/B]'.format(count))
                     
                     not_indexed = breakdown.get('not_in_opensearch', {})
                     if not_indexed:
                         count = safe_int(not_indexed.get('count', 0))
-                        col2_lines.append('Not Indexed:')
-                        col2_lines.append('  [B]{}[/B]'.format(count))
-                        col2_lines.append('')
+                        col2_lines.append('Not Indexed: [B]{}[/B]'.format(count))
                     
                     tmdb_err = breakdown.get('tmdb_errors', {})
                     if tmdb_err:
                         count = safe_int(tmdb_err.get('count', 0))
                         if count > 0:
-                            col2_lines.append('TMDB Errors:')
-                            col2_lines.append('  [B]{}[/B]'.format(count))
+                            col2_lines.append('TMDB Errors: [B]{}[/B]'.format(count))
             
             # COLUMN 3: Sync History
             col3_lines = []
@@ -244,10 +236,9 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                 successful = safe_int(batch_history.get('successful_batches', 0))
                 failed = safe_int(batch_history.get('failed_batches', 0))
                 
-                col3_lines.append('Total: {}'.format(total_batches))
+                col3_lines.append('Total Syncs: {}'.format(total_batches))
                 if total_batches > 0:
-                    col3_lines.append('Success: {}'.format(successful))
-                    col3_lines.append('Failed: {}'.format(failed))
+                    col3_lines.append('Success: {} | Failed: {}'.format(successful, failed))
                     col3_lines.append('')
                 
                 recent = batch_history.get('recent_batches', [])
@@ -255,9 +246,8 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                     last_batch = recent[0]
                     items = safe_int(last_batch.get('successful_imports', 0))
                     status = last_batch.get('status', 'N/A')
-                    col3_lines.append('Last Sync:')
-                    col3_lines.append('  {} items'.format(items))
-                    col3_lines.append('  ({})'.format(status))
+                    col3_lines.append('Last Sync: {} items'.format(items))
+                    col3_lines.append('Status: {}'.format(status))
             
             # COLUMN 4: System-Wide
             col4_lines = []
@@ -266,8 +256,7 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                 col4_lines.append('[B][COLOR FF00CED1]System-Wide[/COLOR][/B]')
                 
                 total_sys = safe_int(sys_context.get('total_movies_in_system', 0))
-                col4_lines.append('Total Movies:')
-                col4_lines.append('[B]{:,}[/B]'.format(total_sys))
+                col4_lines.append('Total Movies: [B]{:,}[/B]'.format(total_sys))
                 col4_lines.append('')
                 
                 user_stats = sys_context.get('user_lists_stats', {})
@@ -275,12 +264,9 @@ class AISearchPanel(xbmcgui.WindowXMLDialog):
                     total_users = safe_int(user_stats.get('total_users_with_lists', 0))
                     avg_movies = safe_float(user_stats.get('average_movies_per_user', 0))
                     largest = safe_int(user_stats.get('largest_user_collection', 0))
-                    col4_lines.append('Active Users:')
-                    col4_lines.append('  [B]{}[/B]'.format(total_users))
-                    col4_lines.append('Avg Collection:')
-                    col4_lines.append('  {:.0f} movies'.format(avg_movies))
-                    col4_lines.append('Largest:')
-                    col4_lines.append('  {:,} movies'.format(largest))
+                    col4_lines.append('Active Users: [B]{}[/B]'.format(total_users))
+                    col4_lines.append('Avg Collection: {:.0f} movies'.format(avg_movies))
+                    col4_lines.append('Largest: {:,} movies'.format(largest))
             
             # Set text for each column
             self.stats_col1.setText('\n'.join(col1_lines))
