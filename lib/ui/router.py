@@ -547,10 +547,43 @@ class Router:
                     local_result = search_result.get('result')
                     query_params = build_query_from_result(local_result)
                     
-                    # Execute local search using existing search handler logic
+                    # Convert query_params to SimpleSearchQuery object
+                    from lib.search.simple_query_interpreter import get_simple_query_interpreter
                     from lib.search.simple_search_engine import SimpleSearchEngine
+                    
+                    # Convert query_params dict to kwargs for interpreter
+                    interpreter = get_simple_query_interpreter()
+                    
+                    # Map type to media_types list
+                    media_type_map = {
+                        'all': ['movie', 'episode', 'tvshow'],
+                        'movie': ['movie'],
+                        'episode': ['episode', 'tvshow']
+                    }
+                    media_types = media_type_map.get(query_params.get('type', 'all'), ['movie'])
+                    
+                    # Map scope list to search_scope string
+                    scope_list = query_params.get('scope', ['title', 'plot'])
+                    if set(scope_list) == {'title', 'plot'}:
+                        search_scope = 'both'
+                    elif 'title' in scope_list:
+                        search_scope = 'title'
+                    elif 'plot' in scope_list:
+                        search_scope = 'plot'
+                    else:
+                        search_scope = 'both'
+                    
+                    # Parse query into SimpleSearchQuery object
+                    search_query = interpreter.parse_query(
+                        query_params['q'],
+                        media_types=media_types,
+                        search_scope=search_scope,
+                        match_logic=query_params.get('match', 'all')
+                    )
+                    
+                    # Execute search with SimpleSearchQuery object
                     engine = SimpleSearchEngine()
-                    results = engine.search(query_params['q'], query_params)
+                    results = engine.search(search_query)
                     
                     if results.total_count > 0:
                         # Save and navigate to results
