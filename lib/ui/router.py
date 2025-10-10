@@ -489,8 +489,21 @@ class Router:
                 search_handler = factory.get_search_handler()
                 response_handler = get_response_handler()
                 
+                # Determine initial search mode based on user preference (sticky preference)
+                # Default to 'local' if AI is not activated, otherwise use stored preference
+                from lib.auth.state import is_authorized
+                from lib.config.config_manager import get_config
+                
+                initial_mode = 'local'  # Default
+                if is_authorized():
+                    # AI is activated - use stored preference
+                    config = get_config()
+                    preferred_mode = config.get('preferred_search_mode', 'local')
+                    if preferred_mode in ('local', 'ai'):
+                        initial_mode = preferred_mode
+                
                 # Use integrated search flow that handles local/AI toggle
-                search_result = start_integrated_search_flow('local')
+                search_result = start_integrated_search_flow(initial_mode)
                 
                 if not search_result:
                     # User cancelled
