@@ -506,9 +506,10 @@ class Router:
                 search_result = start_integrated_search_flow(initial_mode)
                 
                 if not search_result:
-                    # User cancelled - dialog already closed, just end the directory gracefully
-                    # Kodi will automatically return to the previous window
-                    finish_directory(context.addon_handle, succeeded=False, update=False)
+                    # User cancelled - dialog already closed, end directory with succeeded=True
+                    # succeeded=True tells Kodi "plugin completed successfully with no results"
+                    # This allows proper navigation back (succeeded=False would trigger error handling)
+                    finish_directory(context.addon_handle, succeeded=True, update=False)
                     return True
                 
                 # Check for navigate_away (search history)
