@@ -113,6 +113,7 @@ class SearchFlowController:
     def _handle_ai_search(self, search_result: dict, context: PluginContext) -> bool:
         """Handle AI search execution and navigation"""
         from lib.search.integrated_search import execute_ai_search_and_save
+        import xbmcgui
         
         ai_result = search_result.get('result', {})
         query = ai_result.get('query', '').strip()
@@ -121,12 +122,12 @@ class SearchFlowController:
             self.logger.warning("Empty AI search query")
             return True
         
-        # Close all dialogs and show busy indicator
+        # Close all dialogs
         xbmc.executebuiltin('Dialog.Close(all,true)')
-        xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
-        # CRITICAL: Wait for busy dialog to render before starting work
-        # Without this delay, the dialog won't be visible when search starts
-        xbmc.sleep(500)
+        
+        # Use DialogProgressBG (addon-friendly busy indicator)
+        progress = xbmcgui.DialogProgressBG()
+        progress.create("LibraryGenie", "Searching...")
         
         try:
             # Execute AI search and save results
@@ -146,10 +147,8 @@ class SearchFlowController:
                 self.logger.warning("AI search returned no list ID")
                 return True
         finally:
-            # Always close busy dialog
-            xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
-            # CRITICAL: Wait after closing to prevent crashes (especially on Android)
-            xbmc.sleep(250)
+            # Always close progress dialog
+            progress.close()
 
     
     def _handle_local_search(self, search_result: dict, context: PluginContext) -> bool:
@@ -158,15 +157,17 @@ class SearchFlowController:
         from lib.search.simple_query_interpreter import get_simple_query_interpreter
         from lib.search.simple_search_engine import SimpleSearchEngine
         from lib.ui.handler_factory import get_handler_factory
+        import xbmcgui
         
         local_result = search_result.get('result')
         query_params = build_query_from_result(local_result)
         
-        # Close all dialogs and show busy indicator
+        # Close all dialogs
         xbmc.executebuiltin('Dialog.Close(all,true)')
-        xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
-        # CRITICAL: Wait for busy dialog to render before starting work
-        xbmc.sleep(500)
+        
+        # Use DialogProgressBG (addon-friendly busy indicator)
+        progress = xbmcgui.DialogProgressBG()
+        progress.create("LibraryGenie", "Searching...")
         
         try:
             # Convert to SimpleSearchQuery
@@ -219,7 +220,5 @@ class SearchFlowController:
             self.logger.info("Local search completed with no results")
             return True
         finally:
-            # Always close busy dialog
-            xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
-            # CRITICAL: Wait after closing to prevent crashes
-            xbmc.sleep(250)
+            # Always close progress dialog
+            progress.close()
