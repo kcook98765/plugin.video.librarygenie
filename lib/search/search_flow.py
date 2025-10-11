@@ -113,6 +113,7 @@ class SearchFlowController:
     def _handle_ai_search(self, search_result: dict, context: PluginContext) -> bool:
         """Handle AI search execution and navigation"""
         from lib.search.integrated_search import execute_ai_search_and_save
+        import xbmcgui
         
         ai_result = search_result.get('result', {})
         query = ai_result.get('query', '').strip()
@@ -121,22 +122,34 @@ class SearchFlowController:
             self.logger.warning("Empty AI search query")
             return True
         
-        # Execute AI search and save results
-        list_id = execute_ai_search_and_save(
-            query,
-            max_results=ai_result.get('max_results', 20),
-            mode=ai_result.get('mode', 'hybrid'),
-            use_llm=ai_result.get('use_llm', False),
-            debug_intent=ai_result.get('debug_intent', False)
-        )
+        # Close all dialogs
+        xbmc.executebuiltin('Dialog.Close(all,true)')
         
-        if list_id:
-            # Navigate to results
-            self.logger.info(f"AI search successful, navigating to list {list_id}")
-            return self.navigation_strategy.navigate_to_results(list_id, context)
-        else:
-            self.logger.warning("AI search returned no list ID")
-            return True
+        # Use DialogProgressBG (addon-friendly busy indicator)
+        progress = xbmcgui.DialogProgressBG()
+        progress.create("LibraryGenie", "Searching...")
+        
+        try:
+            # Execute AI search and save results
+            list_id = execute_ai_search_and_save(
+                query,
+                max_results=ai_result.get('max_results', 20),
+                mode=ai_result.get('mode', 'hybrid'),
+                use_llm=ai_result.get('use_llm', False),
+                debug_intent=ai_result.get('debug_intent', False)
+            )
+            
+            if list_id:
+                # Navigate to results
+                self.logger.info(f"AI search successful, navigating to list {list_id}")
+                return self.navigation_strategy.navigate_to_results(list_id, context)
+            else:
+                self.logger.warning("AI search returned no list ID")
+                return True
+        finally:
+            # Always close progress dialog
+            progress.close()
+
     
     def _handle_local_search(self, search_result: dict, context: PluginContext) -> bool:
         """Handle local search execution and navigation"""
@@ -144,56 +157,68 @@ class SearchFlowController:
         from lib.search.simple_query_interpreter import get_simple_query_interpreter
         from lib.search.simple_search_engine import SimpleSearchEngine
         from lib.ui.handler_factory import get_handler_factory
+        import xbmcgui
         
         local_result = search_result.get('result')
         query_params = build_query_from_result(local_result)
         
-        # Convert to SimpleSearchQuery
-        interpreter = get_simple_query_interpreter()
+        # Close all dialogs
+        xbmc.executebuiltin('Dialog.Close(all,true)')
         
-        # Map media type string to list
-        media_type_map = {
-            'all': ['movie', 'episode', 'tvshow'],
-            'movie': ['movie'],
-            'episode': ['episode', 'tvshow']
-        }
-        media_types = media_type_map.get(query_params.get('type', 'all'), ['movie'])
+        # Use DialogProgressBG (addon-friendly busy indicator)
+        progress = xbmcgui.DialogProgressBG()
+        progress.create("LibraryGenie", "Searching...")
         
-        # Map scope list to search_scope string
-        scope_list = query_params.get('scope', ['title', 'plot'])
-        if set(scope_list) == {'title', 'plot'}:
-            search_scope = 'both'
-        elif 'title' in scope_list:
-            search_scope = 'title'
-        elif 'plot' in scope_list:
-            search_scope = 'plot'
-        else:
-            search_scope = 'both'
-        
-        # Parse query
-        search_query = interpreter.parse_query(
-            query_params['q'],
-            media_types=media_types,
-            search_scope=search_scope,
-            match_logic=query_params.get('match', 'all')
-        )
-        
-        # Execute search
-        engine = SimpleSearchEngine()
-        results = engine.search(search_query)
-        
-        if results.total_count > 0:
-            # Save to history and navigate to results
-            factory = get_handler_factory()
-            factory.context = context
-            search_handler = factory.get_search_handler()
+        try:
+            # Convert to SimpleSearchQuery
+            interpreter = get_simple_query_interpreter()
             
-            list_id = search_handler._save_search_history(query_params['q'], {}, results)
+            # Map media type string to list
+            media_type_map = {
+                'all': ['movie', 'episode', 'tvshow'],
+                'movie': ['movie'],
+                'episode': ['episode', 'tvshow']
+            }
+            media_types = media_type_map.get(query_params.get('type', 'all'), ['movie'])
             
-            if list_id:
-                self.logger.info(f"Local search successful, navigating to list {list_id}")
-                return self.navigation_strategy.navigate_to_results(list_id, context)
-        
-        # No results - just return success
-        self.logger.info("Local search completed with no results")
-        return True
+            # Map scope list to search_scope string
+            scope_list = query_params.get('scope', ['title', 'plot'])
+            if set(scope_list) == {'title', 'plot'}:
+                search_scope = 'both'
+            elif 'title' in scope_list:
+                search_scope = 'title'
+            elif 'plot' in scope_list:
+                search_scope = 'plot'
+            else:
+                search_scope = 'both'
+            
+            # Parse query
+            search_query = interpreter.parse_query(
+                query_params['q'],
+                media_types=media_types,
+                search_scope=search_scope,
+                match_logic=query_params.get('match', 'all')
+            )
+            
+            # Execute search
+            engine = SimpleSearchEngine()
+            results = engine.search(search_query)
+            
+            if results.total_count > 0:
+                # Save to history and navigate to results
+                factory = get_handler_factory()
+                factory.context = context
+                search_handler = factory.get_search_handler()
+                
+                list_id = search_handler._save_search_history(query_params['q'], {}, results)
+                
+                if list_id:
+                    self.logger.info(f"Local search successful, navigating to list {list_id}")
+                    return self.navigation_strategy.navigate_to_results(list_id, context)
+            
+            # No results - just return success
+            self.logger.info("Local search completed with no results")
+            return True
+        finally:
+            # Always close progress dialog
+            progress.close()
