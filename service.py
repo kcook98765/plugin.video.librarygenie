@@ -728,41 +728,51 @@ class LibraryGenieService:
                 log("Skipping startup sync - no sync options enabled")
                 return
             
-            log_info("🚀 Performing startup library sync (delta scan)")
+            log_info("🚀 Performing startup library sync (delta scan) in background thread")
             
-            # Perform delta sync to catch any changes since last Kodi run
-            try:
-                result = sync_controller.scanner.perform_delta_scan()
-                if result.get("success", False):
-                    items_added = result.get("items_added", 0)
-                    items_removed = result.get("items_removed", 0)
-                    
-                    if items_added > 0 or items_removed > 0:
-                        log_info(f"Startup sync completed: +{items_added} new, -{items_removed} removed")
-                        self._show_notification(
-                            f"Library updated: {items_added} new items added",
-                            time_ms=4000
-                        )
-                        
-                        # Update stats cache after changes detected
-                        try:
-                            from lib.utils.stats_cache import get_stats_cache
-                            stats_cache = get_stats_cache()
-                            if stats_cache.fetch_and_save_stats():
-                                log_info("Library stats updated after startup sync")
-                        except Exception as e:
-                            log_error(f"Failed to update stats cache after startup sync: {e}")
-                    else:
-                        log("Startup sync completed: no changes detected")
-                else:
-                    error_msg = result.get("error", "Unknown error")
-                    log_error(f"Startup sync failed: {error_msg}")
-                    
-            except Exception as e:
-                log_error(f"Error during startup sync: {e}")
+            # Run in background thread to avoid blocking service shutdown
+            sync_thread = threading.Thread(
+                target=self._perform_startup_sync,
+                args=(sync_controller,),
+                daemon=True,
+                name="StartupSync"
+            )
+            sync_thread.start()
                 
         except Exception as e:
             log_error(f"Error checking startup sync: {e}")
+
+    def _perform_startup_sync(self, sync_controller):
+        """Perform startup sync in background thread"""
+        try:
+            result = sync_controller.scanner.perform_delta_scan()
+            if result.get("success", False):
+                items_added = result.get("items_added", 0)
+                items_removed = result.get("items_removed", 0)
+                
+                if items_added > 0 or items_removed > 0:
+                    log_info(f"Startup sync completed: +{items_added} new, -{items_removed} removed")
+                    self._show_notification(
+                        f"Library updated: {items_added} new items added",
+                        time_ms=4000
+                    )
+                    
+                    # Update stats cache after changes detected
+                    try:
+                        from lib.utils.stats_cache import get_stats_cache
+                        stats_cache = get_stats_cache()
+                        if stats_cache.fetch_and_save_stats():
+                            log_info("Library stats updated after startup sync")
+                    except Exception as e:
+                        log_error(f"Failed to update stats cache after startup sync: {e}")
+                else:
+                    log("Startup sync completed: no changes detected")
+            else:
+                error_msg = result.get("error", "Unknown error")
+                log_error(f"Startup sync failed: {error_msg}")
+                
+        except Exception as e:
+            log_error(f"Error during startup sync: {e}")
 
     def _check_initial_sync_request(self):
         """Check for initial sync requests from fresh install setup"""
@@ -781,130 +791,132 @@ class LibraryGenieService:
             if not initial_sync_requested:
                 return
                 
-            log_info("⚡ INITIAL SYNC REQUEST DETECTED - Processing sync request")
+            log_info("⚡ INITIAL SYNC REQUEST DETECTED - Starting background sync")
             
-            # Import here to avoid circular imports
-            from lib.utils.sync_lock import GlobalSyncLock
-            from lib.library.sync_controller import SyncController
+            # Clear the request flag immediately to prevent retriggering
+            fresh_addon.setSettingBool('initial_sync_requested', False)
             
-            # Try to acquire global sync lock
-            lock = GlobalSyncLock("service-initial-sync")
-            if not lock.acquire():
-                # Another process is already syncing
-                lock_info = lock.get_lock_info()
-                owner = lock_info.get('owner', 'unknown') if lock_info else 'unknown'
-                log(f"Initial sync skipped - lock held by: {owner}")
-                return
+            # Get sync preferences directly from Kodi settings to bypass cache issues
+            try:
+                sync_movies = fresh_addon.getSettingBool('sync_movies')
+            except Exception:
+                sync_movies = True  # Default to True
                 
             try:
-                # Clear the request flag immediately to prevent retriggering
-                fresh_addon.setSettingBool('initial_sync_requested', False)
-                
-                # Get sync preferences directly from Kodi settings to bypass cache issues
-                try:
-                    sync_movies = fresh_addon.getSettingBool('sync_movies')
-                except Exception:
-                    sync_movies = True  # Default to True
-                    
-                try:
-                    sync_tv_episodes = fresh_addon.getSettingBool('sync_tv_episodes')
-                except Exception:
-                    sync_tv_episodes = False  # Default to False
-                
-                log_info(f"Starting initial sync - Movies: {sync_movies}, TV: {sync_tv_episodes}")
-                
-                try:
-                    # Initialize sync controller
-                    sync_controller = SyncController()
-                    
-                    # Manually perform sync since we already hold the lock
-                    # Don't call perform_manual_sync which tries to acquire another lock
-                    
-                    results = {'movies': 0, 'episodes': 0, 'errors': []}
-                    start_time = time.time()
-                    
-                    # Always use separate dialogs for clean progress experience
-                    # Sync movies if enabled
-                    if sync_movies:
-                        # Movies only
-                        try:
-                            movies_dialog = xbmcgui.DialogProgressBG()
-                            movies_dialog.create("LibraryGenie", "Starting movie sync...")
-                            
-                            movie_count = sync_controller._sync_movies(progress_dialog=movies_dialog)
-                            results['movies'] = movie_count
-                            log_info(f"Synced {movie_count} movies")
-                            
-                            movies_dialog.close()
-                        except Exception as e:
-                            error_msg = f"Movie sync failed: {str(e)}"
-                            results['errors'].append(error_msg)
-                            log_error(error_msg)
-
-                    # Sync TV episodes if enabled  
-                    if sync_tv_episodes:
-                        # TV episodes only
-                        try:
-                            tv_dialog = xbmcgui.DialogProgressBG()
-                            tv_dialog.create("LibraryGenie", "Starting TV episodes sync...")
-                            
-                            episode_count = sync_controller._sync_tv_episodes(progress_dialog=tv_dialog)
-                            results['episodes'] = episode_count
-                            log_info(f"Synced {episode_count} TV episodes")
-                            
-                            tv_dialog.close()
-                        except Exception as e:
-                            error_msg = f"TV episode sync failed: {str(e)}"
-                            results['errors'].append(error_msg)
-                            log_error(error_msg)
-
-                    # Calculate duration and format results
-                    duration = time.time() - start_time
-                    message = sync_controller._format_sync_results(results, duration)
-                    success = len(results['errors']) == 0 or (results['movies'] > 0 or results['episodes'] > 0)
-                    
-                    # Show final notification
-                    if success:
-                        log_info(f"Initial sync completed: {message}")
-                        
-                        # INVALIDATE DATABASE CACHE - database size changed dramatically after initial scan
-                        total_items = results['movies'] + results['episodes']
-                        if total_items > 100:  # Substantial content added, likely fresh install
-                            log_info(f"Fresh install sync added {total_items} items - invalidating database cache")
-                            self._invalidate_and_refresh_db_cache()
-                        
-                        # Update stats cache after successful initial sync
-                        if total_items > 0:
-                            try:
-                                from lib.utils.stats_cache import get_stats_cache
-                                stats_cache = get_stats_cache()
-                                if stats_cache.fetch_and_save_stats():
-                                    log_info("Library stats updated after initial sync")
-                            except Exception as e:
-                                log_error(f"Failed to update stats cache after initial sync: {e}")
-                        
-                        self._show_notification(
-                            f"Initial sync complete: {message}",
-                            xbmcgui.NOTIFICATION_INFO,
-                            8000
-                        )
-                    else:
-                        log_warning(f"Initial sync failed: {message}")
-                        self._show_notification(
-                            f"Initial sync failed: {message[:50]}...",
-                            xbmcgui.NOTIFICATION_ERROR,
-                            8000
-                        )
-                        
-                finally:
-                    # Individual progress dialogs are closed by their respective sync operations
-                    pass
-                    
-            finally:
-                lock.release()
+                sync_tv_episodes = fresh_addon.getSettingBool('sync_tv_episodes')
+            except Exception:
+                sync_tv_episodes = False  # Default to False
+            
+            # Run initial sync in background thread to avoid blocking service shutdown
+            sync_thread = threading.Thread(
+                target=self._perform_initial_sync,
+                args=(sync_movies, sync_tv_episodes),
+                daemon=True,
+                name="InitialSync"
+            )
+            sync_thread.start()
                 
         except Exception as e:
             log_error(f"Error during initial sync request handling: {e}")
+
+    def _perform_initial_sync(self, sync_movies, sync_tv_episodes):
+        """Perform initial sync in background thread"""
+        # Import here to avoid circular imports
+        from lib.utils.sync_lock import GlobalSyncLock
+        from lib.library.sync_controller import SyncController
+        
+        # Try to acquire global sync lock
+        lock = GlobalSyncLock("service-initial-sync")
+        if not lock.acquire():
+            # Another process is already syncing
+            lock_info = lock.get_lock_info()
+            owner = lock_info.get('owner', 'unknown') if lock_info else 'unknown'
+            log(f"Initial sync skipped - lock held by: {owner}")
+            return
+            
+        try:
+            log_info(f"Starting initial sync - Movies: {sync_movies}, TV: {sync_tv_episodes}")
+            
+            # Initialize sync controller
+            sync_controller = SyncController()
+            
+            results = {'movies': 0, 'episodes': 0, 'errors': []}
+            start_time = time.time()
+            
+            # Sync movies if enabled
+            if sync_movies:
+                try:
+                    movies_dialog = xbmcgui.DialogProgressBG()
+                    movies_dialog.create("LibraryGenie", "Starting movie sync...")
+                    
+                    movie_count = sync_controller._sync_movies(progress_dialog=movies_dialog)
+                    results['movies'] = movie_count
+                    log_info(f"Synced {movie_count} movies")
+                    
+                    movies_dialog.close()
+                except Exception as e:
+                    error_msg = f"Movie sync failed: {str(e)}"
+                    results['errors'].append(error_msg)
+                    log_error(error_msg)
+
+            # Sync TV episodes if enabled  
+            if sync_tv_episodes:
+                try:
+                    tv_dialog = xbmcgui.DialogProgressBG()
+                    tv_dialog.create("LibraryGenie", "Starting TV episodes sync...")
+                    
+                    episode_count = sync_controller._sync_tv_episodes(progress_dialog=tv_dialog)
+                    results['episodes'] = episode_count
+                    log_info(f"Synced {episode_count} TV episodes")
+                    
+                    tv_dialog.close()
+                except Exception as e:
+                    error_msg = f"TV episode sync failed: {str(e)}"
+                    results['errors'].append(error_msg)
+                    log_error(error_msg)
+
+            # Calculate duration and format results
+            duration = time.time() - start_time
+            message = sync_controller._format_sync_results(results, duration)
+            success = len(results['errors']) == 0 or (results['movies'] > 0 or results['episodes'] > 0)
+            
+            # Show final notification
+            if success:
+                log_info(f"Initial sync completed: {message}")
+                
+                # INVALIDATE DATABASE CACHE - database size changed dramatically after initial scan
+                total_items = results['movies'] + results['episodes']
+                if total_items > 100:  # Substantial content added, likely fresh install
+                    log_info(f"Fresh install sync added {total_items} items - invalidating database cache")
+                    self._invalidate_and_refresh_db_cache()
+                
+                # Update stats cache after successful initial sync
+                if total_items > 0:
+                    try:
+                        from lib.utils.stats_cache import get_stats_cache
+                        stats_cache = get_stats_cache()
+                        if stats_cache.fetch_and_save_stats():
+                            log_info("Library stats updated after initial sync")
+                    except Exception as e:
+                        log_error(f"Failed to update stats cache after initial sync: {e}")
+                
+                self._show_notification(
+                    f"Initial sync complete: {message}",
+                    xbmcgui.NOTIFICATION_INFO,
+                    8000
+                )
+            else:
+                log_warning(f"Initial sync failed: {message}")
+                self._show_notification(
+                    f"Initial sync failed: {message[:50]}...",
+                    xbmcgui.NOTIFICATION_ERROR,
+                    8000
+                )
+                
+        except Exception as e:
+            log_error(f"Error during initial sync: {e}")
+        finally:
+            lock.release()
             
 
     def _perform_ai_sync(self):
