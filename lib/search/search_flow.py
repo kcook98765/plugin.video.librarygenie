@@ -123,7 +123,10 @@ class SearchFlowController:
         
         # Close all dialogs and show busy indicator
         xbmc.executebuiltin('Dialog.Close(all,true)')
-        xbmc.executebuiltin('ActivateWindow(busydialog)')
+        xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
+        # CRITICAL: Wait for busy dialog to render before starting work
+        # Without this delay, the dialog won't be visible when search starts
+        xbmc.sleep(500)
         
         try:
             # Execute AI search and save results
@@ -144,7 +147,9 @@ class SearchFlowController:
                 return True
         finally:
             # Always close busy dialog
-            xbmc.executebuiltin('Dialog.Close(busydialog)')
+            xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
+            # CRITICAL: Wait after closing to prevent crashes (especially on Android)
+            xbmc.sleep(250)
 
     
     def _handle_local_search(self, search_result: dict, context: PluginContext) -> bool:
@@ -159,7 +164,9 @@ class SearchFlowController:
         
         # Close all dialogs and show busy indicator
         xbmc.executebuiltin('Dialog.Close(all,true)')
-        xbmc.executebuiltin('ActivateWindow(busydialog)')
+        xbmc.executebuiltin('ActivateWindow(busydialognocancel)')
+        # CRITICAL: Wait for busy dialog to render before starting work
+        xbmc.sleep(500)
         
         try:
             # Convert to SimpleSearchQuery
@@ -213,4 +220,6 @@ class SearchFlowController:
             return True
         finally:
             # Always close busy dialog
-            xbmc.executebuiltin('Dialog.Close(busydialog)')
+            xbmc.executebuiltin('Dialog.Close(busydialognocancel)')
+            # CRITICAL: Wait after closing to prevent crashes
+            xbmc.sleep(250)
