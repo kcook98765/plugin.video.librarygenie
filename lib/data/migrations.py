@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 8
+TARGET_SCHEMA_VERSION = 9
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 8, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 9, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -208,6 +208,7 @@ class MigrationManager:
             list_id INTEGER NOT NULL,
             media_item_id INTEGER NOT NULL,
             position INTEGER,
+            search_score REAL,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
             FOREIGN KEY (media_item_id) REFERENCES media_items(id) ON DELETE CASCADE
@@ -598,6 +599,12 @@ class MigrationManager:
                 """)
                 
                 self.logger.info("Unique constraints for media_items added successfully")
+            
+            # Migration from version 8 to 9: Add search_score column to list_items table
+            if current_version < 9:
+                self.logger.info("Migrating from version 8 to 9: Adding search_score column to list_items table")
+                conn.execute("ALTER TABLE list_items ADD COLUMN search_score REAL")
+                self.logger.info("search_score column added to list_items table successfully")
             
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
