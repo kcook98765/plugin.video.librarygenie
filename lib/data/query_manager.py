@@ -842,11 +842,14 @@ class QueryManager:
                         media_item_id = self._insert_or_get_media_item(conn, media_data)
 
                         if media_item_id:
-                            # Add to list
+                            # Extract search score if present (from AI search results)
+                            search_score = item.get('search_score')
+                            
+                            # Add to list with optional search score
                             conn.execute("""
-                                INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
-                                VALUES (?, ?, ?)
-                            """, [list_id, media_item_id, position])
+                                INSERT OR IGNORE INTO list_items (list_id, media_item_id, position, search_score)
+                                VALUES (?, ?, ?, ?)
+                            """, [list_id, media_item_id, position, search_score])
                             added_count += 1
 
                     except Exception as e:
