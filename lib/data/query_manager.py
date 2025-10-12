@@ -325,6 +325,7 @@ class QueryManager:
                     li.media_item_id as id,
                     li.media_item_id as item_id,
                     li.position as order_score,
+                    li.search_score,
                     mi.kodi_id,
                     mi.media_type,
                     mi.title,
