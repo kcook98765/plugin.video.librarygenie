@@ -1106,6 +1106,32 @@ class ListsHandler:
                 offset=pagination_info.start_index
             )
             
+            # Check if this is a search history list
+            search_folder_id = query_manager.get_or_create_search_history_folder()
+            is_search_history_list = (search_folder_id and 
+                                     str(list_info.get('folder_id')) == str(search_folder_id))
+            
+            # For search history lists, add score prefix to titles and sort by title
+            if is_search_history_list:
+                for item in list_items:
+                    score = item.get('search_score')
+                    if score is not None:
+                        # Normalize score to 0-999 range (assuming API returns 0-1 float)
+                        # If score is already in 0-999 range, use it as is
+                        if 0 <= score <= 1:
+                            normalized_score = int(score * 999)
+                        else:
+                            normalized_score = int(score) if 0 <= score <= 999 else 0
+                        
+                        # Add zero-padded 3-digit prefix to title
+                        original_title = item.get('title', 'Unknown')
+                        item['title'] = f"{normalized_score:03d} {original_title}"
+                        context.logger.debug("Added score prefix to '%s': score=%.3f -> %03d", 
+                                           original_title, score, normalized_score)
+                
+                # Sort by title in descending order to show highest scores first
+                list_items.sort(key=lambda x: x.get('title', ''), reverse=True)
+                context.logger.debug("Sorted %d search history items by title (descending) - highest scores first", len(list_items))
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
@@ -1146,11 +1172,7 @@ class ListsHandler:
                 )
 
             # Add "Save as a list" item for Search History lists
-            # Use folder_id comparison instead of name to avoid localization issues
-            search_folder_id = query_manager.get_or_create_search_history_folder()
-            is_search_history = (search_folder_id and 
-                                str(list_info.get('folder_id')) == str(search_folder_id))
-            if is_search_history:
+            if is_search_history_list:
                 save_as_list_item = xbmcgui.ListItem(label=L(30371), offscreen=True)
                 self._set_listitem_plot(save_as_list_item, 'Convert this search history to a regular list')
                 save_as_list_item.setArt({'icon': 'DefaultFolder.png', 'thumb': 'DefaultFolder.png'})
