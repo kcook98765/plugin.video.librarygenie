@@ -98,17 +98,21 @@ class AISearchHandler:
 
             progress.update(60, "Matching with local library...")
 
-            # Extract IMDb IDs from AI search results
+            # Extract IMDb IDs and scores from AI search results
             imdb_ids = []
+            score_map = {}  # Maps imdb_id -> score
             for result in ai_results:
                 imdb_id = result.get('imdb_id')
                 if imdb_id and imdb_id.startswith('tt'):
                     imdb_ids.append(imdb_id)
+                    # Store score for this IMDb ID
+                    score = result.get('score', 0)
+                    score_map[imdb_id] = score
 
-            self.logger.info("AI SEARCH: Extracted %s IMDb IDs from AI results", len(imdb_ids))
+            self.logger.info("AI SEARCH: Extracted %s IMDb IDs with scores from AI results", len(imdb_ids))
 
-            # Match IMDb IDs with local media items
-            matched_items = self._match_imdb_ids_to_media_items(imdb_ids)
+            # Match IMDb IDs with local media items, including scores
+            matched_items = self._match_imdb_ids_to_media_items(imdb_ids, score_map)
 
             progress.update(80, "Creating search history...")
 
@@ -147,16 +151,19 @@ class AISearchHandler:
             self.dialog.show_error("Search error occurred", title="AI Search", time_ms=5000)
             return False
 
-    def _match_imdb_ids_to_media_items(self, imdb_ids: List[str]) -> List[Dict[str, Any]]:
+    def _match_imdb_ids_to_media_items(self, imdb_ids: List[str], score_map: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
         """
         Match IMDb IDs to existing media items in the database and build standard media item format
 
         Args:
             imdb_ids: List of IMDb IDs to match
+            score_map: Optional dict mapping imdb_id to search score
 
         Returns:
             List of matched media item dictionaries in standard format
         """
+        if score_map is None:
+            score_map = {}
         try:
             # Use correct column names from schema
             placeholders = ','.join(['?' for _ in imdb_ids])
@@ -175,18 +182,20 @@ class AISearchHandler:
             for row in rows:
                 item_dict = dict(row)
                 # Convert to standard format expected by add_search_results_to_list
+                imdb_id = item_dict.get('imdbnumber', '')
                 standard_item = {
                     'id': item_dict.get('id'),  # Database ID from media_items table
                     'kodi_id': item_dict.get('kodi_id'),
                     'media_type': item_dict.get('media_type', 'movie'),
                     'title': item_dict.get('title', ''),
                     'year': item_dict.get('year', 0),
-                    'imdb_id': item_dict.get('imdbnumber', ''),
+                    'imdb_id': imdb_id,
                     'plot': item_dict.get('plot', ''),
                     'rating': item_dict.get('rating', 0),
                     'genre': item_dict.get('genre', ''),
                     'runtime': item_dict.get('duration', 0),
-                    'source': 'ai_search'
+                    'source': 'ai_search',
+                    'search_score': score_map.get(imdb_id)  # Add search score from mapping
                 }
 
                 # Parse art JSON if available
