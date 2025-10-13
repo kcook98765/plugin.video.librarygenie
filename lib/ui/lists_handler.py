@@ -1111,6 +1111,9 @@ class ListsHandler:
             is_search_history_list = (search_folder_id and 
                                      str(list_info.get('folder_id')) == str(search_folder_id))
             
+            # Initialize sort methods
+            sort_methods = None
+            
             # For search history lists, add score prefix to titles and sort by title
             if is_search_history_list:
                 for item in list_items:
@@ -1132,6 +1135,11 @@ class ListsHandler:
                 # Sort by title in descending order to show highest scores first
                 list_items.sort(key=lambda x: x.get('title', ''), reverse=True)
                 context.logger.debug("Sorted %d search history items by title (descending) - highest scores first", len(list_items))
+                
+                # Set UNSORTED sort method to preserve Python sort order and prevent skin from overriding
+                import xbmcplugin
+                sort_methods = [xbmcplugin.SORT_METHOD_UNSORTED]
+                context.logger.debug("Set SORT_METHOD_UNSORTED to preserve score-based ordering")
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
@@ -1289,6 +1297,7 @@ class ListsHandler:
                 success=True,
                 content_type=detected_content_type,
                 update_listing=update_listing, # REPLACE for same list, PUSH for different list
+                sort_methods=sort_methods,
                 intent=intent
             )
 
