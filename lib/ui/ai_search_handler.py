@@ -364,9 +364,9 @@ class AISearchHandler:
             progress.update(40, "Searching for similar movies...")
 
             # Call similar movies endpoint
-            similar_imdb_ids = self.ai_client.search_similar_movies(imdb_id, facets)
+            similar_results = self.ai_client.search_similar_movies(imdb_id, facets)
 
-            if not similar_imdb_ids:
+            if not similar_results:
                 progress.close()
                 self.logger.debug("SIMILAR MOVIES: No similar movies found")
                 self.dialog.show_success("No similar movies found", title="Similar Movies", time_ms=3000)
@@ -374,14 +374,27 @@ class AISearchHandler:
 
             progress.update(60, "Matching with local library...")
 
-            # Match IMDb IDs with local media items
-            matched_items = self._match_imdb_ids_to_media_items(similar_imdb_ids)
+            # Extract IMDb IDs and scores from similarity results
+            imdb_ids = []
+            score_map = {}  # Maps imdb_id -> score
+            for result in similar_results:
+                result_imdb_id = result.get('imdb_id')
+                if result_imdb_id and result_imdb_id.startswith('tt'):
+                    imdb_ids.append(result_imdb_id)
+                    # Store score for this IMDb ID (normalized 0.0-1.0)
+                    score = result.get('score', 0.0)
+                    score_map[result_imdb_id] = score
+
+            self.logger.info("SIMILAR MOVIES: Extracted %s IMDb IDs with scores from similarity results", len(imdb_ids))
+
+            # Match IMDb IDs with local media items, including scores
+            matched_items = self._match_imdb_ids_to_media_items(imdb_ids, score_map)
 
             progress.update(80, "Creating results list...")
 
             # Create search history list for similar movies
             if matched_items:
-                list_id = self._create_similar_movies_list(title, year, matched_items, len(similar_imdb_ids), facets)
+                list_id = self._create_similar_movies_list(title, year, matched_items, len(similar_results), facets)
 
                 if list_id:
                     progress.close()
@@ -403,7 +416,7 @@ class AISearchHandler:
             else:
                 progress.close()
                 self.logger.debug("SIMILAR MOVIES: No matches found in local library")
-                self.dialog.show_success(f"No similar movies found in your library (searched {len(similar_imdb_ids)} movies)", title="Similar Movies", time_ms=5000)
+                self.dialog.show_success(f"No similar movies found in your library (searched {len(similar_results)} movies)", title="Similar Movies", time_ms=5000)
                 return False
 
         except Exception as e:
