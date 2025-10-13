@@ -411,11 +411,20 @@ This endpoint provides three powerful search modes with automatic fallback handl
 - `query`: The search query used
 - `mode`: Search mode executed ("bm25" or "hybrid")
 - `total_results`: Number of results found
-- `max_score`: Highest score in results
+- `max_score`: Highest score in results (normalized to 0.0-1.0 range)
 - `results`: Array of result objects:
   - `imdb_id`: IMDb identifier
-  - `score`: Final ranking score (blended for hybrid mode)
+  - `score`: Final ranking score normalized to 0.0-1.0 range (1.0 = perfect match, 0.0 = no match)
   - `bm25_score`: Original keyword score (hybrid mode only)
+
+**Score Normalization:**
+All scores are normalized to a consistent 0.0 to 1.0 range for easy comparison and ranking:
+- **Search scores**: Calculated using dynamic maximum based on weights (BM25 contribution capped at 10.0, vector similarities up to 2.0 times weight, plus popularity boost), then normalized and clamped to 1.0
+- **Score interpretation**: 
+  - 0.9-1.0: Excellent match
+  - 0.7-0.9: Good match
+  - 0.5-0.7: Moderate match
+  - Below 0.5: Weak match
 
 **Diagnostics Fields (when debug_intent=true):**
 - `llm_used`: Whether GPT-4 intent extraction was used
@@ -577,18 +586,44 @@ This endpoint finds movies similar to a reference movie using the same advanced 
 {
   "success": true,
   "results": [
-    "tt0068646",
-    "tt0071562",
-    "tt0468569",
-    "tt0137523",
-    "tt0110912"
+    {
+      "imdb_id": "tt0068646",
+      "score": 0.952
+    },
+    {
+      "imdb_id": "tt0071562",
+      "score": 0.887
+    },
+    {
+      "imdb_id": "tt0468569",
+      "score": 0.834
+    },
+    {
+      "imdb_id": "tt0137523",
+      "score": 0.791
+    },
+    {
+      "imdb_id": "tt0110912",
+      "score": 0.756
+    }
   ]
 }
 ```
 
 **Response Format:**
 - `success`: Boolean indicating if the search succeeded
-- `results`: Array of IMDb IDs for similar movies (up to 50 results), sorted by similarity score
+- `results`: Array of result objects for similar movies (up to 50 results), sorted by similarity score (highest first)
+  - `imdb_id`: IMDb identifier of similar movie
+  - `score`: Similarity score normalized to 0.0-1.0 range (1.0 = most similar, 0.0 = not similar)
+
+**Score Normalization:**
+Similarity scores are normalized to a consistent 0.0 to 1.0 range:
+- **Similarity scores**: Normalized by dividing by 2.0 (the theoretical maximum when all cosine similarities equal 1.0 and weights sum to 1.0), then clamped to ensure they never exceed 1.0
+- **Score interpretation**: Same as search endpoint
+  - 0.9-1.0: Extremely similar
+  - 0.7-0.9: Very similar
+  - 0.5-0.7: Moderately similar
+  - Below 0.5: Weakly similar
 
 **Error Responses:**
 ```json
