@@ -846,14 +846,10 @@ class QueryManager:
                             # Extract search score if present (from AI search results)
                             search_score = item.get('search_score')
                             
-                            # DEBUG: Log score storage
-                            if search_score is not None:
-                                self.logger.info("SCORE STORAGE: Storing score %.3f for item %s (media_item_id=%s, list_id=%s, position=%s)", 
-                                               search_score, item.get('title', 'Unknown'), media_item_id, list_id, position)
-                            
-                            # Add to list with optional search score
+                            # Use INSERT OR REPLACE to handle duplicates and preserve search_score
+                            # This ensures search_score is always stored, even if the item already exists
                             conn.execute("""
-                                INSERT OR IGNORE INTO list_items (list_id, media_item_id, position, search_score)
+                                INSERT OR REPLACE INTO list_items (list_id, media_item_id, position, search_score)
                                 VALUES (?, ?, ?, ?)
                             """, [list_id, media_item_id, position, search_score])
                             added_count += 1
