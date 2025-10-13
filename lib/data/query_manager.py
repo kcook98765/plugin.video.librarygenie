@@ -170,6 +170,9 @@ class QueryManager:
         canonical["created_at"] = item.get("created_at", "")
         canonical["updated_at"] = item.get("updated_at", "")
 
+        # Search score (for AI search results in search history)
+        canonical["search_score"] = item.get("search_score")
+
         return canonical
 
     def _invalidate_after_change(self, operation_type: str, **kwargs):
