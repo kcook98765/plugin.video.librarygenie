@@ -1236,6 +1236,13 @@ class ListsHandler:
                 context.logger.debug("Added pagination controls to list (page %d/%d)",
                                    pagination_info.current_page, pagination_info.total_pages)
 
+            # Set sort methods BEFORE building directory (must be set before endOfDirectory is called)
+            if sort_methods:
+                import xbmcplugin
+                for sort_method in sort_methods:
+                    xbmcplugin.addSortMethod(context.addon_handle, sort_method)
+                context.logger.debug("Applied sort methods before building directory: %s", sort_methods)
+            
             # Build media items using ListItemBuilder
             try:
                 from lib.ui.listitem_builder import ListItemBuilder
