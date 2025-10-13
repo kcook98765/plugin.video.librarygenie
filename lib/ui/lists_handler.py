@@ -1111,11 +1111,22 @@ class ListsHandler:
             is_search_history_list = (search_folder_id and 
                                      str(list_info.get('folder_id')) == str(search_folder_id))
             
+            # DEBUG: Log search history detection details
+            context.logger.info("SCORE DEBUG: Search folder ID = %s, List folder ID = %s, Is search history = %s", 
+                              search_folder_id, list_info.get('folder_id'), is_search_history_list)
+            if list_items:
+                first_item_score = list_items[0].get('search_score') if list_items else None
+                context.logger.info("SCORE DEBUG: First item title = '%s', search_score = %s", 
+                                  list_items[0].get('title', 'Unknown') if list_items else 'N/A', first_item_score)
+            
             # For search history lists, add score prefix to titles and sort by title
             if is_search_history_list:
+                items_with_scores = 0
+                items_without_scores = 0
                 for item in list_items:
                     score = item.get('search_score')
                     if score is not None:
+                        items_with_scores += 1
                         # Normalize score to 0-999 range (assuming API returns 0-1 float)
                         # If score is already in 0-999 range, use it as is
                         if 0 <= score <= 1:
@@ -1128,6 +1139,11 @@ class ListsHandler:
                         item['title'] = f"{normalized_score:03d} {original_title}"
                         context.logger.debug("Added score prefix to '%s': score=%.3f -> %03d", 
                                            original_title, score, normalized_score)
+                    else:
+                        items_without_scores += 1
+                
+                context.logger.info("SCORE DEBUG: Processed %d items - %d with scores, %d without scores", 
+                                  len(list_items), items_with_scores, items_without_scores)
                 
                 # Sort by title in descending order to show highest scores first
                 list_items.sort(key=lambda x: x.get('title', ''), reverse=True)
