@@ -514,11 +514,14 @@ class AISearchHandler:
             with self.query_manager.connection_manager.transaction() as conn:
                 for position, item in enumerate(matched_items):
                     try:
-                        # Add item to list using direct database insert
+                        # Extract search score if present
+                        search_score = item.get('search_score')
+                        
+                        # Add item to list using direct database insert with score
                         conn.execute("""
-                            INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
-                            VALUES (?, ?, ?)
-                        """, [list_id, item['id'], position])
+                            INSERT OR IGNORE INTO list_items (list_id, media_item_id, position, search_score)
+                            VALUES (?, ?, ?, ?)
+                        """, [list_id, item['id'], position, search_score])
                         added_count += 1
 
                     except Exception as e:
