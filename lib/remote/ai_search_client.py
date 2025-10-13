@@ -583,7 +583,7 @@ class AISearchClient:
             self.logger.error("Error getting library stats: %s", e)
             return None
 
-    def search_similar_movies(self, reference_imdb_id: str, facets: Dict[str, bool]) -> Optional[List[str]]:
+    def search_similar_movies(self, reference_imdb_id: str, facets: Dict[str, bool]) -> Optional[List[Dict[str, Any]]]:
         """
         Find movies similar to reference movie using /similar_to endpoint
         Note: Authentication is optional but recommended - if authenticated, results are filtered to only show movies in the user's library
@@ -593,7 +593,7 @@ class AISearchClient:
             facets: Dict with keys: plot, mood, themes, genre (all bool)
 
         Returns:
-            List of similar IMDb IDs or None if failed
+            List of result dicts with imdb_id and score (0.0-1.0) or None if failed
         """
         try:
             # Validate inputs
@@ -620,7 +620,7 @@ class AISearchClient:
 
             if response and response.get('success'):
                 results = response.get('results', [])
-                self.logger.info("Found %s similar movies for %s", len(results), reference_imdb_id)
+                self.logger.info("Found %s similar movies for %s (with scores)", len(results), reference_imdb_id)
                 return results
 
             return None
