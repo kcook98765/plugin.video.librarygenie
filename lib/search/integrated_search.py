@@ -223,6 +223,13 @@ def execute_ai_search_and_save(query: str, max_results: Optional[int] = None, mo
             if db_result and len(db_result) > 0:
                 # Convert database row to dict with all fields
                 item_dict = dict(db_result[0])
+                
+                # Add search score from AI result (for score display in search history)
+                score = result.get('score')
+                if score is not None:
+                    item_dict['search_score'] = score
+                    logger.debug(f"Added score {score} to item {item_dict.get('title', 'Unknown')}")
+                
                 matched_items.append(item_dict)
         
         if not matched_items:
