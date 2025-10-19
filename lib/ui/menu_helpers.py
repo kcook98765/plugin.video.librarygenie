@@ -75,6 +75,7 @@ def build_list_context_menu(context, list_id: Any, list_name: str) -> List[Tuple
         List of context menu items as (label, action) tuples
     """
     return [
+        (f"Edit List Items...", f"RunPlugin({context.build_url('edit_list_items', list_id=list_id)})"),
         (f"Rename '{list_name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
         (f"Move '{list_name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
         (f"Export '{list_name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),

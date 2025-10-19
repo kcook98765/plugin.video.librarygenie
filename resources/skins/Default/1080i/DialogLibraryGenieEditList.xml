@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window type="dialog">
+    <defaultcontrol always="true">500</defaultcontrol>
+    <allowoverlay>yes</allowoverlay>
+    <controls>
+        <!-- FULLSCREEN SOLID BACKGROUND - Layer 1 -->
+        <control type="image" id="1">
+            <description>Fullscreen Dialog Background</description>
+            <left>0</left>
+            <top>0</top>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+            <colordiffuse>FF000000</colordiffuse>
+            <aspectratio>stretch</aspectratio>
+            <visible>true</visible>
+        </control>
+        
+        <!-- FULLSCREEN SOLID BACKGROUND - Layer 2 -->
+        <control type="image" id="2">
+            <description>Black overlay for opacity</description>
+            <left>0</left>
+            <top>0</top>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+            <colordiffuse>EE000000</colordiffuse>
+            <aspectratio>stretch</aspectratio>
+            <visible>true</visible>
+        </control>
+        
+        <!-- FULLSCREEN SOLID BACKGROUND - Layer 3 -->
+        <control type="image" id="3">
+            <description>Third black layer</description>
+            <left>0</left>
+            <top>0</top>
+            <width>1920</width>
+            <height>1080</height>
+            <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+            <colordiffuse>DD000000</colordiffuse>
+            <aspectratio>stretch</aspectratio>
+            <visible>true</visible>
+        </control>
+        
+        <control type="group">
+            <left>100</left>
+            <top>80</top>
+            <width>1720</width>
+            <height>920</height>
+            
+            <!-- Content area background -->
+            <control type="image">
+                <width>1720</width>
+                <height>920</height>
+                <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                <colordiffuse>FF1A1A1A</colordiffuse>
+                <aspectratio>stretch</aspectratio>
+                <visible>true</visible>
+            </control>
+            
+            <!-- Header: List Name -->
+            <control type="label" id="100">
+                <left>40</left>
+                <top>20</top>
+                <width>1640</width>
+                <height>50</height>
+                <align>center</align>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <label>Edit List</label>
+            </control>
+            
+            <!-- Selection counter -->
+            <control type="label" id="101">
+                <left>40</left>
+                <top>70</top>
+                <width>1640</width>
+                <height>30</height>
+                <align>center</align>
+                <font>font12</font>
+                <textcolor>FF00CED1</textcolor>
+                <label>0 items selected</label>
+            </control>
+            
+            <!-- Items List Container -->
+            <control type="panel" id="500">
+                <left>40</left>
+                <top>120</top>
+                <width>1640</width>
+                <height>540</height>
+                <onup>500</onup>
+                <ondown>500</ondown>
+                <onleft>600</onleft>
+                <onright>600</onright>
+                <viewtype label="list">list</viewtype>
+                <pagecontrol>-</pagecontrol>
+                <scrolltime>200</scrolltime>
+                <orientation>vertical</orientation>
+                <itemlayout height="90" width="1640">
+                    <!-- Item background -->
+                    <control type="image">
+                        <left>0</left>
+                        <top>0</top>
+                        <width>1640</width>
+                        <height>88</height>
+                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                        <colordiffuse>FF303030</colordiffuse>
+                        <aspectratio>stretch</aspectratio>
+                    </control>
+                    
+                    <!-- Checkbox indicator -->
+                    <control type="image">
+                        <left>10</left>
+                        <top>30</top>
+                        <width>28</width>
+                        <height>28</height>
+                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                        <colordiffuse>FF666666</colordiffuse>
+                        <visible>!String.IsEqual(ListItem.Property(selected),1)</visible>
+                    </control>
+                    <control type="image">
+                        <left>10</left>
+                        <top>30</top>
+                        <width>28</width>
+                        <height>28</height>
+                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                        <colordiffuse>FF00CED1</colordiffuse>
+                        <visible>String.IsEqual(ListItem.Property(selected),1)</visible>
+                    </control>
+                    
+                    <!-- Poster thumbnail -->
+                    <control type="image">
+                        <left>50</left>
+                        <top>5</top>
+                        <width>56</width>
+                        <height>78</height>
+                        <texture>$INFO[ListItem.Art(poster)]</texture>
+                        <aspectratio>scale</aspectratio>
+                    </control>
+                    
+                    <!-- Title -->
+                    <control type="label">
+                        <left>120</left>
+                        <top>10</top>
+                        <width>800</width>
+                        <height>30</height>
+                        <font>font13</font>
+                        <textcolor>FFFFFFFF</textcolor>
+                        <label>$INFO[ListItem.Label]</label>
+                    </control>
+                    
+                    <!-- Year -->
+                    <control type="label">
+                        <left>120</left>
+                        <top>40</top>
+                        <width>200</width>
+                        <height>25</height>
+                        <font>font12</font>
+                        <textcolor>FFAAAAAA</textcolor>
+                        <label>$INFO[ListItem.Year]</label>
+                    </control>
+                    
+                    <!-- Plot preview -->
+                    <control type="textbox">
+                        <left>120</left>
+                        <top>60</top>
+                        <width>1500</width>
+                        <height>25</height>
+                        <font>font10</font>
+                        <textcolor>FF888888</textcolor>
+                        <label>$INFO[ListItem.Plot]</label>
+                    </control>
+                </itemlayout>
+                
+                <focusedlayout height="90" width="1640">
+                    <!-- Focused item background -->
+                    <control type="image">
+                        <left>0</left>
+                        <top>0</top>
+                        <width>1640</width>
+                        <height>88</height>
+                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                        <colordiffuse>FF2A5A7A</colordiffuse>
+                        <aspectratio>stretch</aspectratio>
+                    </control>
+                    
+                    <!-- Checkbox indicator -->
+                    <control type="image">
+                        <left>10</left>
+                        <top>30</top>
+                        <width>28</width>
+                        <height>28</height>
+                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                        <colordiffuse>FF888888</colordiffuse>
+                        <visible>!String.IsEqual(ListItem.Property(selected),1)</visible>
+                    </control>
+                    <control type="image">
+                        <left>10</left>
+                        <top>30</top>
+                        <width>28</width>
+                        <height>28</height>
+                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
+                        <colordiffuse>FF00E5E5</colordiffuse>
+                        <visible>String.IsEqual(ListItem.Property(selected),1)</visible>
+                    </control>
+                    
+                    <!-- Poster thumbnail -->
+                    <control type="image">
+                        <left>50</left>
+                        <top>5</top>
+                        <width>56</width>
+                        <height>78</height>
+                        <texture>$INFO[ListItem.Art(poster)]</texture>
+                        <aspectratio>scale</aspectratio>
+                    </control>
+                    
+                    <!-- Title -->
+                    <control type="label">
+                        <left>120</left>
+                        <top>10</top>
+                        <width>800</width>
+                        <height>30</height>
+                        <font>font13</font>
+                        <textcolor>FFFFAA00</textcolor>
+                        <label>$INFO[ListItem.Label]</label>
+                    </control>
+                    
+                    <!-- Year -->
+                    <control type="label">
+                        <left>120</left>
+                        <top>40</top>
+                        <width>200</width>
+                        <height>25</height>
+                        <font>font12</font>
+                        <textcolor>FFCCCCCC</textcolor>
+                        <label>$INFO[ListItem.Year]</label>
+                    </control>
+                    
+                    <!-- Plot preview -->
+                    <control type="textbox">
+                        <left>120</left>
+                        <top>60</top>
+                        <width>1500</width>
+                        <height>25</height>
+                        <font>font10</font>
+                        <textcolor>FFAAAAAA</textcolor>
+                        <label>$INFO[ListItem.Plot]</label>
+                    </control>
+                </focusedlayout>
+            </control>
+            
+            <!-- Action Buttons Area -->
+            <control type="grouplist" id="600">
+                <left>40</left>
+                <top>680</top>
+                <width>1640</width>
+                <height>200</height>
+                <orientation>vertical</orientation>
+                <itemgap>10</itemgap>
+                <onup>500</onup>
+                <ondown>600</ondown>
+                <onleft>500</onleft>
+                <onright>500</onright>
+                
+                <!-- Select All button -->
+                <control type="button" id="610">
+                    <width>1640</width>
+                    <height>50</height>
+                    <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                    <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                    <colordiffuse>FF404040</colordiffuse>
+                    <font>font13</font>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFAA00</focusedcolor>
+                    <align>center</align>
+                    <aligny>center</aligny>
+                    <label>Select All / Deselect All</label>
+                </control>
+                
+                <!-- With Selected: Delete button -->
+                <control type="button" id="620">
+                    <width>1640</width>
+                    <height>50</height>
+                    <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                    <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                    <colordiffuse>FF404040</colordiffuse>
+                    <font>font13</font>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFF0000</focusedcolor>
+                    <align>center</align>
+                    <aligny>center</aligny>
+                    <label>Delete Selected Items</label>
+                    <visible>!String.IsEmpty(Window.Property(HasSelection))</visible>
+                </control>
+                
+                <!-- With Selected: Move to List button -->
+                <control type="button" id="630">
+                    <width>1640</width>
+                    <height>50</height>
+                    <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                    <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                    <colordiffuse>FF404040</colordiffuse>
+                    <font>font13</font>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFAA00</focusedcolor>
+                    <align>center</align>
+                    <aligny>center</aligny>
+                    <label>Move Selected to Another List</label>
+                    <visible>!String.IsEmpty(Window.Property(HasSelection))</visible>
+                </control>
+                
+                <!-- Close button -->
+                <control type="button" id="640">
+                    <width>1640</width>
+                    <height>50</height>
+                    <texturefocus colordiffuse="FF2A5A7A">special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturefocus>
+                    <texturenofocus>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texturenofocus>
+                    <colordiffuse>FF606060</colordiffuse>
+                    <font>font13</font>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <focusedcolor>FFFFAA00</focusedcolor>
+                    <align>center</align>
+                    <aligny>center</aligny>
+                    <label>Close</label>
+                </control>
+            </control>
+        </control>
+    </controls>
+</window>
