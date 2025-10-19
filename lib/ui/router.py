@@ -387,6 +387,133 @@ class Router:
             self.logger.error("Error in _handle_show_context_more_menu: %s", e)
             self.dialog_service.ok("Error", f"Failed to show menu: {str(e)}")
 
+    def _handle_edit_intersection_sources(self, context: PluginContext):
+        """Handle edit intersection sources action"""
+        try:
+            list_id = int(context.get_param('list_id'))
+            
+            definition = context.query_manager.get_intersection_list_definition(list_id)
+            if not definition:
+                self.dialog_service.ok("Error", "This is not an intersection list.")
+                return
+            
+            list_info = context.query_manager.get_list_info(list_id)
+            if not list_info:
+                self.dialog_service.ok("Error", "List not found.")
+                return
+            
+            from lib.gui.create_intersection_panel import show_create_intersection_panel
+            
+            result = show_create_intersection_panel(
+                folder_id=list_info.get('folder_id'),
+                edit_mode=True,
+                list_id=list_id,
+                initial_name=definition.get('name', ''),
+                initial_source_list_ids=definition.get('source_list_ids', [])
+            )
+            
+            if result:
+                import xbmc
+                xbmc.executebuiltin('Container.Refresh')
+                
+        except Exception as e:
+            self.logger.error("Error in _handle_edit_intersection_sources: %s", e)
+            self.dialog_service.ok("Error", f"Failed to edit intersection sources: {str(e)}")
+
+    def _handle_view_intersection_sources(self, context: PluginContext):
+        """Handle view intersection sources action"""
+        try:
+            list_id = int(context.get_param('list_id'))
+            
+            definition = context.query_manager.get_intersection_list_definition(list_id)
+            if not definition:
+                self.dialog_service.ok("Error", "This is not an intersection list.")
+                return
+            
+            source_list_ids = definition.get('source_list_ids', [])
+            if not source_list_ids:
+                self.dialog_service.ok("Intersection Sources", "No source lists found.")
+                return
+            
+            source_names = []
+            for source_id in source_list_ids:
+                list_info = context.query_manager.get_list_info(source_id)
+                if list_info:
+                    source_names.append(list_info.get('name', f'List {source_id}'))
+                else:
+                    source_names.append(f'List {source_id} (deleted)')
+            
+            message = "This intersection includes items from ALL of these lists:[CR][CR]"
+            message += "[CR]".join(f"• {name}" for name in source_names)
+            
+            self.dialog_service.ok("Intersection Sources", message)
+                
+        except Exception as e:
+            self.logger.error("Error in _handle_view_intersection_sources: %s", e)
+            self.dialog_service.ok("Error", f"Failed to view intersection sources: {str(e)}")
+
+    def _handle_convert_intersection_to_regular(self, context: PluginContext):
+        """Handle convert intersection to regular list action"""
+        try:
+            list_id = int(context.get_param('list_id'))
+            
+            definition = context.query_manager.get_intersection_list_definition(list_id)
+            if not definition:
+                self.dialog_service.ok("Error", "This is not an intersection list.")
+                return
+            
+            if not self.dialog_service.yesno(
+                "Convert to Regular List",
+                "This will convert the intersection list to a static regular list.[CR][CR]" +
+                "The list will no longer update automatically when source lists change.[CR][CR]" +
+                "Continue?"
+            ):
+                return
+            
+            items = context.query_manager.get_intersection_list_items(list_id)
+            
+            conn = context.query_manager.connection_manager.get_connection()
+            
+            intersection_info = conn.execute(
+                "SELECT id FROM intersection_lists WHERE list_id = ?",
+                (list_id,)
+            ).fetchone()
+            
+            if intersection_info:
+                intersection_list_id = intersection_info['id']
+                
+                conn.execute("DELETE FROM intersection_list_sources WHERE intersection_list_id = ?", 
+                           (intersection_list_id,))
+                conn.execute("DELETE FROM intersection_lists WHERE id = ?", (intersection_list_id,))
+            
+            conn.execute("DELETE FROM list_items WHERE list_id = ?", (list_id,))
+            
+            for item in items:
+                media_item_id = item.get('id') or item.get('media_item_id')
+                if media_item_id:
+                    conn.execute(
+                        "INSERT INTO list_items (list_id, media_item_id) VALUES (?, ?)",
+                        (list_id, media_item_id)
+                    )
+            
+            conn.commit()
+            
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Converted to regular list",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            
+            import xbmc
+            xbmc.executebuiltin('Container.Refresh')
+                
+        except Exception as e:
+            self.logger.error("Error in _handle_convert_intersection_to_regular: %s", e)
+            import traceback
+            self.logger.error("Traceback: %s", traceback.format_exc())
+            self.dialog_service.ok("Error", f"Failed to convert intersection list: {str(e)}")
+
     def dispatch(self, context: PluginContext) -> bool:
         """
         Dispatch request to appropriate handler based on context
@@ -794,6 +921,16 @@ class Router:
                     xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                     return False
 
+            elif action == 'create_intersection_list':
+                folder_id = params.get('folder_id')
+                from lib.gui.create_intersection_panel import show_create_intersection_panel
+                import xbmc
+                result = show_create_intersection_panel(folder_id=int(folder_id) if folder_id else None)
+                if result is True:
+                    xbmc.executebuiltin('Container.Refresh')
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return True
+
             elif action == 'refresh_import':
                 folder_id = params.get('folder_id')
                 if folder_id:
@@ -838,6 +975,21 @@ class Router:
 
             elif action == 'show_context_more_menu':
                 self._handle_show_context_more_menu(context)
+                return True
+
+            elif action == 'edit_intersection_sources':
+                self._handle_edit_intersection_sources(context)
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return True
+
+            elif action == 'view_intersection_sources':
+                self._handle_view_intersection_sources(context)
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return True
+
+            elif action == 'convert_intersection_to_regular':
+                self._handle_convert_intersection_to_regular(context)
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
                 return True
 
             elif action == 'move_list_to_folder':

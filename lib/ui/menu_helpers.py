@@ -46,6 +46,7 @@ def build_folder_context_menu(context, folder_id: Any, folder_name: str) -> List
     current_startup_folder = config.get('startup_folder_id', None)
     
     menu = [
+        ("Create Intersection List...", f"RunPlugin({context.build_url('create_intersection_list', folder_id=folder_id)})"),
         (f"Rename '{folder_name}'", f"RunPlugin({context.build_url('rename_folder', folder_id=folder_id)})"),
         (f"Move '{folder_name}'", f"RunPlugin({context.build_url('move_folder', folder_id=folder_id)})"),
         (f"Delete '{folder_name}'", f"RunPlugin({context.build_url('delete_folder', folder_id=folder_id)})"),
@@ -76,6 +77,30 @@ def build_list_context_menu(context, list_id: Any, list_name: str) -> List[Tuple
     """
     return [
         (f"Edit List Items...", f"RunPlugin({context.build_url('edit_list_items', list_id=list_id)})"),
+        (f"Rename '{list_name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
+        (f"Move '{list_name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
+        (f"Export '{list_name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),
+        (f"Delete '{list_name}'", f"RunPlugin({context.build_url('delete_list', list_id=list_id)})"),
+        get_tools_visibility_toggle_entry(context)
+    ]
+
+
+def build_intersection_list_context_menu(context, list_id: Any, list_name: str) -> List[Tuple[str, str]]:
+    """
+    Build context menu for an intersection list
+    
+    Args:
+        context: PluginContext instance
+        list_id: ID of the intersection list
+        list_name: Name of the intersection list
+        
+    Returns:
+        List of context menu items as (label, action) tuples
+    """
+    return [
+        (f"Edit Intersection Sources...", f"RunPlugin({context.build_url('edit_intersection_sources', list_id=list_id)})"),
+        (f"View Source Lists", f"RunPlugin({context.build_url('view_intersection_sources', list_id=list_id)})"),
+        (f"Convert to Regular List", f"RunPlugin({context.build_url('convert_intersection_to_regular', list_id=list_id)})"),
         (f"Rename '{list_name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
         (f"Move '{list_name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
         (f"Export '{list_name}'", f"RunPlugin({context.build_url('export_list', list_id=list_id)})"),

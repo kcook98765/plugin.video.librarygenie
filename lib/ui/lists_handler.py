@@ -29,7 +29,8 @@ from lib.ui.menu_helpers import (
     build_folder_context_menu,
     build_list_context_menu,
     build_kodi_favorites_context_menu,
-    build_search_history_list_context_menu
+    build_search_history_list_context_menu,
+    build_intersection_list_context_menu
 )
 
 
@@ -931,10 +932,18 @@ class ListsHandler:
                 name = list_item.get('name', 'Unnamed List')
                 description = list_item.get('description', '')
 
-                context_menu = build_list_context_menu(context, list_id, name)
+                # Check if this is an intersection list and use appropriate context menu
+                is_intersection = query_manager.is_intersection_list(int(list_id)) if query_manager else False
+                
+                if is_intersection:
+                    context_menu = build_intersection_list_context_menu(context, list_id, name)
+                    display_name = f"∩ {name}"
+                else:
+                    context_menu = build_list_context_menu(context, list_id, name)
+                    display_name = name
 
                 menu_items.append({
-                    'label': name,
+                    'label': display_name,
                     'url': context.build_url('show_list', list_id=list_id),
                     'is_folder': True,
                     'description': description,
@@ -1089,22 +1098,46 @@ class ListsHandler:
             from lib.ui.pagination_manager import get_pagination_manager
             pagination_manager = get_pagination_manager()
 
-            # Get total count first for pagination calculation
-            total_items = query_manager.get_list_item_count(int(list_id))
+            # Check if this is an intersection list
+            is_intersection = query_manager.is_intersection_list(int(list_id))
+            
+            # Get list items based on list type
+            if is_intersection:
+                # For intersection lists, get dynamically computed items (no pagination needed)
+                list_items = query_manager.get_intersection_list_items(int(list_id))
+                total_items = len(list_items)
+                
+                # Calculate pagination for intersection lists
+                pagination_info = pagination_manager.calculate_pagination(
+                    total_items=total_items,
+                    current_page=current_page,
+                    base_page_size=100  # Base size for auto mode calculation
+                )
+                
+                # Apply pagination to intersection list items
+                start_idx = pagination_info.start_index
+                end_idx = start_idx + pagination_info.page_size
+                list_items = list_items[start_idx:end_idx]
+                
+                context.logger.debug("Intersection list %s: %d total items, showing %d-%d", 
+                                   list_id, total_items, start_idx, end_idx)
+            else:
+                # For regular lists, use existing pagination logic
+                total_items = query_manager.get_list_item_count(int(list_id))
 
-            # Calculate pagination using settings-based page size
-            pagination_info = pagination_manager.calculate_pagination(
-                total_items=total_items,
-                current_page=current_page,
-                base_page_size=100  # Base size for auto mode calculation
-            )
+                # Calculate pagination using settings-based page size
+                pagination_info = pagination_manager.calculate_pagination(
+                    total_items=total_items,
+                    current_page=current_page,
+                    base_page_size=100  # Base size for auto mode calculation
+                )
 
-            # Get list items with pagination
-            list_items = query_manager.get_list_items(
-                list_id,
-                limit=pagination_info.page_size,
-                offset=pagination_info.start_index
-            )
+                # Get list items with pagination
+                list_items = query_manager.get_list_items(
+                    list_id,
+                    limit=pagination_info.page_size,
+                    offset=pagination_info.start_index
+                )
             
             # Check if this is a search history list
             search_folder_id = query_manager.get_or_create_search_history_folder()
@@ -1143,8 +1176,10 @@ class ListsHandler:
 
             context.logger.debug("List '%s' has %s items", list_info['name'], len(list_items))
 
-            # Set directory title with breadcrumb context
+            # Set directory title with breadcrumb context (add intersection indicator)
             directory_title = self.breadcrumb_helper.get_directory_title_breadcrumb("show_list", {"list_id": list_id}, query_manager)
+            if is_intersection and directory_title:
+                directory_title = f"∩ {directory_title}"
             if directory_title:
                 try:
                     # Set the directory title in Kodi using proper window property API
@@ -1894,11 +1929,20 @@ class ListsHandler:
             list_id = list_item.get('id')
             name = list_item.get('name', 'Unnamed List')
             description = list_item.get('description', '')
+            
+            # Check if this is an intersection list
+            is_intersection = query_manager.is_intersection_list(int(list_id)) if query_manager else False
 
-            context_menu = build_list_context_menu(context, list_id, name)
+            # Use appropriate context menu and display name based on list type
+            if is_intersection:
+                context_menu = build_intersection_list_context_menu(context, list_id, name)
+                display_name = f"∩ {name}"
+            else:
+                context_menu = build_list_context_menu(context, list_id, name)
+                display_name = name
 
             list_cache_item = {
-                'label': name,
+                'label': display_name,
                 'url': context.build_url('show_list', list_id=list_id),
                 'is_folder': True,
                 'description': description,
