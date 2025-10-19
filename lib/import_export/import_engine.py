@@ -558,6 +558,13 @@ class ImportEngine:
                 errors.extend(list_errors)
                 list_id_mapping.update(id_mapping)
 
+            # Import intersection list definitions if present
+            if "intersection_definitions" in payload and list_id_mapping:
+                intersection_errors = self._import_intersection_definitions(
+                    payload["intersection_definitions"], list_id_mapping
+                )
+                errors.extend(intersection_errors)
+
             # Import list items with corrected list IDs
             if "list_items" in payload:
                 added, skipped, unmatched, unmatch_data, item_errors = self._import_list_items(
@@ -766,6 +773,93 @@ class ImportEngine:
                 errors.append(f"Error importing item {item_data.get('title', 'unknown')}: {e}")
 
         return added, skipped, unmatched, unmatched_items, errors
+
+    def _import_intersection_definitions(self, intersection_defs: Dict[str, Dict[str, Any]], 
+                                        list_id_mapping: Dict[str, str]) -> List[str]:
+        """Import intersection list definitions after lists have been created
+        
+        Args:
+            intersection_defs: Dictionary mapping old list_id to {source_list_ids: [...]}
+            list_id_mapping: Dictionary mapping old list IDs to new list IDs
+            
+        Returns:
+            List of error messages
+        """
+        errors = []
+        
+        try:
+            for old_list_id, definition in intersection_defs.items():
+                try:
+                    # Get the new list ID for the intersection list
+                    new_list_id = list_id_mapping.get(str(old_list_id))
+                    if not new_list_id:
+                        self.logger.warning("Skipping intersection definition for unmapped list %s", old_list_id)
+                        continue
+                    
+                    # Get source list IDs and map them to new IDs
+                    old_source_list_ids = definition.get('source_list_ids', [])
+                    if not old_source_list_ids:
+                        self.logger.warning("Intersection list %s has no source lists", old_list_id)
+                        continue
+                    
+                    # Map old source list IDs to new source list IDs
+                    new_source_list_ids = []
+                    for old_source_id in old_source_list_ids:
+                        new_source_id = list_id_mapping.get(str(old_source_id))
+                        if new_source_id:
+                            new_source_list_ids.append(int(new_source_id))
+                        else:
+                            self.logger.warning("Source list %s not found in mapping for intersection list %s", 
+                                              old_source_id, old_list_id)
+                    
+                    # Only create intersection if we have at least 2 source lists
+                    if len(new_source_list_ids) < 2:
+                        errors.append(f"Intersection list {old_list_id} needs at least 2 source lists, "
+                                    f"only {len(new_source_list_ids)} were successfully mapped")
+                        continue
+                    
+                    # Create intersection list entries in database directly
+                    # We can't use query_manager.create_intersection_list() because the list already exists
+                    with self.conn_manager.transaction() as conn:
+                        # First, insert into intersection_lists table
+                        # Get the list name for the intersection_lists table
+                        list_info = conn.execute(
+                            "SELECT name FROM lists WHERE id = ?", [int(new_list_id)]
+                        ).fetchone()
+                        
+                        if not list_info:
+                            errors.append(f"List {new_list_id} not found when creating intersection definition")
+                            continue
+                        
+                        list_name = list_info['name'] if hasattr(list_info, '__getitem__') else list_info[0]
+                        
+                        # Insert into intersection_lists
+                        cursor = conn.execute("""
+                            INSERT INTO intersection_lists (list_id, name)
+                            VALUES (?, ?)
+                        """, [int(new_list_id), list_name])
+                        
+                        intersection_list_id = cursor.lastrowid
+                        
+                        # Insert into intersection_list_sources for each source list
+                        for source_list_id in new_source_list_ids:
+                            conn.execute("""
+                                INSERT INTO intersection_list_sources (intersection_list_id, source_list_id)
+                                VALUES (?, ?)
+                            """, [intersection_list_id, source_list_id])
+                        
+                        self.logger.info("Created intersection list definition for list %s with %d sources", 
+                                       new_list_id, len(new_source_list_ids))
+                
+                except Exception as e:
+                    self.logger.error("Error importing intersection definition for list %s: %s", old_list_id, e)
+                    errors.append(f"Failed to import intersection definition for list {old_list_id}: {e}")
+            
+            return errors
+            
+        except Exception as e:
+            self.logger.error("Error importing intersection definitions: %s", e)
+            return [f"Error importing intersection definitions: {e}"]
 
     def import_from_content(self, content: str, filename: str, replace_mode: bool = False) -> Dict[str, Any]:
         """Import data from file content string (used by backup restoration)"""

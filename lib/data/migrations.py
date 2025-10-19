@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 9
+TARGET_SCHEMA_VERSION = 10
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 9, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 10, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -218,6 +218,30 @@ class MigrationManager:
         CREATE INDEX idx_list_items_position ON list_items (list_id, position);
         CREATE INDEX idx_list_items_list_id ON list_items (list_id);
         CREATE INDEX idx_list_items_media_item_id ON list_items (media_item_id);
+        
+        -- Intersection lists tables
+        CREATE TABLE intersection_lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            list_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+        );
+        
+        CREATE INDEX idx_intersection_lists_list_id ON intersection_lists (list_id);
+        
+        CREATE TABLE intersection_list_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            intersection_list_id INTEGER NOT NULL,
+            source_list_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (intersection_list_id) REFERENCES intersection_lists(id) ON DELETE CASCADE,
+            FOREIGN KEY (source_list_id) REFERENCES lists(id) ON DELETE CASCADE
+        );
+        
+        CREATE INDEX idx_intersection_list_sources_intersection_id ON intersection_list_sources (intersection_list_id);
+        CREATE INDEX idx_intersection_list_sources_source_list ON intersection_list_sources (source_list_id);
+        CREATE UNIQUE INDEX idx_intersection_list_sources_unique ON intersection_list_sources (intersection_list_id, source_list_id);
         
         -- Additional essential tables
         CREATE TABLE sync_state (
@@ -605,6 +629,35 @@ class MigrationManager:
                 self.logger.info("Migrating from version 8 to 9: Adding search_score column to list_items table")
                 conn.execute("ALTER TABLE list_items ADD COLUMN search_score REAL")
                 self.logger.info("search_score column added to list_items table successfully")
+            
+            # Migration from version 9 to 10: Add intersection lists tables
+            if current_version < 10:
+                self.logger.info("Migrating from version 9 to 10: Adding intersection lists tables")
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS intersection_lists (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        list_id INTEGER NOT NULL,
+                        name TEXT NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+                    )
+                """)
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_intersection_lists_list_id ON intersection_lists (list_id)")
+                
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS intersection_list_sources (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        intersection_list_id INTEGER NOT NULL,
+                        source_list_id INTEGER NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        FOREIGN KEY (intersection_list_id) REFERENCES intersection_lists(id) ON DELETE CASCADE,
+                        FOREIGN KEY (source_list_id) REFERENCES lists(id) ON DELETE CASCADE
+                    )
+                """)
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_intersection_list_sources_intersection_id ON intersection_list_sources (intersection_list_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_intersection_list_sources_source_list ON intersection_list_sources (source_list_id)")
+                conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_intersection_list_sources_unique ON intersection_list_sources (intersection_list_id, source_list_id)")
+                self.logger.info("Intersection lists tables created successfully")
             
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)

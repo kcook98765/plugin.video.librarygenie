@@ -50,6 +50,13 @@ class ExportEngine:
 
                 self.logger.info("Collected %s items for %s", count, export_type)
 
+            # If lists are being exported, also collect intersection list definitions
+            if "lists" in export_types:
+                intersection_defs = self._collect_intersection_definitions(payload.get("lists", []))
+                if intersection_defs:
+                    payload["intersection_definitions"] = intersection_defs
+                    self.logger.info("Collected %d intersection list definitions", len(intersection_defs))
+
             # Create envelope
             envelope = ExportEnvelope.create(export_types, payload)
 
@@ -192,6 +199,43 @@ class ExportEngine:
             lists_data.append(list_dict)
 
         return lists_data, len(lists_data)
+
+    def _collect_intersection_definitions(self, lists_data: List[Dict]) -> Dict[str, Dict[str, Any]]:
+        """Collect intersection list definitions for exported lists
+        
+        Args:
+            lists_data: List of exported list dictionaries
+            
+        Returns:
+            Dictionary mapping list_id to intersection definition {source_list_ids: [...]}
+        """
+        intersection_definitions = {}
+        
+        try:
+            # Import query_manager to check for intersection lists
+            from lib.data import QueryManager
+            query_manager = QueryManager()
+            
+            for list_dict in lists_data:
+                list_id = list_dict.get('id')
+                if not list_id:
+                    continue
+                
+                # Check if this list is an intersection list
+                if query_manager.is_intersection_list(list_id):
+                    definition = query_manager.get_intersection_list_definition(list_id)
+                    if definition and definition.get('source_list_ids'):
+                        intersection_definitions[str(list_id)] = {
+                            'source_list_ids': definition['source_list_ids']
+                        }
+                        self.logger.debug("Collected intersection definition for list %d with %d sources", 
+                                        list_id, len(definition['source_list_ids']))
+            
+            return intersection_definitions
+            
+        except Exception as e:
+            self.logger.error("Error collecting intersection definitions: %s", e)
+            return {}
 
     def _collect_list_items_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
         """Collect list items (membership) data with optional context filtering

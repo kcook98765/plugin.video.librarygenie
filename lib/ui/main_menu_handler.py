@@ -71,6 +71,14 @@ class MainMenuHandler:
                 description="Search your media library"
             )
             
+            # Add Create Intersection List menu item
+            menu_builder.add_menu_item(
+                label="Create Intersection List...",
+                action="create_intersection_list",
+                icon="DefaultPlaylist.png",
+                description="Create a new intersection list from multiple source lists"
+            )
+            
             # Build and display menu
             list_items = menu_builder.build()
             
