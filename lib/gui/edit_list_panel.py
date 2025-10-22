@@ -117,7 +117,7 @@ class EditListPanel(xbmcgui.WindowXMLDialog):
             
             list_item.setProperty('year', str(year) if year else '')
             list_item.setProperty('plot', plot)
-            list_item.setProperty('selected', '0')
+            list_item.setProperty('selected', 'false')
             
             info_labels = {
                 'title': title,
@@ -177,11 +177,11 @@ class EditListPanel(xbmcgui.WindowXMLDialog):
             
             if item_id in self._selected_items:
                 self._selected_items.remove(item_id)
-                list_item.setProperty('selected', '0')
+                list_item.setProperty('selected', 'false')
                 self.logger.debug("Deselected item at position %s (id=%s)", position, item_id)
             else:
                 self._selected_items.add(item_id)
-                list_item.setProperty('selected', '1')
+                list_item.setProperty('selected', 'true')
                 self.logger.debug("Selected item at position %s (id=%s)", position, item_id)
             
             self._update_selection_counter()
@@ -200,7 +200,7 @@ class EditListPanel(xbmcgui.WindowXMLDialog):
                     if item_id:
                         self._selected_items.add(item_id)
                         list_item = self.list_container.getListItem(idx)
-                        list_item.setProperty('selected', '1')
+                        list_item.setProperty('selected', 'true')
                 
                 self._update_selection_counter()
                 self.logger.debug("Selected all %s items", len(self._items))
@@ -213,7 +213,7 @@ class EditListPanel(xbmcgui.WindowXMLDialog):
         try:
             for idx in range(len(self._items)):
                 list_item = self.list_container.getListItem(idx)
-                list_item.setProperty('selected', '0')
+                list_item.setProperty('selected', 'false')
             
             self._selected_items.clear()
             self._update_selection_counter()
