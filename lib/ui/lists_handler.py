@@ -1170,7 +1170,6 @@ class ListsHandler:
                 context.logger.debug("Sorted %d search history items by title (descending) - highest scores first", len(list_items))
                 
                 # Set UNSORTED sort method to preserve Python sort order and prevent skin from overriding
-                import xbmcplugin
                 sort_methods = [xbmcplugin.SORT_METHOD_UNSORTED]
                 context.logger.debug("Set SORT_METHOD_UNSORTED to preserve score-based ordering")
 
@@ -1273,7 +1272,6 @@ class ListsHandler:
 
             # Set sort methods BEFORE building directory (must be set before endOfDirectory is called)
             if sort_methods:
-                import xbmcplugin
                 for sort_method in sort_methods:
                     xbmcplugin.addSortMethod(context.addon_handle, sort_method)
                 context.logger.debug("Applied sort methods before building directory: %s", sort_methods)

@@ -109,23 +109,25 @@
                     </control>
                     
                     <!-- Checkbox indicator -->
-                    <control type="image">
+                    <control type="label">
                         <left>10</left>
-                        <top>30</top>
-                        <width>28</width>
-                        <height>28</height>
-                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
-                        <colordiffuse>FF666666</colordiffuse>
-                        <visible>!String.IsEqual(ListItem.Property(selected),1)</visible>
+                        <top>26</top>
+                        <width>40</width>
+                        <height>36</height>
+                        <font>font13</font>
+                        <textcolor>FF666666</textcolor>
+                        <label>[ ]</label>
+                        <visible>String.IsEqual(ListItem.Property(selected),false)</visible>
                     </control>
-                    <control type="image">
+                    <control type="label">
                         <left>10</left>
-                        <top>30</top>
-                        <width>28</width>
-                        <height>28</height>
-                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
-                        <colordiffuse>FF00CED1</colordiffuse>
-                        <visible>String.IsEqual(ListItem.Property(selected),1)</visible>
+                        <top>26</top>
+                        <width>40</width>
+                        <height>36</height>
+                        <font>font13</font>
+                        <textcolor>FF00CED1</textcolor>
+                        <label>[X]</label>
+                        <visible>String.IsEqual(ListItem.Property(selected),true)</visible>
                     </control>
                     
                     <!-- Poster thumbnail -->
@@ -185,23 +187,25 @@
                     </control>
                     
                     <!-- Checkbox indicator -->
-                    <control type="image">
+                    <control type="label">
                         <left>10</left>
-                        <top>30</top>
-                        <width>28</width>
-                        <height>28</height>
-                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
-                        <colordiffuse>FF888888</colordiffuse>
-                        <visible>!String.IsEqual(ListItem.Property(selected),1)</visible>
+                        <top>26</top>
+                        <width>40</width>
+                        <height>36</height>
+                        <font>font13</font>
+                        <textcolor>FF888888</textcolor>
+                        <label>[ ]</label>
+                        <visible>String.IsEqual(ListItem.Property(selected),false)</visible>
                     </control>
-                    <control type="image">
+                    <control type="label">
                         <left>10</left>
-                        <top>30</top>
-                        <width>28</width>
-                        <height>28</height>
-                        <texture>special://home/addons/plugin.video.librarygenie/resources/media/solid.png</texture>
-                        <colordiffuse>FF00E5E5</colordiffuse>
-                        <visible>String.IsEqual(ListItem.Property(selected),1)</visible>
+                        <top>26</top>
+                        <width>40</width>
+                        <height>36</height>
+                        <font>font13</font>
+                        <textcolor>FF00E5E5</textcolor>
+                        <label>[X]</label>
+                        <visible>String.IsEqual(ListItem.Property(selected),true)</visible>
                     </control>
                     
                     <!-- Poster thumbnail -->
