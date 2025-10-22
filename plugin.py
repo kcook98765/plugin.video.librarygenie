@@ -1193,6 +1193,22 @@ def _register_all_handlers(router: 'Router'):
         factory.context = ctx
         return _handle_dialog_response(ctx, factory.get_lists_handler().rename_list(ctx, ctx.get_param('list_id')))
     
+    def _handle_edit_list_items(ctx):
+        from lib.gui.edit_list_panel import show_edit_list_panel
+        from lib.data.query_manager import get_query_manager
+        
+        list_id = ctx.get_param('list_id')
+        query_manager = get_query_manager()
+        
+        list_info = query_manager.get_list_by_id(list_id) if query_manager else None
+        list_name = list_info.get('name', 'Unknown List') if list_info else 'Unknown List'
+        
+        result = show_edit_list_panel(list_id, list_name)
+        
+        if result and result.get('changes_made'):
+            import xbmc
+            xbmc.executebuiltin('Container.Refresh')
+    
     def _handle_remove_from_list_handler(ctx):
         factory = _get_factory()
         factory.context = ctx
@@ -1216,6 +1232,7 @@ def _register_all_handlers(router: 'Router'):
 
     router.register_handler('delete_list', _handle_delete_list)
     router.register_handler('rename_list', _handle_rename_list)
+    router.register_handler('edit_list_items', _handle_edit_list_items)
     router.register_handler('remove_from_list', _handle_remove_from_list_handler)
     router.register_handler('rename_folder', _handle_rename_folder)
     router.register_handler('delete_folder', _handle_delete_folder)

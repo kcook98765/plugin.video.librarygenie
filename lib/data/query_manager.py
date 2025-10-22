@@ -170,6 +170,9 @@ class QueryManager:
         canonical["created_at"] = item.get("created_at", "")
         canonical["updated_at"] = item.get("updated_at", "")
 
+        # Search score (for AI search results in search history)
+        canonical["search_score"] = item.get("search_score")
+
         return canonical
 
     def _invalidate_after_change(self, operation_type: str, **kwargs):
@@ -325,6 +328,7 @@ class QueryManager:
                     li.media_item_id as id,
                     li.media_item_id as item_id,
                     li.position as order_score,
+                    li.search_score,
                     mi.kodi_id,
                     mi.media_type,
                     mi.title,
@@ -842,11 +846,15 @@ class QueryManager:
                         media_item_id = self._insert_or_get_media_item(conn, media_data)
 
                         if media_item_id:
-                            # Add to list
+                            # Extract search score if present (from AI search results)
+                            search_score = item.get('search_score')
+                            
+                            # Use INSERT OR REPLACE to handle duplicates and preserve search_score
+                            # This ensures search_score is always stored, even if the item already exists
                             conn.execute("""
-                                INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
-                                VALUES (?, ?, ?)
-                            """, [list_id, media_item_id, position])
+                                INSERT OR REPLACE INTO list_items (list_id, media_item_id, position, search_score)
+                                VALUES (?, ?, ?, ?)
+                            """, [list_id, media_item_id, position, search_score])
                             added_count += 1
 
                     except Exception as e:
@@ -2452,6 +2460,302 @@ class QueryManager:
         except Exception as e:
             self.logger.error("Failed to move folder %s to destination %s: %s", folder_id, target_folder_id, e)
             return {"success": False, "error": "database_error"}
+
+    def create_intersection_list(self, name: str, folder_id: Optional[int], source_list_ids: List[int]) -> Optional[int]:
+        """Create a new intersection list
+        
+        Args:
+            name: Name for the intersection list
+            folder_id: Parent folder ID (or None for root)
+            source_list_ids: List of source list IDs to intersect
+            
+        Returns:
+            The new list_id on success, None on failure
+        """
+        if not name or not name.strip():
+            self.logger.warning("Attempted to create intersection list with empty name")
+            return None
+            
+        if not source_list_ids or len(source_list_ids) < 2:
+            self.logger.warning("Attempted to create intersection list with fewer than 2 source lists")
+            return None
+        
+        name = name.strip()
+        
+        try:
+            self.logger.debug("Creating intersection list '%s' with %d source lists in folder %s", 
+                            name, len(source_list_ids), folder_id)
+            
+            with self.connection_manager.transaction() as conn:
+                # First create a regular list entry
+                cursor = conn.execute("""
+                    INSERT INTO lists (name, folder_id) 
+                    VALUES (?, ?)
+                """, [name, folder_id])
+                
+                list_id = cursor.lastrowid
+                
+                # Create intersection_lists entry
+                cursor = conn.execute("""
+                    INSERT INTO intersection_lists (list_id, name)
+                    VALUES (?, ?)
+                """, [list_id, name])
+                
+                intersection_list_id = cursor.lastrowid
+                
+                # Create intersection_list_sources entries for each source list
+                for source_list_id in source_list_ids:
+                    conn.execute("""
+                        INSERT INTO intersection_list_sources (intersection_list_id, source_list_id)
+                        VALUES (?, ?)
+                    """, [intersection_list_id, source_list_id])
+                
+                self.logger.info("Created intersection list '%s' with ID %d", name, list_id)
+            
+            # Invalidate cache after successful creation
+            self._invalidate_after_change("create_list", folder_id=folder_id)
+            
+            return list_id
+            
+        except Exception as e:
+            self.logger.error("Failed to create intersection list '%s': %s", name, e)
+            return None
+    
+    def get_intersection_list_definition(self, list_id: int) -> Optional[Dict[str, Any]]:
+        """Get intersection list definition if this list is an intersection list
+        
+        Args:
+            list_id: The list ID to check
+            
+        Returns:
+            Dict with intersection list info, or None if not an intersection list
+            Format: {
+                'intersection_list_id': int,
+                'list_id': int,
+                'name': str,
+                'source_list_ids': [list of source list IDs]
+            }
+        """
+        try:
+            self.logger.debug("Getting intersection list definition for list %d", list_id)
+            
+            # Check if this list is an intersection list
+            intersection_info = self.connection_manager.execute_single("""
+                SELECT id, list_id, name
+                FROM intersection_lists
+                WHERE list_id = ?
+            """, [int(list_id)])
+            
+            if not intersection_info:
+                self.logger.debug("List %d is not an intersection list", list_id)
+                return None
+            
+            # Get source list IDs
+            source_lists = self.connection_manager.execute_query("""
+                SELECT source_list_id
+                FROM intersection_list_sources
+                WHERE intersection_list_id = ?
+                ORDER BY source_list_id
+            """, [intersection_info['id']])
+            
+            source_list_ids = [row['source_list_id'] for row in source_lists]
+            
+            result = {
+                'intersection_list_id': intersection_info['id'],
+                'list_id': intersection_info['list_id'],
+                'name': intersection_info['name'],
+                'source_list_ids': source_list_ids
+            }
+            
+            self.logger.debug("List %d is intersection list with %d sources", list_id, len(source_list_ids))
+            return result
+            
+        except Exception as e:
+            self.logger.error("Failed to get intersection list definition for list %d: %s", list_id, e)
+            return None
+    
+    def get_intersection_list_items(self, list_id: int) -> List[Dict[str, Any]]:
+        """Compute and return items that exist in ALL source lists of an intersection list
+        
+        Args:
+            list_id: The intersection list ID
+            
+        Returns:
+            List of normalized media items that exist in all source lists
+        """
+        try:
+            self.logger.debug("Getting intersection list items for list %d", list_id)
+            
+            # First get the intersection definition
+            definition = self.get_intersection_list_definition(list_id)
+            if not definition:
+                self.logger.debug("List %d is not an intersection list, returning empty list", list_id)
+                return []
+            
+            source_list_ids = definition['source_list_ids']
+            if not source_list_ids:
+                self.logger.debug("Intersection list %d has no source lists", list_id)
+                return []
+            
+            # Build query to find media items that exist in ALL source lists
+            # We need items where COUNT(DISTINCT list_id) = number of source lists
+            num_sources = len(source_list_ids)
+            placeholders = ','.join(['?'] * num_sources)
+            
+            connection = self.connection_manager.get_connection()
+            cursor = connection.cursor()
+            
+            # Query for media items that appear in ALL source lists
+            query = f"""
+                SELECT 
+                    li.media_item_id as id,
+                    li.media_item_id as item_id,
+                    mi.kodi_id,
+                    mi.media_type,
+                    mi.title,
+                    mi.year,
+                    mi.imdbnumber as imdb_id,
+                    mi.tmdb_id,
+                    mi.plot,
+                    mi.rating,
+                    mi.votes,
+                    mi.duration,
+                    mi.duration_seconds,
+                    mi.mpaa,
+                    mi.genre,
+                    mi.director,
+                    mi.studio,
+                    mi.country,
+                    mi.writer,
+                    mi.art,
+                    mi.play as file_path,
+                    mi.source,
+                    mi.tvshowtitle,
+                    mi.season,
+                    mi.episode,
+                    mi.aired,
+                    mi.created_at,
+                    mi.updated_at
+                FROM (
+                    SELECT media_item_id
+                    FROM list_items
+                    WHERE list_id IN ({placeholders})
+                    GROUP BY media_item_id
+                    HAVING COUNT(DISTINCT list_id) = ?
+                ) AS intersection
+                JOIN list_items li ON li.media_item_id = intersection.media_item_id
+                JOIN media_items mi ON li.media_item_id = mi.id
+                WHERE li.list_id = ?
+                ORDER BY mi.title ASC
+            """
+            
+            # Parameters: source list IDs + num_sources + first source list for final join
+            params = source_list_ids + [num_sources, source_list_ids[0]]
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            self.logger.debug("Intersection query returned %d items", len(rows))
+            
+            items = []
+            for row in rows:
+                # Convert row to dict
+                item = self._row_to_dict(row)
+                
+                # Parse art JSON if present
+                if item.get('art') and isinstance(item['art'], str):
+                    try:
+                        from lib.utils.kodi_version import get_kodi_major_version
+                        art_dict = json.loads(item['art'])
+                        kodi_major = get_kodi_major_version()
+                        item['art'] = self._format_art_for_kodi_version(art_dict, kodi_major)
+                    except json.JSONDecodeError:
+                        self.logger.warning("Failed to parse art JSON for item %s", item.get('title', 'Unknown'))
+                        item['art'] = {}
+                
+                # Normalize to canonical format
+                canonical_item = self._normalize_to_canonical(item)
+                items.append(canonical_item)
+            
+            self.logger.debug("Returning %d intersection items for list %d", len(items), list_id)
+            return items
+            
+        except Exception as e:
+            self.logger.error("Failed to get intersection list items for list %d: %s", list_id, e)
+            import traceback
+            self.logger.error("Traceback: %s", traceback.format_exc())
+            return []
+    
+    def update_intersection_list_sources(self, list_id: int, new_source_list_ids: List[int]) -> bool:
+        """Update the source lists for an intersection list
+        
+        Args:
+            list_id: The intersection list ID
+            new_source_list_ids: New list of source list IDs
+            
+        Returns:
+            True on success, False on failure
+        """
+        if not new_source_list_ids or len(new_source_list_ids) < 2:
+            self.logger.warning("Attempted to update intersection list with fewer than 2 source lists")
+            return False
+        
+        try:
+            self.logger.debug("Updating intersection list %d with %d new source lists", 
+                            list_id, len(new_source_list_ids))
+            
+            # First verify this is an intersection list
+            definition = self.get_intersection_list_definition(list_id)
+            if not definition:
+                self.logger.warning("List %d is not an intersection list", list_id)
+                return False
+            
+            intersection_list_id = definition['intersection_list_id']
+            
+            with self.connection_manager.transaction() as conn:
+                # Delete existing source entries
+                conn.execute("""
+                    DELETE FROM intersection_list_sources
+                    WHERE intersection_list_id = ?
+                """, [intersection_list_id])
+                
+                # Insert new source entries
+                for source_list_id in new_source_list_ids:
+                    conn.execute("""
+                        INSERT INTO intersection_list_sources (intersection_list_id, source_list_id)
+                        VALUES (?, ?)
+                    """, [intersection_list_id, source_list_id])
+                
+                self.logger.info("Updated intersection list %d with %d new sources", 
+                               list_id, len(new_source_list_ids))
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error("Failed to update intersection list sources for list %d: %s", list_id, e)
+            return False
+    
+    def is_intersection_list(self, list_id: int) -> bool:
+        """Check if a list is an intersection list
+        
+        Args:
+            list_id: The list ID to check
+            
+        Returns:
+            True if the list is an intersection list, False otherwise
+        """
+        try:
+            result = self.connection_manager.execute_single("""
+                SELECT id FROM intersection_lists WHERE list_id = ?
+            """, [int(list_id)])
+            
+            is_intersection = result is not None
+            self.logger.debug("List %d is%s an intersection list", 
+                            list_id, "" if is_intersection else " not")
+            return is_intersection
+            
+        except Exception as e:
+            self.logger.error("Failed to check if list %d is intersection list: %s", list_id, e)
+            return False
 
 
 # Global query manager instance

@@ -98,17 +98,21 @@ class AISearchHandler:
 
             progress.update(60, "Matching with local library...")
 
-            # Extract IMDb IDs from AI search results
+            # Extract IMDb IDs and scores from AI search results
             imdb_ids = []
+            score_map = {}  # Maps imdb_id -> score
             for result in ai_results:
                 imdb_id = result.get('imdb_id')
                 if imdb_id and imdb_id.startswith('tt'):
                     imdb_ids.append(imdb_id)
+                    # Store score for this IMDb ID
+                    score = result.get('score', 0)
+                    score_map[imdb_id] = score
 
-            self.logger.info("AI SEARCH: Extracted %s IMDb IDs from AI results", len(imdb_ids))
+            self.logger.info("AI SEARCH: Extracted %s IMDb IDs with scores from AI results", len(imdb_ids))
 
-            # Match IMDb IDs with local media items
-            matched_items = self._match_imdb_ids_to_media_items(imdb_ids)
+            # Match IMDb IDs with local media items, including scores
+            matched_items = self._match_imdb_ids_to_media_items(imdb_ids, score_map)
 
             progress.update(80, "Creating search history...")
 
@@ -147,16 +151,19 @@ class AISearchHandler:
             self.dialog.show_error("Search error occurred", title="AI Search", time_ms=5000)
             return False
 
-    def _match_imdb_ids_to_media_items(self, imdb_ids: List[str]) -> List[Dict[str, Any]]:
+    def _match_imdb_ids_to_media_items(self, imdb_ids: List[str], score_map: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
         """
         Match IMDb IDs to existing media items in the database and build standard media item format
 
         Args:
             imdb_ids: List of IMDb IDs to match
+            score_map: Optional dict mapping imdb_id to search score
 
         Returns:
             List of matched media item dictionaries in standard format
         """
+        if score_map is None:
+            score_map = {}
         try:
             # Use correct column names from schema
             placeholders = ','.join(['?' for _ in imdb_ids])
@@ -175,18 +182,20 @@ class AISearchHandler:
             for row in rows:
                 item_dict = dict(row)
                 # Convert to standard format expected by add_search_results_to_list
+                imdb_id = item_dict.get('imdbnumber', '')
                 standard_item = {
                     'id': item_dict.get('id'),  # Database ID from media_items table
                     'kodi_id': item_dict.get('kodi_id'),
                     'media_type': item_dict.get('media_type', 'movie'),
                     'title': item_dict.get('title', ''),
                     'year': item_dict.get('year', 0),
-                    'imdb_id': item_dict.get('imdbnumber', ''),
+                    'imdb_id': imdb_id,
                     'plot': item_dict.get('plot', ''),
                     'rating': item_dict.get('rating', 0),
                     'genre': item_dict.get('genre', ''),
                     'runtime': item_dict.get('duration', 0),
-                    'source': 'ai_search'
+                    'source': 'ai_search',
+                    'search_score': score_map.get(imdb_id)  # Add search score from mapping
                 }
 
                 # Parse art JSON if available
@@ -355,9 +364,9 @@ class AISearchHandler:
             progress.update(40, "Searching for similar movies...")
 
             # Call similar movies endpoint
-            similar_imdb_ids = self.ai_client.search_similar_movies(imdb_id, facets)
+            similar_results = self.ai_client.search_similar_movies(imdb_id, facets)
 
-            if not similar_imdb_ids:
+            if not similar_results:
                 progress.close()
                 self.logger.debug("SIMILAR MOVIES: No similar movies found")
                 self.dialog.show_success("No similar movies found", title="Similar Movies", time_ms=3000)
@@ -365,14 +374,27 @@ class AISearchHandler:
 
             progress.update(60, "Matching with local library...")
 
-            # Match IMDb IDs with local media items
-            matched_items = self._match_imdb_ids_to_media_items(similar_imdb_ids)
+            # Extract IMDb IDs and scores from similarity results
+            imdb_ids = []
+            score_map = {}  # Maps imdb_id -> score
+            for result in similar_results:
+                result_imdb_id = result.get('imdb_id')
+                if result_imdb_id and result_imdb_id.startswith('tt'):
+                    imdb_ids.append(result_imdb_id)
+                    # Store score for this IMDb ID (normalized 0.0-1.0)
+                    score = result.get('score', 0.0)
+                    score_map[result_imdb_id] = score
+
+            self.logger.info("SIMILAR MOVIES: Extracted %s IMDb IDs with scores from similarity results", len(imdb_ids))
+
+            # Match IMDb IDs with local media items, including scores
+            matched_items = self._match_imdb_ids_to_media_items(imdb_ids, score_map)
 
             progress.update(80, "Creating results list...")
 
             # Create search history list for similar movies
             if matched_items:
-                list_id = self._create_similar_movies_list(title, year, matched_items, len(similar_imdb_ids), facets)
+                list_id = self._create_similar_movies_list(title, year, matched_items, len(similar_results), facets)
 
                 if list_id:
                     progress.close()
@@ -394,7 +416,7 @@ class AISearchHandler:
             else:
                 progress.close()
                 self.logger.debug("SIMILAR MOVIES: No matches found in local library")
-                self.dialog.show_success(f"No similar movies found in your library (searched {len(similar_imdb_ids)} movies)", title="Similar Movies", time_ms=5000)
+                self.dialog.show_success(f"No similar movies found in your library (searched {len(similar_results)} movies)", title="Similar Movies", time_ms=5000)
                 return False
 
         except Exception as e:
@@ -492,11 +514,14 @@ class AISearchHandler:
             with self.query_manager.connection_manager.transaction() as conn:
                 for position, item in enumerate(matched_items):
                     try:
-                        # Add item to list using direct database insert
+                        # Extract search score if present
+                        search_score = item.get('search_score')
+                        
+                        # Add item to list using direct database insert with score
                         conn.execute("""
-                            INSERT OR IGNORE INTO list_items (list_id, media_item_id, position)
-                            VALUES (?, ?, ?)
-                        """, [list_id, item['id'], position])
+                            INSERT OR IGNORE INTO list_items (list_id, media_item_id, position, search_score)
+                            VALUES (?, ?, ?, ?)
+                        """, [list_id, item['id'], position, search_score])
                         added_count += 1
 
                     except Exception as e:
