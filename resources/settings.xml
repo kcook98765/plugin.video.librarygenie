@@ -344,11 +344,11 @@
         </setting>
         <setting id="list_manual_page_size" type="integer" label="30332" help="30291">
           <level>2</level>
-          <default>50</default>
+          <default>100</default>
           <constraints>
-            <minimum>25</minimum>
-            <step>25</step>
-            <maximum>500</maximum>
+            <minimum>100</minimum>
+            <step>100</step>
+            <maximum>5000</maximum>
           </constraints>
           <dependencies>
             <dependency type="enable" setting="list_pagination_mode" operator="is">1</dependency>
