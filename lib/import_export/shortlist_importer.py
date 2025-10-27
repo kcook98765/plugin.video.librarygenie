@@ -405,6 +405,12 @@ class ShortListImporter:
                     "success": False,
                     "error": "Failed to remove existing ShortList Import data"
                 }
+            
+            # Invalidate root folder cache after deletion to prevent stale list IDs
+            from lib.ui.folder_cache import get_folder_cache
+            folder_cache = get_folder_cache()
+            folder_cache.invalidate_folder(None)  # None = root folder
+            self.logger.debug("Invalidated root folder cache after removing ShortList Import")
 
             # Create the import folder
             import_folder_id = self.create_shortlist_import_folder()
@@ -413,6 +419,10 @@ class ShortListImporter:
                     "success": False,
                     "error": "Failed to create ShortList Import folder"
                 }
+            
+            # Invalidate root folder cache again after creating the new import folder
+            folder_cache.invalidate_folder(None)
+            self.logger.debug("Invalidated root folder cache after creating ShortList Import folder")
 
             # Process each shortlist as a separate list
             total_items = 0
@@ -475,6 +485,13 @@ class ShortListImporter:
                             self.logger.error("Error processing item %s: %s", item.get('title'), e)
 
                     self.logger.info("Completed list '%s' with %s items added", list_name, position)
+
+            # Invalidate the ShortList Import folder cache after all lists are created
+            # to ensure UI shows the new lists immediately
+            from lib.ui.folder_cache import get_folder_cache
+            folder_cache = get_folder_cache()
+            folder_cache.invalidate_folder(str(import_folder_id))
+            self.logger.debug("Invalidated ShortList Import folder cache (ID: %s)", import_folder_id)
 
             duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
 

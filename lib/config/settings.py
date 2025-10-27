@@ -158,10 +158,16 @@ class SettingsManager:
         return 'manual' if value == 1 else 'auto'
         
     def get_list_manual_page_size(self) -> int:
-        """Get manual page size (clamped to 10-500 for stability)"""
+        """Get manual page size (clamped to 100-5000 to match settings.xml constraints)"""
         config = get_config()
-        value = config.get_int('list_manual_page_size', 50)
-        return max(10, min(500, value))
+        # Only read the setting if we're in manual mode to avoid Kodi warnings
+        # when the setting is disabled by dependency rules
+        pagination_mode = self.get_list_pagination_mode()
+        if pagination_mode != 'manual':
+            # Return default when in auto mode (setting is disabled)
+            return 100
+        value = config.get_int('list_manual_page_size', 100)
+        return max(100, min(5000, value))
 
     # Advanced Settings
     def get_jsonrpc_page_size(self) -> int:
