@@ -825,6 +825,48 @@ class Router:
                 dbtype = context.get_param('dbtype')
                 dbid = context.get_param('dbid')
                 return lists_handler.remove_library_item_from_list(context, list_id, dbtype, dbid)
+            elif action == 'get_widget_path':
+                from lib.ui.handler_factory import get_handler_factory
+                factory = get_handler_factory()
+                factory.context = context
+                lists_handler = factory.get_lists_handler()
+                list_id = context.get_param('list_id')
+                
+                if not list_id:
+                    self.dialog_service.ok("Error", "Missing list ID")
+                    xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                    return False
+                
+                # Get list info to show the list name
+                from lib.data.query_manager import get_query_manager
+                query_manager = get_query_manager()
+                if query_manager.initialize():
+                    list_info = query_manager.get_list_by_id(list_id)
+                    list_name = list_info.get('name', 'Unknown List') if list_info else 'Unknown List'
+                else:
+                    list_name = 'Unknown List'
+                
+                # Build the widget URL
+                widget_url = f"plugin://plugin.video.librarygenie/?action=show_list&list_id={list_id}"
+                
+                # Display the widget path to the user using Kodi's text viewer
+                dialog = xbmcgui.Dialog()
+                dialog.textviewer(
+                    f"Widget Path for '{list_name}'",
+                    f"Use this path in your skin's widget settings:\n\n"
+                    f"{widget_url}\n\n"
+                    f"Instructions:\n"
+                    f"1. Go to your home screen widget settings\n"
+                    f"2. Add a new widget or edit an existing one\n"
+                    f"3. Select 'LibraryGenie' as the source\n"
+                    f"4. Navigate to this list and select it\n\n"
+                    f"Or copy the path above and use it directly if your skin supports custom paths."
+                )
+                
+                # End directory to prevent Kodi from trying to display plugin interface
+                xbmcplugin.endOfDirectory(context.addon_handle, succeeded=False)
+                return True
+            
             elif action in ['show_list', 'view_list']:
                 from lib.ui.handler_factory import get_handler_factory
                 factory = get_handler_factory()
