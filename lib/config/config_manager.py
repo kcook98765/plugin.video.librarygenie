@@ -379,6 +379,7 @@ class ConfigManager:
             "show_missing_indicators",
             "show_unmapped_favorites",
             "enable_colorized_labels",
+            "show_tools_menu_item",
             # Library sync settings
             "sync_movies",
             "sync_tv_episodes",
