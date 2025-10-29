@@ -76,7 +76,6 @@ def build_list_context_menu(context, list_id: Any, list_name: str) -> List[Tuple
         List of context menu items as (label, action) tuples
     """
     return [
-        (f"Get Widget Path", f"RunPlugin({context.build_url('get_widget_path', list_id=list_id)})"),
         (f"Edit List Items...", f"RunPlugin({context.build_url('edit_list_items', list_id=list_id)})"),
         (f"Rename '{list_name}'", f"RunPlugin({context.build_url('rename_list', list_id=list_id)})"),
         (f"Move '{list_name}' to Folder", f"RunPlugin({context.build_url('move_list_to_folder', list_id=list_id)})"),
@@ -99,7 +98,6 @@ def build_intersection_list_context_menu(context, list_id: Any, list_name: str) 
         List of context menu items as (label, action) tuples
     """
     return [
-        (f"Get Widget Path", f"RunPlugin({context.build_url('get_widget_path', list_id=list_id)})"),
         (f"Edit Intersection Sources...", f"RunPlugin({context.build_url('edit_intersection_sources', list_id=list_id)})"),
         (f"View Source Lists", f"RunPlugin({context.build_url('view_intersection_sources', list_id=list_id)})"),
         (f"Convert to Regular List", f"RunPlugin({context.build_url('convert_intersection_to_regular', list_id=list_id)})"),
