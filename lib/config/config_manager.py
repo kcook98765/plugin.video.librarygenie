@@ -379,6 +379,7 @@ class ConfigManager:
             "show_missing_indicators",
             "show_unmapped_favorites",
             "enable_colorized_labels",
+            "show_tools_menu_item",
             # Library sync settings
             "sync_movies",
             "sync_tv_episodes",
@@ -614,8 +615,28 @@ class ConfigManager:
         }
 
     def get_export_location(self) -> str:
-        """Get export location setting"""
-        return str(self.get('export_location', '')).strip()
+        """Get export location setting with proper fallback"""
+        try:
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.config.config_manager')
+            
+            # Read the export_location setting directly
+            custom_path = str(self.get('export_location', ''))
+            
+            if custom_path and custom_path.strip():
+                logger.debug("Using custom export path: %s", custom_path)
+                return custom_path.strip()
+
+            # Default to addon data directory
+            default_path = "special://userdata/addon_data/plugin.video.librarygenie/exports/"
+            logger.debug("Using default export path: %s", default_path)
+            return default_path
+        except Exception as e:
+            from lib.utils.kodi_log import get_kodi_logger
+            logger = get_kodi_logger('lib.config.config_manager')
+            logger.error("Exception in get_export_location: %s", e)
+            # Ultimate fallback
+            return "special://userdata/addon_data/plugin.video.librarygenie/exports/"
 
     def set_export_location(self, path: str) -> None:
         """Set export location setting"""
