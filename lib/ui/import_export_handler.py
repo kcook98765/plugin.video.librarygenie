@@ -42,7 +42,7 @@ class ImportExportHandler:
                 context.logger.error("Failed to initialize query manager")
                 return DialogResponse(
                     success=False,
-                    message=L(30104)  # "Database error" (red color)
+                    message=L(30104)  # "Database error"
                 )
 
             # Get list info
@@ -50,55 +50,133 @@ class ImportExportHandler:
             if not list_info:
                 return DialogResponse(
                     success=False,
-                    message=L(30368)  # "List not found" (red color)
+                    message=L(30368)  # "List not found"
                 )
 
             list_name = list_info.get('name', 'Unnamed List')
+
+            # Get export location from config
+            from lib.config.config_manager import get_config
+            config = get_config()
+            export_location = config.get_export_location()
+            
+            # The get_export_location now provides a default, but verify it's set
+            if not export_location or not export_location.strip():
+                return DialogResponse(
+                    success=False,
+                    message="Export location not configured. Please set it in addon settings."
+                )
+            
+            # Handle special:// paths
+            if export_location.startswith('special://'):
+                import xbmcvfs
+                export_location = xbmcvfs.translatePath(export_location)
+            
+            # Create export directory if it doesn't exist
+            try:
+                if not os.path.exists(export_location):
+                    os.makedirs(export_location, exist_ok=True)
+                    context.logger.info("Created export directory: %s", export_location)
+            except Exception as dir_error:
+                context.logger.error("Failed to create export directory: %s", dir_error)
+                return DialogResponse(
+                    success=False,
+                    message=f"Failed to create export directory: {str(dir_error)}"
+                )
 
             # Get list items
             list_items = query_manager.get_list_items(list_id)
 
             # Prepare export data
+            from datetime import datetime
             export_data = {
                 'format_version': '1.0',
                 'export_type': 'single_list',
-                'export_timestamp': 'unknown',
+                'export_timestamp': datetime.now().isoformat(),
                 'list': {
                     'name': list_name,
                     'description': list_info.get('description', ''),
                     'items': list_items
                 }
             }
-
-            # Use basic JSON export functionality
-            context.logger.info("Using basic export functionality")
             
-            # Basic JSON export
-            export_filename = f"libraryGenie_list_{list_name.replace(' ', '_')}.json"
+            # Generate safe filename by removing/replacing all illegal filesystem characters
+            # Windows forbidden characters: < > : " / \ | ? *
+            # Windows reserved device names: CON, PRN, AUX, NUL, COM1-9, LPT1-9
+            import re
+            safe_name = list_name
+            
+            # Replace illegal characters with underscores
+            illegal_chars = r'[<>:"/\\|?*]'
+            safe_name = re.sub(illegal_chars, '_', safe_name)
+            
+            # Replace spaces with underscores for cleaner filenames
+            safe_name = safe_name.replace(' ', '_')
+            
+            # Remove any leading/trailing underscores or dots (Windows doesn't like these)
+            safe_name = safe_name.strip('_.')
+            
+            # Check for Windows reserved device names (case-insensitive)
+            # Windows treats both "CON" and "CON.anything" as reserved
+            # Reserved names: CON, PRN, AUX, NUL, COM1-COM9, LPT1-LPT9
+            reserved_names = {
+                'CON', 'PRN', 'AUX', 'NUL',
+                'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+                'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+            }
+            
+            # Check if name exactly matches or starts with reserved name followed by dot
+            name_upper = safe_name.upper()
+            is_reserved = False
+            
+            # Check exact match
+            if name_upper in reserved_names:
+                is_reserved = True
+            else:
+                # Check if it starts with a reserved name followed by a dot
+                for reserved in reserved_names:
+                    if name_upper.startswith(reserved + '.'):
+                        is_reserved = True
+                        break
+            
+            if is_reserved:
+                safe_name = f"{safe_name}_list"
+                context.logger.debug("List name matched or started with Windows reserved device name, appended '_list'")
+            
+            # Ensure we have a valid name (fallback if name becomes empty)
+            if not safe_name:
+                safe_name = f"list_{list_id}"
+            
+            export_filename = f"libraryGenie_list_{safe_name}.json"
+            file_path = os.path.join(export_location, export_filename)
+            
+            context.logger.debug("Sanitized list name '%s' to filename '%s'", list_name, export_filename)
             
             try:
-                # Create export data
-                json_data = json.dumps(export_data, indent=2, ensure_ascii=False)
+                # Write export data to file
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(export_data, f, indent=2, ensure_ascii=False)
                 
-                # For now, just show success message
-                # TODO: Implement actual file writing when file system access is available
+                context.logger.info("Successfully exported list to: %s", file_path)
+                
                 return DialogResponse(
                     success=True,
-                    message=f"Export data prepared for '{list_name}'" # This string should also be localized
+                    message=f"List '{list_name}' exported to:\n{export_filename}",
+                    refresh_needed=False
                 )
                 
-            except Exception as json_error:
-                context.logger.error("JSON export failed: %s", json_error)
+            except Exception as write_error:
+                context.logger.error("Failed to write export file: %s", write_error)
                 return DialogResponse(
                     success=False,
-                    message="Failed to prepare export data" # This string should also be localized
+                    message=f"Failed to write export file: {str(write_error)}"
                 )
 
         except Exception as e:
             context.logger.error("Error exporting list: %s", e)
             return DialogResponse(
                 success=False,
-                message="Error exporting list" # This string should also be localized
+                message=f"Error exporting list: {str(e)}"
             )
 
     def export_folder_lists(self, context: PluginContext, folder_id: str, include_subfolders: bool = False) -> DialogResponse:
