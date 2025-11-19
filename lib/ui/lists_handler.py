@@ -61,46 +61,94 @@ class ListsHandler:
         return self._import_export
     
     def quick_add_to_default_list(self, context: PluginContext) -> DialogResponse:
-        """Quick add item to default list"""
+        """Quick add item to default list - generic fallback for any item type"""
         try:
-            media_item_id = context.get_param('media_item_id')
-            if not media_item_id:
-                return DialogResponse(success=False, message="Missing media item ID")
+            # Check if this is a library item or external item based on parameters
+            dbtype = context.get_param('dbtype')
+            dbid = context.get_param('dbid')
             
-            # TODO: Implement add_item_to_default_list method in ListOperations
-            return DialogResponse(success=False, message="Method not implemented yet")
+            if dbtype and dbid:
+                # This is a library item, delegate to the library-specific method
+                self.logger.debug("Routing to quick_add_library_item_to_default_list")
+                return self.quick_add_library_item_to_default_list(context)
+            else:
+                # This is an external item (bookmark, plugin item, etc)
+                self.logger.debug("Routing to quick_add_external_item_to_default_list")
+                return self.quick_add_external_item_to_default_list(context)
             
         except Exception as e:
-            self.logger.error("Error in quick_add_to_default_list: %s", e)
-            return DialogResponse(success=False, message="Failed to add item to default list")
+            self.logger.error("Error in quick_add_to_default_list: %s", e, exc_info=True)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to add item to default list",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return DialogResponse(success=False, message=str(e))
     
     def quick_add_library_item_to_default_list(self, context: PluginContext) -> DialogResponse:
         """Quick add library item to default list"""
         try:
-            media_item_id = context.get_param('media_item_id')
-            if not media_item_id:
-                return DialogResponse(success=False, message="Missing media item ID")
+            # Get library item parameters
+            dbtype = context.get_param('dbtype')
+            dbid = context.get_param('dbid')
+            title = context.get_param('title', f'Item {dbid}')
             
-            # TODO: Implement add_library_item_to_default_list method in ListOperations
-            return DialogResponse(success=False, message="Method not implemented yet")
+            if not dbtype or not dbid:
+                self.logger.error("Missing dbtype or dbid for library item quick add")
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    "Missing required parameters",
+                    xbmcgui.NOTIFICATION_ERROR
+                )
+                return DialogResponse(success=False, message="Missing required parameters")
+            
+            # Delegate to ListOperations
+            response = self.list_ops.add_library_item_to_default_list(context, dbtype, dbid, title)
+            
+            # Show notification based on result
+            if response.success:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message,
+                    xbmcgui.NOTIFICATION_INFO
+                )
+            else:
+                xbmcgui.Dialog().notification(
+                    "LibraryGenie",
+                    response.message,
+                    xbmcgui.NOTIFICATION_WARNING
+                )
+            
+            return response
             
         except Exception as e:
-            self.logger.error("Error in quick_add_library_item_to_default_list: %s", e)
-            return DialogResponse(success=False, message="Failed to add library item to default list")
+            self.logger.error("Error in quick_add_library_item_to_default_list: %s", e, exc_info=True)
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Failed to add item to default list",
+                xbmcgui.NOTIFICATION_ERROR
+            )
+            return DialogResponse(success=False, message=str(e))
     
     def quick_add_external_item_to_default_list(self, context: PluginContext) -> DialogResponse:
-        """Quick add external item to default list"""
+        """Quick add external item to default list - currently not fully implemented"""
         try:
-            media_item_id = context.get_param('media_item_id')
-            if not media_item_id:
-                return DialogResponse(success=False, message="Missing media item ID")
-            
-            # TODO: Implement add_external_item_to_default_list method in ListOperations
-            return DialogResponse(success=False, message="Method not implemented yet")
+            # External items (bookmarks, plugin items) have complex metadata handling
+            # For now, show a helpful message directing users to the full "Add to List" option
+            xbmcgui.Dialog().notification(
+                "LibraryGenie",
+                "Quick Add for external items coming soon. Use 'Add to List' for now.",
+                xbmcgui.NOTIFICATION_INFO,
+                3000
+            )
+            return DialogResponse(
+                success=False, 
+                message="Quick Add for external items not yet supported. Use 'Add to List' instead."
+            )
             
         except Exception as e:
-            self.logger.error("Error in quick_add_external_item_to_default_list: %s", e)
-            return DialogResponse(success=False, message="Failed to add external item to default list")
+            self.logger.error("Error in quick_add_external_item_to_default_list: %s", e, exc_info=True)
+            return DialogResponse(success=False, message=str(e))
 
     @property
     def listitem_renderer(self):
