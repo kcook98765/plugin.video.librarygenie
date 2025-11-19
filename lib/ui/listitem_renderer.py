@@ -416,7 +416,7 @@ class ListItemRenderer:
             sort_methods = [
                 ("SORT_METHOD_TITLE_IGNORE_THE", xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE),
                 ("SORT_METHOD_VIDEO_YEAR", xbmcplugin.SORT_METHOD_VIDEO_YEAR),
-                ("SORT_METHOD_DATE", xbmcplugin.SORT_METHOD_DATE)
+                ("SORT_METHOD_DATEADDED", xbmcplugin.SORT_METHOD_DATEADDED)
             ]
             self.logger.debug("RENDERER DIRECTORY: Adding %s sort methods", len(sort_methods))
             for method_name, method in sort_methods:
