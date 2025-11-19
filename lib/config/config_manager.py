@@ -37,6 +37,7 @@ class ConfigManager:
             "sync_movies": True,
             "first_run_completed": False,
             "library_sync_interval": 2,  # 0=disabled, 1=5min, 2=hourly, 3=daily
+            "show_sync_notifications": True,  # Show notifications when library sync completes
             
             # Search settings
             "search_page_size": 200,
