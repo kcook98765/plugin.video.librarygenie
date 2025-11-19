@@ -271,26 +271,29 @@ class LibraryGenieService:
                 
                 if success:
                     log_info(f"Initial library sync completed: {message}")
-                    self._show_notification(
-                        f"Library sync completed: {message}",
-                        time_ms=8000
-                    )
+                    if self.settings.get_show_sync_notifications():
+                        self._show_notification(
+                            f"Library sync completed: {message}",
+                            time_ms=8000
+                        )
                 else:
                     log_error(f"Initial library sync failed: {message}")
-                    self._show_notification(
-                        f"Library sync failed: {message[:40]}...",
-                        xbmcgui.NOTIFICATION_ERROR,
-                        time_ms=8000
-                    )
+                    if self.settings.get_show_sync_notifications():
+                        self._show_notification(
+                            f"Library sync failed: {message[:40]}...",
+                            xbmcgui.NOTIFICATION_ERROR,
+                            time_ms=8000
+                        )
             else:
                 log_info("Library already indexed, skipping initial scan")
 
         except Exception as e:
             log_error(f"Error during initial scan check: {e}")
-            self._show_notification(
-                f"Scan check failed: {str(e)[:50]}...",
-                xbmcgui.NOTIFICATION_ERROR
-            )
+            if self.settings.get_show_sync_notifications():
+                self._show_notification(
+                    f"Scan check failed: {str(e)[:50]}...",
+                    xbmcgui.NOTIFICATION_ERROR
+                )
 
     def start(self):
         """Start the background service"""
@@ -539,7 +542,8 @@ class LibraryGenieService:
                     items_removed = result.get("items_removed", 0)
                     if items_added > 0 or items_removed > 0:
                         message = f"Found {items_added} new, {items_removed} removed movies"
-                        self._show_notification(f"Library updated: {message}", time_ms=3000)
+                        if self.settings.get_show_sync_notifications():
+                            self._show_notification(f"Library updated: {message}", time_ms=3000)
                         log_info(f"Periodic sync found changes: {message}")
                         
                         # Update stats cache after changes detected
