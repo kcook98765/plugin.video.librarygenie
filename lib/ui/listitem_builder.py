@@ -73,7 +73,7 @@ class ListItemBuilder:
             # Add a few sane sort methods once
             sort_methods = [
                 ("SORT_METHOD_TITLE_IGNORE_THE", xbmcplugin.SORT_METHOD_TITLE_IGNORE_THE),
-                ("SORT_METHOD_DATE", xbmcplugin.SORT_METHOD_DATE),
+                ("SORT_METHOD_DATEADDED", xbmcplugin.SORT_METHOD_DATEADDED),
                 ("SORT_METHOD_VIDEO_YEAR", xbmcplugin.SORT_METHOD_VIDEO_YEAR),
             ]
             for method_name, const in sort_methods:

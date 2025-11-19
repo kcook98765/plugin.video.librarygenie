@@ -255,6 +255,10 @@ class ListItemMetadataManager:
             if item_data.get('lastplayed'):
                 video_info_tag.setLastPlayed(item_data['lastplayed'])
             
+            # Date added field for SORT_METHOD_DATEADDED support
+            if item_data.get('date_added'):
+                video_info_tag.setDateAdded(item_data['date_added'])
+            
             # Episode-specific fields
             if item_data.get('media_type') == 'episode':
                 if item_data.get('tvshowtitle'):
@@ -296,6 +300,10 @@ class ListItemMetadataManager:
                 info['playcount'] = str(int(item_data['playcount']))
             if item_data.get('lastplayed'):
                 info['lastplayed'] = item_data['lastplayed']
+            
+            # Date added field for SORT_METHOD_DATEADDED support
+            if item_data.get('date_added'):
+                info['dateadded'] = item_data['date_added']
             
             if item_data.get('year'):
                 try:
