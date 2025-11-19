@@ -65,6 +65,11 @@
             <heading>30036</heading>
           </control>
         </setting>
+        <setting id="show_sync_notifications" type="boolean" label="30593" help="30594">
+          <level>0</level>
+          <default>true</default>
+          <control type="toggle"/>
+        </setting>
       </group>
     </category>
 
