@@ -118,6 +118,11 @@ class SettingsManager:
         config = get_config()
         config.set('library_sync_interval', interval)
 
+    def get_show_sync_notifications(self) -> bool:
+        """Get whether to show library sync notifications"""
+        config = get_config()
+        return config.get_bool('show_sync_notifications', True)
+
     # Favorites Settings
     def get_enable_favorites_integration(self) -> bool:
         """Get enable favorites integration setting"""

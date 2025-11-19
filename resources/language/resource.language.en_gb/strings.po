@@ -1945,6 +1945,14 @@ msgctxt "#30592"
 msgid "LibraryGenie helps you organize your Kodi library with custom lists and folders. Let's get started by syncing your media library."
 msgstr ""
 
+msgctxt "#30593"
+msgid "Show library sync notifications"
+msgstr ""
+
+msgctxt "#30594"
+msgid "Display pop-up notifications when library sync completes"
+msgstr ""
+
 # List View Messages
 msgctxt "#30600"
 msgid "No items in this list"
