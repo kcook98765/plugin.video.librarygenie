@@ -27,6 +27,124 @@ class ListOperations:
             from lib.data.query_manager import get_query_manager
             self.query_manager = get_query_manager()
         self.storage_manager = context.storage_manager
+    
+    def _add_library_item_to_list_internal(self, dbtype: str, dbid: str, title: str, target_list_id: int) -> Dict[str, Any]:
+        """
+        Internal helper to add a library item to a specific list.
+        Returns a dict with 'success', 'already_exists', and optional 'error' keys.
+        This method encapsulates the shared logic between context menu add and quick add.
+        
+        Note: This uses direct SQL for library items as they only need minimal metadata
+        (Kodi already has full metadata). This is the same approach used throughout the codebase.
+        """
+        try:
+            # Use the instance's query_manager
+            if not self.query_manager.initialize():
+                return {"success": False, "error": "Database initialization failed"}
+            
+            # Check if list contains file-sourced items
+            if self.query_manager.list_contains_file_sourced_items(int(target_list_id)):
+                return {
+                    "success": False,
+                    "error": "file_list_locked",
+                    "message": "Cannot add library items to file-based lists. File imports are kept separate."
+                }
+            
+            # Direct database operations for library items (minimal metadata needed)
+            with self.query_manager.connection_manager.transaction() as conn:
+                # Check if library item already exists in media_items
+                existing_media_item = conn.execute("""
+                    SELECT id FROM media_items 
+                    WHERE kodi_id = ? AND media_type = ? AND source = 'lib'
+                """, [int(dbid), dbtype]).fetchone()
+                
+                if existing_media_item:
+                    media_item_id = existing_media_item['id']
+                    self.logger.debug("Found existing library media_item: id=%s", media_item_id)
+                else:
+                    # Insert minimal library item record (Kodi has the full metadata)
+                    cursor = conn.execute("""
+                        INSERT INTO media_items (kodi_id, media_type, title, source, created_at)
+                        VALUES (?, ?, ?, 'lib', datetime('now'))
+                    """, [int(dbid), dbtype, title])
+                    media_item_id = cursor.lastrowid
+                    self.logger.debug("Created new library media_item: id=%s", media_item_id)
+                
+                # Check if already in target list
+                existing_list_item = conn.execute("""
+                    SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?
+                """, [target_list_id, media_item_id]).fetchone()
+                
+                if existing_list_item:
+                    self.logger.debug("Item already in list %s", target_list_id)
+                    return {"success": True, "already_exists": True}
+                else:
+                    # Add to list
+                    conn.execute("""
+                        INSERT INTO list_items (list_id, media_item_id, position)
+                        VALUES (?, ?, COALESCE((SELECT MAX(position) + 1 FROM list_items WHERE list_id = ?), 0))
+                    """, [target_list_id, media_item_id, target_list_id])
+                    self.logger.debug("Added library item to list %s", target_list_id)
+                    return {"success": True}
+        
+        except Exception as e:
+            self.logger.error("Error in _add_library_item_to_list_internal: %s", e, exc_info=True)
+            return {"success": False, "error": str(e)}
+    
+    def add_library_item_to_default_list(self, context: PluginContext, dbtype: str, dbid: str, title: str) -> DialogResponse:
+        """
+        Add a library item to the default list configured in settings.
+        This is used by the quick add context menu action.
+        """
+        try:
+            # Get default list ID from config
+            from lib.config.config_manager import get_config
+            config = get_config()
+            default_list_id = config.get_default_list_id()
+            
+            if not default_list_id:
+                return DialogResponse(
+                    success=False, 
+                    message="No default list configured. Please set one in settings."
+                )
+            
+            # Verify the default list exists using get_list_by_id
+            if not self.query_manager.initialize():
+                return DialogResponse(success=False, message="Database initialization failed")
+            
+            list_info = self.query_manager.get_list_by_id(default_list_id)
+            
+            if not list_info:
+                return DialogResponse(
+                    success=False,
+                    message="Default list no longer exists. Please update settings."
+                )
+            
+            list_name = list_info.get('name', 'default list')
+            
+            context.logger.info("Quick adding library item to default list %s ('%s'): dbtype=%s, dbid=%s, title='%s'", 
+                              default_list_id, list_name, dbtype, dbid, title)
+            
+            # Add the item using the internal helper
+            result = self._add_library_item_to_list_internal(dbtype, dbid, title, int(default_list_id))
+            
+            if result.get("success"):
+                if result.get("already_exists"):
+                    message = f"Already in '{list_name}'"
+                else:
+                    message = f"Added to '{list_name}'"
+                return DialogResponse(success=True, message=message)
+            else:
+                error = result.get("error", "Unknown error")
+                if error == "file_list_locked":
+                    message = result.get("message", "Cannot add library items to file-based lists.")
+                else:
+                    message = f"Failed to add to list: {error}"
+                return DialogResponse(success=False, message=message)
+        
+        except Exception as e:
+            self.logger.error("Error in add_library_item_to_default_list: %s", e, exc_info=True)
+            return DialogResponse(success=False, message=str(e))
 
     def create_list(self, context: PluginContext) -> DialogResponse:
         """Handle creating a new list"""
@@ -580,56 +698,12 @@ class ListOperations:
             if target_list_id is None:
                 return False
 
-            # Simple library item approach - just need minimal fields for existing Kodi items
+            # Use the internal helper to add the library item
             context.logger.debug("Adding library item to list: kodi_id=%s, title='%s', media_type=%s", 
                                dbid, title, dbtype)
             context.logger.debug("FINAL target_list_id being used: %s", target_list_id)
             
-            # Check if list contains file-sourced items
-            if query_manager.list_contains_file_sourced_items(int(target_list_id)):
-                xbmcgui.Dialog().notification(
-                    "LibraryGenie",
-                    "Cannot add library items to file-based lists. File imports are kept separate.",
-                    xbmcgui.NOTIFICATION_WARNING
-                )
-                return False
-
-            # Direct database operations for library items (much simpler than search pipeline)
-            with query_manager.connection_manager.transaction() as conn:
-                # Check if library item already exists in media_items
-                existing_media_item = conn.execute("""
-                    SELECT id FROM media_items 
-                    WHERE kodi_id = ? AND media_type = ? AND source = 'lib'
-                """, [int(dbid), dbtype]).fetchone()
-
-                if existing_media_item:
-                    media_item_id = existing_media_item['id']
-                    context.logger.debug("Found existing library media_item: id=%s", media_item_id)
-                else:
-                    # Insert minimal library item record (no complex metadata needed)
-                    cursor = conn.execute("""
-                        INSERT INTO media_items (kodi_id, media_type, title, source, created_at)
-                        VALUES (?, ?, ?, 'lib', datetime('now'))
-                    """, [int(dbid), dbtype, title])
-                    media_item_id = cursor.lastrowid
-                    context.logger.debug("Created new library media_item: id=%s", media_item_id)
-
-                # Check if already in target list
-                existing_list_item = conn.execute("""
-                    SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?
-                """, [target_list_id, media_item_id]).fetchone()
-
-                if existing_list_item:
-                    context.logger.debug("Item already in list %s", target_list_id)
-                    result = {"success": True, "already_exists": True}
-                else:
-                    # Add to list
-                    conn.execute("""
-                        INSERT INTO list_items (list_id, media_item_id, position)
-                        VALUES (?, ?, COALESCE((SELECT MAX(position) + 1 FROM list_items WHERE list_id = ?), 0))
-                    """, [target_list_id, media_item_id, target_list_id])
-                    context.logger.debug("Added library item to list %s", target_list_id)
-                    result = {"success": True}
+            result = self._add_library_item_to_list_internal(dbtype, dbid, title, int(target_list_id))
 
             if result is not None and result.get("success"):
                 # Determine the correct list name based on what actually happened
