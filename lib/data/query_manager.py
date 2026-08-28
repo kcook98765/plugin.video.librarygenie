@@ -25,6 +25,25 @@ class QueryManager:
         self.migration_manager = get_migration_manager()
         self._initialized = False
 
+    def _serialize_art(self, art) -> str:
+        """Normalize an artwork value to a SQLite-bindable string.
+
+        SQLite cannot bind a Python ``dict``/``list`` directly (it raises
+        ``InterfaceError: type 'dict' is not supported``), so structured art
+        must be serialized before it is stored in the ``art`` column. Values
+        that are already JSON strings are returned unchanged to avoid
+        double-encoding. ``None`` / empty structures normalize to ``""`` to
+        match the existing ``""`` used for "no artwork" elsewhere (see
+        ``scanner._batch_insert_movies``).
+        """
+        if isinstance(art, (dict, list)):
+            if not art:
+                return ""
+            return json.dumps(art)
+        if isinstance(art, str):
+            return art
+        return ""
+
     def _normalize_to_canonical(self, item: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize any media item to canonical format"""
         canonical = {}
@@ -1005,7 +1024,7 @@ class QueryManager:
                 'country': media_data.get('country', ''),
                 'writer': media_data.get('writer', ''),
                 'cast': media_data.get('cast', ''),
-                'art': media_data.get('art', ''),
+                'art': self._serialize_art(media_data.get('art', '')),
                 'tvshowtitle': media_data.get('tvshowtitle', ''),
                 'season': media_data.get('season'),
                 'episode': media_data.get('episode'),
