@@ -1,0 +1,20 @@
+[project]
+name = "plugin.video.librarygenie"
+version = "0.8.49"
+description = "LibraryGenie - Smart list management and search for Kodi (off-Kodi test harness config)"
+requires-python = ">=3.9"
+
+# This project is a Kodi addon distributed as a zip of addon files. The only
+# dependency that the *test harness* needs is pytest. Production code uses the
+# Kodi-provided Python API (xbmc, xbmcaddon, ...) which is available only
+# inside a running Kodi installation; the test stubs in tests/kodimocks stand
+# in for it.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Make the repository root importable so `import lib` and `import tests`
+# resolve regardless of the directory pytest is invoked from.
+pythonpath = ["."]
+addopts = "-ra -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

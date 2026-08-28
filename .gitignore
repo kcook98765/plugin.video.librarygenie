@@ -1,0 +1,49 @@
+# ----------------------------------------------------------------------------
+# LibraryGenie - development / test artifact ignores
+#
+# Conservative: only Python build/test artifacts, virtual environments,
+# local SQLite databases, Kodi/userdata runtime artifacts, and editor/OS
+# temp files. Nothing that legitimately ships in a Kodi addon distribution
+# (addon.xml, lib/, resources/, the .py entry points, localization .po, etc.)
+# is ignored here.
+# ----------------------------------------------------------------------------
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# pytest / coverage / test-run artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+nosetests.xml
+
+# Virtual environments (any location)
+.venv/
+venv/
+env/
+ENV/
+
+# Local SQLite databases created at runtime
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Kodi / addon-data runtime artifacts
+userdata/
+addon_data/
+*.log
+
+# Editor / IDE / OS temporary files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
