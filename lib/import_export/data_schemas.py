@@ -6,10 +6,58 @@ LibraryGenie - Data Schemas
 Versioned schemas for import/export operations
 """
 
+import os
+import json
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
-import json
+
+
+def _addon_metadata() -> Dict[str, str]:
+    """Return the running addon's real ``id`` and ``version``.
+
+    The authoritative source is the Kodi API (``xbmcaddon``), the same source
+    the rest of the addon uses for its identity -- so a normal Kodi run never
+    touches the filesystem.
+
+    When the Kodi API is unavailable (pure off-Kodi tooling / tests) both
+    values are read from the addon's own ``addon.xml`` in the source tree,
+    located relative to this file. That avoids duplicating the version
+    constant in Python.
+    """
+    try:
+        import xbmcaddon
+
+        addon = xbmcaddon.Addon()
+        addon_id = addon.getAddonInfo("id") or ""
+        addon_version = addon.getAddonInfo("version") or ""
+        if addon_id and addon_version:
+            return {"addon_id": addon_id, "addon_version": addon_version}
+    except Exception:
+        pass
+
+    return _addon_metadata_from_xml()
+
+
+def _addon_metadata_from_xml() -> Dict[str, str]:
+    """Read the addon ``id``/``version`` from the addon's own ``addon.xml``.
+
+    Used only when the Kodi API is not available. Locates ``addon.xml`` two
+    directories above this file (``lib/import_export/`` -> repo root) and
+    reads the root element's ``id``/``version`` attributes via the stdlib.
+    Raises if the file cannot be found or parsed; callers treat that as a
+    genuine error rather than silently emitting wrong metadata.
+    """
+    addon_xml = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "addon.xml",
+    )
+    root = ET.parse(addon_xml).getroot()
+    return {
+        "addon_id": root.get("id", ""),
+        "addon_version": root.get("version", ""),
+    }
 
 
 @dataclass
@@ -25,9 +73,10 @@ class ExportEnvelope:
     @classmethod
     def create(cls, export_types: List[str], payload: Dict[str, Any]) -> 'ExportEnvelope':
         """Create new export envelope with current metadata"""
+        metadata = _addon_metadata()
         return cls(
-            addon_id="plugin.video.library.genie",
-            addon_version="0.0.1",
+            addon_id=metadata["addon_id"],
+            addon_version=metadata["addon_version"],
             schema_version=1,
             generated_at=datetime.now(timezone.utc).isoformat(),
             export_types=export_types,

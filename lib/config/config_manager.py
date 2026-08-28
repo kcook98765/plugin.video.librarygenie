@@ -385,7 +385,6 @@ class ConfigManager:
             "sync_movies",
             "sync_tv_episodes",
             "first_run_completed",
-            "library_sync_interval",
             # Background service settings
             "enable_background_service",
             "enable_batch_processing",
@@ -424,7 +423,9 @@ class ConfigManager:
         int_settings = [
             # Search settings
             "search_page_size", "search_history_days",
+            "ai_search_result_limit", "default_content_type", "default_fields", "default_match_mode",
             # Sync settings  
+            "library_sync_interval",
             # Advanced settings
             "jsonrpc_page_size", "jsonrpc_timeout_seconds",
             "db_batch_size", "db_busy_timeout_ms",
