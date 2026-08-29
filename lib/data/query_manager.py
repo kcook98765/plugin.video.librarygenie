@@ -598,6 +598,88 @@ class QueryManager:
             return None
 
 
+    def add_existing_item_to_list(self, list_id, media_item_id):
+        """Link an *existing* media item into a list.
+
+        Dedicated API for callers that already hold a valid ``media_item_id``
+        (e.g. context-menu "Add to List", moving items between lists, list
+        merge). It validates that both the list and the media item exist and
+        inserts the ``list_items`` link directly — it does NOT create or
+        resolve a media row from metadata.
+
+        Use ``add_item_to_list(...)`` instead when the caller supplies title /
+        IMDb / other metadata to create or resolve a media item.
+
+        Return shape (consistent dict, always with a ``success`` key):
+            success: True, media_item_id, list_id          on first link
+            success: False, error="duplicate"             already linked
+            success: False, error="list_not_found"        unknown list
+            success: False, error="media_item_not_found"  unknown media item
+            success: False, error="database_error"        unexpected failure
+        """
+        try:
+            self.logger.debug("Linking existing media item %s to list %s",
+                              media_item_id, list_id)
+
+            with self.connection_manager.transaction() as conn:
+                # Validate the target list
+                list_row = conn.execute(
+                    "SELECT id FROM lists WHERE id = ?", [int(list_id)]
+                ).fetchone()
+                if not list_row:
+                    self.logger.warning("Cannot link item: list %s not found", list_id)
+                    return {"success": False, "error": "list_not_found"}
+
+                # Validate the media item
+                media_row = conn.execute(
+                    "SELECT id FROM media_items WHERE id = ?", [int(media_item_id)]
+                ).fetchone()
+                if not media_row:
+                    self.logger.warning(
+                        "Cannot link item: media item %s not found", media_item_id
+                    )
+                    return {"success": False, "error": "media_item_not_found"}
+
+                # Existing duplicate semantics: UNIQUE(list_id, media_item_id)
+                existing_link = conn.execute(
+                    "SELECT id FROM list_items WHERE list_id = ? AND media_item_id = ?",
+                    [int(list_id), int(media_item_id)],
+                ).fetchone()
+                if existing_link:
+                    self.logger.debug(
+                        "Media item %s already in list %s", media_item_id, list_id
+                    )
+                    return {"success": False, "error": "duplicate"}
+
+                # Preserve append-at-end position behavior
+                position_result = conn.execute(
+                    "SELECT COALESCE(MAX(position), -1) + 1 as next_position "
+                    "FROM list_items WHERE list_id = ?",
+                    [int(list_id)],
+                ).fetchone()
+                next_position = position_result['next_position'] if position_result else 0
+
+                conn.execute(
+                    "INSERT INTO list_items (list_id, media_item_id, position) "
+                    "VALUES (?, ?, ?)",
+                    [int(list_id), int(media_item_id), next_position],
+                )
+
+            self.logger.info("Linked media item %s to list %s", media_item_id, list_id)
+            return {
+                "success": True,
+                "media_item_id": int(media_item_id),
+                "list_id": int(list_id),
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to link existing media item %s to list %s: %s",
+                media_item_id, list_id, e,
+            )
+            return {"success": False, "error": "database_error"}
+
+
     def delete_item_from_list(self, list_id, item_id):
         """Delete an item from a list using unified tables"""
         try:

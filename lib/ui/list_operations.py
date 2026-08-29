@@ -576,7 +576,7 @@ class ListOperations:
                 target_list_id = available_lists[selected_index]['id']
 
             # Add item to selected list
-            result = query_manager.add_item_to_list(target_list_id, media_item_id)
+            result = query_manager.add_existing_item_to_list(target_list_id, media_item_id)
 
             if result is not None and result.get("success"):
                 list_name = available_lists[selected_index]['name'] if selected_index < len(available_lists) else "new list"

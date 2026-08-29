@@ -391,7 +391,7 @@ class ImportExportHandler:
             for item in source_items:
                 item_id = item.get('id')
                 if item_id:
-                    result = query_manager.add_item_to_list(target_list_id, item_id)
+                    result = query_manager.add_existing_item_to_list(target_list_id, item_id)
                     if result and result.get("success"):
                         merged_count += 1
                     elif result and result.get("error") == "duplicate":
