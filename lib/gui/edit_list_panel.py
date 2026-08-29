@@ -308,7 +308,7 @@ class EditListPanel(xbmcgui.WindowXMLDialog):
             
             success_count = 0
             for item_id in self._selected_items:
-                add_result = self.query_manager.add_item_to_list(target_list_id, item_id)
+                add_result = self.query_manager.add_existing_item_to_list(target_list_id, item_id)
                 if add_result.get('success'):
                     remove_result = self.query_manager.remove_item_from_list(self._list_id, item_id)
                     if remove_result.get('success'):
