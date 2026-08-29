@@ -2433,41 +2433,61 @@ class QueryManager:
         try:
             self.logger.debug("Merging list %s into list %s", source_list_id, target_list_id)
 
+            source_id = int(source_list_id)
+            target_id = int(target_list_id)
+
             # Check if both lists exist
             source_list = self.connection_manager.execute_single("""
                 SELECT id, name FROM lists WHERE id = ?
-            """, [int(source_list_id)])
+            """, [source_id])
 
             target_list = self.connection_manager.execute_single("""
                 SELECT id, name FROM lists WHERE id = ?
-            """, [int(target_list_id)])
+            """, [target_id])
 
             if not source_list or not target_list:
                 return {"success": False, "error": "list_not_found"}
 
-            # Get items from source list that aren't already in target list
+            # Merging a list into itself is a safe no-op: every source item is
+            # already present in the target (the same list), so nothing is
+            # added and the list is left intact.
+            if source_id == target_id:
+                return {"success": True, "items_added": 0}
+
+            # Get items from source list that aren't already in target list.
+            # list_items links to media_items via media_item_id (there is no
+            # library_movie_id column); order by the source link so appended
+            # positions are assigned deterministically.
             items_to_merge = self.connection_manager.execute_query("""
-                SELECT DISTINCT li1.library_movie_id, li1.title, li1.year, li1.imdb_id, li1.tmdb_id
+                SELECT li1.media_item_id
                 FROM list_items li1
                 WHERE li1.list_id = ?
                 AND NOT EXISTS (
-                    SELECT 1 FROM list_items li2 
-                    WHERE li2.list_id = ? AND li2.library_movie_id = li1.library_movie_id
+                    SELECT 1 FROM list_items li2
+                    WHERE li2.list_id = ? AND li2.media_item_id = li1.media_item_id
                 )
-            """, [int(source_list_id), int(target_list_id)])
+                ORDER BY li1.position, li1.id
+            """, [source_id, target_id])
 
             if not items_to_merge:
                 return {"success": True, "items_added": 0}
 
-            # Add items to target list
+            # Add source-only items to the target list, appending at the end
+            # with valid positions (same convention as
+            # add_existing_item_to_list). Runs atomically in one transaction.
             items_added = 0
             with self.connection_manager.transaction() as conn:
                 for item in items_to_merge:
+                    position_result = conn.execute("""
+                        SELECT COALESCE(MAX(position), -1) + 1 AS next_position
+                        FROM list_items WHERE list_id = ?
+                    """, [target_id]).fetchone()
+                    next_position = position_result['next_position'] if position_result else 0
+
                     conn.execute("""
-                        INSERT INTO list_items (list_id, library_movie_id, title, year, imdb_id, tmdb_id, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-                    """, [int(target_list_id), item['library_movie_id'], item['title'], 
-                          item['year'], item['imdb_id'], item['tmdb_id']])
+                        INSERT INTO list_items (list_id, media_item_id, position, created_at)
+                        VALUES (?, ?, ?, datetime('now'))
+                    """, [target_id, item['media_item_id'], next_position])
                     items_added += 1
 
             self.logger.debug("Successfully merged %s items from list %s to list %s", items_added, source_list_id, target_list_id)
