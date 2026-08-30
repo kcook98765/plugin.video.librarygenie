@@ -2553,10 +2553,12 @@ class QueryManager:
                     return {"success": False, "error": "circular_reference"}
 
             # Check for name conflicts in target location
+            # (NULL-safe: moving to root targets parent_id IS NULL, and
+            # `parent_id = ?` with a NULL parameter never matches)
             existing_folder_name = existing_folder['name']
             name_conflict_check = self.connection_manager.execute_single("""
                 SELECT id FROM folders 
-                WHERE name = ? AND parent_id = ? AND id != ?
+                WHERE name = ? AND parent_id IS ? AND id != ?
             """, [existing_folder_name, int(target_folder_id) if target_folder_id is not None else None, int(folder_id)])
 
             if name_conflict_check:
