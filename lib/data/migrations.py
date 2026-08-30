@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 11
+TARGET_SCHEMA_VERSION = 12
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 11, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 12, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -142,6 +142,11 @@ class MigrationManager:
         
         CREATE UNIQUE INDEX idx_folders_name_parent ON folders (name, parent_id);
         CREATE INDEX idx_folders_parent_id ON folders (parent_id);
+        -- F-06b: root folders (parent_id IS NULL) need their own uniqueness
+        -- because SQLite treats NULLs as distinct in ordinary unique
+        -- indexes, so idx_folders_name_parent does not enforce root-level
+        -- name uniqueness. This partial index restricts root rows only.
+        CREATE UNIQUE INDEX idx_folders_root_unique ON folders (name) WHERE parent_id IS NULL;
         
         CREATE TABLE lists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -820,6 +825,221 @@ class MigrationManager:
                     ON lists (name) WHERE folder_id IS NULL
                 """)
                 self.logger.info("Root-level list name uniqueness index created")
+
+            # Migration from version 11 to 12 (F-06b): enforce root-level
+            # folder name uniqueness. The existing unique index
+            # idx_folders_name_parent ON folders (name, parent_id) cannot
+            # enforce uniqueness among root folders because SQLite treats
+            # NULL values as distinct in ordinary UNIQUE indexes
+            # (parent_id IS NULL for root folders). This migration:
+            #   1. deduplicates any pre-existing duplicate root folders,
+            #      keeping the oldest one (MIN id, the original) so
+            #      persisted references (startup_folder_id, folder cache
+            #      files, export files) keep pointing at the same row;
+            #   2. re-homes every relationship that points at a removed
+            #      duplicate onto the surviving folder - child folders,
+            #      lists, and import sources - before the index can be
+            #      created;
+            #   3. creates the partial unique index that makes root names
+            #      unique among roots while leaving sibling uniqueness
+            #      (idx_folders_name_parent) and cross-parent name reuse
+            #      (same name under different parents) completely untouched.
+            if current_version < 12:
+                self.logger.info("Migrating from version 11 to 12: enforcing root-level folder name uniqueness")
+
+                # Step 1: build a deterministic duplicate-root mapping
+                # old_id -> new_id (the survivor, MIN(id) per root name
+                # group) for every duplicate root folder that must be
+                # removed.
+                self.logger.info("Building duplicate-root folder mapping for re-homing")
+                conn.execute("""
+                    CREATE TEMP TABLE IF NOT EXISTS f06b_folder_map (
+                        old_id INTEGER PRIMARY KEY,
+                        new_id INTEGER NOT NULL
+                    )
+                """)
+                conn.execute("DELETE FROM f06b_folder_map")
+                conn.execute("""
+                    INSERT INTO f06b_folder_map (old_id, new_id)
+                    SELECT f.id,
+                           (SELECT MIN(s.id)
+                              FROM folders s
+                              WHERE s.name = f.name AND s.parent_id IS NULL)
+                    FROM folders f
+                    WHERE f.parent_id IS NULL
+                      AND f.id NOT IN (
+                          SELECT MIN(s.id)
+                          FROM folders s
+                          WHERE s.parent_id IS NULL
+                          GROUP BY s.name
+                      )
+                """)
+
+                # Step 2: re-home child folders from duplicate roots onto
+                # the surviving root. Collisions (a child with the same
+                # name already exists under the survivor, or the survivor
+                # already contains a duplicate root's child with the same
+                # name as one of its other children) are handled by
+                # renaming the incoming child with a numeric suffix so no
+                # user data or hierarchy is lost.
+                self.logger.info("Re-homing child folders from duplicate root folders onto the surviving root")
+                collision_ids = conn.execute(
+                    "SELECT old_id, new_id FROM f06b_folder_map ORDER BY old_id"
+                ).fetchall()
+                for cid in collision_ids:
+                    old_id, new_id = int(cid["old_id"]), int(cid["new_id"])
+                    # For each child of the duplicate root, check for a
+                    # name collision under the survivor and, if needed,
+                    # rename the child to a unique sibling name before
+                    # re-homing it.
+                    child_rows = conn.execute(
+                        "SELECT id, name FROM folders WHERE parent_id = ? ORDER BY id",
+                        [old_id],
+                    ).fetchall()
+                    for child in child_rows:
+                        child_id, child_name = int(child["id"]), child["name"]
+                        target_name = child_name
+                        taken = conn.execute(
+                            "SELECT name FROM folders WHERE parent_id = ? AND name = ?",
+                            [new_id, child_name],
+                        ).fetchall()
+                        if taken:
+                            # Append a suffix derived from the folder id
+                            # (stable, and free of characters that break
+                            # folder names) until the name is unique.
+                            candidate = "%s (%d)" % (child_name, child_id)
+                            while conn.execute(
+                                "SELECT 1 FROM folders WHERE parent_id = ? AND name = ?",
+                                [new_id, candidate],
+                            ).fetchone():
+                                candidate = "%s %d" % (candidate, child_id)
+                            target_name = candidate
+                        # Apply the destination-safe name and parent together.
+                        # Renaming first can collide with an existing sibling
+                        # under the old duplicate parent.
+                        conn.execute(
+                            "UPDATE folders SET name = ?, parent_id = ? WHERE id = ?",
+                            [target_name, new_id, child_id],
+                        )
+                        if taken:
+                            self.logger.info(
+                                "Renamed child folder %s from '%s' to '%s' to avoid sibling collision under folder %s",
+                                child_id, child_name, target_name, new_id,
+                            )
+
+                # Step 3: re-home lists from duplicate roots onto the
+                # surviving root folder. list.folder_id has ON DELETE SET
+                # NULL, so deleting a duplicate root without this step
+                # would silently move its lists to the root level -
+                # user data reorganization, not loss. Lists whose name
+                # collides with an existing list under the survivor get a
+                # numeric suffix instead (list names are unique per
+                # folder via idx_lists_name_folder).
+                self.logger.info("Re-homing lists from duplicate root folders onto the surviving root folder")
+                for cid in collision_ids:
+                    old_id, new_id = int(cid["old_id"]), int(cid["new_id"])
+                    list_rows = conn.execute(
+                        "SELECT id, name FROM lists WHERE folder_id = ? ORDER BY id",
+                        [old_id],
+                    ).fetchall()
+                    for lst in list_rows:
+                        list_id, list_name = int(lst["id"]), lst["name"]
+                        target_name = list_name
+                        taken = conn.execute(
+                            "SELECT 1 FROM lists WHERE folder_id = ? AND name = ?",
+                            [new_id, list_name],
+                        ).fetchone()
+                        if taken:
+                            candidate = "%s (%d)" % (list_name, list_id)
+                            while conn.execute(
+                                "SELECT 1 FROM lists WHERE folder_id = ? AND name = ?",
+                                [new_id, candidate],
+                            ).fetchone():
+                                candidate = "%s %d" % (candidate, list_id)
+                            target_name = candidate
+                        # Apply the destination-safe name and folder together
+                        # so old-folder siblings cannot block the rename.
+                        conn.execute(
+                            "UPDATE lists SET name = ?, folder_id = ? WHERE id = ?",
+                            [target_name, new_id, list_id],
+                        )
+                        if taken:
+                            self.logger.info(
+                                "Renamed list %s from '%s' to '%s' to avoid folder collision under folder %s",
+                                list_id, list_name, target_name, new_id,
+                            )
+
+                # Step 4: re-home import sources pointing at duplicate
+                # roots onto the surviving root. import_sources.folder_id
+                # is ON DELETE CASCADE, so without this step those rows
+                # would be dropped, losing the import provenance and
+                # unlocking the import folders' structure.
+                self.logger.info("Re-homing import sources from duplicate root folders onto the surviving root folder")
+                conn.execute("""
+                    UPDATE import_sources
+                    SET folder_id = (
+                        SELECT m.new_id
+                        FROM f06b_folder_map m
+                        WHERE m.old_id = import_sources.folder_id
+                    )
+                    WHERE folder_id IN (SELECT old_id FROM f06b_folder_map)
+                """)
+
+                # Step 5 (best effort): remap the persisted
+                # startup_folder_id setting if it pointed at a duplicate
+                # root that is about to be removed. The app already
+                # degrades gracefully for stale folder ids (the main menu
+                # validates the folder before redirecting), but remapping
+                # keeps the user's configured startup target intact. The
+                # survivor folder always exists regardless of whether the
+                # rest of this migration commits, so this write is safe
+                # in both outcomes.
+                try:
+                    from lib.config.config_manager import get_config
+                    cfg = get_config()
+                    startup_id = str(cfg.get("startup_folder_id") or "").strip()
+                    if startup_id.isdigit():
+                        remap_row = conn.execute(
+                            "SELECT new_id FROM f06b_folder_map WHERE old_id = ?",
+                            [int(startup_id)],
+                        ).fetchone()
+                        if remap_row:
+                            cfg.set("startup_folder_id", str(remap_row["new_id"]))
+                            cfg.invalidate("startup_folder_id")
+                            self.logger.info(
+                                "Remapped startup_folder_id from %s to %s",
+                                startup_id, remap_row["new_id"],
+                            )
+                except Exception as cfg_err:
+                    self.logger.warning(
+                        "Could not remap startup_folder_id setting: %s", cfg_err
+                    )
+
+                conn.execute("DROP TABLE f06b_folder_map")
+
+                # Step 5: delete the duplicate root folders themselves.
+                # All relationships were re-homed in steps 2-4; with
+                # PRAGMA foreign_keys=ON any remaining referent is
+                # handled by the declared FK action (SET NULL / CASCADE)
+                # rather than leaving an orphan.
+                self.logger.info("Removing duplicate root folders (keeping the oldest per name)")
+                conn.execute("""
+                    DELETE FROM folders
+                    WHERE parent_id IS NULL
+                      AND id NOT IN (
+                          SELECT MIN(s.id)
+                          FROM folders s
+                          WHERE s.parent_id IS NULL
+                          GROUP BY s.name
+                      )
+                """)
+
+                # Step 6: create the partial unique index on root rows.
+                conn.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_folders_root_unique
+                    ON folders (name) WHERE parent_id IS NULL
+                """)
+                self.logger.info("Root-level folder name uniqueness index created")
 
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
