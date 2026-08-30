@@ -728,6 +728,75 @@ class MigrationManager:
                     )
                 """)
 
+                # Step 2b (F-06a): re-home intersection-source references
+                # (intersection_list_sources.source_list_id) from duplicate root
+                # lists onto the surviving list. This column is a persisted FK to
+                # lists(id) with ON DELETE CASCADE, so leaving it untouched would
+                # have Step 3 silently drop those rows, widening the intersection
+                # (an AND filter losing a term) and losing user configuration.
+                #
+                # Build a deterministic mapping old_id -> new_id (the survivor,
+                # MAX(id) per root name group) so the reconciliation does not
+                # repeat fragile nested name lookups.
+                self.logger.info("Building duplicate-root mapping for intersection-source re-homing")
+                conn.execute("""
+                    CREATE TEMP TABLE f06a_list_map (
+                        old_id INTEGER PRIMARY KEY,
+                        new_id INTEGER NOT NULL
+                    )
+                """)
+                conn.execute("""
+                    INSERT INTO f06a_list_map (old_id, new_id)
+                    SELECT l.id,
+                           (SELECT MAX(s.id)
+                              FROM lists s
+                              WHERE s.name = l.name AND s.folder_id IS NULL)
+                    FROM lists l
+                    WHERE l.folder_id IS NULL
+                      AND l.id NOT IN (
+                          SELECT MAX(s.id)
+                          FROM lists s
+                          WHERE s.folder_id IS NULL
+                          GROUP BY s.name
+                      )
+                """)
+
+                # Collision-safe reconciliation of source rows, done in two
+                # ordered operations so the unique index
+                # idx_intersection_list_sources_unique (intersection_list_id,
+                # source_list_id) is never violated:
+                #
+                #   (i)   Materialize one source row per surviving
+                #         (intersection, survivor) relationship with
+                #         INSERT OR IGNORE. Rows whose relationship already
+                #         exists (the intersection already references the
+                #         survivor) are skipped, and when several duplicate
+                #         sources map onto the same survivor only one new row
+                #         is kept - OR IGNORE enforces the unique index per
+                #         row, so this cannot create a duplicate pair and
+                #         cannot fail.
+                #   (ii)  Delete every remaining source row that still points
+                #         at a non-survivor duplicate root; its logical
+                #         relationship now exists on the survivor row from (i).
+                #
+                # Order matters: inserts happen before the deletes, so the
+                # logical source is never transiently missing, and no UPDATE
+                # re-write (which would hit a transient unique violation when
+                # two duplicates map onto one survivor) is required.
+                self.logger.info("Re-homing intersection source references from duplicate root lists")
+                conn.execute("""
+                    INSERT OR IGNORE INTO intersection_list_sources
+                        (intersection_list_id, source_list_id, created_at)
+                    SELECT s.intersection_list_id, m.new_id, s.created_at
+                    FROM intersection_list_sources s
+                    INNER JOIN f06a_list_map m ON m.old_id = s.source_list_id
+                """)
+                conn.execute("""
+                    DELETE FROM intersection_list_sources
+                    WHERE source_list_id IN (SELECT old_id FROM f06a_list_map)
+                """)
+                conn.execute("DROP TABLE f06a_list_map")
+
                 # Step 3: delete the extra duplicate root lists, keeping the
                 # newest one per name (MAX id). Their list_items and
                 # intersection rows were re-homed above; any that remain
