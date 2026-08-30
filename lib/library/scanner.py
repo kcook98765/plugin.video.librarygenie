@@ -71,16 +71,20 @@ class LibraryScanner:
 
             # Clear existing data (full refresh)
             if dialog_bg:
-                dialog_bg.update(10, "LibraryGenie", "Clearing existing index...")
+                dialog_bg.update(10, "LibraryGenie", "Preparing non-destructive rescan...")
             elif progress_dialog:
-                progress_dialog.update(20, "LibraryGenie", "Clearing existing index...")
-            self._clear_library_index()
+                progress_dialog.update(20, "LibraryGenie", "Preparing non-destructive rescan...")
+            # Non-destructive rescan: track a keep-set of movie kodi_ids instead of
+            # hard-deleting the index (which drops rowids and cascades user links).
+            movie_keep = self._prepare_rescan_keep_set('movie')
 
             # Get total count for progress tracking
             total_movies = self.kodi_client.get_movie_count()
             self.logger.info("Full scan: %s movies to process", total_movies)
 
             if total_movies == 0:
+                # Empty library: mark any remaining lib movies as removed (soft).
+                self._soft_delete_missing_items('movie', movie_keep)
                 if dialog_bg:
                     dialog_bg.update(100, "LibraryGenie", "No movies found")
                     dialog_bg.close()
@@ -106,6 +110,7 @@ class LibraryScanner:
                 # Check for abort between pages
                 if self._should_abort():
                     self.logger.info("Full scan aborted by user at page %s/%s", page_num, total_pages)
+                    self._drop_rescan_keep_set(movie_keep)
                     if dialog_bg:
                         dialog_bg.update(100, "LibraryGenie", "Scan aborted")
                         dialog_bg.close()
@@ -117,8 +122,8 @@ class LibraryScanner:
                 if not movies:
                     break
 
-                # Batch insert movies
-                added_count = self._batch_insert_movies(movies)
+                # Batch insert movies (rowid-stable upsert; record seen kodi_ids)
+                added_count = self._batch_insert_movies(movies, movie_keep)
                 total_added += added_count
 
                 offset += len(movies)
@@ -149,6 +154,9 @@ class LibraryScanner:
 
             self.logger.info("=== MOVIE SYNC COMPLETE: %s movies successfully indexed ===", total_added)
 
+            # Soft-delete library movies that no longer exist in Kodi (rowid-preserved).
+            self._soft_delete_missing_items('movie', movie_keep)
+
             # TV Episode sync (if enabled) - read directly from Kodi to bypass caching
             total_episodes_added = 0
             import xbmcaddon
@@ -161,7 +169,14 @@ class LibraryScanner:
             if sync_tv_episodes:
                 self.logger.info("TV episode sync enabled - starting episode scan")
                 try:
-                    total_episodes_added = self._sync_tv_episodes(dialog_bg, progress_dialog, progress_callback)
+                    episode_keep = self._prepare_rescan_keep_set('episode')
+                    total_episodes_added = self._sync_tv_episodes(
+                        dialog_bg, progress_dialog, progress_callback, episode_keep)
+                    # Soft-delete episodes no longer present (rowid-preserved) unless aborted.
+                    if not self._abort_requested:
+                        self._soft_delete_missing_items('episode', episode_keep)
+                    else:
+                        self._drop_rescan_keep_set(episode_keep)
                     self.logger.info("=== TV EPISODE SYNC COMPLETE: %s episodes successfully indexed ===", total_episodes_added)
                 except Exception as e:
                     self.logger.error("TV episode sync failed: %s", e)
@@ -386,13 +401,93 @@ class LibraryScanner:
             self.logger.error("Failed to clear library index: %s", e)
             raise
 
-    def _batch_insert_movies(self, movies: List[Dict[str, Any]]) -> int:
-        """Insert movies in batches with full metadata"""
+    def _prepare_rescan_keep_set(self, media_type: str):
+        """Prepare a temporary keep-set for a non-destructive rescan.
+
+        Instead of hard-DELETEing every existing item before a full rescan (which
+        drops rowids and cascades to user list_items / kodi_favorite rows), we keep
+        a staging table of the kodi_ids that currently exist. As the scan re-inserts
+        each item, its kodi_id is recorded here; after the scan we soft-delete the
+        items that never re-appeared. This mirrors the delta scan's is_removed
+        model.
+
+        Returns the keep-set table name ('' on failure).
+        """
+        table = "rescan_keep_" + media_type
+        try:
+            with self.conn_manager.transaction() as conn:
+                conn.execute("DROP TABLE IF EXISTS %s" % table)
+                conn.execute("CREATE TEMP TABLE IF NOT EXISTS %s (kodi_id INTEGER PRIMARY KEY)" % table)
+            self.logger.debug("Prepared rescan keep-set for %s: %s", media_type, table)
+            return table
+        except Exception as e:
+            self.logger.warning("Failed to prepare rescan keep-set for %s: %s", media_type, e)
+            return ""
+
+    def _drop_rescan_keep_set(self, table: str):
+        """Drop a rescan keep-set without soft-deleting (used on abort/cleanup)."""
+        if not table:
+            return
+        try:
+            with self.conn_manager.transaction() as conn:
+                conn.execute("DROP TABLE IF EXISTS %s" % table)
+        except Exception as e:
+            self.logger.warning("Failed to drop rescan keep-set: %s", e)
+
+    def _record_rescan_seen(self, table: str, kodi_ids) -> int:
+        """Record which kept kodi_ids were actually re-encountered this scan."""
+        if not table:
+            return 0
+        ids = [i for i in kodi_ids if i is not None]
+        if not ids:
+            return 0
+        try:
+            with self.conn_manager.transaction() as conn:
+                conn.executemany(
+                    "INSERT OR IGNORE INTO %s (kodi_id) VALUES (?)" % table,
+                    [(i,) for i in ids],
+                )
+            return len(ids)
+        except Exception as e:
+            self.logger.warning("Failed to record rescan seen ids: %s", e)
+            return 0
+
+    def _soft_delete_missing_items(self, media_type: str, table: str) -> int:
+        """Soft-delete library items whose kodi_id was not re-encountered this scan.
+
+        Marking is_removed=1 (rather than deleting the row) preserves the media_items
+        rowid, so any user list_items / kodi_favorite rows that reference it stay
+        intact and can be restored when the item reappears.
+        """
+        if not table:
+            return 0
+        try:
+            with self.conn_manager.transaction() as conn:
+                cursor = conn.execute(
+                    "UPDATE media_items SET is_removed = 1, updated_at = datetime('now') "
+                    "WHERE media_type = ? AND source = 'lib' AND is_removed = 0 "
+                    "AND NOT EXISTS (SELECT 1 FROM %s k WHERE k.kodi_id = media_items.kodi_id)"
+                    % table,
+                    [media_type],
+                )
+                removed = cursor.rowcount
+                conn.execute("DROP TABLE IF EXISTS %s" % table)
+            if removed:
+                self.logger.info("Soft-deleted %s library %s item(s) no longer in Kodi", removed, media_type)
+            return removed
+        except Exception as e:
+            self.logger.error("Failed to soft-delete missing %s items: %s", media_type, e)
+            return 0
+
+    def _batch_insert_movies(self, movies: List[Dict[str, Any]], keep_table: str = "") -> int:
+        """Insert movies in batches with full metadata (rowid-stable upsert)"""
         if not movies:
             return 0
 
         try:
             inserted_count = 0
+            if keep_table:
+                self._record_rescan_seen(keep_table, [m.get("kodi_id") for m in movies])
 
             with self.conn_manager.transaction() as conn:
                 for movie in movies:
@@ -446,12 +541,36 @@ class LibraryScanner:
                             studio_str = studio_str[0] if studio_str else ""
 
                         conn.execute("""
-                            INSERT OR REPLACE INTO media_items
+                            INSERT INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
                              plot, rating, votes, duration, mpaa, genre, director, studio, country, 
                              writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
                                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                            ON CONFLICT (media_type, source, kodi_id) WHERE kodi_id IS NOT NULL AND source = 'lib'
+                            DO UPDATE SET
+                                title = excluded.title,
+                                year = excluded.year,
+                                imdbnumber = excluded.imdbnumber,
+                                tmdb_id = excluded.tmdb_id,
+                                play = excluded.play,
+                                plot = excluded.plot,
+                                rating = excluded.rating,
+                                votes = excluded.votes,
+                                duration = excluded.duration,
+                                mpaa = excluded.mpaa,
+                                genre = excluded.genre,
+                                director = excluded.director,
+                                studio = excluded.studio,
+                                country = excluded.country,
+                                writer = excluded.writer,
+                                art = excluded.art,
+                                file_path = excluded.file_path,
+                                normalized_path = excluded.normalized_path,
+                                is_removed = 0,
+                                display_title = excluded.display_title,
+                                duration_seconds = excluded.duration_seconds,
+                                updated_at = datetime('now')
                         """, [
                             'movie',
                             movie["kodi_id"],
@@ -508,10 +627,8 @@ class LibraryScanner:
             if progress_dialog:
                 progress_dialog.update(0, "LibraryGenie", "Preparing movie scan...")
 
-            # Clear existing movies only
-            with self.conn_manager.transaction() as conn:
-                conn.execute("DELETE FROM media_items WHERE media_type = 'movie'")
-                self.logger.debug("Cleared existing movies for resync")
+            # Non-destructive rescan: track a keep-set instead of hard-deleting movies.
+            movie_keep = self._prepare_rescan_keep_set('movie')
 
             # Service already shows "Starting movie sync..." when creating dialog
             # Skip redundant startup message to avoid 0% flash
@@ -522,6 +639,7 @@ class LibraryScanner:
 
             if total_movies == 0:
                 self.logger.info("No movies found in library")
+                self._soft_delete_missing_items('movie', movie_keep)
                 if progress_dialog:
                     progress_dialog.update(100, "LibraryGenie", "No movies found")
                 return {"success": True, "items_added": 0, "episodes_added": 0}
@@ -535,6 +653,7 @@ class LibraryScanner:
             for page in range(total_pages):
                 if self._should_abort():
                     self.logger.info("Movies scan aborted by user")
+                    self._drop_rescan_keep_set(movie_keep)
                     break
 
                 offset = page * page_size
@@ -544,8 +663,8 @@ class LibraryScanner:
                 if not movies:
                     break
 
-                # Insert this batch of movies
-                movies_added = self._batch_insert_movies(movies)
+                # Insert this batch of movies (rowid-stable upsert; record seen kodi_ids)
+                movies_added = self._batch_insert_movies(movies, movie_keep)
                 total_movies_added += movies_added
 
                 # Update progress for movies: 0% to 100%
@@ -555,6 +674,12 @@ class LibraryScanner:
                     progress_dialog.update(progress_percentage, "LibraryGenie", progress_message)
 
                 # Silent page processing - final count reported at process end
+
+            # Soft-delete library movies no longer present (rowid-preserved) unless aborted.
+            if not self._abort_requested:
+                self._soft_delete_missing_items('movie', movie_keep)
+            else:
+                self._drop_rescan_keep_set(movie_keep)
 
             if progress_dialog:
                 progress_dialog.update(100, "LibraryGenie", f"Movies scan complete: {total_movies_added} movies")
@@ -601,16 +726,21 @@ class LibraryScanner:
             if progress_dialog:
                 progress_dialog.update(0, "LibraryGenie", "Preparing TV episodes scan...")
 
-            # Clear existing TV episodes only
-            with self.conn_manager.transaction() as conn:
-                conn.execute("DELETE FROM media_items WHERE media_type = 'episode'")
-                self.logger.debug("Cleared existing TV episodes for resync")
+            # Non-destructive rescan: track a keep-set instead of hard-deleting episodes.
+            episode_keep = self._prepare_rescan_keep_set('episode')
 
             # Service already shows "Starting TV episodes sync..." when creating dialog  
             # Skip redundant startup message to avoid 0% flash
 
             # Sync TV episodes
-            total_episodes_added = self._sync_tv_episodes(progress_dialog=progress_dialog, progress_callback=progress_callback)
+            total_episodes_added = self._sync_tv_episodes(
+                progress_dialog=progress_dialog, progress_callback=progress_callback, episode_keep=episode_keep)
+
+            # Soft-delete episodes no longer present (rowid-preserved) unless aborted.
+            if not self._abort_requested:
+                self._soft_delete_missing_items('episode', episode_keep)
+            else:
+                self._drop_rescan_keep_set(episode_keep)
             
             if progress_dialog:
                 progress_dialog.update(100, "LibraryGenie", f"TV episodes scan complete: {total_episodes_added} episodes")
@@ -629,7 +759,7 @@ class LibraryScanner:
                 progress_dialog.update(100, "LibraryGenie", f"TV episodes scan failed: {e}")
             return {"success": False, "error": str(e)}
 
-    def _sync_tv_episodes(self, dialog_bg=None, progress_dialog=None, progress_callback=None) -> int:
+    def _sync_tv_episodes(self, dialog_bg=None, progress_dialog=None, progress_callback=None, episode_keep: str = "") -> int:
         """Sync all TV episodes from Kodi library"""
         self.logger.info("Starting TV episode sync")
         
@@ -682,8 +812,8 @@ class LibraryScanner:
                     episodes = self.kodi_client.get_episodes_for_tvshow(tvshow_id)
                     
                     if episodes:
-                        # Insert episodes for this show
-                        episodes_added = self._batch_insert_episodes(episodes, tvshow)
+                        # Insert episodes for this show (rowid-stable upsert; record seen kodi_ids)
+                        episodes_added = self._batch_insert_episodes(episodes, tvshow, episode_keep)
                         total_episodes_added += episodes_added
                         # Silent episode insertion - final count reported at process end
                 
@@ -707,13 +837,15 @@ class LibraryScanner:
             self.logger.error("TV episode sync failed: %s", e)
             return 0
 
-    def _batch_insert_episodes(self, episodes: List[Dict[str, Any]], tvshow_data: Dict[str, Any]) -> int:
-        """Insert TV episodes in batches with full metadata"""
+    def _batch_insert_episodes(self, episodes: List[Dict[str, Any]], tvshow_data: Dict[str, Any], keep_table: str = "") -> int:
+        """Insert TV episodes in batches with full metadata (rowid-stable upsert)"""
         if not episodes:
             return 0
 
         try:
             inserted_count = 0
+            if keep_table:
+                self._record_rescan_seen(keep_table, [e.get("kodi_id") for e in episodes])
 
             with self.conn_manager.transaction() as conn:
                 for episode in episodes:
@@ -750,7 +882,7 @@ class LibraryScanner:
                         duration_minutes = duration_seconds // 60 if duration_seconds else 0
 
                         conn.execute("""
-                            INSERT OR REPLACE INTO media_items
+                            INSERT INTO media_items
                             (media_type, kodi_id, title, year, imdbnumber, tmdb_id, play, source, created_at, updated_at,
                              plot, rating, votes, duration, mpaa, genre, director, studio, country, 
                              writer, art, file_path, normalized_path, is_removed, display_title, duration_seconds,
@@ -758,6 +890,35 @@ class LibraryScanner:
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'),
                                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?,
                                     ?, ?, ?, ?, ?)
+                            ON CONFLICT (media_type, source, kodi_id) WHERE kodi_id IS NOT NULL AND source = 'lib'
+                            DO UPDATE SET
+                                title = excluded.title,
+                                year = excluded.year,
+                                imdbnumber = excluded.imdbnumber,
+                                tmdb_id = excluded.tmdb_id,
+                                play = excluded.play,
+                                plot = excluded.plot,
+                                rating = excluded.rating,
+                                votes = excluded.votes,
+                                duration = excluded.duration,
+                                mpaa = excluded.mpaa,
+                                genre = excluded.genre,
+                                director = excluded.director,
+                                studio = excluded.studio,
+                                country = excluded.country,
+                                writer = excluded.writer,
+                                art = excluded.art,
+                                file_path = excluded.file_path,
+                                normalized_path = excluded.normalized_path,
+                                is_removed = 0,
+                                display_title = excluded.display_title,
+                                duration_seconds = excluded.duration_seconds,
+                                tvshowtitle = excluded.tvshowtitle,
+                                season = excluded.season,
+                                episode = excluded.episode,
+                                aired = excluded.aired,
+                                tvshow_kodi_id = excluded.tvshow_kodi_id,
+                                updated_at = datetime('now')
                         """, [
                             'episode',
                             episode["kodi_id"],
