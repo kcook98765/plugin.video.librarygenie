@@ -884,7 +884,7 @@ class MigrationManager:
                 # user data or hierarchy is lost.
                 self.logger.info("Re-homing child folders from duplicate root folders onto the surviving root")
                 collision_ids = conn.execute(
-                    "SELECT old_id, new_id FROM f06b_folder_map"
+                    "SELECT old_id, new_id FROM f06b_folder_map ORDER BY old_id"
                 ).fetchall()
                 for cid in collision_ids:
                     old_id, new_id = int(cid["old_id"]), int(cid["new_id"])
@@ -893,11 +893,12 @@ class MigrationManager:
                     # rename the child to a unique sibling name before
                     # re-homing it.
                     child_rows = conn.execute(
-                        "SELECT id, name FROM folders WHERE parent_id = ?",
+                        "SELECT id, name FROM folders WHERE parent_id = ? ORDER BY id",
                         [old_id],
                     ).fetchall()
                     for child in child_rows:
                         child_id, child_name = int(child["id"]), child["name"]
+                        target_name = child_name
                         taken = conn.execute(
                             "SELECT name FROM folders WHERE parent_id = ? AND name = ?",
                             [new_id, child_name],
@@ -912,18 +913,19 @@ class MigrationManager:
                                 [new_id, candidate],
                             ).fetchone():
                                 candidate = "%s %d" % (candidate, child_id)
-                            conn.execute(
-                                "UPDATE folders SET name = ? WHERE id = ?",
-                                [candidate, child_id],
-                            )
+                            target_name = candidate
+                        # Apply the destination-safe name and parent together.
+                        # Renaming first can collide with an existing sibling
+                        # under the old duplicate parent.
+                        conn.execute(
+                            "UPDATE folders SET name = ?, parent_id = ? WHERE id = ?",
+                            [target_name, new_id, child_id],
+                        )
+                        if taken:
                             self.logger.info(
                                 "Renamed child folder %s from '%s' to '%s' to avoid sibling collision under folder %s",
-                                child_id, child_name, candidate, new_id,
+                                child_id, child_name, target_name, new_id,
                             )
-                        conn.execute(
-                            "UPDATE folders SET parent_id = ? WHERE id = ?",
-                            [new_id, child_id],
-                        )
 
                 # Step 3: re-home lists from duplicate roots onto the
                 # surviving root folder. list.folder_id has ON DELETE SET
@@ -937,11 +939,12 @@ class MigrationManager:
                 for cid in collision_ids:
                     old_id, new_id = int(cid["old_id"]), int(cid["new_id"])
                     list_rows = conn.execute(
-                        "SELECT id, name FROM lists WHERE folder_id = ?",
+                        "SELECT id, name FROM lists WHERE folder_id = ? ORDER BY id",
                         [old_id],
                     ).fetchall()
                     for lst in list_rows:
                         list_id, list_name = int(lst["id"]), lst["name"]
+                        target_name = list_name
                         taken = conn.execute(
                             "SELECT 1 FROM lists WHERE folder_id = ? AND name = ?",
                             [new_id, list_name],
@@ -953,18 +956,18 @@ class MigrationManager:
                                 [new_id, candidate],
                             ).fetchone():
                                 candidate = "%s %d" % (candidate, list_id)
-                            conn.execute(
-                                "UPDATE lists SET name = ? WHERE id = ?",
-                                [candidate, list_id],
-                            )
+                            target_name = candidate
+                        # Apply the destination-safe name and folder together
+                        # so old-folder siblings cannot block the rename.
+                        conn.execute(
+                            "UPDATE lists SET name = ?, folder_id = ? WHERE id = ?",
+                            [target_name, new_id, list_id],
+                        )
+                        if taken:
                             self.logger.info(
                                 "Renamed list %s from '%s' to '%s' to avoid folder collision under folder %s",
-                                list_id, list_name, candidate, new_id,
+                                list_id, list_name, target_name, new_id,
                             )
-                        conn.execute(
-                            "UPDATE lists SET folder_id = ? WHERE id = ?",
-                            [new_id, list_id],
-                        )
 
                 # Step 4: re-home import sources pointing at duplicate
                 # roots onto the surviving root. import_sources.folder_id
