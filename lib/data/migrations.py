@@ -12,7 +12,7 @@ from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
 
 # Current target schema version
-TARGET_SCHEMA_VERSION = 10
+TARGET_SCHEMA_VERSION = 11
 
 
 class MigrationManager:
@@ -108,7 +108,7 @@ class MigrationManager:
             applied_at TEXT NOT NULL
         );
         
-        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 10, datetime('now')) 
+        INSERT INTO schema_version (id, version, applied_at) VALUES (1, 11, datetime('now')) 
         ON CONFLICT(id) DO UPDATE SET version=excluded.version, applied_at=excluded.applied_at;
         
         -- Auth state table for device authorization (CRITICAL - fixes original error)
@@ -156,6 +156,11 @@ class MigrationManager:
         
         CREATE UNIQUE INDEX idx_lists_name_folder ON lists (name, folder_id);
         CREATE INDEX idx_lists_folder_id ON lists (folder_id);
+        -- F-06: root lists (folder_id IS NULL) need their own uniqueness
+        -- because SQLite treats NULLs as distinct in ordinary unique
+        -- indexes, so idx_lists_name_folder does not enforce root-level
+        -- name uniqueness. This partial index restricts root rows only.
+        CREATE UNIQUE INDEX idx_lists_root_unique ON lists (name) WHERE folder_id IS NULL;
         
         CREATE TABLE media_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -658,7 +663,95 @@ class MigrationManager:
                 conn.execute("CREATE INDEX IF NOT EXISTS idx_intersection_list_sources_source_list ON intersection_list_sources (source_list_id)")
                 conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_intersection_list_sources_unique ON intersection_list_sources (intersection_list_id, source_list_id)")
                 self.logger.info("Intersection lists tables created successfully")
-            
+
+            # Migration from version 10 to 11 (F-06): enforce root-level list
+            # name uniqueness. The existing unique index
+            # idx_lists_name_folder ON lists (name, folder_id) cannot enforce
+            # uniqueness among root lists because SQLite treats NULL values as
+            # distinct in ordinary UNIQUE indexes (folder_id IS NULL for root
+            # lists). This migration:
+            #   1. deduplicates any pre-existing duplicate root lists, keeping
+            #      the newest one (MAX id) so no user data is lost: list_items,
+            #      intersection rows and import provenance are re-homed onto
+            #      the surviving list;
+            #   2. creates the partial unique index that makes root names
+            #      unique among roots while leaving sibling uniqueness
+            #      (idx_lists_name_folder) and cross-folder name reuse
+            #      (same name under different folders) completely untouched.
+            if current_version < 11:
+                self.logger.info("Migrating from version 10 to 11: enforcing root-level list name uniqueness")
+
+                # Step 1: re-home list_items from duplicate root lists onto the
+                # surviving (newest) duplicate. Rows that would collide after
+                # re-homing (same media item already linked to the survivor)
+                # are not copied again.
+                self.logger.info("Re-homing list_items from duplicate root lists onto the surviving list")
+                conn.execute("""
+                    INSERT OR IGNORE INTO list_items (list_id, media_item_id, position, search_score)
+                    SELECT MIN(surv.id), li.media_item_id, li.position, li.search_score
+                    FROM list_items li
+                    INNER JOIN lists dup ON dup.id = li.list_id
+                    INNER JOIN lists surv
+                        ON surv.name = dup.name
+                        AND surv.folder_id IS NULL
+                        AND surv.id = (
+                            SELECT MAX(s.id)
+                            FROM lists s
+                            WHERE s.name = dup.name AND s.folder_id IS NULL
+                        )
+                        AND surv.id != dup.id
+                    WHERE dup.folder_id IS NULL
+                    GROUP BY surv.id, li.media_item_id
+                """)
+
+                # Step 2: re-home intersection references from duplicate root
+                # lists onto the surviving list.
+                self.logger.info("Re-homing intersection list references from duplicate root lists")
+                conn.execute("""
+                    UPDATE intersection_lists
+                    SET list_id = (
+                        SELECT MAX(s.id)
+                        FROM lists s
+                        WHERE s.name = (SELECT l2.name FROM lists l2 WHERE l2.id = intersection_lists.list_id)
+                          AND s.folder_id IS NULL
+                    )
+                    WHERE list_id IN (
+                        SELECT l.id
+                        FROM lists l
+                        WHERE l.folder_id IS NULL
+                          AND l.id NOT IN (
+                              SELECT MAX(s.id)
+                              FROM lists s
+                              WHERE s.folder_id IS NULL
+                              GROUP BY s.name
+                          )
+                    )
+                """)
+
+                # Step 3: delete the extra duplicate root lists, keeping the
+                # newest one per name (MAX id). Their list_items and
+                # intersection rows were re-homed above; any that remain
+                # (e.g. already-existing links) are removed by the FK cascade
+                # on the connection's PRAGMA foreign_keys=ON.
+                self.logger.info("Removing duplicate root lists (keeping the newest per name)")
+                conn.execute("""
+                    DELETE FROM lists
+                    WHERE folder_id IS NULL
+                      AND id NOT IN (
+                          SELECT MAX(s.id)
+                          FROM lists s
+                          WHERE s.folder_id IS NULL
+                          GROUP BY s.name
+                      )
+                """)
+
+                # Step 4: create the partial unique index on root rows.
+                conn.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_lists_root_unique
+                    ON lists (name) WHERE folder_id IS NULL
+                """)
+                self.logger.info("Root-level list name uniqueness index created")
+
             # Set final version
             self._set_schema_version(conn, TARGET_SCHEMA_VERSION)
             self.logger.info("Database migration completed successfully")
