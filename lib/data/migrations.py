@@ -7,6 +7,7 @@ Creates the complete database schema on first run
 """
 
 import json
+import sqlite3
 import time
 from lib.data.connection_manager import get_connection_manager
 from lib.utils.kodi_log import get_kodi_logger
@@ -38,9 +39,11 @@ class MigrationManager:
     def ensure_initialized_with_connection(self, conn):
         """Ensure database is initialized with complete schema using provided connection"""
         # Use application-level locking to prevent concurrent initialization
+        transaction_scope = None
+        succeeded = False
         try:
             # First, try to acquire an exclusive lock on the database
-            self._acquire_init_lock(conn)
+            transaction_scope = self._acquire_init_lock(conn)
             
             # Re-check version after acquiring lock (another process might have initialized)
             current_version = self._get_current_version_with_connection(conn)
@@ -65,11 +68,13 @@ class MigrationManager:
                 else:
                     self.logger.debug("Database already at version %s", current_version)
 
+            succeeded = True
+
         except Exception as e:
             self.logger.error("Database initialization failed: %s", e)
             raise
         finally:
-            self._release_init_lock(conn)
+            self._release_init_lock(conn, transaction_scope, succeeded)
 
     def _is_database_empty(self):
         """Check if database is empty (no tables exist)"""
@@ -99,7 +104,10 @@ class MigrationManager:
 
     def _create_tables(self, conn):
         """Create all database tables"""
-        # Execute complete schema as a single script to avoid indentation issues
+        # Keep every schema statement inside the initialization transaction.
+        # sqlite3.Connection.executescript() implicitly commits any pending
+        # transaction before running its script, which would make a failure
+        # leave a partially initialized database behind.
         schema_sql = """
         -- Schema version tracking (single-row table)
         CREATE TABLE IF NOT EXISTS schema_version (
@@ -370,17 +378,15 @@ class MigrationManager:
         
         """
         
-        # Execute the complete schema script
-        try:
-            conn.executescript(schema_sql)
-            self.logger.debug("Database schema created successfully")
-        except AttributeError:
-            # Fallback for connections that don't support executescript
-            statements = [stmt.strip() for stmt in schema_sql.split(';') if stmt.strip()]
-            for statement in statements:
-                if statement:
-                    conn.execute(statement)
-            self.logger.debug("Database schema created successfully (fallback method)")
+        statement = ""
+        for line in schema_sql.splitlines():
+            statement += line + "\n"
+            if sqlite3.complete_statement(statement):
+                conn.execute(statement)
+                statement = ""
+        if statement.strip():
+            raise sqlite3.OperationalError("Incomplete database schema statement")
+        self.logger.debug("Database schema created successfully")
         
         self.logger.info("Complete database schema created successfully")
 
@@ -1065,7 +1071,9 @@ class MigrationManager:
         
     def _acquire_init_lock(self, conn):
         """Acquire an application-level lock for database initialization"""
-        # Check if we're already in a transaction (avoid nested BEGIN)
+        # Use a savepoint when the caller already owns a transaction, so this
+        # method can roll back only initialization work without committing or
+        # discarding the caller's unrelated changes.
         try:
             # Test if we can execute a simple query without starting a transaction
             conn.execute("SELECT 1")
@@ -1074,8 +1082,9 @@ class MigrationManager:
             in_transaction = False
             
         if in_transaction:
-            self.logger.debug("Already in transaction, skipping lock acquisition")
-            return
+            conn.execute("SAVEPOINT librarygenie_initialization")
+            self.logger.debug("Using savepoint inside caller transaction")
+            return "savepoint"
             
         max_retries = 5
         retry_delay = 0.2
@@ -1085,7 +1094,7 @@ class MigrationManager:
                 # Use BEGIN IMMEDIATE to get an exclusive write lock
                 conn.execute("BEGIN IMMEDIATE")
                 self.logger.debug("Acquired database initialization lock on attempt %d", attempt + 1)
-                return
+                return "transaction"
             except Exception as e:
                 if attempt < max_retries - 1:
                     self.logger.debug("Could not acquire initialization lock on attempt %d: %s, retrying...", attempt + 1, e)
@@ -1095,17 +1104,27 @@ class MigrationManager:
                     self.logger.error("Could not acquire initialization lock after %d attempts: %s", max_retries, e)
                     raise Exception(f"Failed to acquire database lock after {max_retries} attempts: {e}")
                 
-    def _release_init_lock(self, conn):
-        """Release the application-level initialization lock"""
+    def _release_init_lock(self, conn, transaction_scope, succeeded):
+        """Finish initialization without committing failed or caller-owned work."""
         try:
-            # Only commit if we're in a transaction
-            if conn.in_transaction:
-                conn.commit()
-                self.logger.debug("Released database initialization lock")
+            if transaction_scope == "savepoint":
+                if not succeeded:
+                    conn.execute("ROLLBACK TO SAVEPOINT librarygenie_initialization")
+                conn.execute("RELEASE SAVEPOINT librarygenie_initialization")
+                self.logger.debug("Released database initialization savepoint")
+            elif transaction_scope == "transaction" and conn.in_transaction:
+                if succeeded:
+                    conn.commit()
+                    self.logger.debug("Committed database initialization")
+                else:
+                    conn.rollback()
+                    self.logger.debug("Rolled back failed database initialization")
             else:
-                self.logger.debug("No transaction to commit, lock already released")
+                self.logger.debug("No initialization transaction to release")
         except Exception as e:
-            self.logger.debug("Lock release failed (may have been auto-released): %s", e)
+            self.logger.error("Initialization transaction cleanup failed: %s", e)
+            if succeeded:
+                raise
             
     def _create_schema_version_table(self, conn):
         """Create schema_version table with single-row semantics"""
