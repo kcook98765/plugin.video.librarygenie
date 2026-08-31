@@ -482,11 +482,11 @@ class ListsHandler:
                 menu_items = processed_menu_items if processed_menu_items else []
                 self.logger.debug("Using %d pre-processed menu items from cache (Tools & Options will be added dynamically)", len(menu_items))
             else:
-                # Cache miss: Build menu items from database data
+                # Cache miss: Reuse the processed items already built for the cache.
                 user_lists = all_lists
                 self.logger.debug("Found %s total lists (cache_used: %s)", len(user_lists), cache_used)
-                menu_items = self._build_processed_menu_items(context, all_lists, all_folders, query_manager)
-                self.logger.debug("Built %d menu items from raw data", len(menu_items))
+                menu_items = processed_menu_items
+                self.logger.debug("Reusing %d processed menu items built for cache", len(menu_items))
 
             # Check for empty state when no cache used
             if not cache_used:
