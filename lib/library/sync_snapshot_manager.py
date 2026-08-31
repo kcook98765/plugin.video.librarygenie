@@ -208,7 +208,7 @@ class SyncSnapshotManager:
             
         except Exception as e:
             self.logger.error(f"Failed to detect {media_type} changes: {e}")
-            return {"new": set(), "removed": set(), "existing_count": 0}
+            raise
     
     def cleanup_snapshot(self):
         """Remove all snapshot data to prevent table bloat"""

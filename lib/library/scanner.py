@@ -422,7 +422,7 @@ class LibraryScanner:
             return table
         except Exception as e:
             self.logger.warning("Failed to prepare rescan keep-set for %s: %s", media_type, e)
-            return ""
+            raise
 
     def _drop_rescan_keep_set(self, table: str):
         """Drop a rescan keep-set without soft-deleting (used on abort/cleanup)."""
@@ -450,7 +450,7 @@ class LibraryScanner:
             return len(ids)
         except Exception as e:
             self.logger.warning("Failed to record rescan seen ids: %s", e)
-            return 0
+            raise
 
     def _soft_delete_missing_items(self, media_type: str, table: str) -> int:
         """Soft-delete library items whose kodi_id was not re-encountered this scan.
@@ -477,7 +477,7 @@ class LibraryScanner:
             return removed
         except Exception as e:
             self.logger.error("Failed to soft-delete missing %s items: %s", media_type, e)
-            return 0
+            raise
 
     def _batch_insert_movies(self, movies: List[Dict[str, Any]], keep_table: str = "") -> int:
         """Insert movies in batches with full metadata (rowid-stable upsert)"""
@@ -609,7 +609,7 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error("Batch insert failed: %s", e)
-            return 0
+            raise
 
     def perform_movies_only_scan(self, progress_dialog=None, progress_callback=None) -> Dict[str, Any]:
         """Perform movies-only scan (no TV episodes)"""
@@ -835,7 +835,7 @@ class LibraryScanner:
             
         except Exception as e:
             self.logger.error("TV episode sync failed: %s", e)
-            return 0
+            raise
 
     def _batch_insert_episodes(self, episodes: List[Dict[str, Any]], tvshow_data: Dict[str, Any], keep_table: str = "") -> int:
         """Insert TV episodes in batches with full metadata (rowid-stable upsert)"""
@@ -963,7 +963,7 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error("Episode batch insert failed: %s", e)
-            return 0
+            raise
 
     def _get_indexed_movies(self) -> List[Dict[str, Any]]:
         """Get all indexed movies (internal use)"""
@@ -1016,7 +1016,7 @@ class LibraryScanner:
 
         except Exception as e:
             self.logger.error("Failed to mark movies as removed: %s", e)
-            return 0
+            raise
 
     def _update_last_seen(self, kodi_ids: Set[int]) -> int:
         """Update last_seen timestamp for existing movies"""

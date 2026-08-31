@@ -331,7 +331,7 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error("Failed to get user lists: %s", e)
-            return []
+            raise
 
     def get_list_items(self, list_id, limit=100, offset=0):
         """Get items from a specific list with paging, normalized to canonical format"""
@@ -438,7 +438,7 @@ class QueryManager:
             self.logger.error("Error getting list items: %s", e)
             import traceback
             self.logger.error("Traceback: %s", traceback.format_exc())
-            return []
+            raise
             
     def get_list_item_count(self, list_id: int) -> int:
         """Get total count of items in a specific list"""
@@ -456,7 +456,7 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error("Error getting list item count: %s", e)
-            return 0
+            raise
 
     def create_list(self, name, description="", folder_id=None, is_import_sourced=0, import_source_id=None):
         """Create a new list in unified lists table with proper validation
@@ -936,6 +936,7 @@ class QueryManager:
                 return 0
 
             added_count = 0
+            first_error = None
 
             with self.connection_manager.transaction() as conn:
                 for position, item in enumerate(search_results['items']):
@@ -960,14 +961,19 @@ class QueryManager:
 
                     except Exception as e:
                         self.logger.error("Error adding search result item: %s", e)
+                        if first_error is None:
+                            first_error = e
                         continue
+
+            if first_error is not None and added_count == 0:
+                raise first_error
 
             self.logger.debug("Added %s items to search history list %s", added_count, list_id)
             return added_count
 
         except Exception as e:
             self.logger.error("Failed to add search results to list: %s", e)
-            return 0
+            raise
 
     def add_library_items_to_list(self, list_id, library_items):
         """Add library items to a list using canonical pipeline (same as search process)"""
@@ -1182,7 +1188,7 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error("Error inserting/getting media item: %s", e)
-            return None
+            raise
 
     def get_all_lists_with_folders(self):
         """Get all lists with their folder information"""
@@ -1222,7 +1228,7 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error("Failed to get lists with folders: %s", e)
-            return []
+            raise
 
     def _get_kodi_episode_enrichment_data_batch(self, kodi_ids: List[int]) -> Dict[int, Dict[str, Any]]:
         """Fetch lightweight episode metadata from Kodi JSON-RPC using proper batch requests"""
@@ -2046,7 +2052,7 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error("Error getting lists in folder %s: %s", folder_id, e)
-            return []
+            raise
 
     def list_contains_file_sourced_items(self, list_id: int) -> bool:
         """Check if a list contains any file-sourced media items"""
@@ -2168,7 +2174,7 @@ class QueryManager:
 
         except Exception as e:
             self.logger.error("Failed to get all folders: %s", e)
-            return []
+            raise
 
     def get_folder_navigation_batch(self, folder_id: str) -> Dict[str, Any]:
         """Get folder info, subfolders, and lists in a single batch query for navigation optimization"""
@@ -2294,6 +2300,7 @@ class QueryManager:
                     fallback_data['lists'] = self.get_lists_in_folder(folder_id) or []
             except Exception as fallback_error:
                 self.logger.error("Fallback query also failed for folder %s: %s", folder_id, fallback_error)
+                raise
             
             return fallback_data
 

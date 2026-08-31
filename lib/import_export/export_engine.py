@@ -135,7 +135,7 @@ class ExportEngine:
 
         except Exception as e:
             self.logger.error("Error collecting %s data: %s", export_type, e)
-            return [], 0
+            raise
 
     def _collect_lists_data(self, context_filter: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict], int]:
         """Collect lists data with optional context filtering"""

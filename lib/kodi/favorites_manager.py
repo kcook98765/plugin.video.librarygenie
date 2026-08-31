@@ -180,11 +180,7 @@ class Phase4FavoritesManager:
 
         except Exception as e:
             self.logger.error("Error in batch import: %s", e)
-            return {
-                "items_added": 0,
-                "items_updated": 0,
-                "items_mapped": 0
-            }
+            raise
 
     def _find_library_match_enhanced(self, target_raw: str, classification: str, normalized_key: str) -> Optional[int]:
         """Phase 4: Enhanced library matching with multiple strategies"""
