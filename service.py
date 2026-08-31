@@ -678,10 +678,21 @@ class LibraryGenieService:
             import xbmcaddon
             fresh_addon = xbmcaddon.Addon()
             try:
-                sync_hours = fresh_addon.getSettingInt('ai_search_sync_interval')
+                interval_selector = fresh_addon.getSettingInt('ai_search_sync_interval')
             except Exception:
-                sync_hours = 1  # Default to 1 hour
-            sync_interval = min(sync_hours * 3600, 86400)  # Cap at 24 hours (86400 seconds) to avoid timeout errors
+                interval_selector = 1  # Daily
+
+            # settings.xml stores a selector: 0=Never, 1=Daily, 2=Twice Daily.
+            if interval_selector == 0:
+                log_info("Periodic AI search sync disabled by settings")
+                return
+            if interval_selector in (1, 2):
+                sync_interval = {1: 86400, 2: 43200}[interval_selector]
+            elif interval_selector >= 1800:
+                # Preserve values written by the former seconds-based slider.
+                sync_interval = min(interval_selector, 86400)
+            else:
+                sync_interval = 86400
 
             while not self.sync_stop_event.is_set():
                 if self.sync_stop_event.wait(sync_interval):
