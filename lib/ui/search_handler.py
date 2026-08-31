@@ -180,6 +180,7 @@ class SearchHandler:
 
     def _save_search_history(self, search_terms: str, options: Dict[str, str], results):
         """Save search results to search history and return the created list ID"""
+        list_id = None
         try:
             if results.total_count == 0:
                 self._debug("No results to save to search history")
@@ -222,10 +223,15 @@ class SearchHandler:
                 return None
 
         except Exception as e:
+            if list_id:
+                try:
+                    self.query_manager.delete_list(list_id)
+                except Exception as cleanup_error:
+                    self._warn(f"Failed to clean up search history list {list_id}: {cleanup_error}")
             self._error(f"Failed to save search history: {e}")
             import traceback
             self._error(f"Search history save traceback: {traceback.format_exc()}")
-            return None
+            raise
 
     def _try_redirect_to_saved_search_list(self) -> bool:
         """Redirect to the most recent search history list"""

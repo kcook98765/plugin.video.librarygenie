@@ -74,7 +74,7 @@ class KodiJsonRpcClient:
 
             if "error" in response:
                 self.logger.error("JSON-RPC error: %s", response['error'])
-                return {"movies": [], "limits": {"total": 0}}
+                raise RuntimeError("JSON-RPC GetMovies failed: %s" % response['error'])
 
             result = response.get("result", {})
             movies = result.get("movies", [])
@@ -93,7 +93,7 @@ class KodiJsonRpcClient:
 
         except Exception as e:
             self.logger.error("JSON-RPC request failed: %s", e)
-            return {"movies": [], "limits": {"total": 0}}
+            raise
 
     def get_movie_count(self) -> int:
         """Get total count of movies in library"""
@@ -114,7 +114,7 @@ class KodiJsonRpcClient:
 
             if "error" in response:
                 self.logger.error("JSON-RPC count error: %s", response['error'])
-                return 0
+                raise RuntimeError("JSON-RPC movie count failed: %s" % response['error'])
 
             result = response.get("result", {})
             limits = result.get("limits", {"total": 0})
@@ -123,7 +123,7 @@ class KodiJsonRpcClient:
 
         except Exception as e:
             self.logger.error("JSON-RPC count request failed: %s", e)
-            return 0
+            raise
 
     def get_movies_quick_check(self) -> List[Dict[str, Any]]:
         """Quick check of library IDs and basic metadata for delta detection"""
@@ -173,7 +173,7 @@ class KodiJsonRpcClient:
 
             if "error" in response:
                 self.logger.error("JSON-RPC paginated quick check error: %s", response['error'])
-                return {"movies": [], "limits": {"total": 0}}
+                raise RuntimeError("JSON-RPC movie snapshot failed: %s" % response['error'])
 
             result = response.get("result", {})
             movies = result.get("movies", [])
@@ -183,7 +183,7 @@ class KodiJsonRpcClient:
 
         except Exception as e:
             self.logger.error("JSON-RPC paginated quick check failed: %s", e)
-            return {"movies": [], "limits": {"total": 0}}
+            raise
     
     def get_episodes_quick_check_paginated(self, offset: int = 0, limit: int = 500) -> Dict[str, Any]:
         """Get minimal TV episode data for delta sync in memory-efficient batches"""
@@ -203,7 +203,7 @@ class KodiJsonRpcClient:
 
             if "error" in response:
                 self.logger.error("JSON-RPC episodes paginated quick check error: %s", response['error'])
-                return {"episodes": [], "limits": {"total": 0}}
+                raise RuntimeError("JSON-RPC episode snapshot failed: %s" % response['error'])
 
             result = response.get("result", {})
             episodes = result.get("episodes", [])
@@ -213,7 +213,7 @@ class KodiJsonRpcClient:
 
         except Exception as e:
             self.logger.error("JSON-RPC episodes paginated quick check failed: %s", e)
-            return {"episodes": [], "limits": {"total": 0}}
+            raise
 
     def get_movie_details(self, movie_id: int) -> Optional[Dict[str, Any]]:
         """Get details for a specific movie by ID with full metadata for sync compatibility"""
@@ -350,7 +350,7 @@ class KodiJsonRpcClient:
 
             if "error" in response:
                 self.logger.error("JSON-RPC error: %s", response['error'])
-                return {"tvshows": [], "limits": {"total": 0}}
+                raise RuntimeError("JSON-RPC GetTVShows failed: %s" % response['error'])
 
             result = response.get("result", {})
             tvshows = result.get("tvshows", [])
@@ -369,7 +369,7 @@ class KodiJsonRpcClient:
 
         except Exception as e:
             self.logger.error("JSON-RPC request failed: %s", e)
-            return {"tvshows": [], "limits": {"total": 0}}
+            raise
 
     def get_tvshow_count(self) -> int:
         """Get total count of TV shows in library"""
@@ -390,7 +390,7 @@ class KodiJsonRpcClient:
 
             if "error" in response:
                 self.logger.error("JSON-RPC count error: %s", response['error'])
-                return 0
+                raise RuntimeError("JSON-RPC TV show count failed: %s" % response['error'])
 
             result = response.get("result", {})
             limits = result.get("limits", {"total": 0})
@@ -399,7 +399,7 @@ class KodiJsonRpcClient:
 
         except Exception as e:
             self.logger.error("JSON-RPC count request failed: %s", e)
-            return 0
+            raise
 
     def get_episodes_for_tvshow(self, tvshow_id: int) -> List[Dict[str, Any]]:
         """Get all episodes for a specific TV show"""
@@ -424,7 +424,10 @@ class KodiJsonRpcClient:
 
             if "error" in response:
                 self.logger.error("JSON-RPC error getting episodes for show %s: %s", tvshow_id, response['error'])
-                return []
+                raise RuntimeError(
+                    "JSON-RPC episodes for TV show %s failed: %s"
+                    % (tvshow_id, response['error'])
+                )
 
             result = response.get("result", {})
             episodes = result.get("episodes", [])
@@ -442,7 +445,7 @@ class KodiJsonRpcClient:
 
         except Exception as e:
             self.logger.error("Error getting episodes for TV show %s: %s", tvshow_id, e)
-            return []
+            raise
 
     def get_tvshows_quick_check(self) -> List[Dict[str, Any]]:
         """Get minimal TV show data for quick scanning (used for delta scans)"""

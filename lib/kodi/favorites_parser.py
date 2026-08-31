@@ -109,7 +109,7 @@ class Phase4FavoritesParser:
             
         except Exception as e:
             self.logger.error("Error parsing favorites file: %s", e)
-            return []
+            raise
     
     def _parse_xml_tolerantly(self, file_path: str) -> List[Dict]:
         """Parse XML with tolerance for whitespace, CDATA, and unexpected nodes"""
@@ -137,7 +137,7 @@ class Phase4FavoritesParser:
                     self.logger.debug("XML recovered after cleaning")
                 except ET.ParseError as e2:
                     self.logger.error("XML unrecoverable: %s", e2)
-                    return favorites
+                    raise ValueError("Unrecoverable favorites XML: %s" % e2) from e2
             
             # Handle different root tag variations
             if root.tag not in ['favourites', 'favorites']:
@@ -158,7 +158,7 @@ class Phase4FavoritesParser:
             
         except Exception as e:
             self.logger.error("Error in tolerant XML parsing: %s", e)
-            return []
+            raise
     
     def _clean_xml_content(self, content: str) -> str:
         """Clean XML content to handle common formatting issues"""
